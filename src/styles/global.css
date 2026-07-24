@@ -1,0 +1,17 @@
+@import "tailwindcss";
+@import "@fontsource-variable/josefin-sans";
+
+* {
+
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+}
+
+body {
+  font-family: "Josefin Sans Variable", sans-serif;
+}

@@ -5,16 +5,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 export function useToggleTodo() {
   const queryClient = useQueryClient();
 
-  //   return useMutation({
-  //     mutationFn: toggleTodo,
-
-  //     onSuccess: (updatedTodo) => {
-  //       queryClient.setQueryData<IServiceTodo[]>(["todos"], (old = []) =>
-  //         old.map((todo) => (todo.id === updatedTodo.id ? updatedTodo : todo)),
-  //       );
-  //     },
-  //   });
-
   //? Optimistic Update
   return useMutation({
     mutationFn: toggleTodo,
