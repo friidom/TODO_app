@@ -1,17 +1,18 @@
 @import "tailwindcss";
 @import "@fontsource-variable/josefin-sans";
 
-* {
-
-  box-sizing: border-box;
-}
-
-html,
-body,
-#root {
-  width: 100%;
-}
-
 body {
   font-family: "Josefin Sans Variable", sans-serif;
+}
+
+/* Подключение Tailwind v4 (старые @tailwind base/components/utilities больше не работают!) */
+@import "tailwindcss";
+
+/* Жестко запрещаем всей странице скроллиться и фиксируем высоту */
+html, body, #root {
+  height: 100dvh;
+  margin: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }

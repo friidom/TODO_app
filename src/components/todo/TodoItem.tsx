@@ -18,7 +18,7 @@ export default function TodoItem(todo: IServiceTodo) {
       />
       {/* <span>{title}</span> */}
       <p
-        className={`line-clamp-1  w-full grow-0 group-hover:line-clamp-none group-focus:line-clamp-none group-focus-visible:line-clamp-none ${completed ? " text-gray-500 line-through decoration-2" : "text-clr-todo-text"}`}
+        className={`line-clamp-1 min-w-0 flex-1 group-hover:line-clamp-none group-focus:line-clamp-none group-focus-visible:line-clamp-none ${completed ? " text-gray-500 line-through decoration-2" : "text-clr-todo-text"}`}
       >
         {title}
       </p>

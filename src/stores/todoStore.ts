@@ -12,40 +12,33 @@ interface TodoStore {
   toogleTodo: (id: number) => void;
 }
 
-export const useTodoStore = create<TodoStore>()(
-  persist(
-    (set) => ({
-      todos: [],
+export const useTodoStore = create<TodoStore>()((set) => ({
+  todos: [],
 
-      addTodo: (title) => {
-        set((state) => ({
-          todos: [
-            ...state.todos,
-            {
-              id: Date.now(),
-              title,
-              complete: false,
-            },
-          ],
-        }));
-      },
+  addTodo: (title) => {
+    set((state) => ({
+      todos: [
+        ...state.todos,
+        {
+          id: Date.now(),
+          title,
+          complete: false,
+        },
+      ],
+    }));
+  },
 
-      removeTodo: (id) => {
-        set((state) => ({
-          todos: state.todos.filter((todo) => todo.id !== id),
-        }));
-      },
+  removeTodo: (id) => {
+    set((state) => ({
+      todos: state.todos.filter((todo) => todo.id !== id),
+    }));
+  },
 
-      toogleTodo: (id) => {
-        set((state) => ({
-          todos: state.todos.map((todo) =>
-            todo.id === id ? { ...todo, complete: !todo.complete } : todo,
-          ),
-        }));
-      },
-    }),
-    {
-      name: "todo-storage",
-    },
-  ),
-);
+  toogleTodo: (id) => {
+    set((state) => ({
+      todos: state.todos.map((todo) =>
+        todo.id === id ? { ...todo, complete: !todo.complete } : todo,
+      ),
+    }));
+  },
+}));

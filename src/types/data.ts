@@ -6,3 +6,10 @@ export interface ITodo {
 export interface IServiceTodo extends ITodo {
   userId: number;
 }
+export interface ISupabaseTodo {
+    id: number;
+    title: string;
+    completed: boolean;
+    user_id: string;
+    created_at: string;
+}

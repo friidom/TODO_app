@@ -1,0 +1,65 @@
+import { useState } from "react";
+import { useRegister } from "../../services/lib/auth/useRegister";
+
+interface RegisterFormProps {
+  onSwitch: () => void;
+}
+
+export default function RegisterForm({ onSwitch }: RegisterFormProps) {
+  const register = useRegister();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+
+    register.mutate({
+      email,
+      password,
+    });
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="flex w-full max-w-md flex-col gap-4 rounded-xl bg-white p-8"
+    >
+      <h1 className="text-3xl font-bold">Register</h1>
+
+      <input
+        type="email"
+        placeholder="Email"
+        className="rounded border p-3"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
+
+      <input
+        type="password"
+        placeholder="Password"
+        className="rounded border p-3"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
+
+      <button
+        className="rounded bg-violet-600 p-3 text-white"
+        type="submit"
+      >
+        Register
+      </button>
+
+      <p className="text-center">
+        Already have an account?{" "}
+        <button
+          type="button"
+          onClick={onSwitch}
+          className="font-semibold text-violet-600"
+        >
+          Login
+        </button>
+      </p>
+    </form>
+  );
+}
