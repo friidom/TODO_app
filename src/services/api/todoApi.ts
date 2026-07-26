@@ -4,43 +4,6 @@ import { useAuth } from "../lib/auth/useAuth";
 // import { BASE_URL } from "../../constants/consants";
 import { supabase } from "./supabase";
 
-// //GET
-// export async function fetchTodos(): Promise<IServiceTodo[]> {
-//   const res = await axios.get<IServiceTodo[]>(`${BASE_URL}/todos`);
-//   return res.data;
-
-// }
-
-// //POST
-// export async function addTodo(title: string): Promise<IServiceTodo> {
-//   const res = await axios.post<IServiceTodo>(`${BASE_URL}/todos`, {
-//     userId: Date.now(), //random?
-//     title,
-//     completed: false,
-//   });
-//   return {
-//     ...res.data,
-//     id: Date.now(),
-//   };
-// }
-
-// //PATCH
-// export async function toggleTodo(todo: IServiceTodo): Promise<IServiceTodo> {
-//   await axios.patch<IServiceTodo>(`${BASE_URL}/todos/${todo.id}`, {
-//     completed: !todo.completed,
-//   });
-
-//   return {
-//     ...todo,
-//     completed: !todo.completed,
-//   };
-// }
-
-// //DELETE
-// export async function deleteTodo(id: number): Promise<number> {
-//   await axios.delete(`${BASE_URL}/todos/${id}`);
-//   return id;
-// }
 
 //!SUPABASE//
 
@@ -49,8 +12,8 @@ export async function fetchTodos(userId: string) {
   const { data, error } = await supabase
     .from("todos")
     .select("*")
-    .eq("user_id", userId);
-
+    .eq("user_id", userId)
+    .order("position", { ascending: true });
   console.log(data);
 
   if (error) throw error;
@@ -59,12 +22,33 @@ export async function fetchTodos(userId: string) {
 }
 
 //post
-export async function addTodo(title: string, userId: string) {
+export async function addTodo(title: string) {
+  //! drag and drop
+  
+  const {
+  data: { user },
+} = await supabase.auth.getUser();
+
+if (!user) throw new Error("Not authenticated");
+
+const {
+  count,
+  error: countError,
+} = await supabase
+  .from("todos")
+  .select("*", { count: "exact", head: true })
+  .eq("user_id", user.id);
+
+if (countError) throw countError;
+
   const { data, error } = await supabase
     .from("todos")
     .insert({
       title,
       completed: false,
+      user_id: user.id,
+      position: count ?? 0,
+
     })
     .select()
     .single();
@@ -73,17 +57,6 @@ export async function addTodo(title: string, userId: string) {
 
   return data;
 }
-//   const { data, error } = await supabase
-//   .from("todos")
-//   .insert({
-//     title,
-//     completed: false,
-//   })
-//   .select()
-//   .single();
-
-// console.log(error);
-// }
 
 //patch
 export async function toggleTodo(todo: ISupabaseTodo) {
@@ -108,4 +81,30 @@ export async function deleteTodo(id: number) {
   if (error) throw error;
 
   return id;
+}
+
+
+//drag and drop order 
+export async function reorderTodos(todos: ISupabaseTodo[]) {
+  const updates = todos.map((todo, index) => ({
+    id: todo.id,
+    position: index,
+  }));
+
+  const { error } = await supabase
+    .from("todos")
+    .upsert(updates);
+
+  if (error) throw error;
+}
+
+//clear completed
+export async function clearCompleted(userId: string) {
+  const { error } = await supabase
+    .from("todos")
+    .delete()
+    .eq("user_id", userId)
+    .eq("completed", true);
+
+  if (error) throw error;
 }

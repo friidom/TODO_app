@@ -1,67 +1,51 @@
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { addTodo } from "../../api/todoApi";
-import type { IServiceTodo } from "../../../types/data";
+import type { ISupabaseTodo } from "../../../types/data";
 
 export function useAddTodo() {
   const queryClient = useQueryClient();
 
-  // return useMutation({
-  //   mutationFn: addTodo,
-
-  //   onSuccess: (newTodo) => {
-  //     queryClient.setQueryData<IServiceTodo[]>(
-  //       ["todos"],
-  //       (old = []) => [newTodo , ...old]
-  //     );
-  //   },
-  // });
-
-  //? Optimistic Update
   return useMutation({
     mutationFn: addTodo,
 
     onMutate: async (title) => {
-      //stop
       await queryClient.cancelQueries({
         queryKey: ["todos"],
       });
 
-      //save old todos
-      const previousTodos = queryClient.getQueryData<IServiceTodo[]>(["todos"]);
+      const previousTodos =
+        queryClient.getQueryData<ISupabaseTodo[]>(["todos"]) ?? [];
 
-      //temp todo
-      const optimisticTodo: IServiceTodo = {
+      const optimisticTodo: ISupabaseTodo = {
         id: Date.now(),
-        userId: 1,
         title,
         completed: false,
+        user_id: "",
+        created_at: new Date().toISOString(),
+        position: previousTodos.length,
       };
 
-      //add to chache
-      queryClient.setQueryData<IServiceTodo[]>(["todos"], (old = []) => [
-        optimisticTodo,
-        ...old,
-      ]);
+      queryClient.setQueryData<ISupabaseTodo[]>(
+        ["todos"],
+        [...previousTodos, optimisticTodo]
+      );
+
       return {
         previousTodos,
         optimisticId: optimisticTodo.id,
       };
     },
-    onError: (_error, _title, context) => {
-      //error handeling 
+
+    onError: (_err, _title, context) => {
       queryClient.setQueryData(["todos"], context?.previousTodos);
     },
+
     onSuccess: (serverTodo, _title, context) => {
-      //change tmp with real data 
-      queryClient.setQueryData<IServiceTodo[]>(["todos"], (old = []) =>
+      queryClient.setQueryData<ISupabaseTodo[]>(["todos"], (old = []) =>
         old.map((todo) =>
-          todo.id === context?.optimisticId
-            ? {
-                ...serverTodo,
-                id: context.optimisticId,
-              }
-            : todo,
-        ),
+          todo.id === context?.optimisticId ? serverTodo : todo
+        )
       );
     },
   });

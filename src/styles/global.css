@@ -1,4 +1,4 @@
-@import "tailwindcss";
+
 @import "@fontsource-variable/josefin-sans";
 
 body {
@@ -15,4 +15,53 @@ html, body, #root {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+/* Chrome, Edge, Safari */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #5a5a5a;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #7a7a7a;
+}
+
+.todo-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.todo-scrollbar:hover {
+  scrollbar-color: #666 transparent;
+}
+
+@utility scrollbar-hidden {
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgb(82 82 91);
+    border-radius: 9999px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: rgb(113 113 122);
+  }
+
+  scrollbar-width: thin;
+  scrollbar-color: rgb(82 82 91) transparent;
 }

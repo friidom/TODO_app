@@ -1,4 +1,4 @@
-import type { IServiceTodo } from "../../../types/data";
+import type {  ISupabaseTodo } from "../../../types/data";
 import { toggleTodo } from "../../api/todoApi";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -14,9 +14,9 @@ export function useToggleTodo() {
         queryKey: ["todos"],
       });
 
-      const previousTodos = queryClient.getQueryData<IServiceTodo[]>(["todos"]);
+      const previousTodos = queryClient.getQueryData<ISupabaseTodo[]>(["todos"]);
 
-      queryClient.setQueryData<IServiceTodo[]>(["todos"], (old = []) =>
+      queryClient.setQueryData<ISupabaseTodo[]>(["todos"], (old = []) =>
         old.map((t) =>
           t.id === todo.id
             ? {

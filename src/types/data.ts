@@ -12,4 +12,5 @@ export interface ISupabaseTodo {
     completed: boolean;
     user_id: string;
     created_at: string;
+    position: number;
 }

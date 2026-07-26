@@ -6,15 +6,31 @@ import { useAddTodo } from "./services/lib/index";
 import "./styles/global.css";
 import Layout from "./components/layout/Layout";
 import TodoForm from "./components/todo/TodoForm";
-import { useRegister } from "./services/lib/auth/useRegister";
 import { supabase } from "./services/api/supabase";
-import LoginForm from "./components/auth/LoginForm";
+import { DndContext, closestCenter } from "@dnd-kit/core";
 import { useAuth } from "./services/lib/auth/useAuth";
 import TodoPage from "./components/pages/TodoPage";
 import AuthPage from "./components/pages/AuthPage";
-import { useLogout } from "./services/lib/auth/useLogout";
+import {
+  restrictToParentElement,
+  restrictToVerticalAxis,
+} from "@dnd-kit/modifiers";
+import { useReorderTodos } from "./services/lib/todos/useReorderTodos";
+import { cn } from "./services/lib/utils";
+import { filters } from "./constants/consants";
+import { useClearCompleted } from "./services/lib/index";
+
 function App() {
-  ///test
+  const [value, setValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null!);
+  //!Quary Todos//
+  const addTodoMutation = useAddTodo();
+  const { data: todos, isLoading, error } = useTodos();
+  const { user, loading } = useAuth();
+  const clearCompletedMutation = useClearCompleted();
+  const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
+
+  //!test
   useEffect(() => {
     async function getUser() {
       const {
@@ -27,13 +43,12 @@ function App() {
     getUser();
   }, []);
 
-  const [value, setValue] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null!);
-
-  const addTodoMutation = useAddTodo();
+  //!DRAG AND DROP
+  const reorderTodos = useReorderTodos();
 
   // const addTodo = useTodoStore((state) => state.addTodo);
 
+  //! HANDLERS
   const handleOnChange: React.ChangeEventHandler<HTMLInputElement> = (e) => {
     setValue(e.target.value);
   };
@@ -57,17 +72,27 @@ function App() {
     }
   }, []);
 
-  //Quary Todos//
+  //! Sorting
 
-  const { data: todos, isLoading, error } = useTodos();
-  const { user, loading } = useAuth();
+  const filteredTodos = (todos ?? []).filter((todo) => {
+    switch (filter) {
+      case "active":
+        return !todo.completed;
+
+      case "completed":
+        return todo.completed;
+
+      default:
+        return true;
+    }
+  });
   console.log(todos);
 
   if (isLoading) return <p>Loading...</p>;
 
   if (error) return <p>{error.message}</p>;
 
-  ///AUTH
+  //!/AUTH
 
   if (loading) {
     return <p>Loading...</p>;
@@ -89,8 +114,45 @@ function App() {
           ref={inputRef}
           className="mb-4 flex items-center gap-2 rounded-xl bg-red-200 py-3 pl-3 pr-5 shadow-md md:py-4"
         />
+        {/* //! drag and drop  */}
+        <DndContext
+          collisionDetection={closestCenter}
+          onDragEnd={reorderTodos}
+          modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+        >
+          <TodoList todos={filteredTodos} />
 
-        <TodoList todos={todos ?? []} />
+          {/* //! stats */}
+
+          <div className="flex items-center bg-red-200 shadow-lg justify-between gap-2 rounded-b-md border-clr-todo-borders bg-red-100 px-4 py-3 text-sm text-gray-500">
+            <p className="">{todos?.length} items left</p>
+            <div className="flex gap-2 py-2 ">
+              {filters.map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setFilter(key)}
+                  className={cn(
+                    "cursor-pointer transition-colors duration-150",
+                    filter === key
+                      ? "font-semibold text-blue-500"
+                      : "text-gray-500 hover:text-gray-50",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <button
+              className="cursor-pointer transition-colors duration-150 text-gray-500 hover:text-red-500"
+              onClick={() => {
+                clearCompletedMutation.mutate(user.id);
+              }}
+            >
+              Clear Completed
+            </button>
+          </div>
+        </DndContext>
       </Layout>
     </TodoPage>
   );

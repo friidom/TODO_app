@@ -8,8 +8,7 @@ export function useTodos() {
     queryKey: ["todos"],
     queryFn: () => fetchTodos(user?.id!),
     enabled: Boolean(user?.id),
-    staleTime: 1000 * 60 * 5, //5 min
+    // staleTime: 1000 * 60 * 5, //5 min
   });
 }
 
-// TODO: TAILWIND !!!
