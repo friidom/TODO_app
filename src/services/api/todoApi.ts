@@ -1,4 +1,4 @@
-import type { ISupabaseTodo } from "../../types/data";
+import type { ISupabaseTodo, ITodo } from "../../types/data";
 import { useAuth } from "../lib/auth/useAuth";
 // import axios from "axios";
 // import { BASE_URL } from "../../constants/consants";
@@ -107,4 +107,21 @@ export async function clearCompleted(userId: string) {
     .eq("completed", true);
 
   if (error) throw error;
+}
+
+//edit todos
+export async function updateTodo(todo: ITodo) {
+  const { data, error } = await supabase
+    .from("todos")
+    .update({
+      title: todo.title,
+      completed: todo.completed,
+    })
+    .eq("id", todo.id)
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  return data;
 }

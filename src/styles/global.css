@@ -65,3 +65,36 @@ html, body, #root {
   scrollbar-width: thin;
   scrollbar-color: rgb(82 82 91) transparent;
 }
+
+
+
+@keyframes liquidShine {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+@keyframes bubble {
+  0% {
+    transform: translate(-50%, 10px) scale(.5);
+    opacity: 0;
+  }
+
+  20% {
+    opacity: .4;
+  }
+
+  50% {
+    transform: translate(-50%, -10px) scale(.8);
+    opacity: .25;
+  }
+
+  100% {
+    transform: translate(-50%, -30px) scale(1);
+    opacity: 0;
+  }
+}

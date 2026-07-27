@@ -1,11 +1,8 @@
 import { useState } from "react";
 import { useRegister } from "../../services/lib/auth/useRegister";
+import { Link } from "react-router";
 
-interface RegisterFormProps {
-  onSwitch: () => void;
-}
-
-export default function RegisterForm({ onSwitch }: RegisterFormProps) {
+export default function RegisterForm() {
   const register = useRegister();
 
   const [email, setEmail] = useState("");
@@ -44,7 +41,7 @@ export default function RegisterForm({ onSwitch }: RegisterFormProps) {
       />
 
       <button
-        className="rounded bg-violet-600 p-3 text-white"
+        className="cursor-pointer rounded text-center bg-violet-600 p-3 text-white"
         type="submit"
       >
         Register
@@ -52,13 +49,9 @@ export default function RegisterForm({ onSwitch }: RegisterFormProps) {
 
       <p className="text-center">
         Already have an account?{" "}
-        <button
-          type="button"
-          onClick={onSwitch}
-          className="font-semibold text-violet-600"
-        >
+        <Link to="/login" className="font-semibold text-violet-600">
           Login
-        </button>
+        </Link>
       </p>
     </form>
   );

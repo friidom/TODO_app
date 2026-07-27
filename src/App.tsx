@@ -10,7 +10,6 @@ import { supabase } from "./services/api/supabase";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { useAuth } from "./services/lib/auth/useAuth";
 import TodoPage from "./components/pages/TodoPage";
-import AuthPage from "./components/pages/AuthPage";
 import {
   restrictToParentElement,
   restrictToVerticalAxis,
@@ -19,6 +18,7 @@ import { useReorderTodos } from "./services/lib/todos/useReorderTodos";
 import { cn } from "./services/lib/utils";
 import { filters } from "./constants/consants";
 import { useClearCompleted } from "./services/lib/index";
+import Loading from "./components/pages/loading/LoadingPage";
 
 function App() {
   const [value, setValue] = useState("");
@@ -73,7 +73,6 @@ function App() {
   }, []);
 
   //! Sorting
-
   const filteredTodos = (todos ?? []).filter((todo) => {
     switch (filter) {
       case "active":
@@ -86,25 +85,16 @@ function App() {
         return true;
     }
   });
-  console.log(todos);
 
-  if (isLoading) return <p>Loading...</p>;
+  if (isLoading) return <Loading />;
 
   if (error) return <p>{error.message}</p>;
 
-  //!/AUTH
-
-  if (loading) {
-    return <p>Loading...</p>;
-  }
-
-  if (!user) {
-    return <AuthPage />;
-  }
-
   return (
     <TodoPage>
+      {/* <Loading /> */}
       <Layout>
+        
         <h1 className="text-4xl text-center mb-4">TODO</h1>
         <TodoForm
           value={value}
@@ -146,7 +136,7 @@ function App() {
             <button
               className="cursor-pointer transition-colors duration-150 text-gray-500 hover:text-red-500"
               onClick={() => {
-                clearCompletedMutation.mutate(user.id);
+                clearCompletedMutation.mutate(user!.id);
               }}
             >
               Clear Completed

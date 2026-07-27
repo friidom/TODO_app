@@ -1,11 +1,8 @@
 import { useState } from "react";
 import { useLogin } from "../../services/lib/auth/useLogin";
+import { Link } from "react-router";
 
-interface LoginFormProps {
-  onSwitch: () => void;
-}
-
-export default function LoginForm({ onSwitch }: LoginFormProps) {
+export default function LoginForm() {
   const login = useLogin();
 
   const [email, setEmail] = useState("");
@@ -44,7 +41,7 @@ export default function LoginForm({ onSwitch }: LoginFormProps) {
       />
 
       <button
-        className="rounded bg-violet-600 p-3 text-white"
+        className="cursor-pointer rounded bg-violet-600 p-3 text-white "
         type="submit"
       >
         Login
@@ -52,13 +49,9 @@ export default function LoginForm({ onSwitch }: LoginFormProps) {
 
       <p className="text-center">
         Don't have an account?{" "}
-        <button
-          type="button"
-          onClick={onSwitch}
-          className="font-semibold text-violet-600"
-        >
-          Register
-        </button>
+        <Link to="/register" className="font-semibold text-violet-600">
+           Register
+        </Link>
       </p>
     </form>
   );
