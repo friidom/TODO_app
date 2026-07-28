@@ -4,7 +4,6 @@ import { useAuth } from "../lib/auth/useAuth";
 // import { BASE_URL } from "../../constants/consants";
 import { supabase } from "./supabase";
 
-
 //!SUPABASE//
 
 //get
@@ -24,22 +23,19 @@ export async function fetchTodos(userId: string) {
 //post
 export async function addTodo(title: string) {
   //! drag and drop
-  
+
   const {
-  data: { user },
-} = await supabase.auth.getUser();
+    data: { user },
+  } = await supabase.auth.getUser();
 
-if (!user) throw new Error("Not authenticated");
+  if (!user) throw new Error("Not authenticated");
 
-const {
-  count,
-  error: countError,
-} = await supabase
-  .from("todos")
-  .select("*", { count: "exact", head: true })
-  .eq("user_id", user.id);
+  const { count, error: countError } = await supabase
+    .from("todos")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", user.id);
 
-if (countError) throw countError;
+  if (countError) throw countError;
 
   const { data, error } = await supabase
     .from("todos")
@@ -48,7 +44,7 @@ if (countError) throw countError;
       completed: false,
       user_id: user.id,
       position: count ?? 0,
-
+      status: "todo",
     })
     .select()
     .single();
@@ -60,15 +56,43 @@ if (countError) throw countError;
 
 //patch
 export async function toggleTodo(todo: ISupabaseTodo) {
-  const { data, error } = await supabase
-    .from("todos")
-    .update({
-      completed: !todo.completed,
-    })
-    .eq("id", todo.id)
-    .select()
-    .single();
+  const completed = !todo.completed;
 
+  const nextStatus = completed ? "completed" : (todo.previous_status ?? "todo");
+
+  const { count } = await supabase
+    .from("todos")
+    .select("*", {
+      head: true,
+      count: "exact",
+    })
+    .eq("user_id", todo.user_id)
+    .eq("status", nextStatus);
+
+  const nextPosition = completed ? 0 : (count ?? 0);
+  
+  if (completed) {
+  const { error } = await supabase.rpc(
+    "shift_completed_positions",
+    {
+      p_user_id: todo.user_id,
+    },
+  );
+
+  if (error) throw error;
+}
+  const { data, error } = await supabase
+  .from("todos")
+  .update({
+    completed,
+    status: nextStatus,
+    previous_status: completed ? todo.status : null,
+    position: nextPosition,
+  })
+  .eq("id", todo.id)
+  .select()
+  .single();
+  
   if (error) throw error;
 
   return data;
@@ -83,17 +107,17 @@ export async function deleteTodo(id: number) {
   return id;
 }
 
-
-//drag and drop order 
+//reorder
 export async function reorderTodos(todos: ISupabaseTodo[]) {
-  const updates = todos.map((todo, index) => ({
+  const updates = todos.map((todo) => ({
     id: todo.id,
-    position: index,
+    position: todo.position,
+    status: todo.status,
   }));
 
-  const { error } = await supabase
-    .from("todos")
-    .upsert(updates);
+  const { error } = await supabase.from("todos").upsert(updates, {
+    onConflict: "id",
+  });
 
   if (error) throw error;
 }
@@ -110,14 +134,32 @@ export async function clearCompleted(userId: string) {
 }
 
 //edit todos
-export async function updateTodo(todo: ITodo) {
+export async function updateTodo(todo: ISupabaseTodo) {
   const { data, error } = await supabase
     .from("todos")
     .update({
       title: todo.title,
       completed: todo.completed,
+      status: todo.status,
     })
     .eq("id", todo.id)
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  return data;
+}
+
+//update todo status
+export async function updateTodoStatus(
+  id: number,
+  status: "todo" | "in_progress" | "completed" | "rejected",
+) {
+  const { data, error } = await supabase
+    .from("todos")
+    .update({ status })
+    .eq("id", id)
     .select()
     .single();
 

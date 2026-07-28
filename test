@@ -1,5 +1,0 @@
-create policy "Users can manage own profile"
-on profiles
-for all
-using (auth.uid() = id)
-with check (auth.uid() = id);

@@ -6,14 +6,19 @@ export interface ITodo {
 export interface IServiceTodo extends ITodo {
   userId: number;
 }
+export type TodoStatus = "todo" | "in_progress" | "completed" | "rejected";
+
 export interface ISupabaseTodo {
   id: number;
   title: string;
   completed: boolean;
-  user_id: string;
-  created_at: string;
   position: number;
+  user_id: string;
+
+  status: TodoStatus;
+  previous_status: TodoStatus | null;
 }
+
 export interface ISupabaseProfile {
   id: string;
   email: string;

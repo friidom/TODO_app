@@ -1,34 +1,71 @@
 import type React from "react";
 import { useState, useEffect, useRef } from "react";
 import { useTodos } from "./services/lib";
-import TodoList from "./components/todo/TodoList";
+import { useTranslation } from "react-i18next";
 import { useAddTodo } from "./services/lib/index";
 import "./styles/global.css";
 import Layout from "./components/layout/Layout";
 import TodoForm from "./components/todo/TodoForm";
 import { supabase } from "./services/api/supabase";
-import { DndContext, closestCenter } from "@dnd-kit/core";
-import { useAuth } from "./services/lib/auth/useAuth";
+import { closestCenter, DndContext, pointerWithin } from "@dnd-kit/core";
+
 import TodoPage from "./components/pages/TodoPage";
-import {
-  restrictToParentElement,
-  restrictToVerticalAxis,
-} from "@dnd-kit/modifiers";
+
 import { useReorderTodos } from "./services/lib/todos/useReorderTodos";
-import { cn } from "./services/lib/utils";
-import { filters } from "./constants/consants";
+
+import { DragOverlay } from "@dnd-kit/core";
 import { useClearCompleted } from "./services/lib/index";
 import Loading from "./components/pages/loading/LoadingPage";
+import { columns } from "./constants/columns";
+
+import KanbanColumn from "./components/kanban/KanbanColumn";
+import { useDragOverTodos } from "./services/lib/todos/useDragOverTodos";
+import TodoItem from "./components/todo/TodoItem";
 
 function App() {
+  const { t } = useTranslation();
   const [value, setValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null!);
+  const [activeId, setActiveId] = useState<string | null>(null);
+
   //!Quary Todos//
   const addTodoMutation = useAddTodo();
   const { data: todos, isLoading, error } = useTodos();
-  const { user, loading } = useAuth();
+
+  const activeTodo = todos?.find((t) => t.id === activeId) ?? null;
+  
+  const groupedTodos = {
+    todo:
+    todos
+    ?.filter((t) => t.status === "todo")
+    .sort((a, b) => a.position - b.position) ?? [],
+    
+    in_progress:
+    todos
+    ?.filter((t) => t.status === "in_progress")
+    .sort((a, b) => a.position - b.position) ?? [],
+    
+    completed:
+    todos
+    ?.filter((t) => t.status === "completed")
+    .sort((a, b) => a.position - b.position) ?? [],
+    
+    rejected:
+    todos
+    ?.filter((t) => t.status === "rejected")
+    .sort((a, b) => a.position - b.position) ?? [],
+  };
+  console.log(
+    groupedTodos.todo.map((t) => ({
+      id: t.id,
+      pos: t.position,
+    })),
+  );
+  // console.log(columns.map((column) =>groupedTodos[column.id]))
+
+  // const { user, loading } = useAuth();
+
   const clearCompletedMutation = useClearCompleted();
-  const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
 
   //!test
   useEffect(() => {
@@ -44,8 +81,8 @@ function App() {
   }, []);
 
   //!DRAG AND DROP
-  const reorderTodos = useReorderTodos();
-
+  const handleDragEnd = useReorderTodos();
+  const handleDragOver = useDragOverTodos();
   // const addTodo = useTodoStore((state) => state.addTodo);
 
   //! HANDLERS
@@ -65,26 +102,11 @@ function App() {
 
     setValue("");
   };
-
   useEffect(() => {
     if (inputRef.current) {
       inputRef.current.focus();
     }
   }, []);
-
-  //! Sorting
-  const filteredTodos = (todos ?? []).filter((todo) => {
-    switch (filter) {
-      case "active":
-        return !todo.completed;
-
-      case "completed":
-        return todo.completed;
-
-      default:
-        return true;
-    }
-  });
 
   if (isLoading) return <Loading />;
 
@@ -94,54 +116,63 @@ function App() {
     <TodoPage>
       {/* <Loading /> */}
       <Layout>
-        
-        <h1 className="text-4xl text-center mb-4">TODO</h1>
-        <TodoForm
-          value={value}
-          handleAddTodo={handleAddTodo}
-          handleKeyDown={handleKeyDown}
-          handleOnChange={handleOnChange}
-          ref={inputRef}
-          className="mb-4 flex items-center gap-2 rounded-xl bg-red-200 py-3 pl-3 pr-5 shadow-md md:py-4"
-        />
+        <div className="mx-auto mb-8 max-w-2xl">
+          <TodoForm
+            value={value}
+            handleAddTodo={handleAddTodo}
+            handleKeyDown={handleKeyDown}
+            handleOnChange={handleOnChange}
+            ref={inputRef}
+            className=" flex items-center justify-center max-w-2xl mb-6 gap-3 rounded-2xl bg-card px-5 py-4 shadow-lg border border-app"
+          />
+        </div>
         {/* //! drag and drop  */}
         <DndContext
+          onDragStart={(event) => {
+            setActiveId(event.active.id as string);
+          }}
+          onDragOver={handleDragOver}
+          onDragEnd={(event) => {
+            setActiveId(null);
+            handleDragEnd(event);
+          }}
+          onDragCancel={() => {
+            setActiveId(null);
+          }}
           collisionDetection={closestCenter}
-          onDragEnd={reorderTodos}
-          modifiers={[restrictToVerticalAxis, restrictToParentElement]}
         >
-          <TodoList todos={filteredTodos} />
-
-          {/* //! stats */}
-
-          <div className="flex items-center bg-red-200 shadow-lg justify-between gap-2 rounded-b-md border-clr-todo-borders bg-red-100 px-4 py-3 text-sm text-gray-500">
-            <p className="">{todos?.length} items left</p>
-            <div className="flex gap-2 py-2 ">
-              {filters.map(({ key, label }) => (
-                <button
-                  key={key}
-                  onClick={() => setFilter(key)}
-                  className={cn(
-                    "cursor-pointer transition-colors duration-150",
-                    filter === key
-                      ? "font-semibold text-blue-500"
-                      : "text-gray-500 hover:text-gray-50",
-                  )}
-                >
-                  {label}
-                </button>
+          <div className="overflow-x-auto pb-4">
+            <div className="flex gap-6 min-w-max">
+              {columns.map((column) => (
+                <KanbanColumn
+                  key={column.id}
+                  id={column.id}
+                  title={t(column.id)}
+                  todos={groupedTodos[column.id]}
+                />
               ))}
             </div>
-
-            <button
-              className="cursor-pointer transition-colors duration-150 text-gray-500 hover:text-red-500"
-              onClick={() => {
-                clearCompletedMutation.mutate(user!.id);
-              }}
-            >
-              Clear Completed
-            </button>
           </div>
+          {/* <DragOverlay /> */}
+
+          <DragOverlay dropAnimation={null}>
+            {activeTodo && (
+              <div
+                className="
+      rotate-2
+      scale-105
+      cursor-grabbing
+            border-md
+
+shadow-[0_25px_60px_rgba(0,0,0,.35)]
+
+ring-violet-500/30
+      "
+              >
+                <TodoItem {...activeTodo} />
+              </div>
+            )}
+          </DragOverlay>
         </DndContext>
       </Layout>
     </TodoPage>

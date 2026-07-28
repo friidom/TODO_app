@@ -3,8 +3,7 @@ import LiquidLoading from "../../ui/LiquidLoading";
 export default function Loading() {
   return (
     <>
-      <div className="flex min-h-screen  w-full items-center justify-center rounded-lg border bg-background p-4">
-        <LiquidLoading />
+<div className="flex min-h-screen w-full items-center justify-center bg-app transition-colors">        <LiquidLoading />
         {/* {" "} */}
       </div>
     </>

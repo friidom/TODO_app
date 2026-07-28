@@ -1,5 +1,6 @@
 import { Plus } from "lucide-react";
-import { cn } from "../../services/lib/utils";
+import { useTranslation } from "react-i18next";
+
 interface ITodoForm {
   value: string;
   handleOnChange: React.ChangeEventHandler<HTMLInputElement>;
@@ -17,10 +18,13 @@ export default function TodoForm({
   ref,
   className,
 }: ITodoForm) {
+  //! translate
+  const { t } = useTranslation();
+
   return (
     <form className={className} onSubmit={handleAddTodo}>
       <button
-        className="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full border border-clr-completed"
+        className="flex text-main size-6 shrink-0 cursor-pointer items-center justify-center rounded-full border border-clr-completed"
         type="submit"
         aria-label="Add Todo"
         role="button"
@@ -33,12 +37,15 @@ export default function TodoForm({
         ref={ref}
         onChange={handleOnChange}
         onKeyDown={handleKeyDown}
-        placeholder="Create a new todo..."
-        className={cn(
-          "flex h-10 w-full rounded-md border border-input bg-background-red-200 px-3 py-2 text-lg border-0 bg-transparent"
-        )}
+        placeholder={t("createTodo")}
+        className="
+        w-full 
+        bg-transparent 
+        text-main 
+        text-lg 
+        outline-none
+        placeholder:text-gray-400"
       />
     </form>
   );
 }
-

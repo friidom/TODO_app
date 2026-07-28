@@ -1,0 +1,10 @@
+{
+  "title": "VAZIFALAR",
+  "createTodo": "Yangi vazifa...",
+  "todo": "Bajarilishi kerak",
+  "in_progress": "Jarayonda",
+  "completed": "Bajarilgan",
+  "rejected": "Rad etilgan",
+  "clearCompleted": "Bajarilganlarni tozalash",
+  "loading": "Yuklanmoqda..."
+}

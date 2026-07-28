@@ -1,0 +1,10 @@
+{
+  "title": "TODO",
+  "createTodo": "Create a new todo...",
+  "todo": "Todo",
+  "in_progress": "In Progress",
+  "completed": "Completed",
+  "rejected": "Rejected",
+  "clearCompleted": "Clear completed",
+  "loading": "Loading..."
+}

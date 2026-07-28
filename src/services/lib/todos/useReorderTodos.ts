@@ -11,18 +11,10 @@ export function useReorderTodos() {
   return (event: DragEndEvent) => {
     const { active, over } = event;
 
-    if (!over || active.id === over.id) return;
+    if (!over) return;
 
-    const todos =
-      queryClient.getQueryData<ISupabaseTodo[]>(["todos"]) ?? [];
+    const todos = queryClient.getQueryData<ISupabaseTodo[]>(["todos"]) ?? [];
 
-    const oldIndex = todos.findIndex((todo) => todo.id === active.id);
-    const newIndex = todos.findIndex((todo) => todo.id === over.id);
-
-    const newTodos = arrayMove(todos, oldIndex, newIndex);
-
-    queryClient.setQueryData(["todos"], newTodos);
-
-    saveTodoOrder.mutate(newTodos);
+    saveTodoOrder.mutate(todos);
   };
 }
