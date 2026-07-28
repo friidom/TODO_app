@@ -6,7 +6,7 @@ import { supabase } from "./supabase";
 
 //!SUPABASE//
 
-//get
+//!get
 export async function fetchTodos(userId: string) {
   const { data, error } = await supabase
     .from("todos")
@@ -20,7 +20,7 @@ export async function fetchTodos(userId: string) {
   return data;
 }
 
-//post
+//!post
 export async function addTodo(title: string) {
   //! drag and drop
 
@@ -54,7 +54,7 @@ export async function addTodo(title: string) {
   return data;
 }
 
-//patch
+//!patch
 export async function toggleTodo(todo: ISupabaseTodo) {
   const completed = !todo.completed;
 
@@ -98,7 +98,7 @@ export async function toggleTodo(todo: ISupabaseTodo) {
   return data;
 }
 
-//delete
+//!delete
 export async function deleteTodo(id: number) {
   const { error } = await supabase.from("todos").delete().eq("id", id);
 
@@ -107,7 +107,7 @@ export async function deleteTodo(id: number) {
   return id;
 }
 
-//reorder
+//!reorder
 export async function reorderTodos(todos: ISupabaseTodo[]) {
   const updates = todos.map((todo) => ({
     id: todo.id,
@@ -122,7 +122,7 @@ export async function reorderTodos(todos: ISupabaseTodo[]) {
   if (error) throw error;
 }
 
-//clear completed
+//!clear completed
 export async function clearCompleted(userId: string) {
   const { error } = await supabase
     .from("todos")
@@ -133,7 +133,7 @@ export async function clearCompleted(userId: string) {
   if (error) throw error;
 }
 
-//edit todos
+//!edit todos
 export async function updateTodo(todo: ISupabaseTodo) {
   const { data, error } = await supabase
     .from("todos")
@@ -151,7 +151,7 @@ export async function updateTodo(todo: ISupabaseTodo) {
   return data;
 }
 
-//update todo status
+//!update todo status
 export async function updateTodoStatus(
   id: number,
   status: "todo" | "in_progress" | "completed" | "rejected",

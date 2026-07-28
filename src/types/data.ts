@@ -14,7 +14,7 @@ export interface ISupabaseTodo {
   completed: boolean;
   position: number;
   user_id: string;
-
+created_at:string;
   status: TodoStatus;
   previous_status: TodoStatus | null;
 }

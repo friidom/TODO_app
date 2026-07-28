@@ -24,6 +24,8 @@ export function useAddTodo() {
         user_id: "",
         created_at: new Date().toISOString(),
         position: previousTodos.length,
+        status: "todo",
+        previous_status: null
       };
 
       queryClient.setQueryData<ISupabaseTodo[]>(

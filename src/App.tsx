@@ -114,7 +114,6 @@ function App() {
 
   return (
     <TodoPage>
-      {/* <Loading /> */}
       <Layout>
         <div className="mx-auto mb-8 max-w-2xl">
           <TodoForm
