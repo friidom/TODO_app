@@ -24,12 +24,12 @@ export default function TodoForm({
   return (
     <form className={className} onSubmit={handleAddTodo}>
       <button
-        className="flex text-main size-6 shrink-0 cursor-pointer items-center justify-center rounded-full border border-clr-completed"
+        className="text-main border-clr-completed flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full border"
         type="submit"
         aria-label="Add Todo"
         role="button"
       >
-        <Plus className="w-4/5 text-clr-completed" />
+        <Plus className="text-clr-completed w-4/5" />
       </button>
 
       <input
@@ -38,13 +38,7 @@ export default function TodoForm({
         onChange={handleOnChange}
         onKeyDown={handleKeyDown}
         placeholder={t("createTodo")}
-        className="
-        w-full 
-        bg-transparent 
-        text-main 
-        text-lg 
-        outline-none
-        placeholder:text-gray-400"
+        className="text-main w-full bg-transparent text-lg outline-none placeholder:text-gray-400"
       />
     </form>
   );

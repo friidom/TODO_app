@@ -6,13 +6,12 @@ body {
   font-family: "Josefin Sans Variable", sans-serif;
 }
 
-
 html,
 body,
 #root {
   min-height: 100%;
   background: var(--background);
-  transition: background-color .2s;
+  transition: background-color 0.2s;
 }
 :root {
   --background: #fafafa;

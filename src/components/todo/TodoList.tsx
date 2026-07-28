@@ -1,5 +1,5 @@
 import TodoItem from "./TodoItem";
-import type {  ISupabaseTodo } from "../../types/data";
+import type { ISupabaseTodo } from "../../types/data";
 import {
   SortableContext,
   verticalListSortingStrategy,
@@ -16,11 +16,10 @@ export default function TodoList({ todos }: TodoListProps) {
         items={todos.map((todo) => todo.id)}
         strategy={verticalListSortingStrategy}
       > */}
-        {todos.map((todo) => (
-          <TodoItem key={todo.id} {...todo} />
-        ))}
+      {todos.map((todo) => (
+        <TodoItem key={todo.id} {...todo} />
+      ))}
       {/* </SortableContext> */}
-     
     </div>
   );
 }

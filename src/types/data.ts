@@ -28,3 +28,6 @@ export interface ISupabaseProfile {
   avatar_url: string | null;
   created_at: string;
 }
+export interface TodoItemProps extends ISupabaseTodo {
+  overlay?: boolean;
+}

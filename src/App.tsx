@@ -33,27 +33,27 @@ function App() {
   const { data: todos, isLoading, error } = useTodos();
 
   const activeTodo = todos?.find((t) => t.id === activeId) ?? null;
-  
+
   const groupedTodos = {
     todo:
-    todos
-    ?.filter((t) => t.status === "todo")
-    .sort((a, b) => a.position - b.position) ?? [],
-    
+      todos
+        ?.filter((t) => t.status === "todo")
+        .sort((a, b) => a.position - b.position) ?? [],
+
     in_progress:
-    todos
-    ?.filter((t) => t.status === "in_progress")
-    .sort((a, b) => a.position - b.position) ?? [],
-    
+      todos
+        ?.filter((t) => t.status === "in_progress")
+        .sort((a, b) => a.position - b.position) ?? [],
+
     completed:
-    todos
-    ?.filter((t) => t.status === "completed")
-    .sort((a, b) => a.position - b.position) ?? [],
-    
+      todos
+        ?.filter((t) => t.status === "completed")
+        .sort((a, b) => a.position - b.position) ?? [],
+
     rejected:
-    todos
-    ?.filter((t) => t.status === "rejected")
-    .sort((a, b) => a.position - b.position) ?? [],
+      todos
+        ?.filter((t) => t.status === "rejected")
+        .sort((a, b) => a.position - b.position) ?? [],
   };
   console.log(
     groupedTodos.todo.map((t) => ({
@@ -123,7 +123,7 @@ function App() {
             handleKeyDown={handleKeyDown}
             handleOnChange={handleOnChange}
             ref={inputRef}
-            className=" flex items-center justify-center max-w-2xl mb-6 gap-3 rounded-2xl bg-card px-5 py-4 shadow-lg border border-app"
+            className="bg-card border-app mb-6 flex max-w-2xl items-center justify-center gap-3 rounded-2xl border px-5 py-4 shadow-lg"
           />
         </div>
         {/* //! drag and drop  */}
@@ -142,7 +142,7 @@ function App() {
           collisionDetection={closestCenter}
         >
           <div className="overflow-x-auto pb-4">
-            <div className="flex gap-6 min-w-max">
+            <div className="flex min-w-max gap-6">
               {columns.map((column) => (
                 <KanbanColumn
                   key={column.id}
@@ -155,23 +155,8 @@ function App() {
           </div>
           {/* <DragOverlay /> */}
 
-          <DragOverlay dropAnimation={null}>
-            {activeTodo && (
-              <div
-                className="
-      rotate-2
-      scale-105
-      cursor-grabbing
-            border-md
-
-shadow-[0_25px_60px_rgba(0,0,0,.35)]
-
-ring-violet-500/30
-      "
-              >
-                <TodoItem {...activeTodo} />
-              </div>
-            )}
+          <DragOverlay dropAnimation={null} adjustScale={false}>
+            {activeTodo && <TodoItem {...activeTodo} overlay />}
           </DragOverlay>
         </DndContext>
       </Layout>

@@ -18,16 +18,12 @@ export default function KanbanColumn({ title, id, todos }: Props) {
   });
 
   return (
-    
     <div
-  ref={setNodeRef}
-  className="
-    flex
-    
+      ref={setNodeRef}
+      className="
     h-[72vh]
     w-[340px]
-    w-min-0
-    flex-col
+    min-w-0
     overflow-hidden
     rounded-3xl
     border
@@ -38,7 +34,7 @@ export default function KanbanColumn({ title, id, todos }: Props) {
     duration-300
     hover:shadow-xl
   "
->
+    >
       <div
         className="
     flex
@@ -68,45 +64,33 @@ export default function KanbanColumn({ title, id, todos }: Props) {
           {todos.length}
         </span>
       </div>
-{todos.length === 0 && (
-  <div
-    className="
-      flex
-      mx-2
-      my-1
-      h-32
-      items-center
-      justify-center
-      rounded-xl
-      border-2
-      border-dashed
-      border-app
-      text-sm
-      text-gray-400
-    "
-  >
-    Drop todos here
-  </div>
-)}
+      
       <SortableContext
         id={id}
         items={todos.map((t) => t.id)}
         strategy={verticalListSortingStrategy}
       >
         <div
-          className="flex-1
+          className="  flex-1
     overflow-y-auto
     px-3
-    pb-3
     pt-2
-h-[calc(100vh-320px)]
-    p-2"
+    pb-3
+    flex
+    flex-col
+    gap-3
+"
         >
-          {todos.map((todo) => (
-            <TodoItem key={todo.id} {...todo} />
-          ))}
+          {todos.length === 0 ? (
+      <div className="flex h-32 items-center justify-center rounded-xl border-2 border-dashed border-app text-sm text-gray-400">
+        Drop todos here
+      </div>
+    ) : (
+      todos.map(todo => (
+        <TodoItem key={todo.id} {...todo} />
+      ))
+    )}
         </div>
-        
       </SortableContext>
     </div>
   );
