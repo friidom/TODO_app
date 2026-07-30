@@ -8,9 +8,10 @@ export function useReorderTodos() {
   const queryClient = useQueryClient();
   const saveTodoOrder = useSaveTodoOrder();
 
+  //save after drop
   return (event: DragEndEvent) => {
     const { active, over } = event;
-
+    
     if (!over) return;
 
     const todos = queryClient.getQueryData<ISupabaseTodo[]>(["todos"]) ?? [];

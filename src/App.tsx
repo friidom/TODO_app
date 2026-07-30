@@ -2,22 +2,15 @@ import type React from "react";
 import { useState, useEffect, useRef } from "react";
 import { useTodos } from "./services/lib";
 import { useTranslation } from "react-i18next";
-import { useAddTodo } from "./services/lib/index";
 import "./styles/global.css";
 import Layout from "./components/layout/Layout";
-import TodoForm from "./components/todo/TodoForm";
 import { supabase } from "./services/api/supabase";
 import { closestCenter, DndContext, pointerWithin } from "@dnd-kit/core";
-
 import TodoPage from "./components/pages/TodoPage";
-
 import { useReorderTodos } from "./services/lib/todos/useReorderTodos";
-
 import { DragOverlay } from "@dnd-kit/core";
-import { useClearCompleted } from "./services/lib/index";
 import Loading from "./components/pages/loading/LoadingPage";
 import { columns } from "./constants/columns";
-
 import KanbanColumn from "./components/kanban/KanbanColumn";
 import { useDragOverTodos } from "./services/lib/todos/useDragOverTodos";
 import TodoItem from "./components/todo/TodoItem";
@@ -25,15 +18,16 @@ import TodoItem from "./components/todo/TodoItem";
 function App() {
   const { t } = useTranslation();
   const [value, setValue] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null!);
   const [activeId, setActiveId] = useState<string | null>(null);
-
+  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
   //!Quary Todos//
-  const addTodoMutation = useAddTodo();
+
+
   const { data: todos, isLoading, error } = useTodos();
 
   const activeTodo = todos?.find((t) => t.id === activeId) ?? null;
 
+  //!Grouping and Sorting Todos
   const groupedTodos = {
     todo:
       todos
@@ -55,17 +49,8 @@ function App() {
         ?.filter((t) => t.status === "rejected")
         .sort((a, b) => a.position - b.position) ?? [],
   };
-  console.log(
-    groupedTodos.todo.map((t) => ({
-      id: t.id,
-      pos: t.position,
-    })),
-  );
-  // console.log(columns.map((column) =>groupedTodos[column.id]))
 
   // const { user, loading } = useAuth();
-
-  const clearCompletedMutation = useClearCompleted();
 
   //!test
   useEffect(() => {
@@ -79,34 +64,20 @@ function App() {
 
     getUser();
   }, []);
+  useEffect(() => {
+    document.addEventListener("mousedown", () => {
+      console.log("GLOBAL");
+    });
 
+    return () => {
+      document.removeEventListener("mousedown", () => {});
+    };
+  }, []);
   //!DRAG AND DROP
-  const handleDragEnd = useReorderTodos();
-  const handleDragOver = useDragOverTodos();
-  // const addTodo = useTodoStore((state) => state.addTodo);
+  const handleDragOver = useDragOverTodos(); //drag
+  const handleDragEnd = useReorderTodos(); //drop
 
   //! HANDLERS
-  const handleOnChange: React.ChangeEventHandler<HTMLInputElement> = (e) => {
-    setValue(e.target.value);
-  };
-  const handleKeyDown: React.KeyboardEventHandler<HTMLInputElement> = (e) => {
-    if (e.key === "Enter") {
-      handleAddTodo();
-    }
-  };
-
-  const handleAddTodo = (e?: React.SyntheticEvent) => {
-    e?.preventDefault();
-    if (!value.trim()) return;
-    addTodoMutation.mutate(value);
-
-    setValue("");
-  };
-  useEffect(() => {
-    if (inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, []);
 
   if (isLoading) return <Loading />;
 
@@ -115,17 +86,18 @@ function App() {
   return (
     <TodoPage>
       <Layout>
+        {/* //Form  */}
         <div className="mx-auto mb-8 max-w-2xl">
-          <TodoForm
+          {/* <TodoForm
             value={value}
             handleAddTodo={handleAddTodo}
             handleKeyDown={handleKeyDown}
             handleOnChange={handleOnChange}
-            ref={inputRef}
+
             className="bg-card border-app mb-6 flex max-w-2xl items-center justify-center gap-3 rounded-2xl border px-5 py-4 shadow-lg"
-          />
+          /> */}
         </div>
-        {/* //! drag and drop  */}
+        {/* // drag and drop  */}
         <DndContext
           onDragStart={(event) => {
             setActiveId(event.active.id as string);
@@ -138,24 +110,36 @@ function App() {
           onDragCancel={() => {
             setActiveId(null);
           }}
-          collisionDetection={closestCenter}
+          collisionDetection={pointerWithin}
         >
-          <div className="overflow-x-auto pb-4">
-            <div className="flex min-w-max gap-6">
-              {columns.map((column) => (
-                <KanbanColumn
-                  key={column.id}
-                  id={column.id}
-                  title={t(column.id)}
-                  todos={groupedTodos[column.id]}
-                />
-              ))}
+          <div className="h-full overflow-x-auto">
+            <div className="flex min-w-max gap-5 px-6 pb-6">
+              <div className="flex h-full min-w-max gap-5">
+                {columns.map((column) => (
+                  <KanbanColumn
+                    key={column.id}
+                    id={column.id}
+                    openMenuId={openMenuId}
+                    setOpenMenuId={setOpenMenuId}
+                    headerTitle={t(column.id)}
+                    todos={groupedTodos[column.id]}
+                  />
+                ))}
+              </div>
             </div>
           </div>
           {/* <DragOverlay /> */}
 
           <DragOverlay dropAnimation={null} adjustScale={false}>
-            {activeTodo && <TodoItem {...activeTodo} overlay />}
+            {activeTodo && (
+              <TodoItem
+                {...activeTodo}
+                overlay
+                menuOpen={false}
+                openMenu={() => {}}
+                closeMenu={() => {}}
+              />
+            )}
           </DragOverlay>
         </DndContext>
       </Layout>

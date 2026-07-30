@@ -14,7 +14,7 @@ export interface ISupabaseTodo {
   completed: boolean;
   position: number;
   user_id: string;
-created_at:string;
+  created_at: string;
   status: TodoStatus;
   previous_status: TodoStatus | null;
 }
@@ -30,4 +30,20 @@ export interface ISupabaseProfile {
 }
 export interface TodoItemProps extends ISupabaseTodo {
   overlay?: boolean;
+  menuOpen: boolean;
+  closeMenu: () => void;
+  openMenu: () => void;
+}
+export interface TodoMenuProps {
+  menuOpen: boolean;
+
+  openMenu?: () => void;
+
+  closeMenu?: () => void;
+
+  onEdit?: () => void;
+
+  todoId: number;
+
+  currentStatus: TodoStatus;
 }

@@ -8,75 +8,68 @@ export function useDragOverTodos() {
 
   return ({ active, over }: DragOverEvent) => {
     if (!over) return;
+    //get todos
+    const todos = queryClient.getQueryData<ISupabaseTodo[]>(["todos"]) ?? [];
 
-    const todos =
-      queryClient.getQueryData<ISupabaseTodo[]>(["todos"]) ?? [];
-
+    //active todo which is dragging
     const activeTodo = todos.find((t) => t.id === active.id);
 
     if (!activeTodo) return;
 
+    //over todo which is under active
     const overTodo = todos.find((t) => t.id === over.id);
 
+    //if column is empty or not
     const overStatus = overTodo
       ? overTodo.status
       : (over.id as ISupabaseTodo["status"]);
 
+    //?! if same column
     if (activeTodo.status === overStatus) {
-      const sameColumn = todos.filter(
-        (t) => t.status === activeTodo.status
-      );
+      const sameColumn = todos.filter((t) => t.status === activeTodo.status);
 
-      const oldIndex = sameColumn.findIndex(
-        (t) => t.id === active.id
-      );
+      const oldIndex = sameColumn.findIndex((t) => t.id === active.id);
 
-      const newIndex = sameColumn.findIndex(
-        (t) => t.id === over.id
-      );
+      const newIndex = sameColumn.findIndex((t) => t.id === over.id);
 
       if (oldIndex === newIndex || newIndex === -1) return;
 
-      const reordered = arrayMove(
-        sameColumn,
-        oldIndex,
-        newIndex
-      ).map((todo, index) => ({
-        ...todo,
-        position: index,
-      }));
-
-      const others = todos.filter(
-        (t) => t.status !== activeTodo.status
+      //reorders index and change position
+      const reordered = arrayMove(sameColumn, oldIndex, newIndex).map(
+        (todo, index) => ({
+          ...todo,
+          position: index,
+        }),
       );
 
-      queryClient.setQueryData(["todos"], [
-        ...others,
-        ...reordered,
-      ]);
+      //other todos on that same column
+      const others = todos.filter((t) => t.status !== activeTodo.status);
+
+      //set new todos
+      queryClient.setQueryData(["todos"], [...others, ...reordered]);
 
       return;
     }
 
+    //?! if not the same column
+
+    // from
     const source = todos.filter(
-      (t) =>
-        t.status === activeTodo.status &&
-        t.id !== activeTodo.id
+      (t) => t.status === activeTodo.status && t.id !== activeTodo.id,
     );
 
-    const destination = todos.filter(
-      (t) => t.status === overStatus
-    );
+    // to
+    const destination = todos.filter((t) => t.status === overStatus);
 
+    // active todo + new status
     const moved = {
       ...activeTodo,
       status: overStatus,
     };
 
-    const overIndex = destination.findIndex(
-      (t) => t.id === over.id
-    );
+    const overIndex = destination.findIndex((t) => t.id === over.id);
 
+    //pushing inside
     if (overIndex === -1) {
       destination.push(moved);
     } else {
@@ -88,23 +81,18 @@ export function useDragOverTodos() {
       position: index,
     }));
 
-    const updatedDestination = destination.map(
-      (todo, index) => ({
-        ...todo,
-        position: index,
-      })
-    );
+    const updatedDestination = destination.map((todo, index) => ({
+      ...todo,
+      position: index,
+    }));
 
     const others = todos.filter(
-      (t) =>
-        t.status !== activeTodo.status &&
-        t.status !== overStatus
+      (t) => t.status !== activeTodo.status && t.status !== overStatus,
     );
 
-    queryClient.setQueryData(["todos"], [
-      ...others,
-      ...updatedSource,
-      ...updatedDestination,
-    ]);
+    queryClient.setQueryData(
+      ["todos"],
+      [...others, ...updatedSource, ...updatedDestination],
+    );
   };
 }

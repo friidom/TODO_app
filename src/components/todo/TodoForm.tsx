@@ -6,7 +6,6 @@ interface ITodoForm {
   handleOnChange: React.ChangeEventHandler<HTMLInputElement>;
   handleKeyDown: React.KeyboardEventHandler<HTMLInputElement>;
   handleAddTodo: () => void;
-  ref: React.RefObject<HTMLInputElement> | null;
   className: string;
 }
 
@@ -15,7 +14,6 @@ export default function TodoForm({
   handleOnChange,
   handleKeyDown,
   handleAddTodo,
-  ref,
   className,
 }: ITodoForm) {
   //! translate
@@ -34,12 +32,11 @@ export default function TodoForm({
 
       <input
         value={value}
-        ref={ref}
         onChange={handleOnChange}
         onKeyDown={handleKeyDown}
         placeholder={t("createTodo")}
         className="text-main w-full bg-transparent text-lg outline-none placeholder:text-gray-400"
-      />
+      />    
     </form>
   );
 }
