@@ -18,7 +18,7 @@ export default function UserAvatar() {
         />
       </Link>
 
-      <div className="pointer-events-none absolute top-2 -right-40 w-max translate-y-2 rounded-xl bg-gray-900 px-4 py-2 text-sm text-white opacity-0 shadow-xl transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+      <div className="pointer-events-none absolute top-13 right-5 w-max translate-y-2 rounded-xl bg-gray-900 px-4 py-2 text-sm text-white opacity-0 shadow-xl transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
         {profile?.email}
       </div>
     </div>

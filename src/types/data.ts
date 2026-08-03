@@ -6,7 +6,6 @@ export interface ITodo {
 export interface IServiceTodo extends ITodo {
   userId: number;
 }
-export type TodoStatus = "todo" | "in_progress" | "completed" | "rejected";
 
 export interface ISupabaseTodo {
   id: number;
@@ -15,8 +14,10 @@ export interface ISupabaseTodo {
   position: number;
   user_id: string;
   created_at: string;
-  status: TodoStatus;
-  previous_status: TodoStatus | null;
+  column_id: string;
+
+  //
+  isOptimistic?: boolean;
 }
 
 export interface ISupabaseProfile {
@@ -28,9 +29,17 @@ export interface ISupabaseProfile {
   avatar_url: string | null;
   created_at: string;
 }
+export interface IColumn {
+  id: string;
+  title: string;
+  position: number;
+  user_id: string;
+}
+
 export interface TodoItemProps extends ISupabaseTodo {
   overlay?: boolean;
   menuOpen: boolean;
+  // currentColumnId: string;
   closeMenu: () => void;
   openMenu: () => void;
 }
@@ -45,5 +54,5 @@ export interface TodoMenuProps {
 
   todoId: number;
 
-  currentStatus: TodoStatus;
+  // currentColumnId: string;
 }

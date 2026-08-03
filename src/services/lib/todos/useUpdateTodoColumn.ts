@@ -1,17 +1,17 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { updateTodoStatus } from "../../api/todoApi";
+import { updateTodoColumn } from "../../api/todoApi";
 
-export function useUpdateTodoStatus() {
+export function useUpdateTodoColumn() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: ({
       id,
-      status,
+      column_id,
     }: {
       id: number;
-      status: "todo" | "in_progress" | "completed" | "rejected";
-    }) => updateTodoStatus(id, status),
+      column_id: string;
+    }) => updateTodoColumn(id, column_id),
 
     onSuccess: () => {
       queryClient.invalidateQueries({

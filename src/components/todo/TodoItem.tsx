@@ -1,8 +1,6 @@
 import type { TodoItemProps } from "../../types/data";
-import { useToggleTodo } from "../../services/lib/index";
-import { useDeleteTodo } from "../../services/lib/index";
 
-import { Bug, MoreHorizontal, Trash2, User } from "lucide-react";
+import { Bug, User } from "lucide-react";
 import { useSortable, defaultAnimateLayoutChanges } from "@dnd-kit/sortable";
 
 import { CSS } from "@dnd-kit/utilities";
@@ -10,13 +8,15 @@ import { useEffect, useRef, useState } from "react";
 import { useUpdateTodo } from "../../services/lib/todos/useUpdateTodo";
 import { Pencil } from "lucide-react";
 
-import TodoMenu from "./TodoItem/todoMenu";
+import TodoMenu from "./TodoItem/TodoMenu";
+import LoadingSpinner from "../pages/loading/LoadingSpinner";
 
 export default function TodoItem({
   openMenu,
   closeMenu,
   menuOpen,
   overlay = false,
+
   ...todo
 }: TodoItemProps) {
   //menu
@@ -75,9 +75,10 @@ export default function TodoItem({
   const sortable = !overlay
     ? useSortable({
         id: todo.id,
-        animateLayoutChanges,
+        animateLayoutChanges: () => false,
+        transition: null,
         data: {
-          status: todo.status,
+          currentColumnId: todo.column_id,
         },
       })
     : null;
@@ -96,14 +97,16 @@ export default function TodoItem({
         transition,
         willChange: "transform",
       };
-console.log("TodoItem", todo.id, menuOpen);
+
   return (
     <div
       ref={overlay ? undefined : setNodeRef}
       style={style}
       {...(!overlay ? attributes : {})}
       {...(!overlay ? listeners : {})}
-      className={`group relative flex flex-col gap-4 rounded-xl border border-gray-200 bg-white px-3 py-3 shadow-sm transition-all duration-200 hover:border-gray-300 hover:shadow-md active:cursor-grabbing ${isDragging && !overlay ? "opacity-0" : ""} `}
+      className={`group relative flex flex-col gap-3 rounded-xl border border-gray-200 bg-white px-3 py-3 shadow-sm transition-all duration-200 hover:border-gray-300 hover:shadow-md active:cursor-grabbing ${
+        isDragging && !overlay ? "pointer-events-none opacity-0" : ""
+      } `}
     >
       {/* TITLE */}
       <div className="flex items-start justify-between gap-2">
@@ -127,7 +130,7 @@ console.log("TodoItem", todo.id, menuOpen);
         </div>
 
         {/* actions */}
-        {!editing && (
+        {!todo.isOptimistic && !editing && (
           <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
             {/* edit */}
             <button
@@ -139,21 +142,11 @@ console.log("TodoItem", todo.id, menuOpen);
             >
               <Pencil size={15} />
             </button>
-            
-            {!overlay && (
-              
-              <TodoMenu
-                menuOpen={menuOpen}
-                openMenu={openMenu}
-                closeMenu={closeMenu}
-                onEdit={() => setEditing(true)}
-                todoId={todo.id}
-                currentStatus={todo.status}
-              />
-            )}
+
+            {!overlay && <TodoMenu todoId={todo.id} />}
           </div>
-    
         )}
+        {todo.isOptimistic && <LoadingSpinner size="md" />}
       </div>
 
       {/* META */}
@@ -164,27 +157,18 @@ console.log("TodoItem", todo.id, menuOpen);
 
           {/* issue key */}
           <span className="text-sm font-medium text-gray-600">
-            KAN-{todo.id}
+            {!todo.isOptimistic && `KAN-${todo.id}`}
           </span>
         </div>
-
         {/* //MENU */}
 
         {/* assignee */}
-        <div className="flex size-8 items-center justify-center rounded-full bg-gray-200 text-gray-600">
-          <User size={17} />
-        </div>
+        {!todo.isOptimistic && (
+          <div className="flex size-8 items-center justify-center rounded-full bg-gray-200 text-gray-600">
+            <User size={17} />
+          </div>
+        )}
       </div>
     </div>
   );
-}
-
-{
-  /* <Checkbox
-        className={`border-clr-completed size-6 shrink-0 cursor-pointer rounded-full border ${completed ? "bg-gradient-to-br from-blue-500 to-purple-500" : ""} `}
-        checked={completed}
-        onClick={() => {
-          toggleTodoMutation.mutate(todo);
-        }}
-      /> */
 }

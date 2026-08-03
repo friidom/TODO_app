@@ -1,12 +1,11 @@
 import { Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-interface ITodoForm {
+interface TodoFormProps {
   value: string;
   handleOnChange: React.ChangeEventHandler<HTMLInputElement>;
   handleKeyDown: React.KeyboardEventHandler<HTMLInputElement>;
   handleAddTodo: () => void;
-  className: string;
 }
 
 export default function TodoForm({
@@ -14,20 +13,22 @@ export default function TodoForm({
   handleOnChange,
   handleKeyDown,
   handleAddTodo,
-  className,
-}: ITodoForm) {
-  //! translate
+}: TodoFormProps) {
   const { t } = useTranslation();
 
   return (
-    <form className={className} onSubmit={handleAddTodo}>
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        handleAddTodo();
+      }}
+      className="flex h-9 w-full max-w-md items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-2"
+    >
       <button
-        className="text-main border-clr-completed flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full border"
         type="submit"
-        aria-label="Add Todo"
-        role="button"
+        className="flex size-6 shrink-0 items-center justify-center rounded-md bg-gray-200 text-gray-600 hover:bg-gray-300"
       >
-        <Plus className="text-clr-completed w-4/5" />
+        <Plus size={16} />
       </button>
 
       <input
@@ -35,8 +36,8 @@ export default function TodoForm({
         onChange={handleOnChange}
         onKeyDown={handleKeyDown}
         placeholder={t("createTodo")}
-        className="text-main w-full bg-transparent text-lg outline-none placeholder:text-gray-400"
-      />    
+        className="min-w-0 flex-1 bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400"
+      />
     </form>
   );
 }

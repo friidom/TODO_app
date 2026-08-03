@@ -1,0 +1,87 @@
+import { updateTodoColumn } from "@/services/api/todoApi";
+import { useColumns } from "@/services/columns/useColumnsApi";
+import {
+  useUpdateTodoColumn,
+} from "@/services/lib/todos/useUpdateTodoColumn";
+import type { ISupabaseTodo } from "@/types/data";
+import {
+  FloatingPortal,
+  autoUpdate,
+  flip,
+  offset,
+  shift,
+  useFloating,
+} from "@floating-ui/react";
+import { useEffect } from "react";
+
+interface TodoColumnMenuProps {
+  open: boolean;
+  anchor: HTMLElement | null;
+  closeMenu: () => void;
+  todoId: number;
+  currentColumnId: string;
+
+  menuRef: React.RefObject<HTMLDivElement | null>;
+}
+
+export default function TodoColumnMenu({
+  open,
+  anchor,
+  closeMenu,
+  todoId,
+  currentColumnId,
+  menuRef,
+}: TodoColumnMenuProps) {
+  const updateTodoColumn = useUpdateTodoColumn();
+
+  const { data: columns = [] } = useColumns();
+
+  const { refs, floatingStyles } = useFloating({
+    open,
+    placement: "right-start",
+
+    middleware: [offset(4), flip(), shift()],
+
+    whileElementsMounted: autoUpdate,
+  });
+
+  //set to another html elemnt
+  useEffect(() => {
+    refs.setPositionReference(anchor);
+  }, [anchor, refs]);
+
+  if (!open) return null;
+
+  return (
+    <FloatingPortal>
+      <div
+        ref={(node) => {
+          menuRef.current = node;
+          refs.setFloating(node);
+        }}
+        style={floatingStyles}
+        className="z-[1000] w-52 overflow-hidden rounded-lg border border-gray-200 bg-white p-1 shadow-[0_8px_24px_rgba(0,0,0,0.12)]"
+      >
+        {columns
+          .filter((column) => column.id !== currentColumnId)
+          .map((column) => (
+            <button
+              key={column.id}
+              type="button"
+              onClick={() => {
+                updateTodoColumn.mutate({
+                  id: todoId,
+                  column_id: column.id,
+                });
+
+                closeMenu();
+              }}
+              className="flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+            >
+              {column.title}
+            </button>
+          ))}
+      </div>
+    </FloatingPortal>
+  );
+}

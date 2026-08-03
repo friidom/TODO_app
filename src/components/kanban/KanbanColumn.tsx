@@ -4,17 +4,22 @@ import {
 } from "@dnd-kit/sortable";
 import { useDroppable } from "@dnd-kit/core";
 import TodoItem from "../todo/TodoItem";
-import type { ISupabaseTodo, TodoStatus } from "../../types/data";
+
+import type { IColumn, ISupabaseTodo } from "../../types/data";
 import { Plus } from "lucide-react";
-import { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useAddTodo } from "../../services/lib";
+import { Bug, Calendar, ChevronDown, CornerDownLeft, User } from "lucide-react";
+import DropZone from "./DropZone";
 
 interface Props {
   headerTitle: string;
-  id: TodoStatus;
+  id: string;
   todos: ISupabaseTodo[];
+  column: IColumn;
   openMenuId: number | null;
   setOpenMenuId: React.Dispatch<React.SetStateAction<number | null>>;
+
 }
 
 export default function KanbanColumn({
@@ -23,6 +28,8 @@ export default function KanbanColumn({
   openMenuId,
   setOpenMenuId,
   todos,
+  column,
+
 }: Props) {
   const { setNodeRef } = useDroppable({
     id,
@@ -33,26 +40,59 @@ export default function KanbanColumn({
 
   const addTodoMutation = useAddTodo();
   const status = id;
+  const formRef = useRef<HTMLFormElement>(null);
+
+  function onClose() {
+    setIsCreating(false);
+    setTitle("");
+  }
+
+  useEffect(() => {
+    function handleOutsideClick(e: MouseEvent) {
+      const target = e.target as Node;
+
+      if (!formRef.current?.contains(target)) {
+        onClose();
+      }
+    }
+
+    document.addEventListener("mousedown", handleOutsideClick);
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!isCreating) return;
+
+    requestAnimationFrame(() => {
+      listRef.current?.scrollTo({
+        top: listRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    });
+  }, [todos.length, isCreating]);
 
   const handleAddTodo = (e?: React.SyntheticEvent) => {
     e?.preventDefault();
 
-    if (!title.trim()) return;
+    const trimmedTitle = title.trim();
 
-    addTodoMutation.mutate(
-      {
-        title: title.trim(),
-        status,
-      },
-      {
-        onSuccess: () => {
-          setTitle("");
-          setIsCreating(false);
-        },
-      },
-    );
+    if (!trimmedTitle) return;
+
+    addTodoMutation.mutate({
+      title: trimmedTitle,
+      column_id: id,
+    });
+    //clean input for the next title
+    setTitle("");
+    setIsCreating(true);
+    // scrollToBottom();
   };
-console.log("openMenuId =", openMenuId);
+  //ref scroll
+  const listRef = useRef<HTMLDivElement>(null);
+
   return (
     <div
       ref={setNodeRef}
@@ -75,23 +115,25 @@ console.log("openMenuId =", openMenuId);
         items={todos.map((todo) => todo.id)}
         strategy={verticalListSortingStrategy}
       >
-        <div className="min-h-0 overflow-y-auto px-3 pb-2">
+        <div ref={listRef} className="min-h-0 overflow-y-auto px-3 pb-2">
           <div className="flex flex-col gap-2">
-            {todos.length === 0 ? (
-              <div className="flex h-24 items-center justify-center rounded-xl border border-dashed border-gray-300 text-sm text-gray-400">
-                Drop todos here
-              </div>
-            ) : (
-              todos.map((todo) => (
-                <TodoItem
-                  key={todo.id}
-                  menuOpen={openMenuId === todo.id}
-                  openMenu={() => setOpenMenuId(todo.id)}
-                  closeMenu={() => setOpenMenuId(null)}
-                  {...todo}
-                />
-              ))
-            )}
+            <div className="flex flex-col">
+              <DropZone columnId={id} index={0} />
+
+              {todos.map((todo, index) => (
+                <React.Fragment key={todo.id}>
+                  <TodoItem
+                    menuOpen={openMenuId === todo.id}
+                    openMenu={() => setOpenMenuId(todo.id)}
+                    closeMenu={() => setOpenMenuId(null)}
+                    {...todo}
+                  />
+                  <DropZone columnId={id} index={index + 1} />
+
+                </React.Fragment>
+              ))}
+            </div>
+            
           </div>
         </div>
       </SortableContext>
@@ -102,14 +144,13 @@ console.log("openMenuId =", openMenuId);
           <button
             type="button"
             onClick={() => setIsCreating(true)}
-            className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-200 hover:text-gray-900"
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-600 hover:bg-gray-200"
           >
-            <Plus size={22} />
-            <span>Create</span>
+            <Plus size={20} />
+            Create
           </button>
         ) : (
-          <div className="rounded-xl border-2 border-blue-500 bg-white p-3 shadow-sm">
-            {/* TITLE */}
+          <div className="rounded-xl border-2 border-blue-500 bg-white px-3 py-2 shadow-sm">
             <input
               autoFocus
               value={title}
@@ -117,6 +158,7 @@ console.log("openMenuId =", openMenuId);
               placeholder="What needs to be done?"
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
+                  e.preventDefault();
                   handleAddTodo();
                 }
 
@@ -125,55 +167,46 @@ console.log("openMenuId =", openMenuId);
                   setIsCreating(false);
                 }
               }}
-              className="w-full bg-transparent text-base text-gray-800 outline-none placeholder:text-gray-400"
+              className="w-full bg-transparent text-sm text-gray-800 outline-none placeholder:text-gray-400"
             />
 
-            {/* ACTIONS */}
-            <div className="mt-4 flex items-center justify-between">
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-800"
-                >
-                  🐞
-                </button>
+            <div className="mt-8 flex items-center gap-1">
+              <button
+                type="button"
+                className="rounded-md p-1 text-red-400 hover:bg-gray-100"
+              >
+                <Bug size={19} />
+              </button>
 
-                <button
-                  type="button"
-                  className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-800"
-                >
-                  📅
-                </button>
+              <button
+                type="button"
+                className="rounded-md p-1 text-gray-500 hover:bg-gray-100"
+              >
+                <ChevronDown size={16} />
+              </button>
 
-                <button
-                  type="button"
-                  className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-800"
-                >
-                  👤
-                </button>
-              </div>
+              <button
+                type="button"
+                className="rounded-md p-1 text-gray-500 hover:bg-gray-100"
+              >
+                <Calendar size={19} />
+              </button>
 
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTitle("");
-                    setIsCreating(false);
-                  }}
-                  className="rounded-lg px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100"
-                >
-                  Cancel
-                </button>
+              <button
+                type="button"
+                className="rounded-full bg-gray-200 p-1 text-gray-500 hover:bg-gray-300"
+              >
+                <User size={17} />
+              </button>
 
-                <button
-                  type="button"
-                  onClick={handleAddTodo}
-                  disabled={!title.trim() || addTodoMutation.isPending}
-                  className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  {addTodoMutation.isPending ? "Creating..." : "Create"}
-                </button>
-              </div>
+              <button
+                type="button"
+                disabled={!title.trim()}
+                onClick={handleAddTodo}
+                className="ml-auto flex size-7 items-center justify-center rounded-md bg-gray-100 text-gray-400 hover:bg-gray-200 disabled:opacity-40"
+              >
+                <CornerDownLeft size={17} />
+              </button>
             </div>
           </div>
         )}

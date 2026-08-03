@@ -10,7 +10,7 @@ export function useAddTodo() {
 
     //!? Optimistic update
 
-    onMutate: async ({ title, status }) => {
+    onMutate: async ({ title, column_id }) => {
       //before request
       //stop all queries
       await queryClient.cancelQueries({
@@ -20,12 +20,18 @@ export function useAddTodo() {
       //previous Todos
       const previousTodos =
         queryClient.getQueryData<ISupabaseTodo[]>(["todos"]) ?? [];
-      const columnTodos = previousTodos.filter(
-        (todo) => todo.status === status,
-      );
-      const position = columnTodos.length;
 
-      //temp todo 
+      const columnTodos = previousTodos.filter(
+        (todo) => todo.column_id === column_id,
+      );
+
+      //position of the new todo
+      const position =
+        columnTodos.length > 0
+          ? Math.max(...columnTodos.map((todo) => todo.position)) + 1
+          : 0;
+
+      //temp todo
       const optimisticTodo: ISupabaseTodo = {
         id: Date.now(),
         title,
@@ -33,15 +39,23 @@ export function useAddTodo() {
         user_id: "",
         created_at: new Date().toISOString(),
         position: position,
-        status,
-        previous_status: null,
+        column_id,
+        isOptimistic: true,
       };
 
-      //add a new temp todo
-      queryClient.setQueryData<ISupabaseTodo[]>(
-        ["todos"],
-        [...previousTodos, optimisticTodo],
+      //find last todo
+      const lastIndex = previousTodos.reduce(
+        (lastIndex, todo, index) =>
+          todo.column_id === column_id ? index : lastIndex,
+        -1,
       );
+
+      //adding in the end of todos of that column
+      const newTodos = [...previousTodos];
+
+      newTodos.splice(lastIndex + 1, 0, optimisticTodo);
+
+      queryClient.setQueryData<ISupabaseTodo[]>(["todos"], newTodos);
 
       //context
       return {
@@ -59,7 +73,12 @@ export function useAddTodo() {
     onSuccess: (serverTodo, _variables, context) => {
       queryClient.setQueryData<ISupabaseTodo[]>(["todos"], (old = []) =>
         old.map((todo) =>
-          todo.id === context?.optimisticId ? serverTodo : todo,
+          todo.id === context?.optimisticId
+            ? {
+                ...serverTodo,
+                isOptimistic: false,
+              }
+            : todo,
         ),
       );
     },

@@ -1,5 +1,4 @@
-import type { ISupabaseTodo, ITodo, TodoStatus } from "../../types/data";
-import { useAuth } from "../lib/auth/useAuth";
+import type { IColumn, ISupabaseTodo } from "../../types/data";
 // import axios from "axios";
 // import { BASE_URL } from "../../constants/consants";
 import { supabase } from "./supabase";
@@ -23,10 +22,10 @@ export async function fetchTodos(userId: string) {
 //!post
 export async function addTodo({
   title,
-  status,
+  column_id,
 }: {
   title: string;
-  status: TodoStatus;
+  column_id: string;
 }) {
   //get current user
   const {
@@ -38,8 +37,8 @@ export async function addTodo({
   //get count of todos
   const { data: lastTodo, error: lastTodoError } = await supabase
     .from("todos")
-    .select("position", { count: "exact", head: true })
-    .eq("status", status)
+    .select("position")
+    .eq("column_id", column_id)
     .eq("user_id", user.id)
     .order("position", { ascending: false })
     .limit(1)
@@ -54,7 +53,7 @@ export async function addTodo({
     .from("todos")
     .insert({
       title,
-      status,
+      column_id,
       completed: false,
       user_id: user.id,
       position,
@@ -67,57 +66,13 @@ export async function addTodo({
   return data;
 }
 
-//!patch
-export async function toggleTodo(todo: ISupabaseTodo) {
-  const completed = !todo.completed;
-
-  //next status after toggle
-  const nextStatus = completed ? "completed" : (todo.previous_status ?? "todo");
-
-  //count todos for current position (where it will be returned)
-  const { count } = await supabase
-    .from("todos")
-    .select("*", {
-      head: true,
-      count: "exact",
-    })
-    .eq("user_id", todo.user_id)
-    .eq("status", nextStatus);
-
-  //next position
-  const nextPosition = completed ? 0 : (count ?? 0);
-
-  if (completed) {
-    const { error } = await supabase.rpc("shift_completed_positions", {
-      p_user_id: todo.user_id,
-    });
-
-    if (error) throw error;
-  }
-
-  const { data, error } = await supabase
-    .from("todos")
-    .update({
-      completed,
-      status: nextStatus,
-      previous_status: completed ? todo.status : null,
-      position: nextPosition,
-    })
-    .eq("id", todo.id)
-    .select()
-    .single();
-
-  if (error) throw error;
-
-  return data;
-}
 
 //!delete
 export async function deleteTodo(id: number) {
   const { error } = await supabase.from("todos").delete().eq("id", id);
-
+  
   if (error) throw error;
-
+  
   return id;
 }
 
@@ -127,16 +82,17 @@ export async function reorderTodos(todos: ISupabaseTodo[]) {
   const updates = todos.map((todo) => ({
     id: todo.id,
     position: todo.position,
-    status: todo.status,
+    column_id: todo.column_id,
   }));
-
+  
   const { error } = await supabase.from("todos").upsert(updates, {
     onConflict: "id",
   });
-
+  
   if (error) throw error;
 }
 
+//!patch
 //!clear completed
 export async function clearCompleted(userId: string) {
   const { error } = await supabase
@@ -155,7 +111,7 @@ export async function updateTodo(todo: ISupabaseTodo) {
     .update({
       title: todo.title,
       completed: todo.completed,
-      status: todo.status,
+      column_id: todo.column_id,
     })
     .eq("id", todo.id)
     .select()
@@ -167,13 +123,10 @@ export async function updateTodo(todo: ISupabaseTodo) {
 }
 
 //!update todo status
-export async function updateTodoStatus(
-  id: number,
-  status: "todo" | "in_progress" | "completed" | "rejected",
-) {
+export async function updateTodoColumn(id: number, column_id: string) {
   const { data, error } = await supabase
     .from("todos")
-    .update({ status })
+    .update({ column_id })
     .eq("id", id)
     .select()
     .single();
@@ -182,3 +135,4 @@ export async function updateTodoStatus(
 
   return data;
 }
+

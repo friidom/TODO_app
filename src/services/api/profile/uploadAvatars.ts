@@ -1,10 +1,9 @@
-import { supabase } from "./supabase";
+import { supabase } from "../supabase";
 
 export async function uploadAvatar(
   file: File,
   userId: string,
 ): Promise<string> {
-    
   const fileExt = file.name.split(".").pop();
 
   const fileName = `${userId}.${fileExt}`;
@@ -17,12 +16,7 @@ export async function uploadAvatar(
 
   if (error) throw error;
 
-  const { data } = supabase.storage
-    .from("avatars")
-    .getPublicUrl(fileName);
+  const { data } = supabase.storage.from("avatars").getPublicUrl(fileName);
 
-    
   return data.publicUrl;
-
-
 }

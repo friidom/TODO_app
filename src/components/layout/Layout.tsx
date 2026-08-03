@@ -1,20 +1,36 @@
 import type { ReactNode } from "react";
-
 import Header from "./header/Header";
+import {
+  SidebarInset,
+  SidebarProvider,
+} from "@/components/ui/SideBarUI/sidebar";
+import { AppSidebar } from "../sideBar/app-sidebar";
+
 interface LayoutProps {
   children: ReactNode;
 }
 
 export default function Layout({ children }: LayoutProps) {
   return (
-    <div className="bg-app min-h-screen">
-      {/* HEADER */}
-      <Header />
+    <SidebarProvider>
+      <div className="flex min-h-screen w-full flex-col">
+        {/* HEADER */}
+        <Header />
 
-      {/* main */}
-      <main className="relative w-full z-20 -mt-44">
-        <div className="mx-auto max-w-[1600px] px-6 pt-2">{children}</div>
-      </main>
-    </div>
+        {/* SIDEBAR + CONTENT */}
+        <div className="flex min-h-0 flex-1">
+          <AppSidebar />
+
+          <SidebarInset>
+            <main className="min-w-0 flex-1 bg-app">
+              <div className="mx-auto max-w-[1600px] px-6 py-6">
+                {children}
+              </div>
+            </main>
+          </SidebarInset>
+        </div>
+      </div>
+      
+    </SidebarProvider>
   );
 }

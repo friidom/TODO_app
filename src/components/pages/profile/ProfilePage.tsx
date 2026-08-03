@@ -59,7 +59,7 @@ export default function ProfilePage() {
 
   return (
     <div className="flex min-h-dvh items-center justify-center bg-violet-600">
-      <div className="mx-auto mt-5 p-6 pb-4 flex w-full max-w-xl flex-col gap-5 rounded-xl bg-white shadow-lg">
+      <div className="mx-auto mt-5 flex w-full max-w-xl flex-col gap-5 rounded-xl bg-white p-6 pb-4 shadow-lg">
         {/* avatar section */}
         <div className="flex flex-col items-center gap-4">
           <label className="group relative h-36 w-36 cursor-pointer overflow-hidden rounded-full">
@@ -74,11 +74,7 @@ export default function ProfilePage() {
                 "https://ui-avatars.com/api/?name=" +
                   encodeURIComponent(form.username || "User")
               }
-              className={`
-      h-full w-full object-cover transition-all duration-300
-      group-hover:scale-110
-      ${uploadAvatar.isPending ? "opacity-40 blur-[2px]" : ""}
-    `}
+              className={`h-full w-full object-cover transition-all duration-300 group-hover:scale-110 ${uploadAvatar.isPending ? "opacity-40 blur-[2px]" : ""} `}
             />
 
             <div className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 transition duration-300 group-hover:opacity-100">
@@ -95,8 +91,8 @@ export default function ProfilePage() {
           </label>
         </div>
 
-        <div className="flex items-center text-center justify-between gap-4">
-          <h1 className="min-w-0 flex-1 wrap-break-word text-4xl font-bold">
+        <div className="flex items-center justify-between gap-4 text-center">
+          <h1 className="min-w-0 flex-1 text-4xl font-bold wrap-break-word">
             {form.full_name ? `${form.full_name}'s Profile` : "Profile"}
           </h1>
         </div>
@@ -175,14 +171,11 @@ export default function ProfilePage() {
           <button
             onClick={handleSave}
             disabled={updateProfile.isPending}
-            className={`flex rounded-lg px-6 py-3  font-semibold text-white
-    transition-all duration-300
-    ${
-      updateProfile.isPending
-        ? "cursor-not-allowed bg-violet-400 opacity-70"
-        : "cursor-pointer bg-violet-600 hover:bg-violet-700"
-    }
-  `}
+            className={`flex rounded-lg px-6 py-3 font-semibold text-white transition-all duration-300 ${
+              updateProfile.isPending
+                ? "cursor-not-allowed bg-violet-400 opacity-70"
+                : "cursor-pointer bg-violet-600 hover:bg-violet-700"
+            } `}
           >
             {updateProfile.isPending ? (
               <>

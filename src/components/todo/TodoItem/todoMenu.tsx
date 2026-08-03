@@ -1,79 +1,57 @@
-import { useDeleteTodo } from "@/services/lib";
-import type { TodoMenuProps } from "@/types/data";
-
+import { useEffect, useRef, useState } from "react";
 import {
-  useFloating,
   FloatingPortal,
   offset,
   flip,
   shift,
   autoUpdate,
+  useFloating,
 } from "@floating-ui/react";
 import { MoreHorizontal } from "lucide-react";
-import { useEffect } from "react";
+import TodoStatusMenu from "./TodoColumnMenu";
 
-export default function TodoMenu({
-  menuOpen,
-  openMenu,
-  closeMenu,
-  onEdit,
-  todoId,
-  currentStatus,
-}: TodoMenuProps) {
+import { useDeleteTodo } from "@/services/lib";
 
-    console.log("TodoMenu render", menuOpen);
-    useEffect(() => {
-  console.log("effect", menuOpen);
+interface TodoMenuProps {
+  todoId: number;
+}
 
-  if (!menuOpen) return;
+export default function TodoMenu({ todoId }: TodoMenuProps) {
+  const [open, setOpen] = useState(false);
+  const [statusMenuOpen, setStatusMenuOpen] = useState(false);
+  const statusMenuRef = useRef<HTMLDivElement>(null);
+  const changeStatusButton = useRef<HTMLButtonElement>(null);
 
-  console.log("effect started");
-
-  function handleClick() {
-    console.log("document click");
-    closeMenu();
-  }
-
-  document.addEventListener("mousedown", handleClick);
-
-  return () => {
-    console.log("cleanup");
-    document.removeEventListener("mousedown", handleClick);
-  };
-}, [menuOpen]);
-
-
+  //deletion
   const deleteTodoMutation = useDeleteTodo();
 
-  const { refs, floatingStyles, context } = useFloating({
+  const { refs, floatingStyles } = useFloating({
+    open,
+    onOpenChange: setOpen,
     placement: "bottom-end",
+
+    middleware: [offset(6), flip(), shift()],
+
     whileElementsMounted: autoUpdate,
-    middleware: [offset(6), flip(), shift({ padding: 8 })],
   });
 
-  function handleEdit() {
-    closeMenu();
-    onEdit();
-  }
-
-  function handleDelete() {
-    deleteTodoMutation.mutate(todoId);
-    closeMenu();
-  }
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!open) return;
 
     function handleClick(e: MouseEvent) {
       const target = e.target as Node;
 
-      if (
-        refs.reference.current &&
-        refs.floating.current &&
-        !refs.reference.current.contains(target) &&
-        !refs.floating.current.contains(target)
-      ) {
-        closeMenu();
+      const insideMainMenu = refs.floating.current?.contains(target) ?? false;
+
+      const insideTrigger =
+        (refs.reference.current as Node | null)?.contains(target) ?? false;
+
+      const insideStatusMenu = statusMenuRef.current?.contains(target) ?? false;
+
+      if (insideMainMenu || insideTrigger || insideStatusMenu) {
+        return;
       }
+      closeMenu();
     }
 
     document.addEventListener("mousedown", handleClick);
@@ -81,106 +59,68 @@ export default function TodoMenu({
     return () => {
       document.removeEventListener("mousedown", handleClick);
     };
-  }, [menuOpen, closeMenu, refs]);
-  useEffect(() => {
-    if (!menuOpen) return;
+  }, [open, refs]);
 
-    function handleClick(e: MouseEvent) {
-      console.log("document click");
+  function closeMenu() {
+    setOpen(false);
+    setStatusMenuOpen(false);
+  }
 
-      const target = e.target as Node;
-
-      if (
-        refs.reference.current &&
-        refs.floating.current &&
-        !refs.reference.current.contains(target) &&
-        !refs.floating.current.contains(target)
-      ) {
-        console.log("close");
-        closeMenu();
-      }
-    }
-
-    document.addEventListener("mousedown", handleClick);
-
-    return () => {
-      document.removeEventListener("mousedown", handleClick);
-    };
-  }, [menuOpen]);
-  console.log("TodoMenu render", menuOpen);
   return (
     <>
-      {/* =========================
-          TRIGGER
-      ========================= */}
-
       <button
-  ref={refs.setReference}
-  onPointerDown={(e) => {
-    e.stopPropagation();
-    console.log("pointer");
-  }}
-  onClick={(e) => {
-    e.stopPropagation();
-    console.log("click");
-    openMenu();
-  }}
->
+        ref={refs.setReference}
+        onClick={() => {
+          setOpen((v) => !v);
+          setStatusMenuOpen(false);
+        }}
+      >
         <MoreHorizontal size={16} />
       </button>
-
-      {/* =========================
-          MENU
-      ========================= */}
-
-      {menuOpen && (
+      {open && (
         <FloatingPortal>
           <div
             ref={refs.setFloating}
             style={floatingStyles}
-            className="z-[9999] w-48 rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl"
+            className="z-50 w-48 overflow-hidden rounded-lg border border-gray-200 bg-white p-1 shadow-[0_8px_24px_rgba(0,0,0,0.12)]"
           >
-            {/* EDIT */}
-
             <button
               type="button"
-              onClick={handleEdit}
-              className="flex w-full items-center rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              className="flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
             >
               Edit
             </button>
 
-            {/* CHANGE STATUS */}
-
             <button
+              ref={changeStatusButton}
               type="button"
-              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
-              onClick={() => {
-                // Следующий этап:
-                // открыть submenu со статусами
-                console.log("Current status:", currentStatus);
-              }}
+              onClick={() => setStatusMenuOpen((v) => !v)}
+              className="flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
             >
-              <span>Change status</span>
-
-              <span className="text-gray-400">›</span>
+              Change status
             </button>
 
-            <div className="my-1 border-t border-gray-100" />
-
-            {/* DELETE */}
+            <div className="my-1 h-px bg-gray-100" />
 
             <button
               type="button"
-              disabled={deleteTodoMutation.isPending}
-              onClick={handleDelete}
-              className="flex w-full items-center rounded-lg px-3 py-2 text-sm text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={() => deleteTodoMutation.mutate(todoId)}
+              className="flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 focus:bg-red-50 focus:outline-none"
             >
-              {deleteTodoMutation.isPending ? "Deleting..." : "Delete"}
+              Delete
             </button>
           </div>
         </FloatingPortal>
       )}
+      <TodoStatusMenu
+        currentColumnId={""}
+        open={statusMenuOpen}
+        anchor={changeStatusButton.current}
+        closeMenu={closeMenu}
+        todoId={todoId}
+        // currentStatus={currentStatus}
+        menuRef={statusMenuRef}
+      />
     </>
   );
 }
