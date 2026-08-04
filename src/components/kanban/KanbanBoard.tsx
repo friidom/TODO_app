@@ -43,6 +43,17 @@ export default function KanbanBoard() {
     [columns],
   );
 
+  // A card on its way to another column: the destination gets highlighted and
+  // both headers swap to the transition state. Same-column drags are just
+  // reordering, so they stay quiet.
+  const sourceId = activeTodo?.column_id ?? null;
+  const destinationId = activeTodo ? indicator.columnId : null;
+  const crossColumn = !!destinationId && destinationId !== sourceId;
+
+  const sourceTitle = crossColumn
+    ? t(orderedColumns.find((column) => column.id === sourceId)?.title ?? "")
+    : "";
+
   if (isLoading) return <Loading />;
 
   if (error) return <p>{error.message}</p>;
@@ -53,7 +64,9 @@ export default function KanbanBoard() {
       collisionDetection={collisionDetection}
       onDragStart={({ active }) => {
         if (active.data.current?.type === "column") {
-          setActiveColumn(orderedColumns.find((c) => c.id === active.id) ?? null);
+          setActiveColumn(
+            orderedColumns.find((c) => c.id === active.id) ?? null,
+          );
           return;
         }
 
@@ -70,7 +83,8 @@ export default function KanbanBoard() {
           if (from !== -1 && columnIndicator !== null) {
             // The gap index counts the dragged column itself while it sits to
             // the left of the target, so shift by one.
-            const to = from < columnIndicator ? columnIndicator - 1 : columnIndicator;
+            const to =
+              from < columnIndicator ? columnIndicator - 1 : columnIndicator;
 
             if (to !== from) {
               const reordered = arrayMove(orderedColumns, from, to).map(
@@ -115,13 +129,21 @@ export default function KanbanBoard() {
                   headerTitle={t(column.title)}
                   todos={todosByColumn[column.id] ?? []}
                   indicator={indicator}
+                  isDragSource={!!activeTodo && column.id === sourceId}
+                  transition={
+                    crossColumn && column.id === destinationId
+                      ? { from: sourceTitle, to: t(column.title) }
+                      : null
+                  }
                 />
               </Fragment>
             ))}
 
             <ColumnDropZone
               index={orderedColumns.length}
-              active={!!activeColumn && columnIndicator === orderedColumns.length}
+              active={
+                !!activeColumn && columnIndicator === orderedColumns.length
+              }
               beforeId={orderedColumns[orderedColumns.length - 1]?.id}
             />
           </div>

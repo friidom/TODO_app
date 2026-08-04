@@ -25,5 +25,8 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "src/components/pages/.tsx", "@"]
+  "include": ["src", "src/components/pages/.tsx", "@"],
+  // *.check.ts are node self-checks, not app code — they run under
+  // `node --experimental-strip-types` and use node types the app build lacks.
+  "exclude": ["src/**/*.check.ts"]
 }

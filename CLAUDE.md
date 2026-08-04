@@ -12,7 +12,15 @@ npm run preview   # serve the built bundle
 npx prettier --write src/...   # no script for it; prettier-plugin-tailwindcss sorts class names
 ```
 
-No test framework is installed. `README.md` is the untouched Vite template — ignore it (it claims React Compiler is enabled; the babel plugin is commented out in `vite.config.ts`).
+No test framework is installed. Pure logic worth checking gets a `*.check.ts` sibling with `node:assert` — run it directly and it prints a pass line:
+
+```bash
+node --experimental-strip-types src/services/lib/todos/insertDense.check.ts
+```
+
+`tsconfig.app.json` excludes `src/**/*.check.ts`, so they never reach `npm run build` (they'd fail on node types — `types` is pinned to `vite/client`).
+
+`README.md` is the untouched Vite template — ignore it (it claims React Compiler is enabled; the babel plugin is commented out in `vite.config.ts`).
 
 Requires `.env` with `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` (gitignored).
 
@@ -27,8 +35,8 @@ Vite + React 19 + TypeScript, Supabase for auth/data, TanStack Query as the only
 **Drag and drop is hand-rolled, not `@dnd-kit/sortable`.** Nothing in the board reflows while dragging; only the `DragOverlay` moves. The pieces:
 
 - `src/hooks/useKanbanDnd.ts` — sensors, a custom `collisionDetection` that ignores rect intersection and picks the *gap nearest the pointer*, and the two indicator states.
-- `DropZone` / `ColumnDropZone` — always-mounted droppables sitting *between* cards/columns, ids `todo-gap:<columnId>:<index>` and `column-gap:<index>`. They exist to be measured, and paint a blue line when they're the nearest gap.
-- `KanbanBoard.tsx` `onDragEnd` — column branch does `arrayMove` + `reorderColumns`; todo branch delegates to `todoDrop`.
+- `DropZone` / `ColumnDropZone` — always-mounted droppables sitting *between* cards/columns, ids `todo-gap:<columnId>:<index>` and `column-gap:<index>`. They exist to be measured, and paint a blue line when they're the nearest gap. Each also carries `beforeId`/`afterId` (its two neighbours) so `collisionDetection` can drop the hit when the gap touches the dragged item — otherwise the indicator would offer a no-op drop around the item itself. Idle, `DropZone` doubles as the create affordance (hover → `+` → `TodoCreateForm` opens at that index).
+- `KanbanBoard.tsx` `onDragEnd` — column branch does `arrayMove` + `reorderColumns`; todo branch delegates to `todoDrop`. It also derives the cross-column transition state (`activeTodo.column_id` vs `indicator.columnId`) and feeds `KanbanColumn` the `isDragSource` / `transition` props that swap the headers and highlight the destination. Same-column drags are pure reordering, so `transition` stays null there.
 - `src/services/lib/todos/useTodoDrop.ts` — splices the card into the destination column at the indicator index and renumbers both source and destination.
 
 Droppable `data.type` is the dispatch key throughout: `"column" | "column-gap" | "todo-gap"`. Adding a drop target means adding a type here and handling it in `handleDragOver` + `collisionDetection`.

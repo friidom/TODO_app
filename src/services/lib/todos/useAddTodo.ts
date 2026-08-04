@@ -1,16 +1,25 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { addTodo } from "../../api/todoApi";
+import { addTodo, reorderTodos } from "../../api/todoApi";
+import { insertDense } from "./insertDense";
 import type { ISupabaseTodo } from "../../../types/data";
+
+interface AddTodoVars {
+  title: string;
+  column_id: string;
+  /** Gap index to insert at. Appends to the column when omitted. */
+  index?: number;
+}
 
 export function useAddTodo() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: addTodo,
+    mutationFn: ({ title, column_id }: AddTodoVars) =>
+      addTodo({ title, column_id }),
 
     //!? Optimistic update
 
-    onMutate: async ({ title, column_id }) => {
+    onMutate: async ({ title, column_id, index }) => {
       //before request
       //stop all queries
       await queryClient.cancelQueries({
@@ -21,16 +30,6 @@ export function useAddTodo() {
       const previousTodos =
         queryClient.getQueryData<ISupabaseTodo[]>(["todos"]) ?? [];
 
-      const columnTodos = previousTodos.filter(
-        (todo) => todo.column_id === column_id,
-      );
-
-      //position of the new todo
-      const position =
-        columnTodos.length > 0
-          ? Math.max(...columnTodos.map((todo) => todo.position)) + 1
-          : 0;
-
       //temp todo
       const optimisticTodo: ISupabaseTodo = {
         id: Date.now(),
@@ -38,24 +37,24 @@ export function useAddTodo() {
         completed: false,
         user_id: "",
         created_at: new Date().toISOString(),
-        position: position,
+        position: 0, //renumbered below
         column_id,
         isOptimistic: true,
       };
 
-      //find last todo
-      const lastIndex = previousTodos.reduce(
-        (lastIndex, todo, index) =>
-          todo.column_id === column_id ? index : lastIndex,
-        -1,
+      const renumbered = insertDense(
+        previousTodos.filter((todo) => todo.column_id === column_id),
+        optimisticTodo,
+        index,
       );
 
-      //adding in the end of todos of that column
-      const newTodos = [...previousTodos];
-
-      newTodos.splice(lastIndex + 1, 0, optimisticTodo);
-
-      queryClient.setQueryData<ISupabaseTodo[]>(["todos"], newTodos);
+      queryClient.setQueryData<ISupabaseTodo[]>(
+        ["todos"],
+        [
+          ...previousTodos.filter((todo) => todo.column_id !== column_id),
+          ...renumbered,
+        ],
+      );
 
       //context
       return {
@@ -71,18 +70,33 @@ export function useAddTodo() {
 
     //success
     onSuccess: (serverTodo, _variables, context) => {
-      queryClient.setQueryData<ISupabaseTodo[]>(["todos"], (old = []) =>
-        old.map((todo) =>
-          todo.id === context?.optimisticId
-            ? {
-                ...serverTodo,
-                isOptimistic: false,
-              }
-            : todo,
-        ),
+      const current =
+        queryClient.getQueryData<ISupabaseTodo[]>(["todos"]) ?? [];
+
+      //keep the slot we picked; the server just appended
+      const position =
+        current.find((todo) => todo.id === context?.optimisticId)?.position ??
+        serverTodo.position;
+
+      const todos = current.map((todo) =>
+        todo.id === context?.optimisticId
+          ? { ...serverTodo, position, isOptimistic: false }
+          : todo,
       );
+
+      queryClient.setQueryData<ISupabaseTodo[]>(["todos"], todos);
+
+      if (position === serverTodo.position) return;
+
+      // Inserted mid-column, so every card below it shifted — write that back.
+      // ponytail: still-pending inserts are skipped (upserting their fake ids
+      // would create blank rows); their own onSuccess writes the column again.
+      reorderTodos(
+        todos.filter(
+          (todo) =>
+            todo.column_id === serverTodo.column_id && !todo.isOptimistic,
+        ),
+      ).catch(() => queryClient.invalidateQueries({ queryKey: ["todos"] }));
     },
   });
 }
-
-//success
