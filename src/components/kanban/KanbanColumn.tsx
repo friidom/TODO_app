@@ -119,6 +119,7 @@ export default function KanbanColumn({
             columnId={id}
             index={0}
             active={isIndicatorHere && indicator.index === 0}
+            afterId={todos[0]?.id}
           />
 
           {todos.map((todo, index) => (
@@ -133,6 +134,8 @@ export default function KanbanColumn({
                 columnId={id}
                 index={index + 1}
                 active={isIndicatorHere && indicator.index === index + 1}
+                beforeId={todo.id}
+                afterId={todos[index + 1]?.id}
               />
             </React.Fragment>
           ))}

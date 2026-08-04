@@ -103,6 +103,8 @@ export default function KanbanBoard() {
                 <ColumnDropZone
                   index={index}
                   active={!!activeColumn && columnIndicator === index}
+                  beforeId={orderedColumns[index - 1]?.id}
+                  afterId={column.id}
                 />
 
                 <SortableColumn
@@ -120,6 +122,7 @@ export default function KanbanBoard() {
             <ColumnDropZone
               index={orderedColumns.length}
               active={!!activeColumn && columnIndicator === orderedColumns.length}
+              beforeId={orderedColumns[orderedColumns.length - 1]?.id}
             />
           </div>
 

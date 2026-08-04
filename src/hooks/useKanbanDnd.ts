@@ -7,6 +7,7 @@ import {
   type CollisionDetection,
   type DragOverEvent,
   type DroppableContainer,
+  type UniqueIdentifier,
 } from "@dnd-kit/core";
 import { useCallback, useState } from "react";
 
@@ -75,6 +76,20 @@ function typeOf(container: DroppableContainer) {
   return container.data.current?.type as DropType | undefined;
 }
 
+/**
+ * A gap that touches the dragged item is where it already sits — dropping there
+ * changes nothing, so we offer no target at all instead of drawing a line
+ * around the item itself.
+ */
+function touchesActive(
+  hit: { container: DroppableContainer } | null,
+  activeId: UniqueIdentifier,
+) {
+  const data = hit?.container.data.current;
+
+  return data?.beforeId === activeId || data?.afterId === activeId;
+}
+
 export default function useKanbanDnd() {
   const [activeTodo, setActiveTodo] = useState<ISupabaseTodo | null>(null);
   const [activeColumn, setActiveColumn] = useState<IColumn | null>(null);
@@ -110,11 +125,13 @@ export default function useKanbanDnd() {
           (container) => typeOf(container) === "column-gap",
         );
 
-        return toCollisions(
-          pickNearest(gaps, (rect) =>
-            Math.abs(rect.left + rect.width / 2 - x),
-          ),
+        const hit = pickNearest(gaps, (rect) =>
+          Math.abs(rect.left + rect.width / 2 - x),
         );
+
+        if (touchesActive(hit, active.id)) return [];
+
+        return toCollisions(hit);
       }
 
       // ---- dragging a todo: hovered column, then nearest gap inside it ------
@@ -139,9 +156,13 @@ export default function useKanbanDnd() {
       // Empty column: fall back to the column itself.
       if (!gaps.length) return toCollisions(column);
 
-      return toCollisions(
-        pickNearest(gaps, (rect) => Math.abs(rect.top + rect.height / 2 - y)),
+      const hit = pickNearest(gaps, (rect) =>
+        Math.abs(rect.top + rect.height / 2 - y),
       );
+
+      if (touchesActive(hit, active.id)) return [];
+
+      return toCollisions(hit);
     },
     [],
   );

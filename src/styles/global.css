@@ -263,3 +263,20 @@ body,
     border-radius: 50%;
   }
 }
+
+.overlay-indicator-column{
+  position: relative;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 8px;
+    height: 8px;
+    background-color: white;
+    border: 2px solid var(--color-blue-500);
+    border-radius: 50%;
+  }
+}

@@ -1,0 +1,48 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Commands
+
+```bash
+npm run dev       # vite dev server
+npm run build     # tsc -b && vite build  — the only typecheck; run it before claiming a change compiles
+npm run lint      # eslint .
+npm run preview   # serve the built bundle
+npx prettier --write src/...   # no script for it; prettier-plugin-tailwindcss sorts class names
+```
+
+No test framework is installed. `README.md` is the untouched Vite template — ignore it (it claims React Compiler is enabled; the babel plugin is commented out in `vite.config.ts`).
+
+Requires `.env` with `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` (gitignored).
+
+## Architecture
+
+Vite + React 19 + TypeScript, Supabase for auth/data, TanStack Query as the only real state layer, Tailwind v4 (CSS-first, no tailwind.config), `@dnd-kit/core` for the board.
+
+**Data flow.** `src/services/api/*` and `src/services/columns/columnsApi.ts` are the raw Supabase calls; `src/services/lib/todos/*` and `src/services/columns/use*.ts` wrap them in query/mutation hooks; components consume the hooks. Two query keys hold everything: `["todos"]` (one flat array for the whole board, not per-column) and `["columns"]`. `useTodosByColumns` does the grouping and position-sorting client-side. Most mutations optimistically patch the `["todos"]` cache rather than invalidating.
+
+**Positions.** Both todos and columns carry a dense integer `position`. Reordering means: recompute every affected position client-side, write the whole array into the query cache, then bulk `upsert` it (`reorderTodos` / `reorderColumns`). Never assume a partial update is enough — gaps in `position` break the sort.
+
+**Drag and drop is hand-rolled, not `@dnd-kit/sortable`.** Nothing in the board reflows while dragging; only the `DragOverlay` moves. The pieces:
+
+- `src/hooks/useKanbanDnd.ts` — sensors, a custom `collisionDetection` that ignores rect intersection and picks the *gap nearest the pointer*, and the two indicator states.
+- `DropZone` / `ColumnDropZone` — always-mounted droppables sitting *between* cards/columns, ids `todo-gap:<columnId>:<index>` and `column-gap:<index>`. They exist to be measured, and paint a blue line when they're the nearest gap.
+- `KanbanBoard.tsx` `onDragEnd` — column branch does `arrayMove` + `reorderColumns`; todo branch delegates to `todoDrop`.
+- `src/services/lib/todos/useTodoDrop.ts` — splices the card into the destination column at the indicator index and renumbers both source and destination.
+
+Droppable `data.type` is the dispatch key throughout: `"column" | "column-gap" | "todo-gap"`. Adding a drop target means adding a type here and handling it in `handleDragOver` + `collisionDetection`.
+
+**Auth.** `useAuth` is a plain hook holding its own `useState` and its own `onAuthStateChange` subscription — it is *not* a context, so each call site gets an independent copy (and its own `loading` flip). Routes in `components/routes/` gate on it. `signUp` in `authApi.ts` also seeds the profile row and four default columns ("To Do" / "In Progress" / "In Review" / "Done") — new users depend on that side effect.
+
+**i18n.** `src/components/i18n/` (en/ru/uz, language in `localStorage`). Column titles are run through `t()`, so the seeded English titles double as translation keys.
+
+**Theme.** `ThemeProvider` toggles a `dark` class on `<html>`; the `@custom-variant dark` in `src/styles/global.css` keys off it. All design tokens are CSS vars in that file.
+
+## Gotchas
+
+- `components.json` maps `utils` to `@/lib/utils`, which does not exist — `cn` actually lives in `@/services/lib/utils`. Fix the import after any `npx shadcn add`.
+- `@/` → `src/`, declared in both `vite.config.ts` and `tsconfig.app.json`. Existing imports mix `@/` and relative paths freely.
+- Dead code that looks live: `src/stores/todoStore.ts` (zustand, zero consumers), `BASE_URL` in `constants/consants.ts` (jsonplaceholder, pre-Supabase), `ITodo`/`IServiceTodo` in `types/data.ts` (the live types are `ISupabaseTodo`/`IColumn`), `hooks/useDropIndicator.ts`, `services/lib/todos/useReorderTodos.ts` + `useSaveTodoOrder.ts` + `useDragOverTodos.ts`, `components/kanban/DraggableTodo.tsx` (`TodoItem.tsx` defines its own), `constants/columns.ts` (entirely commented out). Column creation UI (`AddColumnButton`, `CreateColumnModal`) is wired but commented out at both call sites.
+- Vendored shadcn components live in `src/components/ui/SideBarUI/` (not `ui/` directly) and are built on `radix-ui` + `@base-ui/react`.
+- `noUnusedLocals`/`noUnusedParameters` are on, so an unused import fails `npm run build` even though the dev server is happy.

@@ -6,6 +6,9 @@ interface Props {
   columnId: string;
   index: number;
   active: boolean;
+  /** Card directly above / below the gap — used to skip no-op drops. */
+  beforeId?: number;
+  afterId?: number;
 }
 
 /**
@@ -13,10 +16,16 @@ interface Props {
  * measured on drag start) and only paints the line when the pointer is nearest
  * to it.
  */
-export default function DropZone({ columnId, index, active }: Props) {
+export default function DropZone({
+  columnId,
+  index,
+  active,
+  beforeId,
+  afterId,
+}: Props) {
   const { setNodeRef } = useDroppable({
     id: `todo-gap:${columnId}:${index}`,
-    data: { type: "todo-gap", columnId, index },
+    data: { type: "todo-gap", columnId, index, beforeId, afterId },
   });
 
   return (
