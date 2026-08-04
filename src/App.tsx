@@ -18,10 +18,10 @@ function App() {
         {/* // drag and drop  */}
         <KanbanBoard />
       </Layout>
-      <CreateColumnModal
+      {/* <CreateColumnModal
         open={createColumnOpen}
         onClose={() => setCreateColumnOpen(false)}
-      />
+      /> */}
     </TodoPage>
   );
 }

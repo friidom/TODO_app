@@ -1,25 +1,32 @@
 import { useDroppable } from "@dnd-kit/core";
 
+import { cn } from "@/services/lib/utils";
+
 interface Props {
   columnId: string;
   index: number;
+  active: boolean;
 }
 
-export default function DropZone({ columnId, index }: Props) {
-  const { setNodeRef, isOver } = useDroppable({
-    id: `drop-${columnId}-${index}`,
-    data: {
-      type: "drop-zone",
-      columnId,
-      index,
-    },
+/**
+ * The empty space between two cards. It is always in the DOM (so it can be
+ * measured on drag start) and only paints the line when the pointer is nearest
+ * to it.
+ */
+export default function DropZone({ columnId, index, active }: Props) {
+  const { setNodeRef } = useDroppable({
+    id: `todo-gap:${columnId}:${index}`,
+    data: { type: "todo-gap", columnId, index },
   });
 
   return (
-    <div ref={setNodeRef} className="relative -my-2 h-4">
-      {isOver && (
-        <div className="pointer-events-none absolute top-1/2 right-0 left-0 z-50 h-[3px] -translate-y-1/2 rounded-full bg-[#0C66E4] shadow-[0_0_8px_rgba(12,102,228,.5)]" />
-      )}
+    <div ref={setNodeRef} className="relative h-2.5 w-full shrink-0">
+      <div
+        className={cn(
+          "absolute inset-x-0 top-1/2 h-[3px] overlay-indicator -translate-y-1/2 rounded-full bg-blue-500 transition-opacity duration-100",
+          active ? "opacity-100" : "opacity-0",
+        )}
+      />
     </div>
   );
 }

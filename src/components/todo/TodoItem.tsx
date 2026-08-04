@@ -1,26 +1,58 @@
 import type { TodoItemProps } from "../../types/data";
 
-import { Bug, User } from "lucide-react";
-import { useSortable, defaultAnimateLayoutChanges } from "@dnd-kit/sortable";
-
-import { CSS } from "@dnd-kit/utilities";
+import { Bug, Pencil, User } from "lucide-react";
+import { useDraggable } from "@dnd-kit/core";
 import { useEffect, useRef, useState } from "react";
-import { useUpdateTodo } from "../../services/lib/todos/useUpdateTodo";
-import { Pencil } from "lucide-react";
 
+import { useUpdateTodo } from "../../services/lib/todos/useUpdateTodo";
 import TodoMenu from "./TodoItem/TodoMenu";
 import LoadingSpinner from "../pages/loading/LoadingSpinner";
+import { cn } from "@/services/lib/utils";
 
-export default function TodoItem({
+type CardProps = TodoItemProps & {
+  dragging?: boolean;
+  setNodeRef?: (element: HTMLElement | null) => void;
+  handleProps?: Record<string, unknown>;
+};
+
+/**
+ * Split in two so hooks are never called conditionally: the overlay copy is a
+ * plain card, the one in the column is wrapped in a draggable.
+ */
+export default function TodoItem({ overlay = false, ...props }: TodoItemProps) {
+  if (overlay) return <TodoCard {...props} overlay />;
+
+  return <DraggableTodo {...props} />;
+}
+
+function DraggableTodo(props: TodoItemProps) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: props.id,
+    data: { type: "todo", columnId: props.column_id },
+  });
+
+  // No transform is applied on purpose: the card stays exactly where it is and
+  // only the DragOverlay follows the cursor.
+  return (
+    <TodoCard
+      {...props}
+      dragging={isDragging}
+      setNodeRef={setNodeRef}
+      handleProps={{ ...attributes, ...listeners }}
+    />
+  );
+}
+
+function TodoCard({
+  overlay = false,
+  dragging = false,
+  setNodeRef,
+  handleProps,
   openMenu,
   closeMenu,
   menuOpen,
-  overlay = false,
-
   ...todo
-}: TodoItemProps) {
-  //menu
-
+}: CardProps) {
   //edit
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(todo.title);
@@ -58,55 +90,24 @@ export default function TodoItem({
       },
     );
   }
+
   //canceling edit
   function cancelEdit() {
     setTitle(todo.title);
     setEditing(false);
   }
 
-  const animateLayoutChanges = (args: any) => {
-    if (args.isSorting || args.wasDragging) {
-      return false;
-    }
-
-    return defaultAnimateLayoutChanges(args);
-  };
-
-  const sortable = !overlay
-    ? useSortable({
-        id: todo.id,
-        animateLayoutChanges: () => false,
-        transition: null,
-        data: {
-          currentColumnId: todo.column_id,
-        },
-      })
-    : null;
-
-  const isDragging = sortable?.isDragging ?? false;
-  const attributes = sortable?.attributes ?? {};
-  const listeners = sortable?.listeners ?? {};
-  const setNodeRef = sortable?.setNodeRef ?? (() => {});
-  const transform = sortable?.transform;
-  const transition = sortable?.transition;
-
-  const style = overlay
-    ? undefined
-    : {
-        transform: CSS.Transform.toString(transform ?? null),
-        transition,
-        willChange: "transform",
-      };
-
   return (
     <div
-      ref={overlay ? undefined : setNodeRef}
-      style={style}
-      {...(!overlay ? attributes : {})}
-      {...(!overlay ? listeners : {})}
-      className={`group relative flex flex-col gap-3 rounded-xl border border-gray-200 bg-white px-3 py-3 shadow-sm transition-all duration-200 hover:border-gray-300 hover:shadow-md active:cursor-grabbing ${
-        isDragging && !overlay ? "pointer-events-none opacity-0" : ""
-      } `}
+      ref={setNodeRef}
+      {...handleProps}
+      className={cn(
+        "group relative flex touch-none flex-col gap-3 rounded-xl border border-gray-200 bg-white px-3 py-3 shadow-sm transition-colors duration-200 select-none hover:border-gray-300",
+        overlay
+          ? " cursor-grabbing shadow-lg opacity-60"
+          : "cursor-grab hover:shadow-md",
+        dragging && "opacity-40 shadow-none hover:border-gray-200",
+      )}
     >
       {/* TITLE */}
       <div className="flex items-start justify-between gap-2">
@@ -137,7 +138,6 @@ export default function TodoItem({
               type="button"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={() => setEditing(true)}
-
               className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
             >
               <Pencil size={15} />
@@ -160,7 +160,6 @@ export default function TodoItem({
             {!todo.isOptimistic && `KAN-${todo.id}`}
           </span>
         </div>
-        {/* //MENU */}
 
         {/* assignee */}
         {!todo.isOptimistic && (

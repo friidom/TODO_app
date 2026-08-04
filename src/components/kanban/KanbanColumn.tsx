@@ -1,7 +1,3 @@
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
 import { useDroppable } from "@dnd-kit/core";
 import TodoItem from "../todo/TodoItem";
 
@@ -11,6 +7,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useAddTodo } from "../../services/lib";
 import { Bug, Calendar, ChevronDown, CornerDownLeft, User } from "lucide-react";
 import DropZone from "./DropZone";
+import type { TodoIndicator } from "@/hooks/useKanbanDnd";
 
 interface Props {
   headerTitle: string;
@@ -19,7 +16,8 @@ interface Props {
   column: IColumn;
   openMenuId: number | null;
   setOpenMenuId: React.Dispatch<React.SetStateAction<number | null>>;
-
+  indicator: TodoIndicator;
+  dragHandleProps?: Record<string, unknown>;
 }
 
 export default function KanbanColumn({
@@ -29,17 +27,18 @@ export default function KanbanColumn({
   setOpenMenuId,
   todos,
   column,
-
+  indicator,
+  dragHandleProps,
 }: Props) {
   const { setNodeRef } = useDroppable({
     id,
+    data: { type: "column", columnId: id },
   });
 
   const [isCreating, setIsCreating] = useState(false);
   const [title, setTitle] = useState("");
 
   const addTodoMutation = useAddTodo();
-  const status = id;
   const formRef = useRef<HTMLFormElement>(null);
 
   function onClose() {
@@ -88,18 +87,22 @@ export default function KanbanColumn({
     //clean input for the next title
     setTitle("");
     setIsCreating(true);
-    // scrollToBottom();
   };
   //ref scroll
   const listRef = useRef<HTMLDivElement>(null);
+
+  const isIndicatorHere = indicator?.columnId === id;
 
   return (
     <div
       ref={setNodeRef}
       className="flex h-fit max-h-[calc(100vh-220px)] w-[280px] shrink-0 flex-col overflow-hidden rounded-xl bg-[#f8f8f8]"
     >
-      {/* HEADER */}
-      <div className="flex shrink-0 items-center justify-between px-5 py-4">
+      {/* HEADER — the only drag handle for the column */}
+      <div
+        {...dragHandleProps}
+        className="flex shrink-0 cursor-grab touch-none items-center justify-between px-5 py-4 select-none active:cursor-grabbing"
+      >
         <div className="flex items-center gap-3">
           <h2 className="text-lg font-semibold text-gray-700">{headerTitle}</h2>
 
@@ -110,33 +113,31 @@ export default function KanbanColumn({
       </div>
 
       {/* TODO LIST */}
-      <SortableContext
-        id={id}
-        items={todos.map((todo) => todo.id)}
-        strategy={verticalListSortingStrategy}
-      >
-        <div ref={listRef} className="min-h-0 overflow-y-auto px-3 pb-2">
-          <div className="flex flex-col gap-2">
-            <div className="flex flex-col">
-              <DropZone columnId={id} index={0} />
+      <div ref={listRef} className="min-h-0 overflow-y-auto px-3 pb-2">
+        <div className="flex min-h-10 flex-col">
+          <DropZone
+            columnId={id}
+            index={0}
+            active={isIndicatorHere && indicator.index === 0}
+          />
 
-              {todos.map((todo, index) => (
-                <React.Fragment key={todo.id}>
-                  <TodoItem
-                    menuOpen={openMenuId === todo.id}
-                    openMenu={() => setOpenMenuId(todo.id)}
-                    closeMenu={() => setOpenMenuId(null)}
-                    {...todo}
-                  />
-                  <DropZone columnId={id} index={index + 1} />
-
-                </React.Fragment>
-              ))}
-            </div>
-            
-          </div>
+          {todos.map((todo, index) => (
+            <React.Fragment key={todo.id}>
+              <TodoItem
+                menuOpen={openMenuId === todo.id}
+                openMenu={() => setOpenMenuId(todo.id)}
+                closeMenu={() => setOpenMenuId(null)}
+                {...todo}
+              />
+              <DropZone
+                columnId={id}
+                index={index + 1}
+                active={isIndicatorHere && indicator.index === index + 1}
+              />
+            </React.Fragment>
+          ))}
         </div>
-      </SortableContext>
+      </div>
 
       {/* CREATE */}
       <div className="shrink-0 bg-[#f8f8f8] p-2">
