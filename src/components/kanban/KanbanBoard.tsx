@@ -15,6 +15,7 @@ import SortableColumn from "./SortableColumn";
 import ColumnDropZone from "./ColumnDropZone";
 import TodoDragOverlay from "./TodoDragOverlay";
 import AddColumnButton from "../columns/AddColumnButton";
+import CreateColumnModal from "../columns/CreateColumnModal";
 import Loading from "../pages/loading/LoadingPage";
 
 export default function KanbanBoard() {
@@ -148,9 +149,14 @@ export default function KanbanBoard() {
             />
           </div>
 
-          {/* <AddColumnButton setCreateColumnOpen={setCreateColumnOpen} /> */}
+          <AddColumnButton setCreateColumnOpen={setCreateColumnOpen} />
         </div>
       </div>
+
+      <CreateColumnModal
+        open={createColumnOpen}
+        onClose={() => setCreateColumnOpen(false)}
+      />
 
       <TodoDragOverlay
         activeTodo={activeTodo}
