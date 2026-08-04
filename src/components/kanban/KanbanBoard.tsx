@@ -16,7 +16,11 @@ import ColumnDropZone from "./ColumnDropZone";
 import TodoDragOverlay from "./TodoDragOverlay";
 import AddColumnButton from "../columns/AddColumnButton";
 import CreateColumnModal from "../columns/CreateColumnModal";
+import ColumnLimitModal from "../columns/ColumnLimitModal";
+import DeleteColumnModal from "../columns/DeleteColumnModal";
+import CollapsedColumn from "../columns/CollapsedColumn";
 import Loading from "../pages/loading/LoadingPage";
+import type { IColumn } from "@/types/data";
 
 export default function KanbanBoard() {
   const { data: todos = [], isLoading, error } = useTodos();
@@ -38,11 +42,30 @@ export default function KanbanBoard() {
 
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
   const [createColumnOpen, setCreateColumnOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState<string[]>([]);
+  const [limitColumn, setLimitColumn] = useState<IColumn | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<IColumn | null>(null);
 
   const orderedColumns = useMemo(
     () => columns.slice().sort((a, b) => a.position - b.position),
     [columns],
   );
+
+  /** Swap a column with its neighbour and renumber the whole list. */
+  function moveColumn(from: number, to: number) {
+    const reordered = arrayMove(orderedColumns, from, to).map(
+      (column, position) => ({ ...column, position }),
+    );
+
+    queryClient.setQueryData(["columns"], reordered);
+    reorderColumns.mutate(reordered);
+  }
+
+  function toggleCollapsed(id: string) {
+    setCollapsed((open) =>
+      open.includes(id) ? open.filter((it) => it !== id) : [...open, id],
+    );
+  }
 
   // A card on its way to another column: the destination gets highlighted and
   // both headers swap to the transition state. Same-column drags are just
@@ -51,9 +74,9 @@ export default function KanbanBoard() {
   const destinationId = activeTodo ? indicator.columnId : null;
   const crossColumn = !!destinationId && destinationId !== sourceId;
 
-  const sourceTitle = crossColumn
-    ? t(orderedColumns.find((column) => column.id === sourceId)?.title ?? "")
-    : "";
+  const sourceColumn = crossColumn
+    ? orderedColumns.find((column) => column.id === sourceId)
+    : undefined;
 
   if (isLoading) return <Loading />;
 
@@ -122,21 +145,50 @@ export default function KanbanBoard() {
                   afterId={column.id}
                 />
 
-                <SortableColumn
-                  id={column.id}
-                  column={column}
-                  openMenuId={openMenuId}
-                  setOpenMenuId={setOpenMenuId}
-                  headerTitle={t(column.title)}
-                  todos={todosByColumn[column.id] ?? []}
-                  indicator={indicator}
-                  isDragSource={!!activeTodo && column.id === sourceId}
-                  transition={
-                    crossColumn && column.id === destinationId
-                      ? { from: sourceTitle, to: t(column.title) }
-                      : null
-                  }
-                />
+                {collapsed.includes(column.id) ? (
+                  <CollapsedColumn
+                    headerTitle={t(column.title)}
+                    count={todosByColumn[column.id]?.length ?? 0}
+                    onExpand={() => toggleCollapsed(column.id)}
+                  />
+                ) : (
+                  <SortableColumn
+                    id={column.id}
+                    column={column}
+                    openMenuId={openMenuId}
+                    setOpenMenuId={setOpenMenuId}
+                    headerTitle={t(column.title)}
+                    todos={todosByColumn[column.id] ?? []}
+                    indicator={indicator}
+                    isDragSource={!!activeTodo && column.id === sourceId}
+                    onCollapse={() => toggleCollapsed(column.id)}
+                    onSetLimit={() => setLimitColumn(column)}
+                    onDelete={() => setDeleteTarget(column)}
+                    onMoveLeft={
+                      index > 0 ? () => moveColumn(index, index - 1) : undefined
+                    }
+                    onMoveRight={
+                      index < orderedColumns.length - 1
+                        ? () => moveColumn(index, index + 1)
+                        : undefined
+                    }
+                    canDelete={orderedColumns.length > 1}
+                    transition={
+                      sourceColumn && column.id === destinationId
+                        ? {
+                            from: {
+                              title: t(sourceColumn.title),
+                              category: sourceColumn.category,
+                            },
+                            to: {
+                              title: t(column.title),
+                              category: column.category,
+                            },
+                          }
+                        : null
+                    }
+                  />
+                )}
               </Fragment>
             ))}
 
@@ -156,6 +208,19 @@ export default function KanbanBoard() {
       <CreateColumnModal
         open={createColumnOpen}
         onClose={() => setCreateColumnOpen(false)}
+      />
+
+      <ColumnLimitModal
+        column={limitColumn}
+        onClose={() => setLimitColumn(null)}
+      />
+
+      <DeleteColumnModal
+        column={deleteTarget}
+        destinations={orderedColumns.filter(
+          (column) => column.id !== deleteTarget?.id,
+        )}
+        onClose={() => setDeleteTarget(null)}
       />
 
       <TodoDragOverlay

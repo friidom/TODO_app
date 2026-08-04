@@ -1,21 +1,23 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { reorderColumns } from "./columnsApi";
+import { updateColumn } from "./columnsApi";
 import type { IColumn } from "@/types/data";
 
-export function useReorderColumns() {
+export function useUpdateColumn() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: reorderColumns,
+    mutationFn: updateColumn,
 
-    onMutate: async (columns) => {
-      await queryClient.cancelQueries({
-        queryKey: ["columns"],
-      });
+    onMutate: async ({ id, ...patch }) => {
+      await queryClient.cancelQueries({ queryKey: ["columns"] });
 
       const previous = queryClient.getQueryData<IColumn[]>(["columns"]) ?? [];
 
-      queryClient.setQueryData(["columns"], columns);
+      queryClient.setQueryData<IColumn[]>(["columns"], (old = []) =>
+        old.map((column) =>
+          column.id === id ? { ...column, ...patch } : column,
+        ),
+      );
 
       return { previous };
     },

@@ -16,6 +16,7 @@ No test framework is installed. Pure logic worth checking gets a `*.check.ts` si
 
 ```bash
 node --experimental-strip-types src/services/lib/todos/insertDense.check.ts
+node --experimental-strip-types src/services/columns/limitBreach.check.ts
 ```
 
 `tsconfig.app.json` excludes `src/**/*.check.ts`, so they never reach `npm run build` (they'd fail on node types — `types` is pinned to `vite/client`).
@@ -43,6 +44,12 @@ Droppable `data.type` is the dispatch key throughout: `"column" | "column-gap" |
 
 **Auth.** `useAuth` is a plain hook holding its own `useState` and its own `onAuthStateChange` subscription — it is *not* a context, so each call site gets an independent copy (and its own `loading` flip). Routes in `components/routes/` gate on it. `signUp` in `authApi.ts` also seeds the profile row and four default columns ("To Do" / "In Progress" / "In Review" / "Done") — new users depend on that side effect.
 
+**Column management.** `components/columns/` owns everything a column can do: `ColumnHeader` picks one of four header states (transition pills / "Transition to..." / inline rename / normal), `ColumnMenu` is the three-dot menu, and the modals handle limits and deletion. `KanbanBoard` holds the state these need — which columns are collapsed (client-only, not persisted), and which column each modal targets. Deleting a column rehomes its todos server-side first (`deleteColumn` in `columnsApi.ts`), so the delete modal always makes you pick a destination and the option is hidden when only one column is left.
+
+**Column limits.** `min_limit`/`max_limit` are nullable and advisory — `limitBreach()` turns a breach into the header's warning text and nothing more. They never block a drop. SQL in `supabase/add-column-limits.sql`.
+
+**Column categories.** `columns.category` is a checked text field (`'todo' | 'in_progress' | 'done'`) — a fixed set users pick from, never define, so there is no lookup table. The palette lives in `src/constants/columns.ts`, not the DB: colours are presentation, so retuning them is an edit rather than a migration. `categoryOf()` falls back to `todo`, so rows written before `supabase/add-column-category.sql` ran still render.
+
 **i18n.** `src/components/i18n/` (en/ru/uz, language in `localStorage`). Column titles are run through `t()`, so the seeded English titles double as translation keys.
 
 **Theme.** `ThemeProvider` toggles a `dark` class on `<html>`; the `@custom-variant dark` in `src/styles/global.css` keys off it. All design tokens are CSS vars in that file.
@@ -51,6 +58,7 @@ Droppable `data.type` is the dispatch key throughout: `"column" | "column-gap" |
 
 - `components.json` maps `utils` to `@/lib/utils`, which does not exist — `cn` actually lives in `@/services/lib/utils`. Fix the import after any `npx shadcn add`.
 - `@/` → `src/`, declared in both `vite.config.ts` and `tsconfig.app.json`. Existing imports mix `@/` and relative paths freely.
-- Dead code that looks live: `src/stores/todoStore.ts` (zustand, zero consumers), `BASE_URL` in `constants/consants.ts` (jsonplaceholder, pre-Supabase), `ITodo`/`IServiceTodo` in `types/data.ts` (the live types are `ISupabaseTodo`/`IColumn`), `hooks/useDropIndicator.ts`, `services/lib/todos/useReorderTodos.ts` + `useSaveTodoOrder.ts` + `useDragOverTodos.ts`, `components/kanban/DraggableTodo.tsx` (`TodoItem.tsx` defines its own), `constants/columns.ts` (entirely commented out). Column creation UI (`AddColumnButton`, `CreateColumnModal`) is wired but commented out at both call sites.
+- Dead code that looks live: `src/stores/todoStore.ts` (zustand, zero consumers), `BASE_URL` in `constants/consants.ts` (jsonplaceholder, pre-Supabase), `ITodo`/`IServiceTodo` in `types/data.ts` (the live types are `ISupabaseTodo`/`IColumn`), `hooks/useDropIndicator.ts`, `services/lib/todos/useReorderTodos.ts` + `useSaveTodoOrder.ts` + `useDragOverTodos.ts`, `components/kanban/DraggableTodo.tsx` (`TodoItem.tsx` defines its own).
+- `HeaderTodoForm.tsx` is live (rendered by `Header.tsx`) but broken: it calls `useAddTodo` with `{ title, status: "todo" }` — no `column_id`, and `status` predates the columns schema. It fails `npm run build`.
 - Vendored shadcn components live in `src/components/ui/SideBarUI/` (not `ui/` directly) and are built on `radix-ui` + `@base-ui/react`.
 - `noUnusedLocals`/`noUnusedParameters` are on, so an unused import fails `npm run build` even though the dev server is happy.

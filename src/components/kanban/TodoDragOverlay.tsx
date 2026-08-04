@@ -29,7 +29,7 @@ export default function TodoDragOverlay({
       )}
 
       {activeColumn && (
-        <div className="w-[280px] rotate-[1deg] rounded-xl bg-[#f8f8f8] px-5 py-4 shadow-xl">
+        <div className="w-[280px]  rounded-xl bg-[#f8f8f8] px-5 py-4 shadow-xl">
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-semibold text-gray-700">
               {t(activeColumn.title)}

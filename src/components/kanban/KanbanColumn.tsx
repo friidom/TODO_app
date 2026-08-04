@@ -2,11 +2,12 @@ import { useDroppable } from "@dnd-kit/core";
 import TodoItem from "../todo/TodoItem";
 
 import type { IColumn, ISupabaseTodo } from "../../types/data";
-import { ArrowRight, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
 import { useAddTodo } from "../../services/lib";
 import DropZone from "./DropZone";
 import TodoCreateForm from "./TodoCreateForm";
+import ColumnHeader, { type TransitionPill } from "../columns/ColumnHeader";
 import { cn } from "@/services/lib/utils";
 import type { TodoIndicator } from "@/hooks/useKanbanDnd";
 
@@ -22,7 +23,13 @@ interface Props {
   /** A card is being dragged out of this column. */
   isDragSource?: boolean;
   /** This column is the drop target for a card from another column. */
-  transition?: { from: string; to: string } | null;
+  transition?: { from: TransitionPill; to: TransitionPill } | null;
+  onCollapse: () => void;
+  onSetLimit: () => void;
+  onDelete: () => void;
+  onMoveLeft?: () => void;
+  onMoveRight?: () => void;
+  canDelete: boolean;
 }
 
 export default function KanbanColumn({
@@ -36,6 +43,12 @@ export default function KanbanColumn({
   dragHandleProps,
   isDragSource = false,
   transition = null,
+  onCollapse,
+  onSetLimit,
+  onDelete,
+  onMoveLeft,
+  onMoveRight,
+  canDelete,
 }: Props) {
   const { setNodeRef } = useDroppable({
     id,
@@ -144,39 +157,20 @@ export default function KanbanColumn({
           : "bg-[#f8f8f8]",
       )}
     >
-      {/* HEADER — the only drag handle for the column */}
-      <div
-        {...dragHandleProps}
-        className="flex shrink-0 cursor-grab touch-none items-center justify-between px-5 py-4 select-none active:cursor-grabbing"
-      >
-        {transition ? (
-          <div className="flex min-w-0 items-center gap-2">
-            <span className="truncate rounded bg-gray-200 px-1.5 py-0.5 text-xs font-bold tracking-wide text-gray-700 uppercase">
-              {transition.from}
-            </span>
-
-            <ArrowRight size={14} className="shrink-0 text-gray-500" />
-
-            <span className="truncate rounded bg-blue-200 px-1.5 py-0.5 text-xs font-bold tracking-wide text-blue-900 uppercase">
-              {transition.to}
-            </span>
-          </div>
-        ) : isDragSource ? (
-          <div className="w-full truncate rounded-md border-2 border-blue-500 bg-white py-1 text-center text-sm text-gray-700">
-            Transition to...
-          </div>
-        ) : (
-          <div className="flex min-w-0 items-center gap-3">
-            <h2 className="truncate text-lg font-semibold text-gray-700">
-              {headerTitle}
-            </h2>
-
-            <span className="shrink-0 rounded-md bg-gray-200 px-2 py-0.5 text-sm font-semibold text-gray-600">
-              {todos.length}
-            </span>
-          </div>
-        )}
-      </div>
+      <ColumnHeader
+        column={column}
+        headerTitle={headerTitle}
+        count={todos.length}
+        isDragSource={isDragSource}
+        transition={transition}
+        onCollapse={onCollapse}
+        onSetLimit={onSetLimit}
+        onDelete={onDelete}
+        onMoveLeft={onMoveLeft}
+        onMoveRight={onMoveRight}
+        canDelete={canDelete}
+        dragHandleProps={dragHandleProps}
+      />
 
       {/* TODO LIST */}
       <div ref={listRef} className="min-h-0 overflow-y-auto px-3 pb-2">

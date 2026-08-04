@@ -1,3 +1,5 @@
+import type { ColumnCategory } from "@/constants/columns";
+
 export interface ITodo {
   id: number;
   title: string;
@@ -34,6 +36,10 @@ export interface IColumn {
   title: string;
   position: number;
   user_id: string;
+  category: ColumnCategory;
+  /** Advisory work-item limits; `null` means no limit set. */
+  min_limit: number | null;
+  max_limit: number | null;
 }
 
 export interface TodoItemProps extends ISupabaseTodo {
