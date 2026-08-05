@@ -22,14 +22,12 @@ jobs:
       - run: npm run lint
 
       # tsc -b is the only typecheck in this project; the dev server passing
-      # means nothing. No Supabase credentials are needed — the env vars are
-      # inlined by Vite and their absence is a runtime throw, not a build error.
+      # means nothing. It now covers *.test.ts too, so a test that drifts from
+      # its subject's types fails here. No Supabase credentials are needed —
+      # the env vars are inlined by Vite and their absence is a runtime throw,
+      # not a build error.
       - run: npm run build
 
-      # Pure-logic self-checks. Excluded from tsconfig.app.json, so the build
-      # above never reaches them; they run directly and print a pass line.
-      - run: node --experimental-strip-types src/services/todos/insertDense.check.ts
-      - run: node --experimental-strip-types src/services/columns/limitBreach.check.ts
-      - run: node --experimental-strip-types src/services/queryClient/retryPolicy.check.ts
-      - run: node --experimental-strip-types src/services/todos/applyTodoDrop.check.ts
-      - run: node --experimental-strip-types src/utils/validation.check.ts
+      # One line rather than one per file: adding a test no longer means
+      # remembering to add it here.
+      - run: npm test
