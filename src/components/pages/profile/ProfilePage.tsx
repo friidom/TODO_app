@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { useProfile } from "../../../services/lib/profile/useProfile";
-import useUpdateProfile from "../../../services/lib/profile/useUpdateProfile";
+import { useProfile } from "@/services/profile/useProfile";
+import useUpdateProfile from "@/services/profile/useUpdateProfile";
 import type { ISupabaseProfile } from "../../../types/data";
 import Loading from "../loading/LoadingPage";
 import { useNavigate } from "react-router";
-import { useLogout } from "../../../services/lib/auth/useLogout";
+import { useLogout } from "@/services/auth/useLogout";
 import { ArrowLeft, Loader2, LogOut } from "lucide-react";
-import { useUploadAvatar } from "../../../services/lib/profile/useUploadAvatar";
+import { useUploadAvatar } from "@/services/profile/useUploadAvatar";
 
 export default function ProfilePage() {
   const navigate = useNavigate();

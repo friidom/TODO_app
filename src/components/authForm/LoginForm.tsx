@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { Loader2 } from "lucide-react";
 
-import { useLogin } from "../../services/lib/auth/useLogin";
+import { useLogin } from "@/services/auth/useLogin";
 import {
   hasErrors,
   validateAuthForm,

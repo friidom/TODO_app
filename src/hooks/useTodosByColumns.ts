@@ -1,7 +1,7 @@
 import { useColumns } from "@/services/columns/useColumnsApi";
-import { useTodos } from "@/services/lib";
+import { useTodos } from "@/services/todos/useTodos";
 import React from "react";
-import { byPosition } from "@/services/lib/position";
+import { byPosition } from "@/utils/position";
 import type { IColumn } from "@/types/data";
 
 /**

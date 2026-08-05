@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { addTodo, reorderTodos } from "../../api/todoApi";
+import { addTodo, reorderTodos } from "./todoApi";
 import { insertDense } from "./insertDense";
 import { queryKeys } from "@/services/queryClient/queryKeys";
-import type { ISupabaseTodo } from "../../../types/data";
+import type { ISupabaseTodo } from "../../types/data";
 
 interface AddTodoVars {
   title: string;

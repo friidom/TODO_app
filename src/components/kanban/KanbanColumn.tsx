@@ -4,7 +4,7 @@ import TodoItem from "../todo/TodoItem";
 import type { IColumn, ISupabaseTodo } from "../../types/data";
 import { Plus } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
-import { useAddTodo } from "../../services/lib";
+import { useAddTodo } from "@/services/todos/useAddTodo";
 import DropZone from "./DropZone";
 import TodoCreateForm from "./TodoCreateForm";
 import ColumnHeader, { type TransitionPill } from "../columns/ColumnHeader";

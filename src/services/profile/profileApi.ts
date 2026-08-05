@@ -1,5 +1,5 @@
-import { supabase } from "../supabase";
-import type { ISupabaseProfile } from "../../../types/data";
+import { supabase } from "../api/supabase";
+import type { ISupabaseProfile } from "../../types/data";
 
 export async function fetchProfile(userId: string) {
   const { data, error } = await supabase

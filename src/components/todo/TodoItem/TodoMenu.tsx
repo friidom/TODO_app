@@ -10,7 +10,7 @@ import {
 import { MoreHorizontal } from "lucide-react";
 import TodoStatusMenu from "./TodoColumnMenu";
 
-import { useDeleteTodo } from "@/services/lib";
+import { useDeleteTodo } from "@/services/todos/useDeleteTodo";
 
 interface TodoMenuProps {
   todoId: number;
