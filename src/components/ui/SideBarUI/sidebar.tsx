@@ -6,22 +6,22 @@ import { cva, type VariantProps } from "class-variance-authority";
 
 import { useIsMobile } from "@/components/sideBar/hooks/use-mobile";
 import { cn } from "@/utils/cn";
-import { Button } from "@/components/ui/SideBarUI/button";
-import { Input } from "@/components/ui/SideBarUI/input";
-import { Separator } from "@/components/ui/SideBarUI/separator";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
-} from "@/components/ui/SideBarUI/sheet";
-import { Skeleton } from "@/components/ui/SideBarUI/skeleton";
+} from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/SideBarUI/tooltip";
+} from "@/components/ui/tooltip";
 import { PanelLeftIcon } from "lucide-react";
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state";

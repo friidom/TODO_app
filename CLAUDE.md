@@ -76,9 +76,7 @@ Droppable `data.type` is the dispatch key throughout: `"column" | "column-gap" |
 
 ## Gotchas
 
-- `components.json` maps `utils` to `@/lib/utils`, which does not exist — `cn` actually lives in `@/utils/cn`. Fix the import after any `npx shadcn add`. (M1-16 repoints the alias.)
 - `@/` → `src/`, declared in both `vite.config.ts` and `tsconfig.app.json`. Existing imports mix `@/` and relative paths freely.
-- `HeaderTodoForm.tsx` is live (rendered by `Header.tsx`) but broken: it calls `useAddTodo` with `{ title, status: "todo" }` — no `column_id`, and `status` predates the columns schema. It fails `npm run build`.
-- Vendored shadcn components live in `src/components/ui/SideBarUI/` (not `ui/` directly) and are built on `radix-ui` + `@base-ui/react`.
+- Vendored shadcn primitives (`button`, `input`, `tooltip`, `dropdown-menu`, `sheet`, …) live in `src/components/ui/` and are built on `radix-ui` + `@base-ui/react`. `src/components/ui/SideBarUI/` holds only `sidebar.tsx` and its `use-sidebar.ts` — that folder is the sidebar, not a UI kit. `components.json` aliases are correct now, so `npx shadcn add` lands in `ui/` importing `@/utils/cn`.
 - `noUnusedLocals`/`noUnusedParameters` are on, so an unused import fails `npm run build` even though the dev server is happy.
 

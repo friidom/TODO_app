@@ -5,7 +5,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/SideBarUI/tooltip";
+} from "@/components/ui/tooltip";
 
 /**
  * Shown whenever a column's work-item count falls outside its limits. Always
