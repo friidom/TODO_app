@@ -26,8 +26,10 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "src/components/pages/.tsx", "@"],
-  // *.check.ts are node self-checks, not app code — they run under
-  // `node --experimental-strip-types` and use node types the app build lacks.
-  "exclude": ["src/**/*.check.ts"]
+  // *.test.ts is deliberately not excluded. The old *.check.ts files had to be,
+  // because they imported `node:assert` and this config pins `types` to
+  // vite/client. Vitest tests import from "vitest" instead, so `tsc -b` can
+  // typecheck them — which means a test that no longer matches its subject's
+  // types fails the build, not just the test run.
+  "include": ["src", "src/components/pages/.tsx", "@"]
 }

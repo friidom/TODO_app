@@ -8,21 +8,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm run dev       # vite dev server
 npm run build     # tsc -b && vite build  — the only typecheck; run it before claiming a change compiles
 npm run lint      # eslint .
+npm test          # vitest run
+npm run test:watch
 npm run preview   # serve the built bundle
 npx prettier --write src/...   # no script for it; prettier-plugin-tailwindcss sorts class names
 ```
 
-No test framework is installed. Pure logic worth checking gets a `*.check.ts` sibling with `node:assert` — run it directly and it prints a pass line:
+**Vitest is the only test mechanism** — the `*.check.ts` + `node --experimental-strip-types` self-checks are gone, ported to `*.test.ts` siblings. Two ways to run tests meant two things to remember; there is one now, and CI runs `npm test` rather than enumerating files.
 
-```bash
-node --experimental-strip-types src/services/todos/insertDense.check.ts
-node --experimental-strip-types src/services/columns/limitBreach.check.ts
-node --experimental-strip-types src/services/queryClient/retryPolicy.check.ts
-node --experimental-strip-types src/services/todos/applyTodoDrop.check.ts
-node --experimental-strip-types src/utils/validation.check.ts
-```
+Pure logic worth checking gets a `*.test.ts` sibling next to it. `vitest.config.ts` is standalone rather than a `test` block in `vite.config.ts`: these tests are pure TypeScript and need neither the React plugin nor Tailwind. Test files are **not** excluded from `tsconfig.app.json`, so `tsc -b` typechecks them and a test that drifts from its subject's types fails the build, not just the run.
 
-`tsconfig.app.json` excludes `src/**/*.check.ts`, so they never reach `npm run build` (they'd fail on node types — `types` is pinned to `vite/client`).
+No React Testing Library, deliberately: pure logic is where the risk is, and component tests nobody needs are a maintenance cost. Revisit if a component grows logic worth pinning down.
 
 `README.md` is the untouched Vite template — ignore it (it claims React Compiler is enabled; the babel plugin is commented out in `vite.config.ts`).
 
