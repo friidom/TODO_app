@@ -2,6 +2,7 @@ import { useState } from "react";
 import TodoForm from "@/components/todo/TodoForm";
 import { useAddTodo } from "@/services/lib";
 import { useColumns } from "@/services/columns/useColumnsApi";
+import { byPosition } from "@/services/lib/position";
 
 export default function HeaderTodoForm() {
   const [value, setValue] = useState("");
@@ -14,7 +15,7 @@ export default function HeaderTodoForm() {
   // array order, because the ["columns"] cache is patched optimistically and
   // is not guaranteed to stay sorted. Copy first — sorting the cached array
   // in place would mutate React Query's data.
-  const targetColumn = [...columns].sort((a, b) => a.position - b.position)[0];
+  const targetColumn = [...columns].sort(byPosition)[0];
 
   function handleAddTodo() {
     const title = value.trim();

@@ -35,6 +35,15 @@ export const CATEGORY_OPTIONS = Object.entries(COLUMN_CATEGORIES).map(
 
 export const DEFAULT_CATEGORY: ColumnCategory = "todo";
 
+/**
+ * Column titles double as i18n keys, but `columns.title` is nullable in the
+ * schema. `t()` requires a string, so a null title becomes the empty key —
+ * which is what it already resolved to at runtime.
+ */
+export function titleKey(title?: string | null): string {
+  return title ?? "";
+}
+
 /** Falls back to `todo` so rows written before the migration still render. */
 export function categoryOf(category?: string | null) {
   return (

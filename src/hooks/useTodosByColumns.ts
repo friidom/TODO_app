@@ -1,6 +1,7 @@
 import { useColumns } from "@/services/columns/useColumnsApi";
 import { useTodos } from "@/services/lib";
 import React from "react";
+import { byPosition } from "@/services/lib/position";
 
 export default function useTodosByColumns() {
   const { data: todos } = useTodos();
@@ -14,11 +15,17 @@ export default function useTodosByColumns() {
     });
 
     todos?.forEach((todo) => {
+      // `column_id` is nullable: a card with no column belongs to no group.
+      // Previously this indexed `grouped[null]`, which found nothing and
+      // no-opped through the optional chain — skipping is the same outcome,
+      // stated deliberately.
+      if (todo.column_id === null) return;
+
       grouped[todo.column_id]?.push(todo);
     });
 
     Object.values(grouped).forEach((columnTodos) => {
-      columnTodos?.sort((a, b) => a.position - b.position);
+      columnTodos?.sort(byPosition);
     });
 
     return grouped;

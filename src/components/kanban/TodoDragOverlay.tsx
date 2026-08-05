@@ -5,6 +5,7 @@ import TodoItem from "../todo/TodoItem";
 import { cn } from "@/services/lib/utils";
 
 import type { IColumn, ISupabaseTodo } from "@/types/data";
+import { titleKey } from "@/constants/columns";
 
 interface Props {
   activeTodo: ISupabaseTodo | null;
@@ -53,7 +54,7 @@ export default function TodoDragOverlay({
                 columnCollapsed ? { writingMode: "vertical-rl" } : undefined
               }
             >
-              {t(activeColumn.title)}
+              {t(titleKey(activeColumn.title))}
             </h2>
 
             <span className="shrink-0 rounded bg-[#dcdfe4] px-1.5 py-0.5 text-xs font-semibold text-[#44546f]">

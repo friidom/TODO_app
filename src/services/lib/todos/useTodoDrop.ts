@@ -1,6 +1,7 @@
 import { queryClient } from "@/services/queryClient/queryClient";
 import { reorderTodos } from "@/services/api/todoApi";
 import type { ISupabaseTodo } from "@/types/data";
+import { byPosition } from "../position";
 
 interface DropIndicator {
   columnId: string | null;
@@ -20,7 +21,7 @@ export async function todoDrop(
   // колонка назначения
   const destination = remaining
     .filter((t) => t.column_id === indicator.columnId)
-    .sort((a, b) => a.position - b.position);
+    .sort(byPosition);
 
   // остальные колонки
   const others = remaining.filter((t) => t.column_id !== indicator.columnId);
@@ -39,7 +40,7 @@ export async function todoDrop(
   // пересчитываем позиции в старой колонке
   const source = others
     .filter((t) => t.column_id === activeTodo.column_id)
-    .sort((a, b) => a.position - b.position);
+    .sort(byPosition);
 
   source.forEach((todo, index) => {
     todo.position = index;

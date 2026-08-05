@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { deleteColumn } from "./columnsApi";
 import type { IColumn } from "@/types/data";
+import { byPosition } from "@/services/lib/position";
 
 export function useDeleteColumn() {
   const queryClient = useQueryClient();
@@ -13,7 +14,7 @@ export function useDeleteColumn() {
       queryClient.setQueryData<IColumn[]>(["columns"], (old = []) =>
         old
           .filter((column) => column.id !== id)
-          .sort((a, b) => a.position - b.position)
+          .sort(byPosition)
           .map((column, position) => ({ ...column, position })),
       );
 

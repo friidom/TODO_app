@@ -39,6 +39,10 @@ export function useAddTodo() {
         created_at: new Date().toISOString(),
         position: 0, //renumbered below
         column_id,
+        // Dead columns kept by the schema; the server row replaces this
+        // placeholder on success, so null is never persisted from here.
+        status: null,
+        previous_status: null,
         isOptimistic: true,
       };
 

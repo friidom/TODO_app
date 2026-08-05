@@ -22,6 +22,8 @@ import CollapsedColumn from "../columns/CollapsedColumn";
 import Loading from "../pages/loading/LoadingPage";
 import type { IColumn } from "@/types/data";
 import { useDoneFlash } from "@/stores/doneFlash";
+import { byPosition } from "@/services/lib/position";
+import { titleKey } from "@/constants/columns";
 
 export default function KanbanBoard() {
   const { data: todos = [], isLoading, error } = useTodos();
@@ -50,7 +52,7 @@ export default function KanbanBoard() {
   const [deleteTarget, setDeleteTarget] = useState<IColumn | null>(null);
 
   const orderedColumns = useMemo(
-    () => columns.slice().sort((a, b) => a.position - b.position),
+    () => columns.slice().sort(byPosition),
     [columns],
   );
 
@@ -165,7 +167,7 @@ export default function KanbanBoard() {
                 {collapsed.includes(column.id) ? (
                   <CollapsedColumn
                     column={column}
-                    headerTitle={t(column.title)}
+                    headerTitle={t(titleKey(column.title))}
                     count={todosByColumn[column.id]?.length ?? 0}
                     onExpand={() => toggleCollapsed(column.id)}
                   />
@@ -175,7 +177,7 @@ export default function KanbanBoard() {
                     column={column}
                     openMenuId={openMenuId}
                     setOpenMenuId={setOpenMenuId}
-                    headerTitle={t(column.title)}
+                    headerTitle={t(titleKey(column.title))}
                     todos={todosByColumn[column.id] ?? []}
                     indicator={indicator}
                     isDragSource={!!activeTodo && column.id === sourceId}
@@ -195,11 +197,11 @@ export default function KanbanBoard() {
                       sourceColumn && column.id === destinationId
                         ? {
                             from: {
-                              title: t(sourceColumn.title),
+                              title: t(titleKey(sourceColumn.title)),
                               category: sourceColumn.category,
                             },
                             to: {
-                              title: t(column.title),
+                              title: t(titleKey(column.title)),
                               category: column.category,
                             },
                           }
