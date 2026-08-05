@@ -4,4 +4,4 @@ export{useDeleteTodo} from "./todos/useDeleteTodo"
 export { useClearCompleted } from "./todos/useClearCompleted";
 export { useAuth } from "./auth/useAuth";
 
-export {todoDrop} from "./todos/useTodoDrop"
+export { useTodoDrop } from "./todos/useTodoDrop";

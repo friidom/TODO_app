@@ -31,3 +31,4 @@ jobs:
       - run: node --experimental-strip-types src/services/lib/todos/insertDense.check.ts
       - run: node --experimental-strip-types src/services/columns/limitBreach.check.ts
       - run: node --experimental-strip-types src/services/queryClient/retryPolicy.check.ts
+      - run: node --experimental-strip-types src/services/lib/todos/applyTodoDrop.check.ts

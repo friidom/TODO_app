@@ -18,6 +18,7 @@ No test framework is installed. Pure logic worth checking gets a `*.check.ts` si
 node --experimental-strip-types src/services/lib/todos/insertDense.check.ts
 node --experimental-strip-types src/services/columns/limitBreach.check.ts
 node --experimental-strip-types src/services/queryClient/retryPolicy.check.ts
+node --experimental-strip-types src/services/lib/todos/applyTodoDrop.check.ts
 ```
 
 `tsconfig.app.json` excludes `src/**/*.check.ts`, so they never reach `npm run build` (they'd fail on node types — `types` is pinned to `vite/client`).
@@ -55,8 +56,8 @@ Vite + React 19 + TypeScript, Supabase for auth/data, TanStack Query as the only
 
 - `src/hooks/useKanbanDnd.ts` — sensors, a custom `collisionDetection` that ignores rect intersection and picks the _gap nearest the pointer_, and the two indicator states.
 - `DropZone` / `ColumnDropZone` — always-mounted droppables sitting _between_ cards/columns, ids `todo-gap:<columnId>:<index>` and `column-gap:<index>`. They exist to be measured, and paint a blue line when they're the nearest gap. Each also carries `beforeId`/`afterId` (its two neighbours) so `collisionDetection` can drop the hit when the gap touches the dragged item — otherwise the indicator would offer a no-op drop around the item itself. Idle, `DropZone` doubles as the create affordance (hover → `+` → `TodoCreateForm` opens at that index).
-- `KanbanBoard.tsx` `onDragEnd` — column branch does `arrayMove` + `reorderColumns`; todo branch delegates to `todoDrop`. It also derives the cross-column transition state (`activeTodo.column_id` vs `indicator.columnId`) and feeds `KanbanColumn` the `isDragSource` / `transition` props that swap the headers and highlight the destination. Same-column drags are pure reordering, so `transition` stays null there.
-- `src/services/lib/todos/useTodoDrop.ts` — splices the card into the destination column at the indicator index and renumbers both source and destination.
+- `KanbanBoard.tsx` `onDragEnd` — column branch does `arrayMove` + `reorderColumns`; todo branch delegates to `useTodoDrop`. It also derives the cross-column transition state (`activeTodo.column_id` vs `indicator.columnId`) and feeds `KanbanColumn` the `isDragSource` / `transition` props that swap the headers and highlight the destination. Same-column drags are pure reordering, so `transition` stays null there.
+- `src/services/lib/todos/useTodoDrop.ts` — a mutation. `applyTodoDrop` (pure, self-checked, reusable by the M6 realtime handler) splices the card into the destination column at the indicator index and renumbers both source and destination; the hook writes that optimistically and restores its snapshot if the upsert fails. It renumbers into new objects deliberately — the old in-place `todo.position = index` mutated the very rows the cache was holding, which is why a rollback would have had nothing to restore.
 
 Droppable `data.type` is the dispatch key throughout: `"column" | "column-gap" | "todo-gap"`. Adding a drop target means adding a type here and handling it in `handleDragOver` + `collisionDetection`.
 
