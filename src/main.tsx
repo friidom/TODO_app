@@ -4,12 +4,15 @@ import { queryClient } from "./services/queryClient/queryClient.ts";
 import { RouterProvider } from "react-router";
 import { router } from "./components/routes/Routes.tsx";
 import { ThemeProvider } from "./services/lib/themes/ThemeProvider.tsx";
+import { AuthProvider } from "./providers/AuthProvider.tsx";
 import "./components/i18n";
 
 createRoot(document.getElementById("root")!).render(
   <ThemeProvider>
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>
+    <AuthProvider>
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    </AuthProvider>
   </ThemeProvider>,
 );

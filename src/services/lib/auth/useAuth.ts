@@ -1,42 +1,14 @@
+import { useContext } from "react";
+import { AuthContext } from "../../../providers/authContext";
 
-import { useEffect, useState } from "react";
-import { supabase } from "../../api/supabase";
-import type { User } from "@supabase/supabase-js";
-
+// Reads the one AuthProvider subscription. Same { user, loading } shape it had
+// when it owned its own useState and its own onAuthStateChange.
 export function useAuth() {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const auth = useContext(AuthContext);
 
-  useEffect(() => {
-    let mounted = true;
+  if (!auth) {
+    throw new Error("useAuth must be used inside an <AuthProvider>");
+  }
 
-    async function init() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!mounted) return;
-
-      setUser(session?.user ?? null);
-      setLoading(false);
-    }
-
-    init();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!mounted) return;
-
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  return { user, loading };
+  return auth;
 }
