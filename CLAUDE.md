@@ -23,7 +23,24 @@ node --experimental-strip-types src/services/columns/limitBreach.check.ts
 
 `README.md` is the untouched Vite template — ignore it (it claims React Compiler is enabled; the babel plugin is commented out in `vite.config.ts`).
 
-Requires `.env` with `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` (gitignored).
+Requires `.env` with `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` (gitignored). `src/services/api/supabase.ts` throws at module load if either is missing. Vite inlines them at build time, so a missing variable is a rebuild, not a redeploy.
+
+## Database migrations
+
+Schema changes go through the CLI, never the Supabase SQL editor — a change made in the dashboard is a change that does not exist.
+
+```bash
+npm run db:diff -- -f <name>   # capture local changes as a new migration
+npm run db:push                # apply pending migrations to the linked project
+npm run db:pull                # import remote changes the CLI does not know about
+npm run db:types               # regenerate src/types/database.types.ts
+```
+
+`db:pull`, `db:diff` and `db:dump` need **Docker Desktop running** — they provision a local shadow database to diff against. `db:push` and `db:types` do not.
+
+Migrations are forward-only: there is no `down`. Reversing means writing a new migration. Expand → backfill → contract, one migration each, never combined. Dumps land in `backups/` and are gitignored — they contain user data.
+
+The linked project is `nxnnfaoyttbzndphnawe`. **PITR is not enabled on it**, so there is no point-in-time recovery for a bad data migration; enable it before any destructive work.
 
 ## Architecture
 
