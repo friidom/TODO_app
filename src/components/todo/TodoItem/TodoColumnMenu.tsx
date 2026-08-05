@@ -1,9 +1,7 @@
 import { updateTodoColumn } from "@/services/api/todoApi";
 import { useColumns } from "@/services/columns/useColumnsApi";
-import {
-  useUpdateTodoColumn,
-} from "@/services/lib/todos/useUpdateTodoColumn";
-import type { ISupabaseTodo } from "@/types/data";
+import { useUpdateTodoColumn } from "@/services/lib/todos/useUpdateTodoColumn";
+import { useDoneFlash } from "@/stores/doneFlash";
 import {
   FloatingPortal,
   autoUpdate,
@@ -33,6 +31,7 @@ export default function TodoColumnMenu({
   menuRef,
 }: TodoColumnMenuProps) {
   const updateTodoColumn = useUpdateTodoColumn();
+  const flashDone = useDoneFlash((state) => state.flash);
 
   const { data: columns = [] } = useColumns();
 
@@ -73,6 +72,10 @@ export default function TodoColumnMenu({
                   id: todoId,
                   column_id: column.id,
                 });
+
+                // Same ring as a drag into a done column — this menu is the
+                // board's other way to move a card.
+                if (column.category === "done") flashDone(todoId);
 
                 closeMenu();
               }}

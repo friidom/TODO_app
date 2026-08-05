@@ -21,6 +21,7 @@ import DeleteColumnModal from "../columns/DeleteColumnModal";
 import CollapsedColumn from "../columns/CollapsedColumn";
 import Loading from "../pages/loading/LoadingPage";
 import type { IColumn } from "@/types/data";
+import { useDoneFlash } from "@/stores/doneFlash";
 
 export default function KanbanBoard() {
   const { data: todos = [], isLoading, error } = useTodos();
@@ -39,6 +40,8 @@ export default function KanbanBoard() {
     columnIndicator,
     resetDrag,
   } = useKanbanDnd();
+
+  const flashDone = useDoneFlash((state) => state.flash);
 
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
   const [createColumnOpen, setCreateColumnOpen] = useState(false);
@@ -126,6 +129,20 @@ export default function KanbanBoard() {
 
         // ---- todo drop -----------------------------------------------------
         if (activeTodo && indicator.columnId) {
+          const destination = orderedColumns.find(
+            (c) => c.id === indicator.columnId,
+          );
+
+          // Landing in a done column is worth celebrating; reordering inside
+          // one the card already sat in is not. Fired before the await so the
+          // ring rides the optimistic move instead of the network round-trip.
+          if (
+            destination?.category === "done" &&
+            destination.id !== activeTodo.column_id
+          ) {
+            flashDone(activeTodo.id);
+          }
+
           await todoDrop(todos, activeTodo, indicator);
         }
 
@@ -134,7 +151,7 @@ export default function KanbanBoard() {
       onDragCancel={resetDrag}
     >
       <div className="h-full overflow-x-auto">
-        <div className="flex min-w-max px-6 pb-6">
+        <div className="flex min-w-max px-0 pb-6">
           <div className="flex h-full min-w-max">
             {orderedColumns.map((column, index) => (
               <Fragment key={column.id}>
@@ -147,6 +164,7 @@ export default function KanbanBoard() {
 
                 {collapsed.includes(column.id) ? (
                   <CollapsedColumn
+                    column={column}
                     headerTitle={t(column.title)}
                     count={todosByColumn[column.id]?.length ?? 0}
                     onExpand={() => toggleCollapsed(column.id)}
@@ -229,6 +247,7 @@ export default function KanbanBoard() {
         todosCount={
           activeColumn ? (todosByColumn[activeColumn.id]?.length ?? 0) : 0
         }
+        columnCollapsed={!!activeColumn && collapsed.includes(activeColumn.id)}
       />
     </DndContext>
   );

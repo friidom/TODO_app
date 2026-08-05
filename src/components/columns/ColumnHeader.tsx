@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { ArrowRight, Check, Gauge, X } from "lucide-react";
+import { ArrowRight, Check, X } from "lucide-react";
 
 import ColumnMenu from "./ColumnMenu";
+import LimitWarning from "./LimitWarning";
 import { categoryOf } from "@/constants/columns";
 import { limitBreach } from "@/services/columns/limitBreach";
 import { useUpdateColumn } from "@/services/columns/useUpdateColumn";
@@ -46,6 +47,7 @@ export default function ColumnHeader({
   dragHandleProps,
 }: Props) {
   const [renaming, setRenaming] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   // While a card is in flight the header belongs to the transition state, so
   // the controls step aside.
@@ -109,45 +111,52 @@ export default function ColumnHeader({
         type="button"
         onClick={() => setRenaming(true)}
         title="Rename column"
-        className="flex min-w-0 items-center gap-3 rounded-md px-2 py-0.5 text-left hover:bg-gray-200"
+        className="flex min-w-0 items-center gap-2 rounded px-2 py-1 text-left hover:bg-[#dcdfe4]"
       >
-        <h2 className="truncate text-lg font-semibold text-gray-700">
+        <h2 className="truncate text-[15px] font-semibold text-[#172b4d]">
           {headerTitle}
         </h2>
 
-        <span className="shrink-0 rounded-md bg-gray-200 px-2 py-0.5 text-sm font-semibold text-gray-600">
+        <span className="shrink-0 rounded bg-[#dcdfe4] px-1.5 py-0.5 text-xs font-semibold text-[#44546f]">
           {count}
         </span>
       </button>
 
       <div className="flex shrink-0 items-center gap-1">
-        {breach && (
-          <span
-            title={breach}
-            aria-label={breach}
-            className="rounded-md bg-red-100 p-1 text-red-600"
-          >
-            <Gauge size={16} />
-          </span>
-        )}
+        {breach && <LimitWarning message={breach} />}
 
-        <button
-          type="button"
-          onClick={onCollapse}
-          aria-label="Collapse column"
-          title="Collapse column"
-          className="rounded-md p-1 text-gray-600 hover:bg-gray-200"
+        {/* Hidden rather than transparent, so they claim no width and the
+            warning slides out to the edge in their place. The menu stays put
+            while its popup is open, or moving onto the popup would pull the
+            trigger out from under the cursor. */}
+        <div
+          className={cn(
+            "items-center gap-1",
+            menuOpen
+              ? "flex"
+              : "hidden group-focus-within/header:flex group-hover/header:flex",
+          )}
         >
-          <CollapseIcon />
-        </button>
+          <button
+            type="button"
+            onClick={onCollapse}
+            aria-label="Collapse column"
+            title="Collapse column"
+            className="rounded p-1 text-[#44546f] hover:bg-[#dcdfe4]"
+          >
+            <CollapseIcon />
+          </button>
 
-        <ColumnMenu
-          onSetLimit={onSetLimit}
-          onDelete={onDelete}
-          onMoveLeft={onMoveLeft}
-          onMoveRight={onMoveRight}
-          canDelete={canDelete}
-        />
+          <ColumnMenu
+            open={menuOpen}
+            onOpenChange={setMenuOpen}
+            onSetLimit={onSetLimit}
+            onDelete={onDelete}
+            onMoveLeft={onMoveLeft}
+            onMoveRight={onMoveRight}
+            canDelete={canDelete}
+          />
+        </div>
       </div>
     </Shell>
   );
@@ -165,7 +174,7 @@ function Shell({
     <div
       {...dragHandleProps}
       className={cn(
-        "flex shrink-0 items-center justify-between gap-2 px-3 py-4",
+        "group/header flex shrink-0 items-center justify-between gap-2 px-3 py-3",
         // Only the draggable variants opt out of selection — the rename input
         // needs its text selectable.
         dragHandleProps &&

@@ -24,7 +24,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         <SidebarInset>
           <main className="bg-app min-w-0 flex-1">
             <div
-              className="mx-auto px-6 py-6"
+              className="mx-auto px-0 py-6"
               style={{
                 maxWidth: `calc(100vw - ${open ? "256px" : "0px"})`,
               }}

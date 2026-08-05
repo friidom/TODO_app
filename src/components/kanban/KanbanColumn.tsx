@@ -154,7 +154,7 @@ export default function KanbanColumn({
         "flex h-fit max-h-[calc(100vh-220px)] w-[280px] shrink-0 flex-col overflow-hidden rounded-xl transition-colors duration-150",
         transition
           ? "bg-blue-50 ring-2 ring-blue-500 ring-inset"
-          : "bg-[#f8f8f8]",
+          : "bg-[#f7f8f9]",
       )}
     >
       <ColumnHeader
@@ -213,7 +213,7 @@ export default function KanbanColumn({
         <button
           type="button"
           onClick={() => openAt(todos.length)}
-          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-600 hover:bg-gray-200"
+          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-[#44546f] hover:bg-[#dcdfe4]"
         >
           <Plus size={20} />
           Create

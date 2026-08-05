@@ -16,6 +16,9 @@ interface Props {
   onMoveRight?: () => void;
   /** The last column has nowhere to hand its work to. */
   canDelete: boolean;
+  /** Controlled so the header can keep the trigger visible while it is open. */
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
 export default function ColumnMenu({
@@ -24,12 +27,14 @@ export default function ColumnMenu({
   onMoveLeft,
   onMoveRight,
   canDelete,
+  open,
+  onOpenChange,
 }: Props) {
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={onOpenChange}>
       <DropdownMenuTrigger
         aria-label="Column actions"
-        className="rounded-md p-1 text-gray-600 outline-none hover:bg-gray-200 focus-visible:ring-2 focus-visible:ring-blue-500"
+        className="rounded p-1 text-[#44546f] outline-none hover:bg-[#dcdfe4] focus-visible:ring-2 focus-visible:ring-blue-500"
       >
         <MoreHorizontal size={18} />
       </DropdownMenuTrigger>

@@ -8,6 +8,7 @@ import { useUpdateTodo } from "../../services/lib/todos/useUpdateTodo";
 import TodoMenu from "./TodoItem/TodoMenu";
 import LoadingSpinner from "../pages/loading/LoadingSpinner";
 import { cn } from "@/services/lib/utils";
+import { useDoneFlash } from "@/stores/doneFlash";
 
 type CardProps = TodoItemProps & {
   dragging?: boolean;
@@ -59,6 +60,11 @@ function TodoCard({
   const inputRef = useRef<HTMLInputElement>(null);
   const updateTodo = useUpdateTodo();
 
+  // Only the real card rings — never the drag overlay's copy of it.
+  const celebrate = useDoneFlash(
+    (state) => state.todoId === todo.id && !overlay && !dragging,
+  );
+
   //focus on edit
   useEffect(() => {
     if (editing) {
@@ -104,9 +110,12 @@ function TodoCard({
       className={cn(
         "group relative flex touch-none flex-col gap-3 rounded-xl border border-gray-200 bg-white px-3 py-3 shadow-sm transition-colors duration-200 select-none hover:border-gray-300",
         overlay
-          ? " cursor-grabbing shadow-lg opacity-60"
+          ? "cursor-grabbing opacity-60 shadow-lg"
           : "cursor-grab hover:shadow-md",
         dragging && "opacity-40 shadow-none hover:border-gray-200",
+        // Mounting in a done column means the card just got there — the
+        // animation is one-shot, so mounting is the whole trigger.
+        celebrate && "done-flash",
       )}
     >
       {/* TITLE */}

@@ -264,7 +264,7 @@ body,
   }
 }
 
-.overlay-indicator-column{
+.overlay-indicator-column {
   position: relative;
 
   &::before {
@@ -278,5 +278,40 @@ body,
     background-color: white;
     border: 2px solid var(--color-blue-500);
     border-radius: 50%;
+  }
+}
+/* A card arriving in a "done" column: a green ring grows out of the edge, then
+   keeps expanding as it fades. Drawn as a box-shadow so the card never resizes,
+   and the card's own shadow-sm rides along in every keyframe so it lands back
+   exactly where it started. */
+@keyframes done-flash {
+  0% {
+    box-shadow:
+      0 0 0 0 var(--color-done-flash),
+      0 1px 2px 0 rgb(0 0 0 / 0.05);
+  }
+
+  25% {
+    box-shadow:
+      0 0 0 3px var(--color-done-flash),
+      0 1px 2px 0 rgb(0 0 0 / 0.05);
+  }
+
+  100% {
+    box-shadow:
+      0 0 0 12px transparent,
+      0 1px 2px 0 rgb(0 0 0 / 0.05);
+  }
+}
+
+.done-flash {
+  --color-done-flash: #94c748;
+
+  animation: done-flash 1.4s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .done-flash {
+    animation: none;
   }
 }

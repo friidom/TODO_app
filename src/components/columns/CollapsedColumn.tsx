@@ -1,37 +1,74 @@
+import { useDraggable } from "@dnd-kit/core";
+
+import LimitWarning from "./LimitWarning";
+import { limitBreach } from "@/services/columns/limitBreach";
+import { cn } from "@/services/lib/utils";
+import type { IColumn } from "@/types/data";
+
 interface Props {
+  column: IColumn;
   headerTitle: string;
   count: number;
   onExpand: () => void;
 }
 
 /**
- * The narrow rail a collapsed column shrinks to: title rotated to read top to
- * bottom, the count, and the control to bring it back.
+ * The narrow rail a collapsed column shrinks to. Reads top to bottom: title,
+ * count, the limit warning if there is one, then the control to bring it back.
+ *
+ * It carries its own draggable with the same id and `type: "column"` data as
+ * the expanded one, so a collapsed column reorders exactly like any other. Only
+ * one of the two renders at a time, so the ids never collide.
  */
 export default function CollapsedColumn({
+  column,
   headerTitle,
   count,
   onExpand,
 }: Props) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: column.id,
+    data: { type: "column", columnId: column.id },
+  });
+
+  const breach = limitBreach(column, count);
+
   return (
-    <div className="flex h-fit max-h-[calc(100vh-220px)] w-14 shrink-0 flex-col items-center gap-4 rounded-xl bg-[#f8f8f8] py-4">
-      <h2
-        className="max-h-64 truncate text-lg font-semibold text-gray-700"
-        style={{ writingMode: "vertical-rl" }}
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "group/rail flex h-fit max-h-[calc(100vh-220px)] w-11 shrink-0 flex-col items-center gap-3 rounded-xl bg-[#f7f8f9] py-3",
+        isDragging && "opacity-40",
+      )}
+    >
+      {/* Title and count are the drag handle, matching the expanded column
+          where only the header starts a drag. */}
+      <div
+        {...attributes}
+        {...listeners}
+        className="flex min-h-0 cursor-grab touch-none flex-col items-center gap-3 select-none active:cursor-grabbing"
       >
-        {headerTitle}
-      </h2>
+        <h2
+          className="truncate text-[15px] font-semibold text-[#172b4d]"
+          style={{ writingMode: "vertical-rl" }}
+        >
+          {headerTitle}
+        </h2>
 
-      <span className="shrink-0 rounded-md bg-gray-200 px-2 py-0.5 text-sm font-semibold text-gray-600">
-        {count}
-      </span>
+        <span className="shrink-0 rounded bg-[#dcdfe4] px-1.5 py-0.5 text-xs font-semibold text-[#44546f]">
+          {count}
+        </span>
+      </div>
 
+      {breach && <LimitWarning message={breach} side="right" />}
+
+      {/* Hover-only, like the collapse button on an expanded column. */}
       <button
         type="button"
         onClick={onExpand}
         aria-label="Expand column"
         title="Expand column"
-        className="rounded-md p-1 text-gray-600 hover:bg-gray-200"
+        className="hidden rounded p-1 text-[#44546f] group-focus-within/rail:block group-hover/rail:block hover:bg-[#dcdfe4]"
       >
         <svg
           width="18"

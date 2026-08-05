@@ -62,7 +62,7 @@ export default function DropZone({
             aria-label="Create work item"
             // Inert until the gap is hovered, so the badge — which is taller
             // than the gap — never steals hover or drag area from the cards.
-            className="pointer-events-none absolute  z-10 top-1/2 -left-2  flex size-6 -translate-y-1/2 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 opacity-0 shadow-sm transition-opacity duration-100 group-hover:pointer-events-auto group-hover:opacity-100"
+            className="pointer-events-none absolute top-1/2 -left-2 z-10 flex size-6 -translate-y-1/2 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 opacity-0 shadow-sm transition-opacity duration-100 group-hover:pointer-events-auto group-hover:opacity-100"
           >
             <Plus size={15} />
           </button>
