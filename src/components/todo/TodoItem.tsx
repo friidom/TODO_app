@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { useUpdateTodo } from "../../services/lib/todos/useUpdateTodo";
 import TodoMenu from "./TodoItem/TodoMenu";
 import LoadingSpinner from "../pages/loading/LoadingSpinner";
-import { cn } from "@/services/lib/utils";
+import { cn } from "@/utils/cn";
 import { useDoneFlash } from "@/stores/doneFlash";
 
 type CardProps = TodoItemProps & {

@@ -2,7 +2,7 @@ import { useDraggable } from "@dnd-kit/core";
 
 import LimitWarning from "./LimitWarning";
 import { limitBreach } from "@/services/columns/limitBreach";
-import { cn } from "@/services/lib/utils";
+import { cn } from "@/utils/cn";
 import type { IColumn } from "@/types/data";
 
 interface Props {

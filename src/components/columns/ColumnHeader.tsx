@@ -6,7 +6,7 @@ import LimitWarning from "./LimitWarning";
 import { categoryOf } from "@/constants/columns";
 import { limitBreach } from "@/services/columns/limitBreach";
 import { useUpdateColumn } from "@/services/columns/useUpdateColumn";
-import { cn } from "@/services/lib/utils";
+import { cn } from "@/utils/cn";
 import type { IColumn } from "@/types/data";
 
 const PILL =

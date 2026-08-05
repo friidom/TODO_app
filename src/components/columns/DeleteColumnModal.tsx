@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/SideBarUI/dropdown-menu";
 import { useDeleteColumn } from "@/services/columns/useDeleteColumn";
 import { categoryOf } from "@/constants/columns";
-import { cn } from "@/services/lib/utils";
+import { cn } from "@/utils/cn";
 import type { IColumn } from "@/types/data";
 import { titleKey } from "@/constants/columns";
 

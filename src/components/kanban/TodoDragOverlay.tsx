@@ -2,7 +2,7 @@ import { DragOverlay } from "@dnd-kit/core";
 import { t } from "i18next";
 
 import TodoItem from "../todo/TodoItem";
-import { cn } from "@/services/lib/utils";
+import { cn } from "@/utils/cn";
 
 import type { IColumn, ISupabaseTodo } from "@/types/data";
 import { titleKey } from "@/constants/columns";
