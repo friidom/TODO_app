@@ -5,13 +5,16 @@ import { RouterProvider } from "react-router";
 import { router } from "./components/routes/Routes.tsx";
 import { ThemeProvider } from "./services/lib/themes/ThemeProvider.tsx";
 import { AuthProvider } from "./providers/AuthProvider.tsx";
+import { ToastProvider } from "./providers/ToastProvider.tsx";
 import "./components/i18n";
 
 createRoot(document.getElementById("root")!).render(
   <ThemeProvider>
     <AuthProvider>
       <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
+        <ToastProvider>
+          <RouterProvider router={router} />
+        </ToastProvider>
       </QueryClientProvider>
     </AuthProvider>
   </ThemeProvider>,
