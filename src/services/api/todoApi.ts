@@ -1,6 +1,5 @@
 import type { IColumn, ISupabaseTodo } from "../../types/data";
 // import axios from "axios";
-// import { BASE_URL } from "../../constants/consants";
 import { supabase } from "./supabase";
 
 //!SUPABASE//

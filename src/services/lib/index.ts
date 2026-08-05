@@ -5,5 +5,3 @@ export { useClearCompleted } from "./todos/useClearCompleted";
 export { useAuth } from "./auth/useAuth";
 
 export {todoDrop} from "./todos/useTodoDrop"
-
-export {useDragOverTodos} from "./todos/useDragOverTodos";

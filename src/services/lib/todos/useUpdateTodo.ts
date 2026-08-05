@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { updateTodo } from "../../api/todoApi";
-import type { ITodo } from "../../../types/data";
+import type { ISupabaseTodo } from "../../../types/data";
 
 export function useUpdateTodo() {
   const queryClient = useQueryClient();
@@ -9,7 +9,7 @@ export function useUpdateTodo() {
     mutationFn: updateTodo,
 
     onSuccess: (updatedTodo) => {
-      queryClient.setQueryData(["todos"], (old: ITodo[] = []) =>
+      queryClient.setQueryData(["todos"], (old: ISupabaseTodo[] = []) =>
         old.map((todo) => (todo.id === updatedTodo.id ? updatedTodo : todo)),
       );
     },
