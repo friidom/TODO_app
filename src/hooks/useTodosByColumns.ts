@@ -2,10 +2,21 @@ import { useColumns } from "@/services/columns/useColumnsApi";
 import { useTodos } from "@/services/lib";
 import React from "react";
 import { byPosition } from "@/services/lib/position";
+import type { IColumn } from "@/types/data";
+
+/**
+ * One array for every empty render, rather than a fresh `[]` each time.
+ *
+ * A `= []` default in the destructure below allocates on every render while
+ * the query has no data, which changes the memo's dependency and re-runs it
+ * every time — and re-runs `orderedColumns` in KanbanBoard, which is keyed on
+ * the same reference.
+ */
+const EMPTY_COLUMNS: IColumn[] = [];
 
 export default function useTodosByColumns() {
   const { data: todos } = useTodos();
-  const { data: columns = [] } = useColumns();
+  const { data: columns = EMPTY_COLUMNS } = useColumns();
 
   //!Grouping and Sorting Todos
   const todosByColumn = React.useMemo(() => {
@@ -34,5 +45,5 @@ export default function useTodosByColumns() {
     return grouped;
   }, [todos, columns]);
 
-  return {todosByColumn, columns};
+  return { todosByColumn, columns };
 }
