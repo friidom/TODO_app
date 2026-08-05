@@ -6,7 +6,7 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
-} from "@/components/ui/SideBarUI/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
 import {
   CATEGORY_OPTIONS,
   categoryOf,

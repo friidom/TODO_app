@@ -8,7 +8,7 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
-} from "@/components/ui/SideBarUI/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
 import { useDeleteColumn } from "@/services/columns/useDeleteColumn";
 import { categoryOf } from "@/constants/columns";
 import { cn } from "@/utils/cn";
