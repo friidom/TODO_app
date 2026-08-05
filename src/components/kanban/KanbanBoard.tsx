@@ -10,7 +10,7 @@ import { useReorderColumns } from "@/services/columns/useReorderColumns";
 import { queryClient } from "@/services/queryClient/queryClient";
 import { queryKeys } from "@/services/queryClient/queryKeys";
 import { useTodos } from "@/services/lib/todos/useTodos";
-import { todoDrop } from "@/services/lib/todos/useTodoDrop";
+import { useTodoDrop } from "@/services/lib/todos/useTodoDrop";
 
 import SortableColumn from "./SortableColumn";
 import ColumnDropZone from "./ColumnDropZone";
@@ -30,6 +30,7 @@ export default function KanbanBoard() {
   const { data: todos = [], isLoading, error } = useTodos();
   const { todosByColumn, columns } = useTodosByColumns();
   const reorderColumns = useReorderColumns();
+  const todoDrop = useTodoDrop();
 
   const {
     sensors,
@@ -104,7 +105,7 @@ export default function KanbanBoard() {
         if (todo) setActiveTodo(todo);
       }}
       onDragOver={handleDragOver}
-      onDragEnd={async ({ active }) => {
+      onDragEnd={({ active }) => {
         // ---- column reorder ------------------------------------------------
         if (activeColumn) {
           const from = orderedColumns.findIndex((c) => c.id === active.id);
@@ -136,8 +137,8 @@ export default function KanbanBoard() {
           );
 
           // Landing in a done column is worth celebrating; reordering inside
-          // one the card already sat in is not. Fired before the await so the
-          // ring rides the optimistic move instead of the network round-trip.
+          // one the card already sat in is not. Fired before the mutation so
+          // the ring rides the optimistic move, not the network round-trip.
           if (
             destination?.category === "done" &&
             destination.id !== activeTodo.column_id
@@ -145,7 +146,12 @@ export default function KanbanBoard() {
             flashDone(activeTodo.id);
           }
 
-          await todoDrop(todos, activeTodo, indicator);
+          todoDrop.mutate({
+            todos,
+            activeTodo,
+            columnId: indicator.columnId,
+            index: indicator.index,
+          });
         }
 
         resetDrag();
