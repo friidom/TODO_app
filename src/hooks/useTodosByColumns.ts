@@ -3,7 +3,7 @@ import { useTodos } from "@/services/lib";
 import React from "react";
 
 export default function useTodosByColumns() {
-    const { data: todos, isLoading, error } = useTodos();
+  const { data: todos } = useTodos();
   const { data: columns = [] } = useColumns();
   const grouped: Record<string, typeof todos> = {};
 

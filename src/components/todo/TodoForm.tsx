@@ -6,6 +6,7 @@ interface TodoFormProps {
   handleOnChange: React.ChangeEventHandler<HTMLInputElement>;
   handleKeyDown: React.KeyboardEventHandler<HTMLInputElement>;
   handleAddTodo: () => void;
+  disabled?: boolean;
 }
 
 export default function TodoForm({
@@ -13,6 +14,7 @@ export default function TodoForm({
   handleOnChange,
   handleKeyDown,
   handleAddTodo,
+  disabled = false,
 }: TodoFormProps) {
   const { t } = useTranslation();
 
@@ -26,7 +28,8 @@ export default function TodoForm({
     >
       <button
         type="submit"
-        className="flex size-6 shrink-0 items-center justify-center rounded-md bg-gray-200 text-gray-600 hover:bg-gray-300"
+        disabled={disabled}
+        className="flex size-6 shrink-0 items-center justify-center rounded-md bg-gray-200 text-gray-600 hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-gray-200"
       >
         <Plus size={16} />
       </button>
@@ -35,8 +38,9 @@ export default function TodoForm({
         value={value}
         onChange={handleOnChange}
         onKeyDown={handleKeyDown}
+        disabled={disabled}
         placeholder={t("createTodo")}
-        className="min-w-0 flex-1 bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400"
+        className="min-w-0 flex-1 bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400 disabled:cursor-not-allowed"
       />
     </form>
   );

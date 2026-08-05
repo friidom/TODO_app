@@ -1,4 +1,4 @@
-import type { IColumn, ISupabaseTodo } from "../../types/data";
+import type { ISupabaseTodo } from "../../types/data";
 // import axios from "axios";
 import { supabase } from "./supabase";
 
