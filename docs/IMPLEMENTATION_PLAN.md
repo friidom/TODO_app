@@ -1,0 +1,1581 @@
+# Implementation Plan
+
+**Status:** Active
+**Owner:** Tech Lead
+**Source of truth:** the Architecture Review (2026-08-05) + `docs/ARCHITECTURE.md`, `docs/DATABASE.md`, `docs/FRONTEND.md`, `docs/API.md`, `docs/PRODUCT_SPEC.md`
+**Scope:** takes the codebase from its current state (single-user, user-owned board, broken build) to the documented target (board-centric, collaborative, realtime platform).
+
+---
+
+## How to use this document
+
+Part I is the **working agreement** — branch strategy, migration rules, review checklists, Definition of Done. Read it once, before starting Task M0-01. It applies to every task in Part II.
+
+Part II is the **task list**, grouped into ten milestones. Every task is sized for a single focused session (~1–3 hours), is independently testable, and becomes exactly one commit or one Pull Request.
+
+Rules that are not negotiable:
+
+1. **Never combine an additive migration and a destructive migration in one task.** Expand, backfill, contract — three tasks, three commits, three deploys.
+2. **Never start a milestone whose dependencies are not fully done.** "Mostly done" is not done; see Definition of Done.
+3. **A task that grows past ~3 hours is not one task.** Split it and add the new ID to this document in the same PR.
+4. Every task ships with its manual test checklist executed. An unchecked box is an unmerged PR.
+
+---
+
+# PART I — WORKING AGREEMENTS
+
+## Branch Strategy
+
+The project is small. A heavyweight GitFlow would cost more than it returns, with one exception: the two milestones that perform destructive data migrations (M2, M6) must never land on `main` half-finished.
+
+### Default: GitHub Flow
+
+```
+main                    ← protected, always deployable, always green
+ └── feature/m0-01-delete-dead-code
+ └── feature/m1-03-query-key-factory
+ └── fix/m1-12-todo-menu-column-id
+ └── chore/m0-11-ci-pipeline
+```
+
+- Branch off `main`, one branch per task.
+- Branch naming: `<type>/<task-id>-<slug>` — `feature/`, `fix/`, `chore/`, `migration/`.
+- Open a PR, run the Code Review Checklist, squash-merge, delete the branch.
+- Short-lived: a branch older than three days is a task that was too big.
+
+### Exception: integration branches for XL migration milestones
+
+M2 (Boards) and M6 (Realtime) rewrite the ownership model and the ordering model respectively. Their intermediate states are not deployable. Both get a long-lived integration branch:
+
+```
+main
+ └── milestone/m2-boards          ← integration branch, CI green, NOT deployed
+      └── feature/m2-01-boards-table
+      └── feature/m2-06-backfill-board-id
+      └── ...
+```
+
+- Task PRs target the milestone branch, not `main`.
+- The milestone branch merges to `main` **once**, when the milestone's Definition of Done is fully met, as a single reviewed merge.
+- Rebase the milestone branch onto `main` at least every other day so the final merge is not an archaeology exercise.
+
+### Protected-branch rules on `main`
+
+- No direct pushes.
+- CI must pass: `npm run lint`, `npm run build`, both `*.check.ts` self-checks.
+- At least one review approval (self-review with the checklist counts on a solo project — but write the checklist out, don't nod at it).
+- Linear history; squash merge only.
+
+### Current state note
+
+Work is currently on a branch named `features` with `docs/` untracked. Before M0-01: commit `docs/`, then either rename `features` → `main` or merge and adopt `main` as the trunk. Do not start the plan with an ambiguous trunk.
+`
+---
+
+## Migration Strategy
+
+### Standing rules
+
+**Rule 1 — Migrations live in Git, are applied by the CLI, and only by the CLI.**
+The two existing migrations were applied by hand in the Supabase SQL editor. That stops with M0-05. From then on: write the migration file → `supabase db push` → commit. No SQL editor, no exceptions. A schema change made in the dashboard is a schema change that does not exist.
+
+**Rule 2 — Supabase migrations are forward-only.**
+There is no `supabase migration down`. "Rollback" always means one of:
+- **Forward-fix migration** — a new migration that reverses the change. This is the default and it is what you will use 95% of the time.
+- **Point-in-Time Recovery** — for data loss only. Requires PITR enabled on the project (verify this in M0-05; if it is not enabled, enable it before M2).
+- **Restore from dump** — for a total loss, with downtime.
+
+**Rule 3 — Expand → Backfill → Contract. Never in one migration.**
+
+| Phase | What it does | Reversible? | Risk |
+|---|---|---|---|
+| **Expand** | Add nullable column / new table / new index. Old code keeps working. | Yes, trivially | SAFE |
+| **Backfill** | Populate the new shape from the old shape. Old code still works. | Yes, data is additive | HIGH — this is where data is lost |
+| **Contract** | `NOT NULL`, drop the old column, add the FK. Old code breaks. | Only forward | HIGH |
+
+Deploy the application code that reads the new shape **between** Backfill and Contract. That way there is a window where both shapes are valid and a bad deploy is a revert, not an incident.
+
+**Rule 4 — Schema migrations and data migrations are separate files and separate commits.**
+A schema migration is idempotent DDL. A data migration is a one-shot `UPDATE`/`INSERT`. Mixing them makes the schema file non-replayable on a fresh database, which breaks environment reproduction — the exact problem M0 exists to fix.
+
+**Rule 5 — Every destructive migration is rehearsed on a branch database first.**
+`supabase branches create` (or a manually restored copy) → apply → run the app against it → then production. A migration that has never been run is a migration that does not work.
+
+### When to create which
+
+| Change | Migration type | When |
+|---|---|---|
+| New table, new column, new index, new constraint | Schema (expand) | Whenever needed. Cheap and safe. |
+| Populating a new column from an old one | Data | Only after the expand migration has been deployed and verified |
+| `NOT NULL`, `DROP COLUMN`, FK addition, type change | Schema (contract) | Only after the app no longer reads the old shape in production |
+| RLS policy | Schema | Same commit as the table it protects, never later |
+| `SECURITY DEFINER` function | Schema | Before the policies that call it |
+
+### Backup procedure (run before every HIGH RISK task)
+
+1. `supabase db dump --db-url "$PROD_URL" -f backups/pre-<task-id>-$(date +%Y%m%d-%H%M).sql` — schema + data.
+2. Verify the dump is non-empty and restores into a scratch database. **An untested backup is not a backup.**
+3. Confirm PITR is enabled and note the current timestamp; that timestamp is the recovery target.
+4. Record row counts for every affected table (`select count(*) from todos;` etc.) in the PR description. These are the numbers you compare against after the migration.
+
+Backups directory is gitignored — dumps contain user data and must never be committed.
+
+### Rollback procedure
+
+1. **Stop writes** if the app is live — take the deploy down or flip to a maintenance page. A half-migrated database taking writes is how a recoverable incident becomes an unrecoverable one.
+2. **Revert the application deploy first**, so the old code talks to the old shape.
+3. **If schema-only:** write and push the reversing migration.
+4. **If data was lost:** PITR to the timestamp recorded in step 3 of the backup procedure.
+5. Write a short note in the PR describing what failed. The next attempt starts from that note.
+
+---
+
+## Definition of Done
+
+### A **task** is done when
+
+- [ ] `npm run build` passes (this is the only typecheck — `npm run dev` passing means nothing).
+- [ ] `npm run lint` passes with no new warnings.
+- [ ] Both self-checks pass if touched: `node --experimental-strip-types src/services/lib/todos/insertDense.check.ts` and `.../limitBreach.check.ts`.
+- [ ] Every box in the task's Manual Test checklist is ticked, by having actually done it.
+- [ ] Non-trivial pure logic added by the task has a `*.check.ts` sibling (or a Vitest test, once M1-17 lands).
+- [ ] The Code Review Checklist has been walked, in writing.
+- [ ] One commit / one PR, message matching the suggested form.
+- [ ] If the task changed behaviour documented in `CLAUDE.md` or `docs/*`, that document is updated **in the same PR**.
+
+### A **milestone** is done when
+
+- [ ] Every task in it is done.
+- [ ] The milestone's Success Criteria all hold.
+- [ ] The Testing Checklist (below) has been run end to end against the milestone branch or `main`.
+- [ ] No task was silently dropped. A task that was consciously deferred is moved to a later milestone **in this document**, with a one-line reason.
+- [ ] No new `HIGH RISK` item is left in a half-applied state — expand/backfill/contract sequences are fully closed.
+- [ ] `CLAUDE.md` reflects the new architecture. It is the onboarding document; a stale `CLAUDE.md` is a bug.
+
+---
+
+## Code Review Checklist
+
+Walk this on every PR. Answer each line; do not skip lines that "obviously" pass.
+
+**TypeScript**
+- [ ] No `any`, no `unknown` returned from an API function (`API.md`: *"Never use any. Never return unknown."*).
+- [ ] No new non-null assertions (`!`) — if the value can be null, model it.
+- [ ] Types for DB rows are derived from the generated `Database` type, not hand-written.
+- [ ] Component props are a props type, not a spread database row.
+- [ ] `npm run build` is green.
+
+**ESLint**
+- [ ] `npm run lint` clean. No new `eslint-disable`.
+- [ ] Hook dependency arrays are honest (no suppressed exhaustive-deps).
+
+**Build**
+- [ ] Build is green **and** no unused import slipped in (`noUnusedLocals` will catch it; the dev server will not).
+- [ ] No new runtime dependency added that a few lines of code would have covered.
+
+**RLS / Security**
+- [ ] Any new table has RLS **enabled** and at least one policy, in the same migration.
+- [ ] Any new query is scoped in the client (`.eq("board_id", …)`) *as well as* enforced in RLS. Defense in depth: RLS is the boundary, the client filter is the correctness aid.
+- [ ] No ownership column (`user_id`, `owner_id`, `creator_id`) is sent from the client where a DB default could set it.
+- [ ] No secrets, tokens, or user data in `console.*`.
+- [ ] New `SECURITY DEFINER` functions are `STABLE` where possible and have an explicit `search_path`.
+
+**React Query**
+- [ ] Query key comes from the key factory. No inline `["todos"]` string literals.
+- [ ] Key is scoped by `boardId` (post-M2).
+- [ ] `useQueryClient()` is used — no import of the module-level `queryClient` singleton.
+- [ ] No blanket `invalidateQueries` where a targeted cache write would do (`API.md`: *"Prefer updating cache directly"*). If invalidation is correct, a comment says why.
+
+**Optimistic Updates**
+- [ ] Mutation follows `onMutate → optimistic write → mutate → rollback onError`.
+- [ ] `onMutate` calls `cancelQueries` first, and snapshots previous state into context.
+- [ ] `onError` restores the snapshot. **A mutation with an optimistic write and no rollback does not merge.**
+- [ ] Failure is visible to the user, not just to the cache.
+
+**Realtime compatibility**
+- [ ] Cache-update logic lives in a pure function the realtime handler can also call — not buried in a mutation closure.
+- [ ] New ids are client-generated UUIDs, so an echoed insert reconciles by identity.
+- [ ] Ordering writes touch one row, not a whole column (post-M6).
+
+**Documentation**
+- [ ] `CLAUDE.md` updated if architecture, folder layout, or a gotcha changed.
+- [ ] `docs/*.md` updated if this PR contradicts them — or a note added explaining the deliberate divergence.
+- [ ] This plan updated if a task was split, added, or deferred.
+
+---
+
+## Testing Checklist
+
+Run in full after every milestone, against a real browser and a real Supabase project.
+
+### Smoke — every milestone, every time
+
+- [ ] Register a brand-new account → lands on a board with the four seeded columns.
+- [ ] Log out → redirected to `/login`. Log back in → board restores.
+- [ ] Hard refresh on the board → no flash of the login page, no duplicate loading spinner.
+- [ ] Create a card via the column's Create button.
+- [ ] Create a card via a mid-column `+` gap → it lands at that index, not at the bottom.
+- [ ] Rename a card; Escape cancels, Enter saves.
+- [ ] Delete a card via the three-dot menu.
+- [ ] Drag a card within a column → order persists after refresh.
+- [ ] Drag a card across columns → both columns renumber; persists after refresh.
+- [ ] Drag a card into a `done` column → green flash fires once.
+- [ ] Drag a column left/right → order persists after refresh.
+- [ ] Collapse and expand a column.
+- [ ] Rename a column; set and clear a min/max limit; confirm the warning appears and does **not** block a drop.
+- [ ] Delete a column → forced to pick a destination; its cards arrive at the end of the destination in order.
+- [ ] Switch language (en/ru/uz) → no crash, no raw keys rendered.
+- [ ] Toggle dark mode.
+- [ ] Update profile name/username/bio; upload an avatar.
+
+### Multi-user — from M3 onward
+
+- [ ] User B cannot see User A's board by guessing its URL.
+- [ ] User B cannot read User A's rows via a direct PostgREST call with B's token. **Test this with `curl`, not through the UI** — the UI proves nothing about RLS.
+- [ ] A `viewer` cannot drag, create, or delete.
+- [ ] An `editor` can edit cards but cannot remove members.
+- [ ] Removing a member revokes their access immediately on next request.
+
+### Concurrency — from M6 onward
+
+- [ ] Two browsers, same board: A creates a card → appears in B without refresh.
+- [ ] A moves a card → B sees the move, and B's own in-flight drag is not disrupted.
+- [ ] A and B drag *different* cards in the same column simultaneously → both moves survive.
+- [ ] A and B drag the *same* card simultaneously → one wins, no duplicate, no orphan.
+- [ ] Kill B's network for 30s, reconnect → B's board converges to A's state.
+
+### Regression — always
+
+- [ ] `npm run build` green.
+- [ ] `npm run lint` green.
+- [ ] Both `*.check.ts` self-checks print their pass line.
+- [ ] Browser console clean — no errors, no unhandled promise rejections, no logged user data.
+- [ ] Network tab: loading a board issues a bounded number of requests, not one per card.
+
+---
+
+# PART II — MILESTONES
+
+Risk labels, applied to every task:
+
+| Label | Meaning |
+|---|---|
+| **SAFE** | Additive or local. Worst case is a revert. |
+| **MEDIUM RISK** | Touches shared state, the write path, or many files. Needs deliberate testing. |
+| **HIGH RISK** | Destructive, or changes the security boundary, or migrates data. Requires backup + rollback + migration strategy, documented per task below. |
+
+---
+
+## Milestone 0 — Stabilise
+
+**Goal.** Make the project compile, make its schema and security reproducible from the repository, and turn on the type checking the spec assumes is already on.
+
+**Why this milestone exists.** `npm run build` currently fails with 18 TypeScript errors, so the app cannot be deployed. The base schema and every RLS policy exist only inside the hosted Supabase project — the repository contains two `ALTER TABLE` files and no `CREATE TABLE`, no `CREATE POLICY`. That means the security model cannot be reviewed and no second environment can be created. `strict` is off in all three tsconfigs, so the "type safety" the spec names a core goal is largely notional. Nothing else in this plan can proceed safely until these three facts change.
+
+**Dependencies.** None. This is the entry point.
+
+**Estimated difficulty.** S–M (11 tasks; grows to M if the RLS audit finds policies missing).
+
+**Risks.**
+- The RLS audit (M0-06) is the unknown. If policies are absent, the live application has been exposing every user's data to every other user, M0-07 becomes urgent, and its severity was Critical all along.
+- Enabling `strict` will surface a large error count across ~40 files that have never been checked. Split across two tasks; do not attempt one heroic commit.
+- `supabase db pull` against a project whose migrations were applied by hand may require `supabase migration repair` to reconcile the migration history table.
+
+**Success criteria.**
+- `npm run build` exits 0 with `strict: true`.
+- A fresh Supabase project can be built from `supabase/migrations/` alone and the app runs against it.
+- Every table has RLS enabled and policies committed to Git.
+- CI runs lint + build + self-checks on every PR.
+
+### Tasks
+
+#### M0-01 · Delete dead modules — **SAFE**
+
+Remove the modules with zero live consumers. Roughly 12 of the 18 build errors are inside them, so this is the cheapest possible error reduction. Note `useDragOverTodos` is still re-exported from the barrel and `useUpdateTodo` imports the soon-to-be-deleted `ITodo` — both need adjusting in the same commit.
+
+- **Files:** delete `src/stores/todoStore.ts`, `src/hooks/useDropIndicator.ts`, `src/services/lib/todos/useReorderTodos.ts`, `src/services/lib/todos/useSaveTodoOrder.ts`, `src/services/lib/todos/useDragOverTodos.ts`, `src/services/lib/todos/useChangeTodoStatus.ts` (0 bytes), `src/components/kanban/DraggableTodo.tsx`. Edit `src/services/lib/index.ts` (drop the `useDragOverTodos` export), `src/types/data.ts` (drop `ITodo`, `IServiceTodo`), `src/constants/consants.ts` (drop `BASE_URL`, `filters`), `src/services/lib/todos/useUpdateTodo.ts` (retype from `ITodo` → `ISupabaseTodo` — note `ITodo` has no `column_id`, which is how a real bug was hiding here).
+- **DB / Supabase / RLS:** none.
+- **React:** none — no rendered component imports any of these.
+- **Breaking:** no.
+- **Test:** build error count drops from 18 to ~6; `npm run dev` loads the board; create, drag, rename and delete a card.
+- **Commit:** `chore: delete dead modules and pre-Supabase types`
+
+#### M0-02 · Clear remaining unused-symbol errors — **SAFE**
+
+The residual `noUnusedLocals` failures in live files.
+
+- **Files:** `src/components/sideBar/app-sidebar.tsx` (4 unused imports), `src/components/todo/TodoItem/TodoColumnMenu.tsx` (unused `updateTodoColumn` import, line 1), `src/hooks/useTodosByColumns.ts` (unused `isLoading`, `error` destructure), `src/services/api/todoApi.ts` (unused `IColumn`), `src/services/lib/todos/useDeleteTodo.ts` (unused `IServiceTodo`), `vite.config.ts` (unused `reactCompilerPreset`, `fileURLToPath`).
+- **DB / Supabase / RLS:** none.
+- **React:** none.
+- **Breaking:** no.
+- **Test:** only the two `HeaderTodoForm` errors remain.
+- **Commit:** `chore: remove unused imports and bindings`
+
+#### M0-03 · Fix `HeaderTodoForm` — **MEDIUM RISK**
+
+The last two build errors, and a genuine product defect: the header's quick-add calls `useAddTodo({ title, status: "todo" })` — no `column_id`, and `status` predates the columns schema. It has never worked. A board can have arbitrary columns, so a global quick-add needs a defined destination; the leftmost column (lowest `position`) is the conventional answer.
+
+- **Files:** `src/components/layout/header/HeaderTodoForm.tsx`, possibly `src/components/layout/header/Header.tsx`.
+- **DB / Supabase / RLS:** none.
+- **React:** read columns via `useColumns()`, target the lowest-`position` column, disable the form when the board has no columns.
+- **Breaking:** no — it was broken before.
+- **Test:** build green (0 errors); type in the header form, press Enter → card appears at the bottom of the leftmost column; the form is disabled on a board with no columns; leftmost column determined by `position`, not array order.
+- **Commit:** `fix: header quick-add targets the leftmost column`
+
+> If the product does not actually want a global quick-add, delete `HeaderTodoForm` and its usage in `Header.tsx` instead. Deleting is cheaper than fixing, and this feature has never functioned, so nobody depends on it.
+
+#### M0-04 · Validate env vars, stop logging row data — **SAFE**
+
+- **Files:** `src/services/api/supabase.ts` (throw at module load if either var is missing; also delete the commented-out legacy client block referencing the wrong key name), `src/services/api/todoApi.ts` (remove `console.log(data)` at line 15).
+- **DB / Supabase / RLS:** none.
+- **React:** none.
+- **Breaking:** no.
+- **Test:** temporarily blank `VITE_SUPABASE_URL` → clear thrown error at boot instead of an opaque failure on first query; restore; board loads with a clean console.
+- **Commit:** `chore: fail fast on missing env vars, stop logging todo rows`
+
+#### M0-05 · Adopt the Supabase CLI workflow and capture a baseline migration — **MEDIUM RISK**
+
+Pull the live schema into a committed baseline. `supabase db pull` is read-only against production, but the migration-history table may need repairing because the two existing migrations were applied by hand in the SQL editor.
+
+- **Files:** `supabase/migrations/<ts>_baseline_schema.sql` (new), `package.json` (add `db:pull`, `db:push`, `db:diff`, `db:types` scripts), `README.md` or `CLAUDE.md` (document the workflow), `.gitignore` (add `backups/`).
+- **DB:** none — read only.
+- **Supabase:** `supabase link`, `supabase db pull`, `supabase migration repair --status applied` for the two hand-applied files if the history table disagrees.
+- **RLS:** none yet — this task only captures what exists.
+- **Breaking:** no.
+- **Test:** baseline contains `CREATE TABLE` for `profiles`, `columns`, `todos`; `supabase db reset` against a **local/branch** database succeeds and the app runs against it; **also record in the PR whether PITR is enabled on the production project** — M2 depends on it.
+- **Commit:** `chore(db): capture baseline schema, adopt CLI migration workflow`
+
+#### M0-06 · Audit RLS and storage policies — **SAFE** (investigation, no code)
+
+Determine what the security boundary actually is. Produce findings, not fixes.
+
+- **Files:** `docs/RLS_AUDIT.md` (new).
+- **DB / Supabase / RLS:** read-only queries against `pg_policies` and `pg_tables.rowsecurity`, plus the `storage.objects` policies for the `avatars` bucket.
+- **React:** none.
+- **Breaking:** no.
+- **Test — this is the whole task:**
+  - [ ] Is RLS **enabled** on `todos`, `columns`, `profiles`?
+  - [ ] Does each have SELECT / INSERT / UPDATE / DELETE policies? `upsert` needs *both* INSERT and UPDATE — `reorderTodos` and `reorderColumns` depend on this.
+  - [ ] With user B's token, `curl` the PostgREST endpoint for `columns` — recall `getColumns()` sends **no filter at all**, so if the policy is missing this returns every column in the system.
+  - [ ] With user B's token, attempt `PATCH /todos?id=eq.<A's todo id>` — does it succeed?
+  - [ ] Can user B overwrite `avatars/<A's uuid>.png`? The upload path is guessable and uses `upsert: true`.
+  - [ ] Record each answer in the audit doc.
+- **Commit:** `docs: RLS and storage policy audit findings`
+
+#### M0-07 · Commit and correct RLS policies — **HIGH RISK**
+
+Bring the security boundary into Git and close whatever M0-06 found open.
+
+- **Files:** `supabase/migrations/<ts>_rls_policies.sql`, `docs/RLS_AUDIT.md` (mark items resolved).
+- **DB:** `ALTER TABLE … ENABLE ROW LEVEL SECURITY` where missing; `CREATE POLICY` per table.
+- **Supabase:** storage policy on the `avatars` bucket restricting writes to the owner's path; set a bucket file-size limit.
+- **RLS:** this is the entire task. Interim model (user-owned) — M3 replaces it with membership-based policies.
+- **Breaking:** **yes, potentially.** A policy that is too tight breaks the running app; too loose leaves the hole open.
+- **Test:** every M0-06 check now answers correctly; then the full Smoke checklist as the owning user — a missing UPDATE policy will surface as drags that silently revert on refresh; verify the `upsert` paths specifically (drag a card, drag a column).
+
+> **HIGH RISK — backup / rollback / migration**
+> **Backup:** full `supabase db dump` before applying. Policies do not touch data, but a botched `ALTER TABLE` on a live table can lock it.
+> **Rollback:** forward-fix migration dropping the new policies. Keep the exact previous policy definitions (captured in M0-05's baseline) in the PR description so the reversal is copy-paste, not reconstruction.
+> **Migration:** apply to a branch database first, run the full Smoke checklist against it, then production. Apply during low traffic. Watch for 403s in the browser network tab for ten minutes after — a too-tight policy shows up as silent write failures, not errors, because nothing surfaces mutation errors yet (that lands in M1-07).
+
+#### M0-08 · Generate database types and type the client — **MEDIUM RISK**
+
+Every `.from(...)` currently returns `any`; `getColumns()`'s `Promise<IColumn[]>` is an unchecked assertion. Generating the `Database` type will surface real mismatches between the hand-written interfaces and the actual schema.
+
+- **Files:** `src/types/database.ts` (generated, committed), `src/services/api/supabase.ts` (`createClient<Database>`), `src/types/data.ts` (derive `ISupabaseTodo`/`IColumn`/`ISupabaseProfile` from generated row types rather than hand-writing them), `package.json` (`db:types` script).
+- **DB:** none.
+- **Supabase:** `supabase gen types typescript --linked > src/types/database.ts`.
+- **RLS:** none.
+- **Breaking:** no runtime change; expect compile errors where hand-written types were wrong. Those errors are the point.
+- **Test:** build green; every mismatch found is recorded in the PR body (they are review findings, not noise); rename a column in a scratch DB, regenerate, confirm the build now fails — proving the types are load-bearing.
+- **Commit:** `feat(types): generate and wire Supabase database types`
+
+#### M0-09 · Enable `strictNullChecks` — **MEDIUM RISK**
+
+- **Files:** `tsconfig.app.json`, plus every file the flag flags.
+- **DB / Supabase / RLS:** none.
+- **React:** null-guards where genuinely needed. Resolve `user?.id!` in `src/services/lib/todos/useTodos.ts` properly rather than re-asserting.
+- **Breaking:** no runtime change.
+- **Test:** build green; full Smoke checklist — a wrongly-placed `?? ""` or `?? 0` silently changes behaviour, so exercise the board rather than trusting the compiler.
+- **Commit:** `chore(ts): enable strictNullChecks`
+
+#### M0-10 · Enable full `strict` — **MEDIUM RISK**
+
+- **Files:** `tsconfig.app.json`, `tsconfig.node.json`, plus fallout.
+- **Breaking:** no runtime change.
+- **Test:** build green; Smoke checklist.
+- **Decision to record in the PR:** whether to also enable `noUncheckedIndexedAccess`. It will flag the `todos[0]?.id` and `destinations[0].id` patterns in `KanbanColumn` and `DeleteColumnModal`. **Recommendation: defer it** — it is a large diff for a class of bug the code mostly already guards, and M0 has higher-value work. Revisit in M9.
+- **Commit:** `chore(ts): enable strict mode`
+
+#### M0-11 · CI pipeline — **SAFE**
+
+Turn the Code Review Checklist's mechanical half into something that cannot be skipped.
+
+- **Files:** `.github/workflows/ci.yml` (new).
+- **DB / Supabase / RLS:** none.
+- **React:** none.
+- **Breaking:** no.
+- **Test:** open a throwaway PR with a deliberate unused import → CI fails; remove it → CI passes. Runs `npm ci`, `npm run lint`, `npm run build`, and both `node --experimental-strip-types` self-checks.
+- **Commit:** `ci: lint, build and self-checks on every pull request`
+
+### Expected commit order — Milestone 0
+
+```
+1.  chore: delete dead modules and pre-Supabase types            (M0-01)
+2.  chore: remove unused imports and bindings                    (M0-02)
+3.  fix: header quick-add targets the leftmost column            (M0-03)   ← build green from here
+4.  chore: fail fast on missing env vars, stop logging todo rows (M0-04)
+5.  chore(db): capture baseline schema, adopt CLI workflow       (M0-05)
+6.  docs: RLS and storage policy audit findings                  (M0-06)
+7.  feat(db): commit and correct RLS policies                    (M0-07)   ← HIGH RISK
+8.  feat(types): generate and wire Supabase database types       (M0-08)
+9.  chore(ts): enable strictNullChecks                           (M0-09)
+10. chore(ts): enable strict mode                                (M0-10)
+11. ci: lint, build and self-checks on every pull request        (M0-11)
+```
+
+M0-05 through M0-07 are independent of M0-01 through M0-04 and can run in parallel if two people are working.
+
+---
+
+## Milestone 1 — Foundation
+
+**Goal.** Fix the six structural defects that would otherwise make Milestone 2 dramatically harder, and give the application an error surface.
+
+**Why this milestone exists.** `useAuth` is a plain hook, so every call site opens its own auth subscription and flips its own `loading`. Query keys are global string literals, which blocks per-board caching. No mutation anywhere surfaces an error to the user, so a failed RLS policy is indistinguishable from success. The drop path writes the cache optimistically and never rolls back. Each of these is touched by the ownership migration anyway — fixing them now costs days, fixing them after M2 costs weeks.
+
+**Dependencies.** Milestone 0 complete.
+
+**Estimated difficulty.** M (17 tasks).
+
+**Risks.**
+- The `AuthProvider` switch changes loading-state timing; watch for a route flash on first paint.
+- The folder restructure (M1-14, M1-15) produces a large mechanical diff. Land it as its own commits, separate from behavioural change, or review becomes impossible.
+- M1-09 rewrites the drop path — the highest-traffic write in the app.
+
+**Success criteria.**
+- Exactly one auth subscription exists per page load.
+- No query key string literal appears outside the key factory.
+- Every mutation failure produces a visible message and a correct rollback.
+- A thrown render error shows a boundary, not a white screen.
+- `services/` follows one convention, matching `docs/FRONTEND.md`.
+
+### Tasks
+
+#### M1-01 · `AuthProvider` — **MEDIUM RISK**
+
+`useAuth` currently holds its own `useState`, its own `getSession()` and its own `onAuthStateChange` subscription. It is called by `ProtectedRoute`, `PublicRoute`, `useTodos` and `useProfile` — at least four independent copies, each flipping `loading` on its own schedule.
+
+- **Files:** `src/providers/AuthProvider.tsx` (new), `src/services/lib/auth/useAuth.ts` (reads context), `src/main.tsx` (mount above `QueryClientProvider`).
+- **DB / Supabase / RLS:** none.
+- **React:** one context, one subscription, one `loading`.
+- **Breaking:** no public API change — `useAuth()` keeps its `{ user, loading }` shape.
+- **Test:** network tab shows exactly one `getSession` on load; log in → board renders without a double spinner; log out → redirect is immediate; open two tabs, log out in one → the other reacts.
+- **Commit:** `feat(auth): hoist useAuth into a provider`
+
+#### M1-02 · Clear the query cache on sign-out — **SAFE**
+
+`useLogout` clears the cache, but only when logout goes through that button — not on token expiry or a sign-out in another tab. With a global `["todos"]` key, a stale cache is a cross-user exposure risk.
+
+- **Files:** `src/providers/AuthProvider.tsx`, `src/services/lib/auth/useLogout.ts` (drop the now-redundant clear).
+- **React:** `queryClient.clear()` on `SIGNED_OUT` inside the single subscription.
+- **Breaking:** no.
+- **Test:** log in as A, load the board, log out, log in as B → B sees B's board with no flash of A's cards; repeat by expiring the session in another tab.
+- **Commit:** `fix(auth): clear query cache on any sign-out, not just the button`
+
+#### M1-03 · Query key factory — **MEDIUM RISK**
+
+Keys are inline string literals across a dozen files. `API.md` mandates predictable, feature-owned keys, and M2 needs them board-scoped.
+
+- **Files:** `src/services/queryClient/queryKeys.ts` (new), every hook in `src/services/lib/todos/*`, `src/services/lib/profile/*`, `src/services/columns/*`, plus `src/components/kanban/KanbanBoard.tsx` and `src/services/lib/todos/useTodoDrop.ts`.
+- **DB / Supabase / RLS:** none.
+- **React:** typed factory — `queryKeys.todos()`, `queryKeys.columns()`, `queryKeys.profile(userId)`. Leave room for the `boardId` argument M2 adds.
+- **Breaking:** no.
+- **Test:** grep for `queryKey: [` → every hit routes through the factory; Smoke checklist (a mistyped key means a mutation writes to a cache nothing reads — it looks like "the UI didn't update").
+- **Commit:** `refactor(query): centralise query keys in a typed factory`
+
+#### M1-04 · Fix the profile cache-key mismatch — **SAFE**
+
+`useUpdateProfile` writes `["profile"]`; `useProfile` reads `["profile", user?.id]`. The write lands in an orphan entry. It only appears to work because `ProfilePage` mirrors the response into local state.
+
+- **Files:** `src/services/lib/profile/useUpdateProfile.ts`.
+- **React:** use the factory key; add optimistic update + rollback while here.
+- **Breaking:** no.
+- **Test:** update the bio, navigate away, navigate back → the new bio is there **without a refetch** (watch the network tab); force a failure (offline) → the field reverts and an error shows.
+- **Commit:** `fix(profile): write to the key useProfile actually reads`
+
+#### M1-05 · QueryClient defaults — **SAFE**
+
+`new QueryClient()` has zero configuration: every window focus refetches the whole board, and a 403 from a missing policy retries three times before surfacing.
+
+- **Files:** `src/services/queryClient/queryClient.ts`.
+- **React:** `staleTime`, `gcTime`, and a `retry` predicate that does **not** retry 4xx.
+- **Breaking:** no.
+- **Test:** load the board, switch tabs and back → no refetch within `staleTime`; simulate a 403 → surfaces once, not after three retries.
+- **Note:** `@tanstack/query-persist-client` and `query-sync-storage-persister` are installed but unimported. **Leave them unwired.** A persisted cache with a global `["todos"]` key is exactly where cross-user leakage happens. Revisit after M2 scopes the keys.
+- **Commit:** `chore(query): set explicit client defaults`
+
+#### M1-06 · Toast primitive — **SAFE**
+
+- **Files:** `src/components/ui/Toast.tsx`, `src/providers/ToastProvider.tsx` (new), `src/main.tsx`.
+- **React:** minimal — a queue, a portal, auto-dismiss, an imperative `toast.error()` / `toast.success()`. **Do not add a toast library**; this is ~60 lines and a dependency here buys nothing.
+- **Breaking:** no.
+- **Test:** trigger one from a scratch button — appears, auto-dismisses, stacks correctly, is announced to a screen reader (`role="status"` / `aria-live`).
+- **Commit:** `feat(ui): minimal toast primitive`
+
+#### M1-07 · Global mutation error surfacing — **MEDIUM RISK**
+
+Not one mutation in the codebase has a user-visible `onError`. `FRONTEND.md`: *"Never silently ignore errors."* This is what makes every other milestone observable — a silently-failing RLS policy currently looks identical to success.
+
+- **Files:** `src/services/queryClient/queryClient.ts` (`MutationCache` / `QueryCache` `onError` defaults).
+- **React:** default error handler pushes a toast; per-mutation `onError` can still override.
+- **Breaking:** no — but expect previously-invisible failures to start appearing. **That is the feature.** Triage what surfaces; do not suppress it.
+- **Test:** go offline → create a card → optimistic card appears, then rolls back **with a toast**; break a policy in a scratch DB → the 403 is visible; confirm no toast storms on a single failure.
+- **Commit:** `feat(query): surface mutation failures to the user`
+
+#### M1-08 · Error boundary and 404 route — **SAFE**
+
+A render throw in any card currently blanks the entire application.
+
+- **Files:** `src/components/ErrorBoundary.tsx` (new), `src/components/routes/Routes.tsx` (`errorElement`, `path: "*"`), `src/components/kanban/KanbanColumn.tsx` (wrap the card list).
+- **React:** class boundary with a reset action; a 404 page.
+- **Breaking:** no.
+- **Test:** throw deliberately inside `TodoItem` → one column shows the fallback, the rest of the board still works; visit `/nonsense` → 404, not a blank page.
+- **Commit:** `feat: error boundaries and a 404 route`
+
+#### M1-09 · Convert `todoDrop` into a mutation with rollback — **MEDIUM RISK**
+
+The worst correctness bug in the running app. `todoDrop` writes the cache and then awaits `reorderTodos`; on failure the cache keeps the wrong order and the rejection is unhandled — `onDragEnd` is `async` and awaits it with no `try`/`catch`. A failed drop leaves the UI permanently inconsistent with the database, silently, until the next refetch. The file is also named `use*` but exports a plain async function, and it imports the module-level `queryClient` singleton.
+
+- **Files:** `src/services/lib/todos/useTodoDrop.ts` → real hook, `src/components/kanban/KanbanBoard.tsx` (call the mutation), `src/services/lib/index.ts` (barrel).
+- **DB / Supabase / RLS:** none.
+- **React:** `useMutation` with `onMutate` snapshot → optimistic splice → `onError` restore + toast. Use `useQueryClient()`. Translate the Russian comments to English while here (the only non-English comments in the codebase).
+- **Breaking:** no.
+- **Test:** drag within a column and across columns → order persists after refresh; **go offline, drag → the card visibly returns to its original position and a toast appears**; go back online, drag again → succeeds; drag a card into a `done` column → the flash still fires exactly once.
+- **Commit:** `fix(dnd): make the drop path a mutation with rollback`
+
+#### M1-10 · Remove direct `queryClient` singleton imports — **SAFE**
+
+- **Files:** `src/components/kanban/KanbanBoard.tsx` (column reorder path), anywhere else grep finds `from "@/services/queryClient/queryClient"` outside `main.tsx`.
+- **React:** `useQueryClient()`.
+- **Breaking:** no.
+- **Test:** grep is clean; drag a column → order persists.
+- **Commit:** `refactor(query): use useQueryClient instead of the module singleton`
+
+#### M1-11 · Fix the impure memo in `useTodosByColumns` — **SAFE**
+
+`grouped` is declared **outside** `useMemo` and mutated inside it. It is recreated every render but only repopulated when the memo re-runs, so the returned reference is a stale-but-mutated accumulator. It works by luck of ordering and will not survive StrictMode double-invocation, concurrent rendering, or the React Compiler.
+
+- **Files:** `src/hooks/useTodosByColumns.ts`.
+- **React:** move the declaration inside the memo; return a stable, correctly-memoised record.
+- **Breaking:** no.
+- **Test:** enable `<StrictMode>` temporarily → columns still group correctly and cards do not duplicate; drag between columns repeatedly; add a card mid-column.
+- **Commit:** `fix: make useTodosByColumns memo pure`
+
+#### M1-12 · Fix the card's "Change status" menu — **SAFE**
+
+`TodoMenu` renders `<TodoStatusMenu currentColumnId={""} />`, so the filter `column.id !== currentColumnId` never matches and the menu offers the card's own column as a move target.
+
+- **Files:** `src/components/todo/TodoItem/TodoMenu.tsx`, `src/components/todo/TodoItem.tsx` (pass `column_id` through), `src/types/data.ts` (the commented-out `currentColumnId` fields are the abandoned attempt — finish or remove them).
+- **React:** thread the real `column_id`.
+- **Breaking:** no.
+- **Test:** open the menu on a card in "In Progress" → "In Progress" is absent from the list, the other columns are present; pick one → the card moves; a `done` target fires the flash.
+- **Commit:** `fix(todo): exclude the current column from the move menu`
+
+#### M1-13 · Auth form validation and feedback — **SAFE**
+
+Both forms submit raw state — no trim, no length check, no error rendering, no loading state. A failed login currently does nothing at all.
+
+- **Files:** `src/components/authForm/LoginForm.tsx`, `src/components/authForm/RegisterForm.tsx`, `src/utils/validation.ts` (new — email shape, required, min length; **pure, no React**, per `docs/FRONTEND.md`).
+- **React:** inline field errors, disabled + spinner on `isPending`, server error surfaced.
+- **Breaking:** no.
+- **Test:** empty submit → field errors, no network call; malformed email → caught client-side; wrong password → server error visible; correct credentials → spinner then redirect; whitespace-padded email is trimmed. Add a `validation.check.ts` self-check.
+- **Commit:** `feat(auth): validate and give feedback on the auth forms`
+
+#### M1-14 · Introduce `providers/` and `utils/` — **MEDIUM RISK** (mechanical)
+
+`docs/FRONTEND.md` specifies both; neither exists. `ThemeProvider` currently lives under `services/lib/themes/` and `cn` under `services/lib/utils.ts`.
+
+- **Files:** move `src/services/lib/themes/ThemeProvider.tsx` → `src/providers/`, `src/services/lib/utils.ts` → `src/utils/cn.ts`; update every importer.
+- **React:** import paths only.
+- **Breaking:** import paths — but caught at compile time.
+- **Test:** build green; dark mode toggles; every `cn`-styled surface still renders (board, cards, headers, modals).
+- **Commit:** `refactor: introduce providers/ and utils/ per FRONTEND.md`
+
+#### M1-15 · Collapse `services/lib/` into feature folders — **MEDIUM RISK** (mechanical)
+
+`services/` currently has three competing conventions: `services/api/` (todos, auth, profile), `services/columns/` (its own api + hooks — the shape the docs describe), and `services/lib/` (hooks plus a provider plus a util). A newcomer has no rule to follow.
+
+- **Files:** `services/api/todoApi.ts` + `services/lib/todos/*` → `services/todos/`; `services/api/authApi.ts` + `services/lib/auth/*` → `services/auth/`; `services/api/profile/*` + `services/lib/profile/*` → `services/profile/`; keep `services/api/supabase.ts` as the shared client; delete `services/lib/` and its barrel. Standard shape becomes `services/<feature>/{<feature>Api.ts, use*.ts}`, matching `docs/API.md`.
+- **React:** import paths only.
+- **Breaking:** import paths; the `services/lib` barrel disappears — prefer explicit imports over recreating it.
+- **Test:** build green; full Smoke checklist.
+- **Commit:** `refactor(services): one folder per feature, per API.md`
+
+#### M1-16 · Relocate UI primitives, fix the shadcn alias — **SAFE**
+
+`button`, `input`, `tooltip`, `skeleton`, `separator`, `avatar` sit under `components/ui/SideBarUI/` and are not sidebar components. `components.json` maps `utils` to `@/lib/utils`, which does not exist — so every future `npx shadcn add` lands in the wrong place with a broken import.
+
+- **Files:** move generic primitives from `src/components/ui/SideBarUI/` → `src/components/ui/`; leave genuinely sidebar-specific files behind; update importers; fix `components.json` aliases to point at `@/utils/cn`.
+- **Breaking:** import paths.
+- **Test:** build green; sidebar renders, opens, collapses; dropdown menus in `ColumnMenu` and `DeleteColumnModal` still work; `npx shadcn add <something>` into a scratch branch lands correctly and is then discarded.
+- **Commit:** `refactor(ui): move shared primitives out of SideBarUI, fix aliases`
+
+#### M1-17 · Add a test runner — **MEDIUM RISK**
+
+Nine milestones of schema migrations and realtime races cannot be defended by two `*.check.ts` files. Pulling this forward from M9 makes M2 and M6 measurably safer.
+
+- **Files:** `vitest.config.ts` (new), `package.json` (`test`, `test:watch`), `.github/workflows/ci.yml` (add the step), migrate `insertDense.check.ts` and `limitBreach.check.ts` to Vitest **or** keep both mechanisms — decide and record it in `CLAUDE.md`.
+- **Breaking:** no.
+- **Test:** `npm test` passes; a deliberately broken assertion fails CI.
+- **Recommendation:** Vitest reuses the existing Vite config and adds one dev dependency. Migrate the two self-checks so there is one way to run tests, not two. Do **not** add React Testing Library yet — pure logic is where the risk is, and component tests you do not need are a maintenance tax.
+- **Commit:** `test: add Vitest and port the existing self-checks`
+
+### Expected commit order — Milestone 1
+
+```
+1.  feat(auth): hoist useAuth into a provider                        (M1-01)
+2.  fix(auth): clear query cache on any sign-out                     (M1-02)
+3.  refactor(query): centralise query keys in a typed factory        (M1-03)
+4.  fix(profile): write to the key useProfile actually reads         (M1-04)
+5.  chore(query): set explicit client defaults                       (M1-05)
+6.  feat(ui): minimal toast primitive                                (M1-06)
+7.  feat(query): surface mutation failures to the user               (M1-07)
+8.  feat: error boundaries and a 404 route                           (M1-08)
+9.  fix(dnd): make the drop path a mutation with rollback            (M1-09)
+10. refactor(query): use useQueryClient instead of the singleton     (M1-10)
+11. fix: make useTodosByColumns memo pure                            (M1-11)
+12. fix(todo): exclude the current column from the move menu         (M1-12)
+13. feat(auth): validate and give feedback on the auth forms         (M1-13)
+14. test: add Vitest and port the existing self-checks               (M1-17)
+15. refactor: introduce providers/ and utils/                        (M1-14)
+16. refactor(services): one folder per feature                       (M1-15)
+17. refactor(ui): move shared primitives out of SideBarUI            (M1-16)
+```
+
+The three mechanical refactors land **last**, after the behavioural work, so their large diffs never obscure a real change. M1-06 must precede M1-07.
+
+---
+
+## Milestone 2 — Boards
+
+**Goal.** Move ownership from User to Board, across the schema, the RLS policies, the routing, and every query.
+
+**Why this milestone exists.** This is the milestone the whole review is about. `docs/ARCHITECTURE.md` states three times that columns and todos must never belong to users. Today `columns.user_id` and `todos.user_id` are the ownership columns. Every remaining MVP feature — Multiple Boards, Team Members, Invitations, Task Assignment — is structurally impossible against a `user_id` foreign key, because there is no query that can share a board when there is no board. Every line of feature code written before this lands is written against a model already documented as wrong, and becomes migration surface.
+
+**Dependencies.** Milestones 0 and 1, both fully complete. In particular: RLS must be in Git (M0-07), types must be generated (M0-08), and error surfacing must work (M1-07) — otherwise this migration proceeds blind.
+
+**Estimated difficulty.** XL (21 tasks). Budget 2–4 weeks part-time. **Do not run other feature work in parallel.**
+
+**Risks.**
+- The highest-risk milestone in the plan. Destructive data migration touching every table.
+- The UUID conversion of `todos.id` must be a single transaction.
+- Board scoping changes every query key simultaneously; a missed one reads the wrong cache.
+- If real users exist, this needs a backup and a maintenance window.
+
+**Mitigation:** work on `milestone/m2-boards`. Rehearse the whole sequence end-to-end on a branch database before touching production. Strict expand → backfill → contract ordering, with the app deployed between backfill and contract.
+
+**Success criteria.**
+- `boards` exists; every column and todo has a non-null `board_id`.
+- `user_id` no longer exists on `columns` or `todos`.
+- `/boards/:boardId` renders that board and only that board.
+- Query keys are board-scoped; two boards do not share a cache entry.
+- A new signup gets a board, then four columns inside it.
+- `KanbanBoard.tsx` no longer holds business logic.
+- Cache-update functions are pure and callable from outside a mutation.
+
+### Tasks
+
+> **Sequencing is load-bearing here.** M2-01 → M2-05 are additive and safe. M2-06 → M2-08 are the migration. M2-09 → M2-12 are the app rewrite. M2-13 → M2-15 are the contraction, and must come *after* the app rewrite is deployed. M2-16 → M2-21 are cleanup and preparation.
+
+#### M2-01 · Create `boards` — **SAFE**
+
+- **Files:** `supabase/migrations/<ts>_create_boards.sql`, `src/types/database.ts` (regenerate).
+- **DB:** `boards` — `id uuid pk default gen_random_uuid()`, `owner_id uuid → profiles.id`, `title`, `description`, `icon`, `cover_color`, `visibility text check (visibility in ('private','team')) default 'private'`, `created_at`, `updated_at`. Index on `owner_id` per `docs/DATABASE.md`.
+- **RLS:** enable; interim owner-only policies (M3 replaces them with membership).
+- **Breaking:** no — nothing reads it yet.
+- **Test:** insert a board as user A; user B cannot select it (`curl` with B's token); regenerated types contain `boards`.
+- **Commit:** `feat(db): create boards table`
+
+#### M2-02 · Add nullable `board_id` to `columns` and `todos` — **SAFE**
+
+Expand phase. Nullable and unconstrained, so existing code is untouched.
+
+- **Files:** `supabase/migrations/<ts>_add_board_id.sql`, regenerate types.
+- **DB:** `board_id uuid null` on both tables. **No FK, no NOT NULL yet.**
+- **RLS:** unchanged.
+- **Breaking:** no.
+- **Test:** app behaves identically; both columns exist and are null everywhere.
+- **Commit:** `feat(db): add nullable board_id to columns and todos`
+
+#### M2-03 · Add the missing `todos` columns — **SAFE**
+
+`docs/DATABASE.md` specifies nine fields that do not exist. Adding them now, while the table is already being rewritten, is cheap; adding them after comments and attachments hold FKs is not.
+
+- **Files:** `supabase/migrations/<ts>_todos_task_fields.sql`, regenerate types.
+- **DB:** `description text`, `priority text check (priority in ('lowest','low','medium','high','highest'))`, `due_date timestamptz`, `estimate numeric`, `archived boolean not null default false`, `creator_id uuid → profiles.id on delete set null`, `assignee_id uuid → profiles.id on delete set null`, `updated_at timestamptz`. The `on delete set null` implements the documented rule that deleting a user preserves their created tasks.
+- **RLS:** unchanged.
+- **Breaking:** no — all nullable or defaulted. UI lands in M5.
+- **Test:** app unchanged; insert a todo with a priority outside the set → rejected by the constraint.
+- **Commit:** `feat(db): add task fields to todos`
+
+#### M2-04 · Timestamps and the shared `updated_at` trigger — **SAFE**
+
+`docs/ARCHITECTURE.md` requires `id`/`created_at`/`updated_at` on every entity. `updated_at` is not bookkeeping — it is the conflict-resolution input M6 will need.
+
+- **Files:** `supabase/migrations/<ts>_timestamps.sql`, regenerate types.
+- **DB:** `columns.created_at`, `columns.updated_at`; one `moddatetime`-style trigger function applied to `boards`, `columns`, `todos`.
+- **Breaking:** no.
+- **Test:** update a column title → `updated_at` advances; update a todo → same; `created_at` never changes.
+- **Commit:** `feat(db): add created_at/updated_at and a shared trigger`
+
+#### M2-05 · Indexes — **SAFE**
+
+Every index `docs/DATABASE.md` lists, plus what the new access pattern needs. Do this *before* the RLS rewrite — membership sub-selects run per row and are unusable without them.
+
+- **Files:** `supabase/migrations/<ts>_indexes.sql`.
+- **DB:** `boards(owner_id)`, `columns(board_id, position)`, `todos(column_id, position)`, `todos(board_id)`. Use `create index concurrently` if the tables have meaningful size.
+- **Breaking:** no.
+- **Test:** `explain analyze` the board-load query before and after; record both plans in the PR.
+- **Commit:** `perf(db): add the indexes specified in DATABASE.md`
+
+#### M2-06 · Backfill: personal board per user — **HIGH RISK**
+
+The data migration. Every existing user gets one board; their columns and todos are repointed to it.
+
+- **Files:** `supabase/migrations/<ts>_backfill_personal_boards.sql` (data migration, separate file from any schema DDL).
+- **DB:** for each distinct `user_id` in `columns` ∪ `todos` ∪ `profiles`: insert a board (title "My Board", `owner_id = user_id`); `update columns set board_id = <that board>`; same for `todos`. Also backfill `todos.creator_id = user_id` while the mapping still exists — **after `user_id` is dropped this information is gone forever.**
+- **RLS:** unchanged (the migration runs as service role).
+- **Breaking:** no — nothing reads `board_id` yet.
+- **Test:** `select count(*) from columns where board_id is null` → 0; same for `todos`; board count equals distinct user count; every user's column count and todo count matches the pre-migration numbers exactly; spot-check one user end-to-end; app still works (it still reads `user_id`).
+
+> **HIGH RISK — backup / rollback / migration**
+> **Backup:** full `db dump` immediately before. Record `count(*)` for `profiles`, `columns`, `todos` and the distinct `user_id` count in the PR body — these are the verification numbers.
+> **Rollback:** this migration is *additive to data* — it writes `board_id` and inserts `boards`, and destroys nothing. Rollback is `update columns set board_id = null; update todos set board_id = null; delete from boards;` in a forward-fix migration. Safe precisely because `user_id` still exists. **This is why M2-13 must not be in this task.**
+> **Migration:** rehearse on a branch database restored from the production dump. Compare all counts. Only then apply to production. Run inside a transaction; a partial backfill is worse than none.
+
+#### M2-07 · Contract: `board_id` NOT NULL + foreign keys — **HIGH RISK**
+
+- **Files:** `supabase/migrations/<ts>_board_id_constraints.sql`, regenerate types.
+- **DB:** `alter column board_id set not null` on both; FK `columns.board_id → boards.id on delete cascade`; FK `todos.board_id → boards.id on delete cascade`; FK `todos.column_id → columns.id` — note `docs/DATABASE.md` requires that deleting a column does **not** delete todos, so this FK must be `on delete restrict` or `set null`, matching the rehoming logic already in `deleteColumn`. Decide explicitly and record the choice.
+- **Breaking:** yes — inserts without `board_id` now fail. `addTodo` and `createColumn` must already send it (M2-11) or be deployed together.
+- **Test:** insert without `board_id` → rejected; delete a board → its columns and todos cascade; delete a column → todos are **not** destroyed.
+
+> **HIGH RISK — backup / rollback / migration**
+> **Backup:** dump before. The `NOT NULL` will fail loudly if M2-06 missed rows — that failure is a safety net, not an error; investigate rather than forcing.
+> **Rollback:** forward-fix dropping the constraints and FKs. No data loss risk; this task only adds constraints.
+> **Migration:** verify `count(*) where board_id is null = 0` on production immediately before applying. Deploy the app code from M2-11 first or simultaneously.
+
+#### M2-08 · Rewrite RLS in terms of board ownership — **HIGH RISK**
+
+- **Files:** `supabase/migrations/<ts>_rls_board_ownership.sql`, `docs/RLS_AUDIT.md`.
+- **DB:** none.
+- **RLS:** every policy on `columns` and `todos` changes from `user_id = auth.uid()` to "the board is owned by `auth.uid()`". `boards` policies stay owner-based. M3 replaces all of this with membership — write it so the predicate is easy to swap.
+- **Breaking:** yes — this *is* the authorization boundary.
+- **Test:** owner does everything on the Smoke checklist; user B, via `curl` with a real token, cannot SELECT, INSERT, UPDATE or DELETE any of A's columns or todos; verify `upsert` still works (both INSERT and UPDATE policies present) by dragging a card and a column.
+
+> **HIGH RISK — backup / rollback / migration**
+> **Backup:** dump before (policy changes can lock tables). Capture the exact current policy definitions into the PR body first, so reversal is copy-paste.
+> **Rollback:** forward-fix restoring the captured policies. Keep the old `user_id`-based policies commented in the migration file until M2-13 drops `user_id` — after that they are unrestorable, which is another reason M2-13 comes last.
+> **Migration:** branch database first, full multi-user test, then production during low traffic. Watch for 403s for 15 minutes after. M1-07 makes these visible — without it you would be flying blind.
+
+#### M2-09 · `services/boards/` — **SAFE**
+
+- **Files:** `src/services/boards/boardsApi.ts`, `useBoards.ts`, `useBoard.ts`, `useCreateBoard.ts`, `useUpdateBoard.ts`, `useDeleteBoard.ts`, plus `queryKeys` additions.
+- **React:** hooks only, no UI yet. Follow `docs/API.md` naming exactly: `getBoards`, `createBoard`, `updateBoard`, `deleteBoard`.
+- **Breaking:** no.
+- **Test:** temporary scratch component lists boards, creates one, renames it, deletes it; keys are board-scoped; optimistic create rolls back offline.
+- **Commit:** `feat(boards): boards API and query hooks`
+
+#### M2-10 · `/boards/:boardId` routing and board context — **MEDIUM RISK**
+
+The route param becomes the single source of `boardId` for every query key.
+
+- **Files:** `src/components/routes/Routes.tsx`, `src/pages/BoardPage.tsx` (new), `src/providers/BoardProvider.tsx` or a `useBoardId()` hook reading the param.
+- **React:** nested route; redirect `/` → the user's first board; invalid or unauthorised `boardId` → 404 via the error boundary from M1-08.
+- **Breaking:** the `/` route changes meaning.
+- **Test:** `/boards/<valid>` renders that board; `/boards/<other user's board>` → 404, not a blank board or someone else's data; `/boards/not-a-uuid` → 404; `/` redirects sensibly; browser back/forward behave.
+- **Commit:** `feat(boards): route the board by :boardId`
+
+#### M2-11 · Scope every todo and column query by `boardId` — **MEDIUM RISK**
+
+The core application-side change. Miss one and it reads the wrong cache.
+
+- **Files:** `src/services/todos/todosApi.ts`, `src/services/columns/columnsApi.ts`, every `use*` hook in both, `src/services/queryClient/queryKeys.ts`, `src/hooks/useTodosByColumns.ts`, `src/components/kanban/KanbanBoard.tsx`.
+- **DB:** none.
+- **React:** `queryKeys.todos(boardId)`, `queryKeys.columns(boardId)`; `.eq("board_id", boardId)` on every read; `board_id` in every insert. Note `getColumns()` today has **no filter at all** — this task is what fixes that.
+- **RLS:** none — but the client filter is defense in depth, as the Code Review Checklist requires.
+- **Breaking:** yes, internally. Coordinate with M2-07.
+- **Test:** create two boards with distinct cards; switch between them → no cross-contamination and no flash of the other board's cards; drag in board A → board B's cache is untouched; grep confirms no unscoped `["todos"]` or `["columns"]` remains; **also confirm the `max_rows = 1000` PostgREST cap in `supabase/config.toml` is no longer a silent truncation risk per board**.
+- **Commit:** `feat(boards): scope todo and column queries by board`
+
+#### M2-12 · Seed a board at signup — **MEDIUM RISK**
+
+`signUp` currently seeds four columns with no board. It must seed the board first.
+
+- **Files:** `src/services/auth/authApi.ts`.
+- **DB:** consider moving the whole seed into a `SECURITY DEFINER` RPC or an `on auth.users insert` trigger — the current client-side sequence is three separate writes with no transaction, so a failure mid-way leaves a half-provisioned account. **Recommended: one RPC.**
+- **React:** none.
+- **Breaking:** changes the new-user path. Existing users are unaffected.
+- **Test:** register a fresh account → exactly one board, exactly four columns inside it, in the right order and categories, and a profile row; simulate a failure partway → no orphaned board and no half-provisioned user; register twice with different emails → no cross-talk.
+- **Commit:** `fix(auth): provision a board and its columns atomically at signup`
+
+#### M2-13 · Drop `user_id` from `columns` and `todos` — **HIGH RISK**
+
+The final contraction. Leaving `user_id` in place creates two competing sources of truth and every future RLS policy would have to reconcile them.
+
+- **Files:** `supabase/migrations/<ts>_drop_user_id.sql`, regenerate types, `src/types/data.ts`.
+- **DB:** `alter table columns drop column user_id;` and the same on `todos`.
+- **RLS:** confirm **no** remaining policy references `user_id` before running. A policy referencing a dropped column fails at query time, not migration time.
+- **Breaking:** yes, irreversibly. `IColumn.user_id` and `ISupabaseTodo.user_id` disappear; `useAddTodo`'s optimistic todo currently sets `user_id: ""`.
+- **Test:** grep the entire `src/` tree for `user_id` — only `profiles` should remain; full Smoke checklist; full multi-user check.
+
+> **HIGH RISK — backup / rollback / migration**
+> **Backup:** mandatory full dump. **This is the point of no return** — once `user_id` is gone, the user↔row mapping exists only through `board_id`. Confirm M2-06 backfilled `creator_id` before proceeding.
+> **Rollback:** the column cannot be restored from the schema; only PITR or the dump recovers it. Confirm PITR is enabled (checked in M0-05) and record the pre-migration timestamp.
+> **Migration:** run only after M2-07, M2-08 and M2-11 are all verified in production and have been stable for at least a day. Query `pg_policies` for any surviving `user_id` reference first. Run in a transaction. Verify the full Smoke checklist immediately after — do not walk away.
+
+#### M2-14 · Migrate `todos.id` to UUID — **HIGH RISK**
+
+`todos.id` is an integer sequence while `columns.id` and `profiles.id` are UUIDs. Optimistic inserts mint fake ids with `Date.now()`, which collides with the real sequence space and forces the `isOptimistic` flag. Sequential ids also leak row counts. Under realtime, client-generated UUIDs are what make echo suppression an identity match instead of bespoke de-duplication.
+
+- **Files:** `supabase/migrations/<ts>_todos_uuid.sql`, regenerate types, `src/types/data.ts`, `src/services/todos/*`, `src/components/todo/TodoItem.tsx` and `TodoItem/TodoMenu.tsx` (`todoId: number` → `string`), `src/hooks/useKanbanDnd.ts` (`beforeId`/`afterId`), `src/components/kanban/DropZone.tsx`.
+- **DB:** add `id_new uuid default gen_random_uuid()`, backfill, swap the primary key, drop the old column — all in one transaction. Preserve the integer in a `legacy_id` column if the `KAN-{id}` label must stay stable for existing users.
+- **Breaking:** yes — the todo id type changes throughout the frontend.
+- **Test:** every existing card still loads and its identity is stable; create, rename, delete, drag; **remove the `isOptimistic` flag and confirm optimistic inserts still reconcile** (this is the payoff); `KAN-` labels behave per the decision recorded above.
+
+> **HIGH RISK — backup / rollback / migration**
+> **Backup:** mandatory dump. No FKs point at `todos.id` yet — **this is precisely why this task is in M2 and not later.** After M7 adds `comments.todo_id`, this migration becomes an order of magnitude harder.
+> **Rollback:** PITR or dump restore. A partial PK swap leaves the table unusable, so the whole thing runs in one transaction — it either completes or it does not.
+> **Migration:** rehearse twice on a branch database. Deploy the frontend that expects string ids in the same window; there is no version of the app that tolerates both.
+> **Alternative if this feels too risky right now:** skip it, keep integer ids, and accept bespoke echo suppression in M6. Record the decision here as a deliberate deferral, not an omission — and note that the cost grows every milestone.
+
+#### M2-15 · Drop `todos.completed`, retire `clearCompleted` — **MEDIUM RISK**
+
+Two competing sources of truth for one concept, already out of sync: dragging a card into a Done column does not set `completed`. `docs/DATABASE.md` lists no such field and says *"Never store duplicated information."* `clearCompleted` therefore currently deletes nothing.
+
+- **Files:** `supabase/migrations/<ts>_drop_completed.sql`, `src/services/todos/todosApi.ts`, delete `useClearCompleted.ts`, `src/types/data.ts`, any consumer.
+- **DB:** `alter table todos drop column completed`.
+- **React:** derive completion from the column's `category === 'done'`, which is what the board already does.
+- **Breaking:** yes — the type loses a field.
+- **Test:** grep for `completed` → only genuine category logic remains; cards in a done column are treated as done; the `done` flash still fires; nothing references the removed hook.
+- **Commit:** `refactor(db): drop todos.completed in favour of column category`
+
+#### M2-16 · Extract pure cache-update functions — **SAFE**
+
+Realtime preparation, and the single cheapest thing this milestone can do for M6. `docs/API.md`: *"Realtime should later reuse the same cache update logic."* Today that logic lives inside the `onMutate`/`onSuccess` closures of `useAddTodo`, `useDeleteTodo` and `useTodoDrop`, where a channel handler cannot reach it.
+
+- **Files:** `src/services/todos/cache.ts` (new), `src/services/columns/cache.ts` (new), plus every mutation hook in both.
+- **React:** pure `(todos, row) => todos` functions — `applyTodoInserted`, `applyTodoUpdated`, `applyTodoDeleted`, `applyTodoMoved`, and the column equivalents. Mutation hooks call them; M6's channel handlers call the same ones.
+- **Breaking:** no.
+- **Test:** every existing mutation still behaves identically; **add `cache.check.ts` / Vitest tests for each function** — these are pure, they are on the critical path of realtime correctness, and they are exactly the kind of logic that must not be trusted by inspection.
+- **Commit:** `refactor(query): extract pure cache-update functions`
+
+#### M2-17 · Extract the drag-end business logic — **MEDIUM RISK**
+
+`KanbanBoard.tsx` is 254 lines holding DnD orchestration, column reordering, cross-column transition derivation, four modal states, collapse state and the layout. The `onDragEnd` handler alone is 45 lines of business logic inline in JSX. `docs/FRONTEND.md`: *"Business logic should never live inside UI components."*
+
+- **Files:** `src/hooks/useBoardDragEnd.ts` (new), `src/components/kanban/KanbanBoard.tsx`.
+- **React:** move the whole `onDragEnd` body — column branch, todo branch, done-flash trigger, transition derivation.
+- **Breaking:** no.
+- **Test:** the entire drag section of the Smoke checklist; particularly the column-gap index shift (`from < columnIndicator ? columnIndicator - 1 : columnIndicator`) — the off-by-one is easy to lose in a move.
+- **Commit:** `refactor(kanban): extract drag-end logic into a hook`
+
+#### M2-18 · Extract column reorder and modal state — **MEDIUM RISK**
+
+- **Files:** `src/hooks/useColumnReorder.ts` (new), `src/hooks/useBoardModals.ts` or a reducer (new), `src/components/kanban/KanbanBoard.tsx`.
+- **React:** `moveColumn` and the four modal target states move out; `KanbanBoard` becomes composition plus layout.
+- **Breaking:** no.
+- **Test:** move columns via the menu arrows and via drag; open and close each of the three modals; confirm modal targets do not leak between columns.
+- **Commit:** `refactor(kanban): extract column reorder and modal state`
+
+#### M2-19 · `App.tsx` → `BoardPage`, delete `TodoPage` — **SAFE**
+
+`App.tsx` is currently the board screen with a hardcoded `"My Kanban Project"` string. `TodoPage.tsx` is a five-line pass-through that renders `{children}` and nothing else.
+
+- **Files:** `src/App.tsx` → `src/pages/BoardPage.tsx`; delete `src/components/pages/TodoPage.tsx`; move remaining pages from `components/pages/` → `pages/` per `docs/FRONTEND.md`; update `Routes.tsx`.
+- **React:** the hardcoded title becomes the board's real title.
+- **Breaking:** import paths.
+- **Test:** build green; the board shows its actual title; profile and auth pages still route.
+- **Commit:** `refactor: move pages to pages/, replace App with BoardPage`
+
+#### M2-20 · Translate columns by category, not by title — **SAFE**
+
+`KanbanBoard` calls `t(column.title)`. `en.json` contains `todo`, `in_progress`, `completed`, `rejected` — **not** `"To Do"`, `"In Review"` or `"Done"`, the titles actually seeded. So `t("To Do")` falls through and returns its own key. It renders correctly by accident, ru/uz users see English, and the moment a user renames a column they are naming a translation key.
+
+- **Files:** `src/components/kanban/KanbanBoard.tsx`, `src/components/kanban/TodoDragOverlay.tsx`, `src/components/columns/*`, `src/components/i18n/locales/*.json`, `src/constants/columns.ts`.
+- **React:** render user-authored titles verbatim; translate only the fixed `category` set.
+- **Breaking:** seeded titles stop being translation keys.
+- **Test:** switch to ru and uz → seeded columns show translated **category** labels, user-renamed columns show their literal titles; rename a column to `"todo"` → it renders as `"todo"`, not as a translated string.
+- **Commit:** `fix(i18n): translate column categories, not user titles`
+
+#### M2-21 · Per-board human-readable task key — **MEDIUM RISK**
+
+The card shows `KAN-{id}` from the raw row id. With UUIDs that is unreadable; with integers it is globally sequential and leaks total row count.
+
+- **Files:** `supabase/migrations/<ts>_board_task_seq.sql`, `src/services/todos/todosApi.ts`, `src/components/todo/TodoItem.tsx`.
+- **DB:** `todos.board_key integer` plus a per-board counter (a `boards.next_key` column incremented in the insert RPC is simpler and adequate; a sequence per board is not).
+- **Breaking:** the card label changes.
+- **Test:** three cards on board A → 1, 2, 3; first card on board B → 1; delete card 2 on A, create another → 4, not 2; concurrent creates do not collide.
+- **Commit:** `feat(todos): per-board task keys for card labels`
+- **Note:** if M2-14 was deferred, this task can be deferred with it — they solve the same display problem.
+
+### Expected commit order — Milestone 2
+
+```
+── expand (safe, deployable at every step) ────────────────────────────
+1.  feat(db): create boards table                                  (M2-01)
+2.  feat(db): add nullable board_id to columns and todos           (M2-02)
+3.  feat(db): add task fields to todos                             (M2-03)
+4.  feat(db): add created_at/updated_at and a shared trigger       (M2-04)
+5.  perf(db): add the indexes specified in DATABASE.md             (M2-05)
+
+── backfill (HIGH RISK, still reversible) ─────────────────────────────
+6.  feat(db): backfill a personal board per user                   (M2-06)  ← HIGH
+
+── application rewrite (deploy before contracting) ────────────────────
+7.  feat(boards): boards API and query hooks                       (M2-09)
+8.  feat(boards): route the board by :boardId                      (M2-10)
+9.  feat(boards): scope todo and column queries by board           (M2-11)
+10. fix(auth): provision a board and its columns atomically        (M2-12)
+                                                    ← DEPLOY AND VERIFY HERE
+── contract (HIGH RISK, one-way) ──────────────────────────────────────
+11. feat(db): board_id NOT NULL and foreign keys                   (M2-07)  ← HIGH
+12. feat(db): rewrite RLS in terms of board ownership              (M2-08)  ← HIGH
+                                                    ← SOAK ONE DAY MINIMUM
+13. feat(db): drop user_id from columns and todos                  (M2-13)  ← HIGH
+14. feat(db): migrate todos.id to uuid                             (M2-14)  ← HIGH
+15. refactor(db): drop todos.completed                             (M2-15)
+
+── cleanup and realtime preparation ───────────────────────────────────
+16. refactor(query): extract pure cache-update functions           (M2-16)
+17. refactor(kanban): extract drag-end logic into a hook           (M2-17)
+18. refactor(kanban): extract column reorder and modal state       (M2-18)
+19. refactor: move pages to pages/, replace App with BoardPage     (M2-19)
+20. fix(i18n): translate column categories, not user titles        (M2-20)
+21. feat(todos): per-board task keys for card labels               (M2-21)
+```
+
+**The two marked checkpoints are not optional.** Deploying the application rewrite before contracting the schema is what makes commits 11–15 a revert instead of an incident.
+
+---
+
+## Milestone 3 — Members & Roles
+
+**Goal.** Replace row ownership with a real permission model backed by `board_members`, enforced in RLS.
+
+**Why this milestone exists.** Boards without members are just namespaced personal boards. Today "can I edit this?" is answered by `user_id = auth.uid()`; in the target it must be answered by a role lookup, and that lookup must happen in the database, not in React. `docs/ARCHITECTURE.md`: *"Frontend authorization is only for UI convenience."*
+
+**Dependencies.** Milestone 2, fully complete and soaked.
+
+**Estimated difficulty.** L (12 tasks).
+
+**Risks.**
+- **The RLS recursion trap.** A policy on `board_members` that itself queries `board_members` causes infinite recursion in Postgres and a hard 500. This catches most teams. The remedy — `SECURITY DEFINER STABLE` helper functions — must be in place from the first policy, not added after the outage.
+- Membership sub-selects run per row. Without the M2-05 indexes, board load time degrades sharply. Test with a 500-card board and 10 members before declaring this done.
+
+**Success criteria.**
+- Every board has at least one `owner` row in `board_members`.
+- All RLS on boards, columns and todos routes through the helper functions.
+- A `viewer` cannot write; an `editor` cannot manage members; verified by `curl`, not only by UI.
+- Board load time with 500 cards and 10 members is within 20% of its pre-milestone figure.
+
+### Tasks
+
+#### M3-01 · Create `board_members` — **SAFE**
+`board_id`, `user_id`, `role text check (role in ('owner','admin','editor','viewer'))`, `joined_at`, PK `(board_id, user_id)`, indexes on both columns per `docs/DATABASE.md`. RLS enabled with a deliberately minimal self-read policy for now.
+**Test:** insert a membership; a user can read their own rows; regenerated types include the table.
+**Commit:** `feat(db): create board_members`
+
+#### M3-02 · `is_board_member` / `board_role` helpers — **MEDIUM RISK**
+`SECURITY DEFINER STABLE` functions with an explicit `search_path`. Every future policy calls these instead of sub-selecting `board_members` — this is the recursion remedy and it must exist before any policy uses it.
+**Test:** call each as two different users; confirm no recursion; confirm `STABLE` lets the planner cache within a statement; `explain analyze` a board fetch.
+**Commit:** `feat(db): board membership helper functions`
+
+#### M3-03 · Backfill owner memberships — **HIGH RISK**
+Every existing board gets an `owner` row for its `owner_id`.
+**Test:** `select count(*) from boards b where not exists (select 1 from board_members m where m.board_id = b.id and m.role = 'owner')` → 0.
+> **Backup:** dump before. **Rollback:** `delete from board_members` — purely additive, so reversal is clean. **Migration:** run before M3-04/M3-05, or the new policies lock every existing owner out of their own board.
+**Commit:** `feat(db): backfill owner memberships for existing boards`
+
+#### M3-04 · Boards RLS via helpers — **HIGH RISK**
+**Test:** owner full access; member read access; non-member no access, verified by `curl`.
+> **Backup:** dump; capture current policies into the PR. **Rollback:** forward-fix restoring the captured M2-08 policies. **Migration:** branch DB, full multi-user test, then production off-peak; watch 403s for 15 minutes.
+**Commit:** `feat(db): board RLS via membership helpers`
+
+#### M3-05 · Columns and todos RLS via helpers — **HIGH RISK**
+Read for any member; write for `editor` and above; `viewer` read-only.
+**Test:** all four roles against all four verbs on both tables, via `curl`; then the full Smoke checklist as `owner` and again as `editor`.
+> **Backup / Rollback / Migration:** as M3-04. Additionally confirm `upsert` paths still work for `editor` — both INSERT and UPDATE policies are required.
+**Commit:** `feat(db): column and todo RLS via membership helpers`
+
+#### M3-06 · `services/members/` — **SAFE**
+`membersApi.ts` + `useBoardMembers`, `useAddMember`, `useUpdateMemberRole`, `useRemoveMember`. Keys `["members", boardId]` via the factory.
+**Commit:** `feat(members): members API and query hooks`
+
+#### M3-07 · Member list UI — **SAFE**
+Avatars, names, role badges, joined date. Read-only.
+**Commit:** `feat(members): board member list`
+
+#### M3-08 · Role management UI — **MEDIUM RISK**
+Change role, remove member, with optimistic update and rollback. Guard against removing the last owner.
+**Test:** promote, demote, remove; attempt to remove the last owner → blocked in UI **and** in the database; a removed member loses access on their next request.
+**Commit:** `feat(members): manage roles and remove members`
+
+#### M3-09 · Frontend permission gating — **SAFE**
+`usePermissions()` derived from the current user's role. Hide destructive affordances from viewers. UI convenience only — RLS remains the boundary.
+**Test:** as a `viewer`, the create button, drag handles, column menu and delete are absent; bypassing the UI still fails at the database.
+**Commit:** `feat(members): gate UI affordances by role`
+
+#### M3-10 · `reorder_todos` RPC — **MEDIUM RISK**
+Replaces the client-supplied bulk `upsert`, which is an unbounded client-controlled write of `column_id` and `position` across arbitrary row ids. The RPC validates membership and renumbers server-side in one transaction.
+**Test:** drag within and across columns; attempt to reorder a board you are not a member of → rejected; attempt to inject a foreign todo id into the payload → rejected.
+**Commit:** `feat(db): transactional reorder_todos RPC`
+
+#### M3-11 · `delete_column` RPC — **MEDIUM RISK**
+The current path is four sequential round-trips; a failure between the rehoming upsert and the delete leaves an empty column the user believes is gone.
+**Test:** delete a column with cards → all cards arrive at the destination in order, column gone; simulate a mid-operation failure → nothing is half-applied.
+**Commit:** `feat(db): transactional delete_column RPC`
+
+#### M3-12 · Membership performance verification — **SAFE** (verification)
+Seed a board with 500 cards, 12 columns and 10 members. `explain analyze` the board load. Compare against the M2-05 baseline.
+**Test:** load time within 20% of baseline; no sequential scan on `board_members`; findings recorded in the PR. If it regresses, that is a finding — fix it here, not in M9.
+**Commit:** `perf(db): verify RLS membership lookup cost`
+
+### Expected commit order — Milestone 3
+
+```
+1.  feat(db): create board_members                          (M3-01)
+2.  feat(db): board membership helper functions             (M3-02)
+3.  feat(db): backfill owner memberships                    (M3-03)  ← HIGH
+4.  feat(db): board RLS via membership helpers              (M3-04)  ← HIGH
+5.  feat(db): column and todo RLS via membership helpers    (M3-05)  ← HIGH
+6.  perf(db): verify RLS membership lookup cost             (M3-12)
+7.  feat(members): members API and query hooks              (M3-06)
+8.  feat(members): board member list                        (M3-07)
+9.  feat(members): manage roles and remove members          (M3-08)
+10. feat(members): gate UI affordances by role              (M3-09)
+11. feat(db): transactional reorder_todos RPC               (M3-10)
+12. feat(db): transactional delete_column RPC               (M3-11)
+```
+
+M3-12 sits deliberately early — discovering an RLS performance cliff after building four screens on top of it is the expensive order.
+
+---
+
+## Milestone 4 — Invitations
+
+**Goal.** Let a board owner add members without a manual database insert.
+
+**Why this milestone exists.** M3 makes membership meaningful but provides no way to acquire it.
+
+**Dependencies.** Milestone 3.
+
+**Estimated difficulty.** M (7 tasks).
+
+**Risks.** Invite acceptance is one of the very few paths where a not-yet-member touches board data, so its RLS deserves its own review. Token generation must be cryptographically random and acceptance must be atomic, or a replayed link creates duplicate memberships.
+
+**Scope decision.** `docs/DATABASE.md` describes both email invitations and invite links. **Ship link invites only.** Email invites require a transactional provider, deliverability handling and bounce logic — real work for no additional capability in v1. Schema keeps the `email` column so email invites are additive later.
+
+**Success criteria.** An owner generates a link; a second account opens it and becomes a member with the intended role; expired and revoked links fail cleanly; replay is impossible.
+
+### Tasks
+
+#### M4-01 · Create `board_invites` — **SAFE**
+`id`, `board_id`, `email` (nullable — unused in v1), `token unique`, `role`, `expires_at`, `created_by`, `accepted_at`. RLS: board admins read their board's invites; nobody reads by token directly (acceptance goes through the RPC).
+**Commit:** `feat(db): create board_invites`
+
+#### M4-02 · `create_invite` RPC — **MEDIUM RISK**
+Validates the caller is `owner`/`admin`, generates a cryptographically random token, sets expiry.
+**Test:** an `editor` calling it is rejected; the token is unguessable; expiry is set correctly.
+**Commit:** `feat(db): create_invite RPC`
+
+#### M4-03 · `accept_invite` RPC — **HIGH RISK**
+Single transaction: validate token, check not expired, check not already accepted, insert the membership, stamp `accepted_at`.
+**Test:** valid token → membership created, exactly once; **calling twice → second call is a clean no-op, not a duplicate**; expired token rejected; revoked token rejected; unauthenticated call rejected; garbage token rejected without leaking whether it exists.
+> **HIGH RISK — this is a privilege-granting function.**
+> **Backup:** dump before deploying. **Rollback:** forward-fix dropping the function; any memberships it created must be audited manually against `board_invites.accepted_at`. **Migration:** review the function line by line before deploying — a flaw here grants board access. Test every failure branch explicitly, including the concurrent double-accept. Decide and document what happens when the invited email does not match the accepting account (recommended for v1: allow it — the link is the credential).
+**Commit:** `feat(db): accept_invite RPC`
+
+#### M4-04 · `services/invites/` — **SAFE**
+API + hooks: create, list pending, revoke, accept.
+**Commit:** `feat(invites): invites API and query hooks`
+
+#### M4-05 · Invite management UI — **SAFE**
+Generate a link with a role selector, copy to clipboard, list pending invites, revoke.
+**Test:** generate, copy, revoke; a revoked link stops working immediately; only owners and admins see the controls.
+**Commit:** `feat(invites): invite management UI`
+
+#### M4-06 · `/invite/:token` accept route — **MEDIUM RISK**
+Public route. Unauthenticated visitors are sent to login/register and returned to the invite afterwards.
+**Test:** logged out → login → returned to the invite → accepted → lands on the board; already a member → friendly message, no duplicate; expired → clear error, no stack trace.
+**Commit:** `feat(invites): invite acceptance route`
+
+#### M4-07 · Invite expiry — **SAFE**
+`docs/ARCHITECTURE.md`: *"Invites should expire automatically."* Enforcement already lives in `accept_invite`; this task hides expired invites from the pending list and optionally sweeps them.
+**Recommendation:** filter in the query. **Do not add `pg_cron` for this** — an expired row that nobody can use and nobody can see is not a problem worth a scheduler.
+**Commit:** `feat(invites): hide expired invites`
+
+### Expected commit order — Milestone 4
+
+```
+1. feat(db): create board_invites            (M4-01)
+2. feat(db): create_invite RPC               (M4-02)
+3. feat(db): accept_invite RPC               (M4-03)  ← HIGH
+4. feat(invites): invites API and query hooks(M4-04)
+5. feat(invites): invite management UI       (M4-05)
+6. feat(invites): invite acceptance route    (M4-06)
+7. feat(invites): hide expired invites       (M4-07)
+```
+
+---
+
+## Milestone 5 — Task Model
+
+**Goal.** Make the four remaining MVP task features real: assignment, due dates, priorities, descriptions.
+
+**Why this milestone exists.** The columns landed in M2-03 and the UI placeholders already exist and are inert — the assignee avatar in `TodoItem.tsx` and the calendar/user/priority buttons in `TodoCreateForm.tsx` render and do nothing. The design is ahead of the schema; this closes the gap. It is also where the card component's accumulated shortcuts finally get paid off.
+
+**Dependencies.** M2 (columns), M3 (assignee must be a board member).
+
+**Estimated difficulty.** M (8 tasks).
+
+**Risks.** Low structurally. Budget more than the feature list suggests — M5-01 and M5-02 are refactors of a component every other feature touches.
+
+**Success criteria.** A card can be assigned, prioritised, dated and described; all four persist and survive refresh; the card component no longer fetches or mutates on its own.
+
+### Tasks
+
+#### M5-01 · Split the todo types — **SAFE**
+`ISupabaseTodo` carries `isOptimistic?` — a UI flag inside a database row type — and `TodoItemProps extends ISupabaseTodo`, so every card spreads a full database row as props and a schema change becomes a props change in a leaf component. Split into `Todo` (generated row), `TodoView` (row + client state), `TodoCardProps` (what the card renders).
+**Test:** build green; card renders identically; a scratch `TodoCardProps` object with no database dependency renders the card.
+**Commit:** `refactor(types): separate todo row, view and card props`
+
+#### M5-02 · Move edit state out of `TodoItem` — **SAFE**
+`docs/FRONTEND.md` uses `TodoCard` as its named example of a component that *"only renders"*; today it owns edit state and calls `useUpdateTodo` directly.
+**Test:** rename via the pencil; Escape cancels; Enter saves; blur saves; empty title reverts.
+**Commit:** `refactor(todo): lift card edit state out of the card`
+
+#### M5-03 · Priority — **MEDIUM RISK**
+Constants in `src/constants/priorities.ts` mirroring the `columns.ts` category precedent (colours in the frontend, not the database, per `docs/DATABASE.md`). Check constraint already added in M2-03. **Do not create a lookup table** — it is a fixed set users pick from and never define.
+**Test:** set each of the five; persists; renders on the card; sorting/filtering by priority behaves.
+**Commit:** `feat(todos): priority field and control`
+
+#### M5-04 · Due date — **SAFE**
+Use `<input type="date">`. **Do not add a date-picker dependency** for this.
+**Test:** set, clear, persists; overdue styling correct across a timezone boundary; a date set today at 23:59 is not shown as overdue.
+**Commit:** `feat(todos): due dates`
+
+#### M5-05 · Assignee — **MEDIUM RISK**
+Picker sourced from `useBoardMembers`. Replaces the placeholder icon on the card.
+**Test:** assign, reassign, unassign; only board members are offered; a removed member's assignment degrades gracefully (`on delete set null` from M2-03); optimistic update rolls back offline.
+**Commit:** `feat(todos): assign a board member to a task`
+
+#### M5-06 · Description and task detail view — **MEDIUM RISK**
+**Test:** open, edit, save, close; unsaved changes prompt; deep link to a task; a task from another board 404s.
+**Commit:** `feat(todos): task detail view with description`
+
+#### M5-07 · Narrow the list query — **MEDIUM RISK**
+`select("*")` fetches `description` and `estimate` for a board view that renders neither.
+**Test:** network payload measurably smaller on a 200-card board; the detail view still gets the full row; record before/after sizes in the PR.
+**Commit:** `perf(todos): select only card fields for the board view`
+
+#### M5-08 · Wire the create form's inert controls — **MEDIUM RISK**
+The bug, chevron, calendar and user buttons in `TodoCreateForm` currently do nothing.
+**Test:** set priority, due date and assignee at creation → all three persist on the created card; the mid-column insert position is still honoured; the skeleton-then-form timing still works for a fast typist.
+**Commit:** `feat(todos): set priority, date and assignee at creation`
+
+### Expected commit order — Milestone 5
+
+```
+1. refactor(types): separate todo row, view and card props    (M5-01)
+2. refactor(todo): lift card edit state out of the card       (M5-02)
+3. feat(todos): priority field and control                    (M5-03)
+4. feat(todos): due dates                                     (M5-04)
+5. feat(todos): assign a board member to a task               (M5-05)
+6. feat(todos): task detail view with description             (M5-06)
+7. feat(todos): set priority, date and assignee at creation   (M5-08)
+8. perf(todos): select only card fields for the board view    (M5-07)
+```
+
+---
+
+## Milestone 6 — Realtime
+
+**Goal.** Two people on one board see each other's changes without refreshing, and concurrent edits merge instead of overwriting.
+
+**Why this milestone exists.** `docs/PRODUCT_SPEC.md` names Realtime Collaboration a core principle. Everything before this made it possible; this makes it happen.
+
+**Dependencies.** M2 (board-scoped keys, pure cache functions from M2-16, UUIDs from M2-14), M3 (membership). If M2-14 or M2-16 were deferred, do them **here, first**, and expect this milestone to grow by half.
+
+**Estimated difficulty.** L–XL (12 tasks).
+
+**Risks.**
+- **The hardest milestone to test.** You need two browsers and deliberate races. Realtime plus optimistic updates is where double-applied inserts and flickering reorders live.
+- The fractional-rank migration is a second rewrite of the ordering column. Get the rebalance path right, or precision exhaustion becomes a production incident a year out.
+
+**Ordering decision.** Fractional ranks come **first**, before any channel is subscribed. Dense integer positions plus concurrent editors is not a merge conflict — it is silent data loss, because each client renumbers the entire column from its own stale snapshot and last-write-wins across every row. Shipping realtime on top of dense integers means debugging phantom reorders in production.
+
+**Success criteria.**
+- A card move writes exactly one row.
+- Two clients dragging different cards in one column both survive.
+- Two clients dragging the same card produce one winner, no duplicate, no orphan.
+- A client offline for 30 seconds converges on reconnect.
+- No realtime handler refetches the board.
+
+### Tasks
+
+#### M6-01 · Add the `rank` column — **HIGH RISK** (expand)
+Nullable `rank`, written alongside `position` (dual-write). Reads still use `position`.
+> **Backup:** dump. **Rollback:** drop the column — nothing reads it. **Migration:** additive only; the risk label reflects that this begins an ordering migration, not that this step is dangerous.
+**Commit:** `feat(db): add fractional rank column to todos and columns`
+
+#### M6-02 · Backfill ranks — **HIGH RISK**
+Derive `rank` from existing `position`, leaving wide gaps for future midpoint inserts.
+**Test:** every row has a rank; ordering by rank exactly matches ordering by position, per column, for every board.
+> **Backup:** dump. **Rollback:** null the ranks. **Migration:** verify the orderings match on every board before proceeding — a mismatch here silently scrambles someone's board later.
+**Commit:** `feat(db): backfill ranks from positions`
+
+#### M6-03 · Read by rank — **HIGH RISK**
+Switch every sort to `rank`. Writes still dual-write both.
+**Test:** every board renders in exactly its previous order — check several boards, including one with 100+ cards in a column.
+> **Rollback:** revert the deploy; `position` is still maintained, so reverting is clean. **This is why dual-write exists.**
+**Commit:** `feat(todos): order by rank`
+
+#### M6-04 · Write single-row rank updates — **HIGH RISK**
+A move computes the midpoint between its two neighbours and updates **one row**. Replaces whole-column renumbering.
+**Test:** drag a card → network shows one row updated, not N; drag to the top and to the bottom of a column; drag into an empty column; drag across columns; 50 consecutive drags of the same card between two neighbours → precision holds or rebalance fires.
+> **Backup:** dump. **Rollback:** revert the deploy; `position` is still being written. **Migration:** soak for several days before M6-05 — this is the change most likely to reveal an edge case in production.
+**Commit:** `feat(todos): single-row rank writes on move`
+
+#### M6-05 · Drop `position` — **HIGH RISK** (contract)
+Removes `insertDense` and the whole-column renumbering path.
+> **Backup:** mandatory dump; PITR is the only recovery. **Rollback:** one-way. **Migration:** only after M6-04 has soaked and no ordering bugs have been reported. Retire `insertDense.ts` and `insertDense.check.ts` in the same commit.
+**Commit:** `refactor(db): drop position in favour of rank`
+
+#### M6-06 · Rank rebalancing — **MEDIUM RISK**
+Repeated midpoint insertion between two adjacent ranks eventually exhausts precision. Detect and renumber that column server-side.
+**Test:** synthetically drive a column to exhaustion → rebalance fires, order is preserved, no visible disruption. **This needs a Vitest test, not a manual check** — it is the failure mode nobody will reproduce by hand.
+**Commit:** `feat(db): rebalance ranks on precision exhaustion`
+
+#### M6-07 · Enable the realtime publication — **MEDIUM RISK**
+Add `todos` and `columns` to `supabase_realtime`. Confirm RLS applies to realtime — **a client must not receive change events for boards it cannot read.**
+**Test:** subscribe as a non-member → receives nothing for that board. Verify explicitly; this is a security check, not a plumbing check.
+**Commit:** `feat(db): enable realtime on todos and columns`
+
+#### M6-08 · `useBoardRealtime` — **MEDIUM RISK**
+One channel per board, subscribed in `BoardPage`, torn down on unmount. Per-board filter so clients react only to their own board's events, per `docs/ARCHITECTURE.md`.
+**Test:** navigate between boards → old channel closes, new one opens, no leak across ten navigations; the connection survives a tab backgrounding and reconnects.
+**Commit:** `feat(realtime): per-board channel subscription`
+
+#### M6-09 · Wire handlers to the pure cache functions — **MEDIUM RISK**
+Insert/update/delete events call the same `applyTodo*` functions the mutations use (M2-16). **Never refetch the board** — `docs/API.md` is explicit.
+**Test:** two browsers — A creates, renames, deletes, moves; B reflects each within a second, with no full refetch visible in the network tab.
+**Commit:** `feat(realtime): apply change events to the query cache`
+
+#### M6-10 · Echo suppression — **MEDIUM RISK**
+Your own writes come back as events. With client-generated UUIDs this is an identity match.
+**Test:** create a card → it appears exactly once, never briefly twice; drag a card → no flicker back to the old position; two rapid creates → two cards, correct order.
+**Commit:** `fix(realtime): suppress echoes of local writes`
+
+#### M6-11 · Presence — **SAFE**
+Who is viewing the board, via the presence channel.
+**Test:** two browsers see each other; closing one removes the avatar within a few seconds; a network drop eventually clears it.
+**Commit:** `feat(realtime): board presence`
+
+#### M6-12 · Concurrency verification — **SAFE** (verification)
+Execute the full Concurrency section of the Testing Checklist and record results in the PR. Any failure becomes a new task in this document before the milestone closes.
+**Commit:** `docs: realtime concurrency verification results`
+
+### Expected commit order — Milestone 6
+
+```
+── ordering migration (must complete before any channel opens) ────────
+1.  feat(db): add fractional rank column                (M6-01)  ← HIGH
+2.  feat(db): backfill ranks from positions             (M6-02)  ← HIGH
+3.  feat(todos): order by rank                          (M6-03)  ← HIGH
+4.  feat(todos): single-row rank writes on move         (M6-04)  ← HIGH
+5.  feat(db): rebalance ranks on precision exhaustion   (M6-06)
+                                            ← SOAK SEVERAL DAYS
+6.  refactor(db): drop position in favour of rank       (M6-05)  ← HIGH
+
+── realtime ───────────────────────────────────────────────────────────
+7.  feat(db): enable realtime on todos and columns      (M6-07)
+8.  feat(realtime): per-board channel subscription      (M6-08)
+9.  feat(realtime): apply change events to the cache    (M6-09)
+10. fix(realtime): suppress echoes of local writes      (M6-10)
+11. feat(realtime): board presence                      (M6-11)
+12. docs: realtime concurrency verification results     (M6-12)
+```
+
+---
+
+## Milestone 7 — Comments & Activity
+
+**Goal.** Ship the last MVP item (comments). Add activity history only if it is genuinely being built.
+
+**Why this milestone exists.** Comments complete the MVP list in `docs/PRODUCT_SPEC.md`.
+
+**Dependencies.** M5 (task detail view), M6 (realtime patterns).
+
+**Estimated difficulty.** M (5 tasks).
+
+**Risks.** Low. Watch comment volume on the board query — do **not** join comments into the board fetch; load them per open task.
+
+**Success criteria.** Comments post, edit, delete and appear live for other viewers of the same task.
+
+### Tasks
+
+#### M7-01 · Create `comments` — **SAFE**
+`id`, `todo_id`, `author_id`, `content`, `created_at`, `updated_at`. Index on `todo_id` per `docs/DATABASE.md`. RLS via the board-membership helpers.
+**Commit:** `feat(db): create comments`
+
+#### M7-02 · `services/comments/` — **SAFE**
+Key `["comments", todoId]`. Optimistic create/edit/delete with rollback.
+**Commit:** `feat(comments): comments API and query hooks`
+
+#### M7-03 · Comment UI — **SAFE**
+List and composer inside the task detail view. Author avatar, relative timestamp, own-comment edit/delete.
+**Test:** post, edit, delete; empty and whitespace-only submissions rejected; long content wraps; another user's comment offers no edit control.
+**Commit:** `feat(comments): comment list and composer`
+
+#### M7-04 · Realtime comments — **MEDIUM RISK**
+Subscribe only while a task is open; tear down on close.
+**Test:** two browsers on the same task → comments appear live; close and reopen → no duplicate subscription; open ten tasks in sequence → no channel leak.
+**Commit:** `feat(comments): realtime comment updates`
+
+#### M7-05 · Activity history — **MEDIUM RISK, CONDITIONAL**
+**Only build this if the activity feed UI is actually being designed in this milestone.** `docs/DATABASE.md` lists `activities` in the base ERD, but an unbounded audit table with no reader grows forever and is silently wrong the day you finally build the UI. If there is no feed, skip it and record the deferral here.
+If built: write via trigger, never from the client. Plan retention from day one.
+**Commit:** `feat(db): activity history`
+
+### Expected commit order — Milestone 7
+
+```
+1. feat(db): create comments                     (M7-01)
+2. feat(comments): comments API and query hooks  (M7-02)
+3. feat(comments): comment list and composer     (M7-03)
+4. feat(comments): realtime comment updates      (M7-04)
+5. feat(db): activity history                    (M7-05)  ← conditional
+```
+
+---
+
+## Milestone 8 — Boards UX
+
+**Goal.** Make multiple boards usable, not merely possible.
+
+**Why this milestone exists.** By M7 the data model is complete, but the product still effectively opens on one board. This is deliberately late: building the board management screens after members and roles exist means building them once.
+
+**Dependencies.** M2 functionally; sequenced here so roles and members are already available.
+
+**Estimated difficulty.** M (8 tasks).
+
+**Risks.** Low, except board deletion, which cascades across every table.
+
+**Success criteria.** A user creates, renames, decorates, archives and deletes boards; the sidebar shows real data; every route in `docs/FRONTEND.md` exists.
+
+### Tasks
+
+#### M8-01 · `/dashboard` and `/boards` — **SAFE**
+Board list with owner/member distinction, empty state, loading skeleton.
+**Commit:** `feat(boards): dashboard and board list`
+
+#### M8-02 · Create board — **SAFE**
+Modal creating the board and seeding four default columns, reusing the M2-12 RPC.
+**Test:** new board arrives with four correctly-categorised columns and a creator owner-membership; optimistic entry rolls back on failure.
+**Commit:** `feat(boards): create board`
+
+#### M8-03 · Rename, archive, delete — **MEDIUM RISK**
+Delete requires typed confirmation.
+**Test:** rename persists; archive hides without destroying; delete requires the exact title; a non-owner cannot delete.
+**Commit:** `feat(boards): rename, archive and delete boards`
+
+#### M8-04 · Board appearance — **SAFE**
+`icon`, `cover_color`, `visibility`. Per `docs/DATABASE.md` colours are presentation — store a token or key, not a hex value, and keep the palette in `src/constants/`.
+**Commit:** `feat(boards): board icon, cover colour and visibility`
+
+#### M8-05 · Wire the sidebar to real boards — **SAFE**
+`nav-projects.tsx` is currently static placeholder data.
+**Test:** sidebar lists real boards, marks the active one, updates on create/rename/delete without a refetch.
+**Commit:** `feat(sidebar): list real boards`
+
+#### M8-06 · `/settings` — **SAFE**
+Account settings: language, theme, password change.
+**Commit:** `feat: settings page`
+
+#### M8-07 · `/forgot-password` — **SAFE**
+Specified as a public route in `docs/FRONTEND.md` and currently missing.
+**Test:** request a reset for a real address → email arrives, link works, new password logs in; unknown address gives the same neutral response (no account enumeration).
+**Commit:** `feat(auth): password reset flow`
+
+#### M8-08 · Verify the deletion cascade — **HIGH RISK** (verification)
+`docs/DATABASE.md` specifies exactly what a board deletion removes and what a user deletion preserves.
+**Test:** on a scratch board — delete it, then confirm zero orphans in `columns`, `todos`, `comments`, `board_members`, `board_invites`, `activities`; delete a user and confirm their created tasks and comments survive with a null author while their memberships are gone.
+> **Backup:** run against a scratch board on a branch database. **Never** verify a cascade against production data. **Rollback:** none needed if the rule is followed. **Migration:** any FK found to have the wrong `on delete` becomes its own follow-up task, sequenced before this milestone closes.
+**Commit:** `test(db): verify board and user deletion cascades`
+
+### Expected commit order — Milestone 8
+
+```
+1. feat(boards): dashboard and board list                (M8-01)
+2. feat(boards): create board                            (M8-02)
+3. feat(boards): rename, archive and delete boards       (M8-03)
+4. feat(boards): board icon, cover colour and visibility (M8-04)
+5. feat(sidebar): list real boards                       (M8-05)
+6. feat: settings page                                   (M8-06)
+7. feat(auth): password reset flow                       (M8-07)
+8. test(db): verify board and user deletion cascades     (M8-08)  ← HIGH
+```
+
+---
+
+## Milestone 9 — Quality
+
+**Goal.** Meet the four core principles in `docs/PRODUCT_SPEC.md` that are currently unmet: Accessible, Keyboard Friendly, Fast, Mobile Friendly.
+
+**Why this milestone exists.** This is not polish — these are four stated requirements that do not currently hold. The board is pointer-only: `useKanbanDnd` registers a `PointerSensor` and nothing else, cards are `<div>`s with no roles, and there are no drag announcements.
+
+**Dependencies.** Everything. Consider pulling M9-01 and M9-02 forward to M5 — accessibility retrofitted is accessibility done twice.
+
+**Estimated difficulty.** L (10 tasks).
+
+**Risks.** The real risk is perpetual deferral, at which point four documented core principles quietly become aspirations. Schedule this milestone; do not leave it as "when there's time."
+
+**Success criteria.** The board is fully operable by keyboard, announced to screen readers, usable on a phone, and route-split.
+
+### Tasks
+
+#### M9-01 · Keyboard drag and drop — **MEDIUM RISK**
+Not a config flag. The custom `collisionDetection` reads `pointerCoordinates` as the first thing it does, so a `KeyboardSensor` needs a parallel index-based resolution path alongside the pointer path. **Budget a day, not an hour.**
+**Test:** tab to a card, activate, arrow between positions and columns, drop, cancel with Escape; keyboard and pointer produce identical results; column reorder works by keyboard too.
+**Commit:** `feat(a11y): keyboard drag and drop`
+
+#### M9-02 · ARIA roles and drag announcements — **SAFE**
+`role`, `aria-label`, `aria-describedby` on cards and columns; dnd-kit `announcements` and `screenReaderInstructions`.
+**Test:** VoiceOver announces pick-up, move and drop; the board is navigable and comprehensible with the screen off.
+**Commit:** `feat(a11y): roles and drag announcements`
+
+#### M9-03 · Route-level code splitting — **SAFE**
+`docs/FRONTEND.md`: *"Use lazy loading for large routes."*
+**Test:** initial bundle measurably smaller; each route loads on demand with a suspense fallback; record before/after sizes.
+**Commit:** `perf: lazy-load routes`
+
+#### M9-04 · React Compiler decision — **MEDIUM RISK**
+The babel plugin is installed but commented out in `vite.config.ts`, and `README.md` claims it is enabled. Either turn it on and verify, or remove the plugin and fix the README. **Do not leave it ambiguous.**
+**Test (if enabling):** full Smoke checklist — the compiler changes memoisation semantics, and M1-11's memo fix is a prerequisite.
+**Commit:** `chore: enable the React Compiler` **or** `chore: remove the unused React Compiler plugin`
+
+#### M9-05 · Render profiling and targeted memoisation — **MEDIUM RISK**
+Every mutation replaces the whole `["todos"]` array, and `TodoItem` is not memoised, so every card re-renders on every cache write. **Profile first; memoise only what the profiler names.** `docs/FRONTEND.md`: *"Memoize only when beneficial."*
+**Test:** React DevTools profiler before and after on a 200-card board; both recordings in the PR.
+**Commit:** `perf(kanban): memoise cards based on profiler findings`
+
+#### M9-06 · i18n coverage — **MEDIUM RISK**
+Eight strings are translated. Everything else — "Create", "Transition to...", "Rename column", "What needs to be done?", the whole profile page, both auth forms — is a hardcoded English literal.
+**Test:** switch to ru and uz → no English leaks on any screen; no raw keys rendered; long translations do not break layout.
+**Commit:** `feat(i18n): translate remaining UI strings`
+
+#### M9-07 · Mobile layout — **SAFE**
+`docs/PRODUCT_SPEC.md` lists Mobile Friendly as a core principle.
+**Test:** 375px viewport — columns scroll horizontally, cards are readable, modals fit, the sidebar collapses, drag works by touch (`touch-none` is already set on the cards).
+**Commit:** `feat: mobile board layout`
+
+#### M9-08 · Drop unused dependencies — **SAFE**
+`axios`, `shadcn` (a CLI listed as a runtime dependency), `@dnd-kit/react`, `@dnd-kit/modifiers`, `@dnd-kit/utilities`, and `@dnd-kit/sortable` if `arrayMove` has been inlined (it is six lines). Reassess the two persist-client packages — keys are board-scoped by now, so persistence is finally safe to consider; adopt it deliberately or remove them.
+**Test:** build green; bundle smaller; full Smoke checklist.
+**Commit:** `chore: drop unused dependencies`
+
+#### M9-09 · Naming cleanup — **SAFE**
+`useColumnsApi.ts` exporting `useColumns`; `todoApi.ts` vs the documented `todosApi.ts`; `fetchTodos`/`addTodo` vs the documented `getTodos`/`createTodo`; `SortableColumn` using `useDraggable`; `TodoColumnMenu` imported as `TodoStatusMenu`; `constants/consants.ts`; inconsistent `I` prefixes.
+**Do this opportunistically as files are touched wherever possible.** A single sweeping rename PR is a large diff with zero behavioural value; this task exists to catch what opportunism missed.
+**Commit:** `refactor: align names with API.md conventions`
+
+#### M9-10 · Virtualisation — **SAFE, CONDITIONAL**
+**Only if M9-05's profiling proves a real problem.** `docs/FRONTEND.md` says *"Virtualize long lists if necessary."* Virtualising a 40-card column is a dependency and a pile of scroll bugs bought for nothing. Skip by default; record the decision.
+**Commit:** `perf(kanban): virtualise long columns`
+
+### Expected commit order — Milestone 9
+
+```
+1.  feat(a11y): keyboard drag and drop                    (M9-01)
+2.  feat(a11y): roles and drag announcements              (M9-02)
+3.  feat(i18n): translate remaining UI strings            (M9-06)
+4.  feat: mobile board layout                             (M9-07)
+5.  perf: lazy-load routes                                (M9-03)
+6.  chore: React Compiler decision                        (M9-04)
+7.  perf(kanban): memoise cards based on profiler findings(M9-05)
+8.  chore: drop unused dependencies                       (M9-08)
+9.  refactor: align names with API.md conventions         (M9-09)
+10. perf(kanban): virtualise long columns                 (M9-10)  ← conditional
+```
+
+---
+
+# Appendix A — Task Index by Risk
+
+**HIGH RISK (16).** Each carries a documented backup, rollback and migration strategy in its task entry.
+
+| Task | What makes it high risk |
+|---|---|
+| M0-07 | Changes the live security boundary |
+| M2-06 | First data migration; reversible only because `user_id` still exists |
+| M2-07 | Constraints and FKs; breaks inserts that omit `board_id` |
+| M2-08 | Rewrites the authorization boundary |
+| M2-13 | **Point of no return** — drops `user_id` |
+| M2-14 | Primary key type change in one transaction |
+| M3-03 | Must precede M3-04/05 or every owner is locked out |
+| M3-04 | Authorization boundary |
+| M3-05 | Authorization boundary |
+| M4-03 | Privilege-granting function |
+| M6-01 → M6-05 | Ordering migration (five tasks, expand→contract) |
+| M8-08 | Cascade verification; never run against production |
+
+**Standing rule for every HIGH RISK task:** dump first, rehearse on a branch database, record row counts before and after in the PR, apply off-peak, watch for fifteen minutes.
+
+---
+
+# Appendix B — Deferred Decisions
+
+Decisions deliberately postponed, with the trigger that should reopen them. **A deferral is a decision, not an omission** — if one of these is skipped without a note, it becomes invisible debt.
+
+| Decision | Deferred to | Reopen when |
+|---|---|---|
+| `noUncheckedIndexedAccess` | M9 | The team wants it; it is a large diff for a mostly-guarded bug class |
+| Cache persistence (`persist-client`) | M9-08 | Keys are board-scoped and cache clears on sign-out — both true after M2/M1-02 |
+| Email invitations | Post-M4 | A transactional email provider is in place |
+| `activities` table | M7-05 | An activity feed UI is actually being designed |
+| `attachments`, `labels`, `todo_labels` | Post-MVP | A product requirement exists. Design FKs so they *can* attach to `todos`; build nothing |
+| Soft deletion beyond `archived` | Indefinite | A concrete undo requirement appears. Broad soft-delete taxes every query and every RLS policy forever |
+| List virtualisation | M9-10 | Profiling proves a real problem |
+| React Testing Library | Post-M9 | A component bug ships that a unit test would have caught. Pure logic is where the risk lives |
+| Cursor pagination | Post-M8 | A board approaches the `max_rows = 1000` PostgREST cap. `docs/API.md`: *"Avoid until necessary"* |
+
+---
+
+# Appendix C — Quick Reference
+
+```bash
+npm run dev                  # vite dev server — does NOT typecheck
+npm run build                # tsc -b && vite build — the only typecheck
+npm run lint                 # eslint .
+npm test                     # vitest (from M1-17)
+
+supabase db pull             # capture live schema
+supabase db push             # apply migrations — the ONLY way schema changes ship
+supabase db diff -f <name>   # generate a migration from local changes
+supabase gen types typescript --linked > src/types/database.ts
+
+node --experimental-strip-types src/services/lib/todos/insertDense.check.ts
+node --experimental-strip-types src/services/columns/limitBreach.check.ts
+```
+
+**Before every HIGH RISK task:**
+```bash
+supabase db dump --db-url "$PROD_URL" -f backups/pre-<task-id>-$(date +%Y%m%d-%H%M).sql
+# then: verify the dump restores, record row counts, confirm PITR, note the timestamp
+```
+
+---
+
+*Milestones 0 and 1 are prerequisites, not suggestions. Milestone 2 is the milestone this plan exists for: every card, menu, modal and query written before it lands is written against an ownership model the documentation has already declared wrong, and each one becomes migration surface.*
