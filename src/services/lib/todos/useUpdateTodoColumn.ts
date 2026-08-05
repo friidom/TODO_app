@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { updateTodoColumn } from "../../api/todoApi";
+import { queryKeys } from "@/services/queryClient/queryKeys";
 
 export function useUpdateTodoColumn() {
   const queryClient = useQueryClient();
@@ -15,7 +16,7 @@ export function useUpdateTodoColumn() {
 
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["todos"],
+        queryKey: queryKeys.todos(),
       });
     },
   });

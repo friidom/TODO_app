@@ -1,5 +1,6 @@
 import { queryClient } from "@/services/queryClient/queryClient";
 import { reorderTodos } from "@/services/api/todoApi";
+import { queryKeys } from "@/services/queryClient/queryKeys";
 import type { ISupabaseTodo } from "@/types/data";
 import { byPosition } from "../position";
 
@@ -52,7 +53,7 @@ export async function todoDrop(
     ...destination,
   ];
 
-  queryClient.setQueryData(["todos"], updated);
+  queryClient.setQueryData(queryKeys.todos(), updated);
 
   await reorderTodos(updated);
 }
