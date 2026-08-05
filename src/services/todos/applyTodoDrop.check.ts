@@ -1,11 +1,11 @@
 /**
  * Self-check for `applyTodoDrop`. No test runner installed, so run it directly:
  *
- *   node --experimental-strip-types src/services/lib/todos/applyTodoDrop.check.ts
+ *   node --experimental-strip-types src/services/todos/applyTodoDrop.check.ts
  */
 import assert from "node:assert/strict";
 
-import type { ISupabaseTodo } from "../../../types/data.ts";
+import type { ISupabaseTodo } from "../../types/data.ts";
 import { applyTodoDrop } from "./applyTodoDrop.ts";
 
 const todo = (id: number, column_id: string, position: number): ISupabaseTodo =>

@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { reorderTodos } from "@/services/api/todoApi";
+import { reorderTodos } from "@/services/todos/todoApi";
 import { queryKeys } from "@/services/queryClient/queryKeys";
 import type { ISupabaseTodo } from "@/types/data";
 import { applyTodoDrop } from "./applyTodoDrop";

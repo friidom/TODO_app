@@ -1,5 +1,5 @@
-import { type ISupabaseTodo } from "../../../types/data";
-import { deleteTodo } from "../../api/todoApi";
+import { type ISupabaseTodo } from "../../types/data";
+import { deleteTodo } from "./todoApi";
 import { queryKeys } from "@/services/queryClient/queryKeys";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 

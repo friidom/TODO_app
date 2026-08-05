@@ -1,5 +1,5 @@
 import { useColumns } from "@/services/columns/useColumnsApi";
-import { useUpdateTodoColumn } from "@/services/lib/todos/useUpdateTodoColumn";
+import { useUpdateTodoColumn } from "@/services/todos/useUpdateTodoColumn";
 import { useDoneFlash } from "@/stores/doneFlash";
 import {
   FloatingPortal,

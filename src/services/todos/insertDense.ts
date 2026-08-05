@@ -1,7 +1,7 @@
-import type { ISupabaseTodo } from "../../../types/data";
+import type { ISupabaseTodo } from "../../types/data";
 // Extension is explicit: insertDense.check.ts runs this under
 // `node --experimental-strip-types`, whose ESM resolver does not guess it.
-import { byPosition } from "../position.ts";
+import { byPosition } from "../../utils/position.ts";
 
 /**
  * Splice `todo` into a column at `index` (appending when omitted) and renumber

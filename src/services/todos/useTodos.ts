@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchTodos } from "../../api/todoApi";
+import { fetchTodos } from "./todoApi";
 import { queryKeys } from "@/services/queryClient/queryKeys";
 import { useAuth } from "../auth/useAuth";
 

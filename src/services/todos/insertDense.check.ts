@@ -1,12 +1,12 @@
 /**
  * Self-check for `insertDense`. No test runner installed, so run it directly:
  *
- *   node --experimental-strip-types src/services/lib/todos/insertDense.check.ts
+ *   node --experimental-strip-types src/services/todos/insertDense.check.ts
  */
 import assert from "node:assert/strict";
 
 import { insertDense } from "./insertDense.ts";
-import type { ISupabaseTodo } from "../../../types/data";
+import type { ISupabaseTodo } from "../../types/data";
 
 const todo = (id: number, position: number) =>
   ({ id, position, column_id: "c" }) as ISupabaseTodo;

@@ -1,7 +1,7 @@
-import type { ISupabaseTodo } from "../../../types/data";
+import type { ISupabaseTodo } from "../../types/data";
 // Extension is explicit: applyTodoDrop.check.ts runs this under
 // `node --experimental-strip-types`, whose ESM resolver does not guess it.
-import { byPosition } from "../position.ts";
+import { byPosition } from "../../utils/position.ts";
 
 /** Renumber a column from 0, as new objects. */
 function renumber(columnTodos: ISupabaseTodo[]): ISupabaseTodo[] {

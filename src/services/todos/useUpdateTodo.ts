@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { updateTodo } from "../../api/todoApi";
+import { updateTodo } from "./todoApi";
 import { queryKeys } from "@/services/queryClient/queryKeys";
-import type { ISupabaseTodo } from "../../../types/data";
+import type { ISupabaseTodo } from "../../types/data";
 
 export function useUpdateTodo() {
   const queryClient = useQueryClient();

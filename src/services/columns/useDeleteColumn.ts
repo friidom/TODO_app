@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { deleteColumn } from "./columnsApi";
 import type { IColumn } from "@/types/data";
-import { byPosition } from "@/services/lib/position";
+import { byPosition } from "@/utils/position";
 import { queryKeys } from "@/services/queryClient/queryKeys";
 
 export function useDeleteColumn() {

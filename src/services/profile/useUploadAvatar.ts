@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import { uploadAvatar } from "../../api/profile/uploadAvatars";
+import { uploadAvatar } from "./uploadAvatars";
 
 export function useUploadAvatar() {
   return useMutation({

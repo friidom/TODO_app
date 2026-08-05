@@ -4,7 +4,7 @@ import { Bug, Pencil, User } from "lucide-react";
 import { useDraggable } from "@dnd-kit/core";
 import { useEffect, useRef, useState } from "react";
 
-import { useUpdateTodo } from "../../services/lib/todos/useUpdateTodo";
+import { useUpdateTodo } from "@/services/todos/useUpdateTodo";
 import TodoMenu from "./TodoItem/TodoMenu";
 import LoadingSpinner from "../pages/loading/LoadingSpinner";
 import { cn } from "@/utils/cn";

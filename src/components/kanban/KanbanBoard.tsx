@@ -9,8 +9,8 @@ import useKanbanDnd from "@/hooks/useKanbanDnd";
 import useTodosByColumns from "@/hooks/useTodosByColumns";
 import { useReorderColumns } from "@/services/columns/useReorderColumns";
 import { queryKeys } from "@/services/queryClient/queryKeys";
-import { useTodos } from "@/services/lib/todos/useTodos";
-import { useTodoDrop } from "@/services/lib/todos/useTodoDrop";
+import { useTodos } from "@/services/todos/useTodos";
+import { useTodoDrop } from "@/services/todos/useTodoDrop";
 
 import SortableColumn from "./SortableColumn";
 import ColumnDropZone from "./ColumnDropZone";
@@ -23,7 +23,7 @@ import CollapsedColumn from "../columns/CollapsedColumn";
 import Loading from "../pages/loading/LoadingPage";
 import type { IColumn } from "@/types/data";
 import { useDoneFlash } from "@/stores/doneFlash";
-import { byPosition } from "@/services/lib/position";
+import { byPosition } from "@/utils/position";
 import { titleKey } from "@/constants/columns";
 
 export default function KanbanBoard() {
