@@ -14,9 +14,11 @@ import { useDeleteTodo } from "@/services/lib";
 
 interface TodoMenuProps {
   todoId: number;
+  /** The card's column, so the move menu can leave it out. Nullable, as the column is. */
+  columnId: string | null;
 }
 
-export default function TodoMenu({ todoId }: TodoMenuProps) {
+export default function TodoMenu({ todoId, columnId }: TodoMenuProps) {
   const [open, setOpen] = useState(false);
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
   const statusMenuRef = useRef<HTMLDivElement>(null);
@@ -113,12 +115,11 @@ export default function TodoMenu({ todoId }: TodoMenuProps) {
         </FloatingPortal>
       )}
       <TodoStatusMenu
-        currentColumnId={""}
+        currentColumnId={columnId}
         open={statusMenuOpen}
         anchor={changeStatusButton.current}
         closeMenu={closeMenu}
         todoId={todoId}
-        // currentStatus={currentStatus}
         menuRef={statusMenuRef}
       />
     </>

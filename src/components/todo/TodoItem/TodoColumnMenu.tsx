@@ -16,7 +16,9 @@ interface TodoColumnMenuProps {
   anchor: HTMLElement | null;
   closeMenu: () => void;
   todoId: number;
-  currentColumnId: string;
+  /** Left out of the list — moving a card to where it already is does nothing.
+   *  Null when the card has no column, in which case every column is offered. */
+  currentColumnId: string | null;
 
   menuRef: React.RefObject<HTMLDivElement | null>;
 }

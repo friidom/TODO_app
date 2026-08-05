@@ -27,16 +27,3 @@ export type IColumn = Row<"columns">;
 export interface TodoItemProps extends ISupabaseTodo {
   overlay?: boolean;
 }
-export interface TodoMenuProps {
-  menuOpen: boolean;
-
-  openMenu?: () => void;
-
-  closeMenu?: () => void;
-
-  onEdit?: () => void;
-
-  todoId: number;
-
-  // currentColumnId: string;
-}
