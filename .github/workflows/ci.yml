@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run lint
+
+      # tsc -b is the only typecheck in this project; the dev server passing
+      # means nothing. No Supabase credentials are needed — the env vars are
+      # inlined by Vite and their absence is a runtime throw, not a build error.
+      - run: npm run build
+
+      # Pure-logic self-checks. Excluded from tsconfig.app.json, so the build
+      # above never reaches them; they run directly and print a pass line.
+      - run: node --experimental-strip-types src/services/lib/todos/insertDense.check.ts
+      - run: node --experimental-strip-types src/services/columns/limitBreach.check.ts

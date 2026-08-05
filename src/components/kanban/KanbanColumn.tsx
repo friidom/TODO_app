@@ -16,8 +16,6 @@ interface Props {
   id: string;
   todos: ISupabaseTodo[];
   column: IColumn;
-  openMenuId: number | null;
-  setOpenMenuId: React.Dispatch<React.SetStateAction<number | null>>;
   indicator: TodoIndicator;
   dragHandleProps?: Record<string, unknown>;
   /** A card is being dragged out of this column. */
@@ -35,8 +33,6 @@ interface Props {
 export default function KanbanColumn({
   id,
   headerTitle,
-  openMenuId,
-  setOpenMenuId,
   todos,
   column,
   indicator,
@@ -188,9 +184,6 @@ export default function KanbanColumn({
           {todos.map((todo, index) => (
             <React.Fragment key={todo.id}>
               <TodoItem
-                menuOpen={openMenuId === todo.id}
-                openMenu={() => setOpenMenuId(todo.id)}
-                closeMenu={() => setOpenMenuId(null)}
                 {...todo}
               />
               <DropZone

@@ -45,7 +45,6 @@ export default function KanbanBoard() {
 
   const flashDone = useDoneFlash((state) => state.flash);
 
-  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
   const [createColumnOpen, setCreateColumnOpen] = useState(false);
   const [collapsed, setCollapsed] = useState<string[]>([]);
   const [limitColumn, setLimitColumn] = useState<IColumn | null>(null);
@@ -175,8 +174,6 @@ export default function KanbanBoard() {
                   <SortableColumn
                     id={column.id}
                     column={column}
-                    openMenuId={openMenuId}
-                    setOpenMenuId={setOpenMenuId}
                     headerTitle={t(titleKey(column.title))}
                     todos={todosByColumn[column.id] ?? []}
                     indicator={indicator}

@@ -49,9 +49,6 @@ function TodoCard({
   dragging = false,
   setNodeRef,
   handleProps,
-  openMenu,
-  closeMenu,
-  menuOpen,
   ...todo
 }: CardProps) {
   //edit

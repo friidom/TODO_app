@@ -6,10 +6,13 @@ import { byPosition } from "@/services/lib/position";
 export default function useTodosByColumns() {
   const { data: todos } = useTodos();
   const { data: columns = [] } = useColumns();
-  const grouped: Record<string, typeof todos> = {};
 
   //!Grouping and Sorting Todos
   const todosByColumn = React.useMemo(() => {
+    // Built inside the memo: it was previously allocated on every render but
+    // only populated here, so the memo mutated an object it did not own.
+    const grouped: Record<string, typeof todos> = {};
+
     columns.forEach((column) => {
       grouped[column.id] = [];
     });

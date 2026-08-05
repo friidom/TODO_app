@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useProfile } from "../../../services/lib/profile/useProfile";
 import useUpdateProfile from "../../../services/lib/profile/useUpdateProfile";
 import type { ISupabaseProfile } from "../../../types/data";
@@ -42,11 +42,17 @@ export default function ProfilePage() {
       },
     );
   }
-  useEffect(() => {
-    if (profile) {
-      setForm(profile);
-    }
-  }, [profile]);
+  // Seed the editable copy from the fetched profile. Adjusting state during
+  // render is React's documented answer to "reset state when a value changes";
+  // doing it in an effect ran a second render pass every time and is what the
+  // cascading-render rule flags. Behaviour is identical — `form` still tracks
+  // each new `profile` identity.
+  const [seededFrom, setSeededFrom] = useState<ISupabaseProfile | null>(null);
+
+  if (profile && profile !== seededFrom) {
+    setSeededFrom(profile);
+    setForm(profile);
+  }
 
   if (isLoading || !form) {
     return <Loading />;

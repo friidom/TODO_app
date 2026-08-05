@@ -28,8 +28,9 @@ export function useDeleteTodo() {
       return { previousTodos };
     },
     onError: (_err, _id, context) => {
-      context?.previousTodos &&
+      if (context?.previousTodos) {
         queryClient.setQueryData(["todos"], context.previousTodos);
+      }
     },
 
     onSettled: () => {
