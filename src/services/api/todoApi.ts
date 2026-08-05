@@ -11,7 +11,6 @@ export async function fetchTodos(userId: string) {
     .select("*")
     .eq("user_id", userId)
     .order("position", { ascending: true });
-  console.log(data);
 
   if (error) throw error;
 
