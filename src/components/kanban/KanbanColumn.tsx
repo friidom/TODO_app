@@ -8,7 +8,7 @@ import { useAddTodo } from "../../services/lib";
 import DropZone from "./DropZone";
 import TodoCreateForm from "./TodoCreateForm";
 import ColumnHeader, { type TransitionPill } from "../columns/ColumnHeader";
-import { cn } from "@/services/lib/utils";
+import { cn } from "@/utils/cn";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import type { TodoIndicator } from "@/hooks/useKanbanDnd";
 

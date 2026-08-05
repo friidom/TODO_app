@@ -12,7 +12,7 @@ import {
   categoryOf,
   type ColumnCategory,
 } from "@/constants/columns";
-import { cn } from "@/services/lib/utils";
+import { cn } from "@/utils/cn";
 
 interface Props {
   value: ColumnCategory;

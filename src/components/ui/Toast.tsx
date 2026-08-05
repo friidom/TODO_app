@@ -1,6 +1,6 @@
 import { CircleAlert, CircleCheck, X } from "lucide-react";
 
-import { cn } from "@/services/lib/utils";
+import { cn } from "@/utils/cn";
 import type { ToastMessage } from "@/stores/toasts";
 
 interface ToastProps {

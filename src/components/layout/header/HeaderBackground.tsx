@@ -1,4 +1,4 @@
-import { useTheme } from "../../../services/lib/themes/themeContext";
+import { useTheme } from "@/providers/themeContext";
 
 export default function HeaderBackground() {
   const { theme } = useTheme();

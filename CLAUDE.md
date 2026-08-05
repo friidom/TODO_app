@@ -72,11 +72,11 @@ Droppable `data.type` is the dispatch key throughout: `"column" | "column-gap" |
 
 **i18n.** `src/components/i18n/` (en/ru/uz, language in `localStorage`). Column titles are run through `t()`, so the seeded English titles double as translation keys.
 
-**Theme.** `ThemeProvider` toggles a `dark` class on `<html>`; the `@custom-variant dark` in `src/styles/global.css` keys off it. All design tokens are CSS vars in that file.
+**Theme.** `ThemeProvider` (`src/providers/`, beside its `themeContext.ts`) toggles a `dark` class on `<html>`; the `@custom-variant dark` in `src/styles/global.css` keys off it. All design tokens are CSS vars in that file.
 
 ## Gotchas
 
-- `components.json` maps `utils` to `@/lib/utils`, which does not exist — `cn` actually lives in `@/services/lib/utils`. Fix the import after any `npx shadcn add`.
+- `components.json` maps `utils` to `@/lib/utils`, which does not exist — `cn` actually lives in `@/utils/cn`. Fix the import after any `npx shadcn add`. (M1-16 repoints the alias.)
 - `@/` → `src/`, declared in both `vite.config.ts` and `tsconfig.app.json`. Existing imports mix `@/` and relative paths freely.
 - `HeaderTodoForm.tsx` is live (rendered by `Header.tsx`) but broken: it calls `useAddTodo` with `{ title, status: "todo" }` — no `column_id`, and `status` predates the columns schema. It fails `npm run build`.
 - Vendored shadcn components live in `src/components/ui/SideBarUI/` (not `ui/` directly) and are built on `radix-ui` + `@base-ui/react`.
