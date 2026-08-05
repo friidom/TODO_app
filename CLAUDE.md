@@ -19,6 +19,7 @@ node --experimental-strip-types src/services/lib/todos/insertDense.check.ts
 node --experimental-strip-types src/services/columns/limitBreach.check.ts
 node --experimental-strip-types src/services/queryClient/retryPolicy.check.ts
 node --experimental-strip-types src/services/lib/todos/applyTodoDrop.check.ts
+node --experimental-strip-types src/utils/validation.check.ts
 ```
 
 `tsconfig.app.json` excludes `src/**/*.check.ts`, so they never reach `npm run build` (they'd fail on node types — `types` is pinned to `vite/client`).
