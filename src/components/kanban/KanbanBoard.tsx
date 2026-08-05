@@ -2,12 +2,12 @@ import { Fragment, useMemo, useState } from "react";
 
 import { DndContext } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
+import { useQueryClient } from "@tanstack/react-query";
 import { t } from "i18next";
 
 import useKanbanDnd from "@/hooks/useKanbanDnd";
 import useTodosByColumns from "@/hooks/useTodosByColumns";
 import { useReorderColumns } from "@/services/columns/useReorderColumns";
-import { queryClient } from "@/services/queryClient/queryClient";
 import { queryKeys } from "@/services/queryClient/queryKeys";
 import { useTodos } from "@/services/lib/todos/useTodos";
 import { useTodoDrop } from "@/services/lib/todos/useTodoDrop";
@@ -31,6 +31,7 @@ export default function KanbanBoard() {
   const { todosByColumn, columns } = useTodosByColumns();
   const reorderColumns = useReorderColumns();
   const todoDrop = useTodoDrop();
+  const queryClient = useQueryClient();
 
   const {
     sensors,
