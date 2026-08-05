@@ -9,6 +9,7 @@ import DropZone from "./DropZone";
 import TodoCreateForm from "./TodoCreateForm";
 import ColumnHeader, { type TransitionPill } from "../columns/ColumnHeader";
 import { cn } from "@/services/lib/utils";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import type { TodoIndicator } from "@/hooks/useKanbanDnd";
 
 interface Props {
@@ -170,35 +171,37 @@ export default function KanbanColumn({
 
       {/* TODO LIST */}
       <div ref={listRef} className="min-h-0 overflow-y-auto px-3 pb-2">
-        <div className="flex min-h-10 flex-col">
-          <DropZone
-            columnId={id}
-            index={0}
-            active={isIndicatorHere && indicator.index === 0}
-            afterId={todos[0]?.id}
-            onAdd={addHandlerFor(0)}
-          />
+        {/* Scoped to the cards: a card that throws costs this column its list,
+            not the header, the Create button, or the rest of the board. */}
+        <ErrorBoundary>
+          <div className="flex min-h-10 flex-col">
+            <DropZone
+              columnId={id}
+              index={0}
+              active={isIndicatorHere && indicator.index === 0}
+              afterId={todos[0]?.id}
+              onAdd={addHandlerFor(0)}
+            />
 
-          {creatingAt === 0 && createForm}
+            {creatingAt === 0 && createForm}
 
-          {todos.map((todo, index) => (
-            <React.Fragment key={todo.id}>
-              <TodoItem
-                {...todo}
-              />
-              <DropZone
-                columnId={id}
-                index={index + 1}
-                active={isIndicatorHere && indicator.index === index + 1}
-                beforeId={todo.id}
-                afterId={todos[index + 1]?.id}
-                onAdd={addHandlerFor(index + 1)}
-              />
+            {todos.map((todo, index) => (
+              <React.Fragment key={todo.id}>
+                <TodoItem {...todo} />
+                <DropZone
+                  columnId={id}
+                  index={index + 1}
+                  active={isIndicatorHere && indicator.index === index + 1}
+                  beforeId={todo.id}
+                  afterId={todos[index + 1]?.id}
+                  onAdd={addHandlerFor(index + 1)}
+                />
 
-              {creatingAt === index + 1 && createForm}
-            </React.Fragment>
-          ))}
-        </div>
+                {creatingAt === index + 1 && createForm}
+              </React.Fragment>
+            ))}
+          </div>
+        </ErrorBoundary>
       </div>
 
       {/* CREATE — no background of its own, so it follows the column's */}
