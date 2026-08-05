@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { addTodo, reorderTodos } from "../../api/todoApi";
 import { insertDense } from "./insertDense";
+import { queryKeys } from "@/services/queryClient/queryKeys";
 import type { ISupabaseTodo } from "../../../types/data";
 
 interface AddTodoVars {
@@ -23,12 +24,12 @@ export function useAddTodo() {
       //before request
       //stop all queries
       await queryClient.cancelQueries({
-        queryKey: ["todos"],
+        queryKey: queryKeys.todos(),
       });
 
       //previous Todos
       const previousTodos =
-        queryClient.getQueryData<ISupabaseTodo[]>(["todos"]) ?? [];
+        queryClient.getQueryData<ISupabaseTodo[]>(queryKeys.todos()) ?? [];
 
       //temp todo
       const optimisticTodo: ISupabaseTodo = {
@@ -52,13 +53,10 @@ export function useAddTodo() {
         index,
       );
 
-      queryClient.setQueryData<ISupabaseTodo[]>(
-        ["todos"],
-        [
-          ...previousTodos.filter((todo) => todo.column_id !== column_id),
-          ...renumbered,
-        ],
-      );
+      queryClient.setQueryData<ISupabaseTodo[]>(queryKeys.todos(), [
+        ...previousTodos.filter((todo) => todo.column_id !== column_id),
+        ...renumbered,
+      ]);
 
       //context
       return {
@@ -69,13 +67,13 @@ export function useAddTodo() {
 
     //error
     onError: (_err, _variables, context) => {
-      queryClient.setQueryData(["todos"], context?.previousTodos);
+      queryClient.setQueryData(queryKeys.todos(), context?.previousTodos);
     },
 
     //success
     onSuccess: (serverTodo, _variables, context) => {
       const current =
-        queryClient.getQueryData<ISupabaseTodo[]>(["todos"]) ?? [];
+        queryClient.getQueryData<ISupabaseTodo[]>(queryKeys.todos()) ?? [];
 
       //keep the slot we picked; the server just appended
       const position =
@@ -88,7 +86,7 @@ export function useAddTodo() {
           : todo,
       );
 
-      queryClient.setQueryData<ISupabaseTodo[]>(["todos"], todos);
+      queryClient.setQueryData<ISupabaseTodo[]>(queryKeys.todos(), todos);
 
       if (position === serverTodo.position) return;
 
@@ -100,7 +98,9 @@ export function useAddTodo() {
           (todo) =>
             todo.column_id === serverTodo.column_id && !todo.isOptimistic,
         ),
-      ).catch(() => queryClient.invalidateQueries({ queryKey: ["todos"] }));
+      ).catch(() =>
+        queryClient.invalidateQueries({ queryKey: queryKeys.todos() }),
+      );
     },
   });
 }

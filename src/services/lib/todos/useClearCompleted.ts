@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { clearCompleted } from "../../api/todoApi";
+import { queryKeys } from "@/services/queryClient/queryKeys";
 
 export function useClearCompleted() {
   const queryClient = useQueryClient();
@@ -9,7 +10,7 @@ export function useClearCompleted() {
 
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["todos"],
+        queryKey: queryKeys.todos(),
       });
     },
   });

@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { updateColumn } from "./columnsApi";
 import type { IColumn } from "@/types/data";
+import { queryKeys } from "@/services/queryClient/queryKeys";
 
 export function useUpdateColumn() {
   const queryClient = useQueryClient();
@@ -9,11 +10,12 @@ export function useUpdateColumn() {
     mutationFn: updateColumn,
 
     onMutate: async ({ id, ...patch }) => {
-      await queryClient.cancelQueries({ queryKey: ["columns"] });
+      await queryClient.cancelQueries({ queryKey: queryKeys.columns() });
 
-      const previous = queryClient.getQueryData<IColumn[]>(["columns"]) ?? [];
+      const previous =
+        queryClient.getQueryData<IColumn[]>(queryKeys.columns()) ?? [];
 
-      queryClient.setQueryData<IColumn[]>(["columns"], (old = []) =>
+      queryClient.setQueryData<IColumn[]>(queryKeys.columns(), (old = []) =>
         old.map((column) =>
           column.id === id ? { ...column, ...patch } : column,
         ),
@@ -23,7 +25,7 @@ export function useUpdateColumn() {
     },
 
     onError: (_err, _vars, context) => {
-      queryClient.setQueryData(["columns"], context?.previous);
+      queryClient.setQueryData(queryKeys.columns(), context?.previous);
     },
   });
 }

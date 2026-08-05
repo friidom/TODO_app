@@ -8,6 +8,7 @@ import useKanbanDnd from "@/hooks/useKanbanDnd";
 import useTodosByColumns from "@/hooks/useTodosByColumns";
 import { useReorderColumns } from "@/services/columns/useReorderColumns";
 import { queryClient } from "@/services/queryClient/queryClient";
+import { queryKeys } from "@/services/queryClient/queryKeys";
 import { useTodos } from "@/services/lib/todos/useTodos";
 import { todoDrop } from "@/services/lib/todos/useTodoDrop";
 
@@ -61,7 +62,7 @@ export default function KanbanBoard() {
       (column, position) => ({ ...column, position }),
     );
 
-    queryClient.setQueryData(["columns"], reordered);
+    queryClient.setQueryData(queryKeys.columns(), reordered);
     reorderColumns.mutate(reordered);
   }
 
@@ -119,7 +120,7 @@ export default function KanbanBoard() {
                 (column, index) => ({ ...column, position: index }),
               );
 
-              queryClient.setQueryData(["columns"], reordered);
+              queryClient.setQueryData(queryKeys.columns(), reordered);
               reorderColumns.mutate(reordered);
             }
           }
