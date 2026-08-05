@@ -14,7 +14,8 @@ const PILL =
 
 export interface TransitionPill {
   title: string;
-  category?: string;
+  /** Nullable in the schema; `categoryOf()` falls back to `todo`. */
+  category?: string | null;
 }
 
 interface Props {

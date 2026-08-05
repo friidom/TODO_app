@@ -1,4 +1,7 @@
 import type { ISupabaseTodo } from "../../../types/data";
+// Extension is explicit: insertDense.check.ts runs this under
+// `node --experimental-strip-types`, whose ESM resolver does not guess it.
+import { byPosition } from "../position.ts";
 
 /**
  * Splice `todo` into a column at `index` (appending when omitted) and renumber
@@ -10,7 +13,7 @@ export function insertDense(
   todo: ISupabaseTodo,
   index?: number,
 ) {
-  const next = [...columnTodos].sort((a, b) => a.position - b.position);
+  const next = [...columnTodos].sort(byPosition);
 
   next.splice(index ?? next.length, 0, todo);
 
