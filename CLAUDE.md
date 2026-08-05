@@ -17,6 +17,7 @@ No test framework is installed. Pure logic worth checking gets a `*.check.ts` si
 ```bash
 node --experimental-strip-types src/services/lib/todos/insertDense.check.ts
 node --experimental-strip-types src/services/columns/limitBreach.check.ts
+node --experimental-strip-types src/services/queryClient/retryPolicy.check.ts
 ```
 
 `tsconfig.app.json` excludes `src/**/*.check.ts`, so they never reach `npm run build` (they'd fail on node types — `types` is pinned to `vite/client`).
@@ -46,7 +47,7 @@ The linked project is `nxnnfaoyttbzndphnawe`. **PITR is not enabled on it**, so 
 
 Vite + React 19 + TypeScript, Supabase for auth/data, TanStack Query as the only real state layer, Tailwind v4 (CSS-first, no tailwind.config), `@dnd-kit/core` for the board.
 
-**Data flow.** `src/services/api/*` and `src/services/columns/columnsApi.ts` are the raw Supabase calls; `src/services/lib/todos/*` and `src/services/columns/use*.ts` wrap them in query/mutation hooks; components consume the hooks. Two query keys hold everything: `["todos"]` (one flat array for the whole board, not per-column) and `["columns"]`. Both come from the factory in `src/services/queryClient/queryKeys.ts` — `queryKeys.todos()`, `queryKeys.columns()`, `queryKeys.profile(userId)` — and no key is spelled out anywhere else, so the board scoping M2 adds is an edit there plus its callers. `useTodosByColumns` does the grouping and position-sorting client-side. Most mutations optimistically patch the `["todos"]` cache rather than invalidating.
+**Data flow.** `src/services/api/*` and `src/services/columns/columnsApi.ts` are the raw Supabase calls; `src/services/lib/todos/*` and `src/services/columns/use*.ts` wrap them in query/mutation hooks; components consume the hooks. Two query keys hold everything: `["todos"]` (one flat array for the whole board, not per-column) and `["columns"]`. Both come from the factory in `src/services/queryClient/queryKeys.ts` — `queryKeys.todos()`, `queryKeys.columns()`, `queryKeys.profile(userId)` — and no key is spelled out anywhere else, so the board scoping M2 adds is an edit there plus its callers. `useTodosByColumns` does the grouping and position-sorting client-side. Most mutations optimistically patch the `["todos"]` cache rather than invalidating. The client's defaults live in `queryClient.ts`: a 30s `staleTime` (so a tab switch is not a board refetch), a 10min `gcTime`, no retries on mutations, and `retryPolicy.ts` for queries — which reads both error shapes Supabase produces, because a PostgREST error carries a `code` and no HTTP status, so an RLS denial would otherwise be retried three times before surfacing.
 
 **Positions.** Both todos and columns carry a dense integer `position`. Reordering means: recompute every affected position client-side, write the whole array into the query cache, then bulk `upsert` it (`reorderTodos` / `reorderColumns`). Never assume a partial update is enough — gaps in `position` break the sort.
 
