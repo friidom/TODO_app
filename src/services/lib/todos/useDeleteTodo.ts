@@ -1,4 +1,4 @@
-import {type ISupabaseTodo, type IServiceTodo } from "../../../types/data";
+import { type ISupabaseTodo } from "../../../types/data";
 import { deleteTodo } from "../../api/todoApi";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 

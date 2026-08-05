@@ -35,14 +35,14 @@ Vite + React 19 + TypeScript, Supabase for auth/data, TanStack Query as the only
 
 **Drag and drop is hand-rolled, not `@dnd-kit/sortable`.** Nothing in the board reflows while dragging; only the `DragOverlay` moves. The pieces:
 
-- `src/hooks/useKanbanDnd.ts` — sensors, a custom `collisionDetection` that ignores rect intersection and picks the *gap nearest the pointer*, and the two indicator states.
-- `DropZone` / `ColumnDropZone` — always-mounted droppables sitting *between* cards/columns, ids `todo-gap:<columnId>:<index>` and `column-gap:<index>`. They exist to be measured, and paint a blue line when they're the nearest gap. Each also carries `beforeId`/`afterId` (its two neighbours) so `collisionDetection` can drop the hit when the gap touches the dragged item — otherwise the indicator would offer a no-op drop around the item itself. Idle, `DropZone` doubles as the create affordance (hover → `+` → `TodoCreateForm` opens at that index).
+- `src/hooks/useKanbanDnd.ts` — sensors, a custom `collisionDetection` that ignores rect intersection and picks the _gap nearest the pointer_, and the two indicator states.
+- `DropZone` / `ColumnDropZone` — always-mounted droppables sitting _between_ cards/columns, ids `todo-gap:<columnId>:<index>` and `column-gap:<index>`. They exist to be measured, and paint a blue line when they're the nearest gap. Each also carries `beforeId`/`afterId` (its two neighbours) so `collisionDetection` can drop the hit when the gap touches the dragged item — otherwise the indicator would offer a no-op drop around the item itself. Idle, `DropZone` doubles as the create affordance (hover → `+` → `TodoCreateForm` opens at that index).
 - `KanbanBoard.tsx` `onDragEnd` — column branch does `arrayMove` + `reorderColumns`; todo branch delegates to `todoDrop`. It also derives the cross-column transition state (`activeTodo.column_id` vs `indicator.columnId`) and feeds `KanbanColumn` the `isDragSource` / `transition` props that swap the headers and highlight the destination. Same-column drags are pure reordering, so `transition` stays null there.
 - `src/services/lib/todos/useTodoDrop.ts` — splices the card into the destination column at the indicator index and renumbers both source and destination.
 
 Droppable `data.type` is the dispatch key throughout: `"column" | "column-gap" | "todo-gap"`. Adding a drop target means adding a type here and handling it in `handleDragOver` + `collisionDetection`.
 
-**Auth.** `useAuth` is a plain hook holding its own `useState` and its own `onAuthStateChange` subscription — it is *not* a context, so each call site gets an independent copy (and its own `loading` flip). Routes in `components/routes/` gate on it. `signUp` in `authApi.ts` also seeds the profile row and four default columns ("To Do" / "In Progress" / "In Review" / "Done") — new users depend on that side effect.
+**Auth.** `useAuth` is a plain hook holding its own `useState` and its own `onAuthStateChange` subscription — it is _not_ a context, so each call site gets an independent copy (and its own `loading` flip). Routes in `components/routes/` gate on it. `signUp` in `authApi.ts` also seeds the profile row and four default columns ("To Do" / "In Progress" / "In Review" / "Done") — new users depend on that side effect.
 
 **Column management.** `components/columns/` owns everything a column can do: `ColumnHeader` picks one of four header states (transition pills / "Transition to..." / inline rename / normal), `ColumnMenu` is the three-dot menu, and the modals handle limits and deletion. `KanbanBoard` holds the state these need — which columns are collapsed (client-only, not persisted), and which column each modal targets. Deleting a column rehomes its todos server-side first (`deleteColumn` in `columnsApi.ts`), so the delete modal always makes you pick a destination and the option is hidden when only one column is left.
 
@@ -58,7 +58,7 @@ Droppable `data.type` is the dispatch key throughout: `"column" | "column-gap" |
 
 - `components.json` maps `utils` to `@/lib/utils`, which does not exist — `cn` actually lives in `@/services/lib/utils`. Fix the import after any `npx shadcn add`.
 - `@/` → `src/`, declared in both `vite.config.ts` and `tsconfig.app.json`. Existing imports mix `@/` and relative paths freely.
-- Dead code that looks live: `src/stores/todoStore.ts` (zustand, zero consumers), `BASE_URL` in `constants/consants.ts` (jsonplaceholder, pre-Supabase), `ITodo`/`IServiceTodo` in `types/data.ts` (the live types are `ISupabaseTodo`/`IColumn`), `hooks/useDropIndicator.ts`, `services/lib/todos/useReorderTodos.ts` + `useSaveTodoOrder.ts` + `useDragOverTodos.ts`, `components/kanban/DraggableTodo.tsx` (`TodoItem.tsx` defines its own).
 - `HeaderTodoForm.tsx` is live (rendered by `Header.tsx`) but broken: it calls `useAddTodo` with `{ title, status: "todo" }` — no `column_id`, and `status` predates the columns schema. It fails `npm run build`.
 - Vendored shadcn components live in `src/components/ui/SideBarUI/` (not `ui/` directly) and are built on `radix-ui` + `@base-ui/react`.
 - `noUnusedLocals`/`noUnusedParameters` are on, so an unused import fails `npm run build` even though the dev server is happy.
+
