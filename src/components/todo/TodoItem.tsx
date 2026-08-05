@@ -151,7 +151,9 @@ function TodoCard({
               <Pencil size={15} />
             </button>
 
-            {!overlay && <TodoMenu todoId={todo.id} />}
+            {!overlay && (
+              <TodoMenu todoId={todo.id} columnId={todo.column_id} />
+            )}
           </div>
         )}
         {todo.isOptimistic && <LoadingSpinner size="md" />}
