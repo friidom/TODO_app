@@ -27,9 +27,6 @@ export default function TodoDragOverlay({
         <TodoItem
           {...activeTodo}
           overlay
-          menuOpen={false}
-          openMenu={() => {}}
-          closeMenu={() => {}}
         />
       )}
 

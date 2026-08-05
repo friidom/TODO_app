@@ -18,8 +18,8 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  useSidebar,
 } from "@/components/ui/SideBarUI/sidebar";
+import { useSidebar } from "@/components/ui/SideBarUI/use-sidebar";
 import {
   ChevronsUpDownIcon,
   SparklesIcon,
