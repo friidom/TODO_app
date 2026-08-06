@@ -44,6 +44,20 @@ export function useAddTodo() {
         // placeholder on success, so null is never persisted from here.
         status: null,
         previous_status: null,
+        // Added by M2-02 and M2-03. Mirrors what the server produces for a
+        // fresh insert: `archived` has a false default, the rest have none.
+        // board_id stays null because no write path sends it yet — M2-11 is
+        // where this becomes the real board, and where a null here would
+        // start being wrong.
+        board_id: null,
+        creator_id: null,
+        assignee_id: null,
+        description: null,
+        priority: null,
+        due_date: null,
+        estimate: null,
+        archived: false,
+        updated_at: null,
         isOptimistic: true,
       };
 

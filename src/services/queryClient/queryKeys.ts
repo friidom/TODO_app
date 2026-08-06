@@ -16,6 +16,16 @@ export const queryKeys = {
 
   columns: () => ["columns"] as const,
 
+  /** Every board the user can reach. Not board-scoped — it is the index. */
+  boards: () => ["boards"] as const,
+
+  /**
+   * One board's own row. Deliberately `["board", id]` rather than a child of
+   * `boards()`, per docs/API.md — invalidating the list must not throw away
+   * each board's detail entry, and the two are fetched independently.
+   */
+  board: (boardId: string | undefined) => ["board", boardId] as const,
+
   /** Prefix covering every profile entry; matches them all when invalidating. */
   profiles: () => PROFILE_ROOT,
 

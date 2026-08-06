@@ -39,8 +39,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      boards: {
+        Row: {
+          cover_color: string | null
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          owner_id: string
+          title: string | null
+          updated_at: string
+          visibility: string
+        }
+        Insert: {
+          cover_color?: string | null
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          owner_id: string
+          title?: string | null
+          updated_at?: string
+          visibility?: string
+        }
+        Update: {
+          cover_color?: string | null
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          owner_id?: string
+          title?: string | null
+          updated_at?: string
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "boards_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       columns: {
         Row: {
+          board_id: string | null
           category: string | null
           created_at: string
           id: string
@@ -48,9 +93,11 @@ export type Database = {
           min_limit: number | null
           position: number | null
           title: string | null
+          updated_at: string
           user_id: string | null
         }
         Insert: {
+          board_id?: string | null
           category?: string | null
           created_at?: string
           id?: string
@@ -58,9 +105,11 @@ export type Database = {
           min_limit?: number | null
           position?: number | null
           title?: string | null
+          updated_at?: string
           user_id?: string | null
         }
         Update: {
+          board_id?: string | null
           category?: string | null
           created_at?: string
           id?: string
@@ -68,6 +117,7 @@ export type Database = {
           min_limit?: number | null
           position?: number | null
           title?: string | null
+          updated_at?: string
           user_id?: string | null
         }
         Relationships: []
@@ -104,44 +154,85 @@ export type Database = {
       }
       todos: {
         Row: {
+          archived: boolean
+          assignee_id: string | null
+          board_id: string | null
           column_id: string | null
           completed: boolean | null
           created_at: string
+          creator_id: string | null
+          description: string | null
+          due_date: string | null
+          estimate: number | null
           id: number
           position: number | null
           previous_status: string | null
+          priority: string | null
           status: string | null
           title: string | null
+          updated_at: string | null
           user_id: string
         }
         Insert: {
+          archived?: boolean
+          assignee_id?: string | null
+          board_id?: string | null
           column_id?: string | null
           completed?: boolean | null
           created_at?: string
+          creator_id?: string | null
+          description?: string | null
+          due_date?: string | null
+          estimate?: number | null
           id?: number
           position?: number | null
           previous_status?: string | null
+          priority?: string | null
           status?: string | null
           title?: string | null
+          updated_at?: string | null
           user_id?: string
         }
         Update: {
+          archived?: boolean
+          assignee_id?: string | null
+          board_id?: string | null
           column_id?: string | null
           completed?: boolean | null
           created_at?: string
+          creator_id?: string | null
+          description?: string | null
+          due_date?: string | null
+          estimate?: number | null
           id?: number
           position?: number | null
           previous_status?: string | null
+          priority?: string | null
           status?: string | null
           title?: string | null
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "todos_assignee_id_fkey"
+            columns: ["assignee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "todos_column_id_fkey"
             columns: ["column_id"]
             isOneToOne: false
             referencedRelation: "columns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "todos_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
