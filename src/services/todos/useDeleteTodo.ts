@@ -1,5 +1,6 @@
 import { type ISupabaseTodo } from "../../types/data";
 import { deleteTodo } from "./todoApi";
+import { applyTodoDeleted } from "./cache";
 import { queryKeys } from "@/services/queryClient/queryKeys";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useBoardId } from "@/hooks/useBoardId";
@@ -27,7 +28,7 @@ export function useDeleteTodo() {
       //filtered todos
       queryClient.setQueryData<ISupabaseTodo[]>(
         queryKeys.todos(boardId),
-        (old = []) => old.filter((todo) => todo.id !== id),
+        (old = []) => applyTodoDeleted(old, id),
       );
 
       return { previousTodos };

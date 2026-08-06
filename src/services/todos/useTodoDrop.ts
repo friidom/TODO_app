@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { reorderTodos } from "@/services/todos/todoApi";
 import { queryKeys } from "@/services/queryClient/queryKeys";
 import type { ISupabaseTodo } from "@/types/data";
-import { applyTodoDrop } from "./applyTodoDrop";
+import { applyTodoMoved } from "./cache";
 import { useBoardId } from "@/hooks/useBoardId";
 
 export interface TodoDropVars {
@@ -33,7 +33,7 @@ export function useTodoDrop() {
     mutationFn: ({ todos, activeTodo, columnId, index }: TodoDropVars) => {
       if (!boardId) throw new Error("useTodoDrop ran without a board");
       return reorderTodos(
-        applyTodoDrop(todos, activeTodo, columnId, index),
+        applyTodoMoved(todos, activeTodo, columnId, index),
         boardId,
       );
     },
@@ -47,7 +47,7 @@ export function useTodoDrop() {
 
       queryClient.setQueryData<ISupabaseTodo[]>(
         queryKeys.todos(boardId),
-        applyTodoDrop(todos, activeTodo, columnId, index),
+        applyTodoMoved(todos, activeTodo, columnId, index),
       );
 
       return { previousTodos };
