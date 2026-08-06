@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run lint
+
+      # tsc -b is the only typecheck in this project; the dev server passing
+      # means nothing. It now covers *.test.ts too, so a test that drifts from
+      # its subject's types fails here. No Supabase credentials are needed —
+      # the env vars are inlined by Vite and their absence is a runtime throw,
+      # not a build error.
+      - run: npm run build
+
+      # One line rather than one per file: adding a test no longer means
+      # remembering to add it here.
+      - run: npm test

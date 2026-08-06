@@ -2,14 +2,15 @@ import { Fragment, useMemo, useState } from "react";
 
 import { DndContext } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
+import { useQueryClient } from "@tanstack/react-query";
 import { t } from "i18next";
 
 import useKanbanDnd from "@/hooks/useKanbanDnd";
 import useTodosByColumns from "@/hooks/useTodosByColumns";
 import { useReorderColumns } from "@/services/columns/useReorderColumns";
-import { queryClient } from "@/services/queryClient/queryClient";
-import { useTodos } from "@/services/lib/todos/useTodos";
-import { todoDrop } from "@/services/lib/todos/useTodoDrop";
+import { queryKeys } from "@/services/queryClient/queryKeys";
+import { useTodos } from "@/services/todos/useTodos";
+import { useTodoDrop } from "@/services/todos/useTodoDrop";
 
 import SortableColumn from "./SortableColumn";
 import ColumnDropZone from "./ColumnDropZone";
@@ -22,11 +23,15 @@ import CollapsedColumn from "../columns/CollapsedColumn";
 import Loading from "../pages/loading/LoadingPage";
 import type { IColumn } from "@/types/data";
 import { useDoneFlash } from "@/stores/doneFlash";
+import { byPosition } from "@/utils/position";
+import { titleKey } from "@/constants/columns";
 
 export default function KanbanBoard() {
   const { data: todos = [], isLoading, error } = useTodos();
   const { todosByColumn, columns } = useTodosByColumns();
   const reorderColumns = useReorderColumns();
+  const todoDrop = useTodoDrop();
+  const queryClient = useQueryClient();
 
   const {
     sensors,
@@ -43,14 +48,13 @@ export default function KanbanBoard() {
 
   const flashDone = useDoneFlash((state) => state.flash);
 
-  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
   const [createColumnOpen, setCreateColumnOpen] = useState(false);
   const [collapsed, setCollapsed] = useState<string[]>([]);
   const [limitColumn, setLimitColumn] = useState<IColumn | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<IColumn | null>(null);
 
   const orderedColumns = useMemo(
-    () => columns.slice().sort((a, b) => a.position - b.position),
+    () => columns.slice().sort(byPosition),
     [columns],
   );
 
@@ -60,7 +64,7 @@ export default function KanbanBoard() {
       (column, position) => ({ ...column, position }),
     );
 
-    queryClient.setQueryData(["columns"], reordered);
+    queryClient.setQueryData(queryKeys.columns(), reordered);
     reorderColumns.mutate(reordered);
   }
 
@@ -102,7 +106,7 @@ export default function KanbanBoard() {
         if (todo) setActiveTodo(todo);
       }}
       onDragOver={handleDragOver}
-      onDragEnd={async ({ active }) => {
+      onDragEnd={({ active }) => {
         // ---- column reorder ------------------------------------------------
         if (activeColumn) {
           const from = orderedColumns.findIndex((c) => c.id === active.id);
@@ -118,7 +122,7 @@ export default function KanbanBoard() {
                 (column, index) => ({ ...column, position: index }),
               );
 
-              queryClient.setQueryData(["columns"], reordered);
+              queryClient.setQueryData(queryKeys.columns(), reordered);
               reorderColumns.mutate(reordered);
             }
           }
@@ -134,8 +138,8 @@ export default function KanbanBoard() {
           );
 
           // Landing in a done column is worth celebrating; reordering inside
-          // one the card already sat in is not. Fired before the await so the
-          // ring rides the optimistic move instead of the network round-trip.
+          // one the card already sat in is not. Fired before the mutation so
+          // the ring rides the optimistic move, not the network round-trip.
           if (
             destination?.category === "done" &&
             destination.id !== activeTodo.column_id
@@ -143,7 +147,12 @@ export default function KanbanBoard() {
             flashDone(activeTodo.id);
           }
 
-          await todoDrop(todos, activeTodo, indicator);
+          todoDrop.mutate({
+            todos,
+            activeTodo,
+            columnId: indicator.columnId,
+            index: indicator.index,
+          });
         }
 
         resetDrag();
@@ -165,7 +174,7 @@ export default function KanbanBoard() {
                 {collapsed.includes(column.id) ? (
                   <CollapsedColumn
                     column={column}
-                    headerTitle={t(column.title)}
+                    headerTitle={t(titleKey(column.title))}
                     count={todosByColumn[column.id]?.length ?? 0}
                     onExpand={() => toggleCollapsed(column.id)}
                   />
@@ -173,9 +182,7 @@ export default function KanbanBoard() {
                   <SortableColumn
                     id={column.id}
                     column={column}
-                    openMenuId={openMenuId}
-                    setOpenMenuId={setOpenMenuId}
-                    headerTitle={t(column.title)}
+                    headerTitle={t(titleKey(column.title))}
                     todos={todosByColumn[column.id] ?? []}
                     indicator={indicator}
                     isDragSource={!!activeTodo && column.id === sourceId}
@@ -195,11 +202,11 @@ export default function KanbanBoard() {
                       sourceColumn && column.id === destinationId
                         ? {
                             from: {
-                              title: t(sourceColumn.title),
+                              title: t(titleKey(sourceColumn.title)),
                               category: sourceColumn.category,
                             },
                             to: {
-                              title: t(column.title),
+                              title: t(titleKey(column.title)),
                               category: column.category,
                             },
                           }

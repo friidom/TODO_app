@@ -4,10 +4,10 @@ import { Bug, Pencil, User } from "lucide-react";
 import { useDraggable } from "@dnd-kit/core";
 import { useEffect, useRef, useState } from "react";
 
-import { useUpdateTodo } from "../../services/lib/todos/useUpdateTodo";
+import { useUpdateTodo } from "@/services/todos/useUpdateTodo";
 import TodoMenu from "./TodoItem/TodoMenu";
 import LoadingSpinner from "../pages/loading/LoadingSpinner";
-import { cn } from "@/services/lib/utils";
+import { cn } from "@/utils/cn";
 import { useDoneFlash } from "@/stores/doneFlash";
 
 type CardProps = TodoItemProps & {
@@ -49,14 +49,13 @@ function TodoCard({
   dragging = false,
   setNodeRef,
   handleProps,
-  openMenu,
-  closeMenu,
-  menuOpen,
   ...todo
 }: CardProps) {
   //edit
   const [editing, setEditing] = useState(false);
-  const [title, setTitle] = useState(todo.title);
+  // `todos.title` is nullable in the schema; the edit field is always a string,
+  // so a null card title starts the input empty rather than as `null`.
+  const [title, setTitle] = useState(todo.title ?? "");
   const inputRef = useRef<HTMLInputElement>(null);
   const updateTodo = useUpdateTodo();
 
@@ -76,7 +75,7 @@ function TodoCard({
   // saving edit
   function saveTodo() {
     if (title.trim() === "") {
-      setTitle(todo.title);
+      setTitle(todo.title ?? "");
       setEditing(false);
       return;
     }
@@ -99,7 +98,7 @@ function TodoCard({
 
   //canceling edit
   function cancelEdit() {
-    setTitle(todo.title);
+    setTitle(todo.title ?? "");
     setEditing(false);
   }
 
@@ -152,7 +151,9 @@ function TodoCard({
               <Pencil size={15} />
             </button>
 
-            {!overlay && <TodoMenu todoId={todo.id} />}
+            {!overlay && (
+              <TodoMenu todoId={todo.id} columnId={todo.column_id} />
+            )}
           </div>
         )}
         {todo.isOptimistic && <LoadingSpinner size="md" />}

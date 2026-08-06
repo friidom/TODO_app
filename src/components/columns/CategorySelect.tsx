@@ -6,13 +6,13 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
-} from "@/components/ui/SideBarUI/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
 import {
   CATEGORY_OPTIONS,
   categoryOf,
   type ColumnCategory,
 } from "@/constants/columns";
-import { cn } from "@/services/lib/utils";
+import { cn } from "@/utils/cn";
 
 interface Props {
   value: ColumnCategory;

@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { useProfile } from "../../../services/lib/profile/useProfile";
+import { useProfile } from "@/services/profile/useProfile";
 
 export default function UserAvatar() {
   const { data: profile } = useProfile();

@@ -1,3 +1,100 @@
-import { QueryClient } from "@tanstack/react-query";
+import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 
-export const queryClient = new QueryClient();
+import { toast } from "@/stores/toasts";
+import { retryQuery } from "./retryPolicy";
+
+/**
+ * Opt-out from the global handlers below, per query or per mutation.
+ *
+ * A type alias rather than an interface on purpose: TanStack's `Register` only
+ * adopts a meta type that satisfies `Record<string, unknown>`, and an interface
+ * has no implicit index signature — declaring this as an interface would fall
+ * back to untyped meta without any error to say so.
+ */
+type ErrorMeta = {
+  /** Skip the global toast: this caller renders its own failure message. */
+  silent?: boolean;
+};
+
+declare module "@tanstack/react-query" {
+  interface Register {
+    mutationMeta: ErrorMeta;
+    queryMeta: ErrorMeta;
+  }
+}
+
+const FALLBACK_MESSAGE = "Something went wrong. Please try again.";
+
+/**
+ * Supabase throws PostgrestError, AuthError and StorageError, all of which
+ * extend Error. Anything else reaching here has no message worth showing.
+ */
+function messageOf(error: unknown): string {
+  if (error instanceof Error && error.message) return error.message;
+
+  if (typeof error === "object" && error !== null) {
+    const { message } = error as { message?: unknown };
+
+    if (typeof message === "string" && message) return message;
+  }
+
+  return FALLBACK_MESSAGE;
+}
+
+// Not one mutation surfaced a failure before this, so a rejected write and a
+// successful one looked identical — an RLS policy could deny every insert and
+// the only symptom would be cards that vanish on refresh. The mutation's own
+// onError still runs after this handler; `meta: { silent: true }` is how a
+// caller that reports failure itself avoids saying it twice.
+const mutationCache = new MutationCache({
+  onError: (error, _variables, _context, mutation) => {
+    if (mutation.meta?.silent) return;
+
+    toast.error(messageOf(error));
+  },
+});
+
+const queryCache = new QueryCache({
+  onError: (error, query) => {
+    if (query.meta?.silent) return;
+
+    // A first load that fails is already rendered by the component holding the
+    // query — KanbanBoard shows error.message. Toasting it too would say the
+    // same thing twice. A refetch that fails when data is already on screen is
+    // the silent case: the board keeps showing stale rows with no other signal.
+    if (query.state.data === undefined) return;
+
+    toast.error(messageOf(error));
+  },
+});
+
+export const queryClient = new QueryClient({
+  mutationCache,
+  queryCache,
+
+  defaultOptions: {
+    queries: {
+      // The board changes slowly and nothing pushes updates yet (realtime is
+      // M6), so a tab switch inside this window should cost nothing. Past it
+      // the focus refetch still runs — that is the staleness safety net, so it
+      // stays on.
+      staleTime: 30_000,
+
+      // Long enough to visit the profile page and come back to a warm board.
+      gcTime: 10 * 60_000,
+
+      retry: retryQuery,
+    },
+
+    mutations: {
+      // TanStack's default, stated rather than assumed: addTodo is not
+      // idempotent, so a retried create is a duplicate row.
+      retry: false,
+    },
+  },
+});
+
+// `@tanstack/query-persist-client` and `query-sync-storage-persister` are
+// installed but deliberately not wired up: ["todos"] is one global key, so a
+// persisted cache would hand the next user of this browser the previous user's
+// board. Revisit once M2 scopes the keys by board.
