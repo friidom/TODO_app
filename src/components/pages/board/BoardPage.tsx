@@ -46,10 +46,9 @@ function BoardView({ boardId }: { boardId: string }) {
       <div className="mx-auto mb-8 max-w-2xl">{board.title}</div>
 
       {/*
-        KanbanBoard still reads the global ["todos"] / ["columns"] keys, so
-        every board renders the same cards for now. M2-11 is what scopes those
-        queries by boardId; until it lands this route is correct about which
-        board it is, and wrong about what is on it.
+        KanbanBoard takes no boardId prop: the hooks beneath it read the route
+        param themselves, so the board it renders and the board in the URL
+        cannot disagree.
       */}
       <KanbanBoard />
     </Layout>

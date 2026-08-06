@@ -2,10 +2,18 @@ import { supabase } from "@/services/api/supabase";
 import type { IColumn } from "@/types/data";
 import type { ColumnCategory } from "@/constants/columns";
 
-export async function getColumns(): Promise<IColumn[]> {
+/**
+ * Every column on one board.
+ *
+ * This query previously had no filter at all — it asked for every column row
+ * in the database and relied entirely on RLS to cut it down. That worked only
+ * because one user owned everything they could see.
+ */
+export async function getColumns(boardId: string): Promise<IColumn[]> {
   const { data, error } = await supabase
     .from("columns")
     .select("*")
+    .eq("board_id", boardId)
     .order("position");
 
   if (error) throw error;
@@ -16,9 +24,11 @@ export async function getColumns(): Promise<IColumn[]> {
 export async function createColumn({
   title,
   category,
+  board_id,
 }: {
   title: string;
   category: ColumnCategory;
+  board_id: string;
 }) {
   const {
     data: { user },
@@ -26,10 +36,12 @@ export async function createColumn({
 
   if (!user) throw new Error("Not authenticated");
 
+  // Scoped to the board, not the user: with more than one board, the tail
+  // position of "everything this user owns" is the wrong number entirely.
   const { data: lastColumn } = await supabase
     .from("columns")
     .select("position")
-    .eq("user_id", user.id)
+    .eq("board_id", board_id)
     .order("position", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -41,6 +53,8 @@ export async function createColumn({
     .insert({
       title,
       category,
+      board_id,
+      // Still sent: user_id remains the ownership column until M2-13.
       user_id: user.id,
       position,
     })
@@ -52,10 +66,16 @@ export async function createColumn({
   return data;
 }
 //reorder columns
-export async function reorderColumns(columns: IColumn[]) {
+/**
+ * `board_id` is in the payload for the same reason as reorderTodos: an upsert
+ * is an INSERT for policy purposes, and a proposed row without board_id fails
+ * both M2-08's WITH CHECK and M2-07's NOT NULL.
+ */
+export async function reorderColumns(columns: IColumn[], boardId: string) {
   const updates = columns.map((column) => ({
     id: column.id,
     position: column.position,
+    board_id: boardId,
   }));
 
   const { error } = await supabase.from("columns").upsert(updates, {

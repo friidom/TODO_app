@@ -11,10 +11,18 @@
 const PROFILE_ROOT = ["profile"] as const;
 
 export const queryKeys = {
-  /** Every todo on the board as one flat array — not one entry per column. */
-  todos: () => ["todos"] as const,
+  /**
+   * Every todo on one board as a flat array — not one entry per column.
+   *
+   * `boardId` is a required argument even though it may be undefined. That is
+   * the point: making it required is what turned "find every place that reads
+   * the board" into a compiler error rather than a grep. Undefined is a real
+   * state — the route param before it resolves — and it keys an entry the
+   * matching query is disabled for, so it never fills.
+   */
+  todos: (boardId: string | undefined) => ["todos", boardId] as const,
 
-  columns: () => ["columns"] as const,
+  columns: (boardId: string | undefined) => ["columns", boardId] as const,
 
   /** Every board the user can reach. Not board-scoped — it is the index. */
   boards: () => ["boards"] as const,

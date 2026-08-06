@@ -95,6 +95,12 @@ export const queryClient = new QueryClient({
 });
 
 // `@tanstack/query-persist-client` and `query-sync-storage-persister` are
-// installed but deliberately not wired up: ["todos"] is one global key, so a
-// persisted cache would hand the next user of this browser the previous user's
-// board. Revisit once M2 scopes the keys by board.
+// installed but still deliberately not wired up.
+//
+// M2-11 scoped the keys by board, which was the condition this note was
+// waiting on — but it is not sufficient on its own. A board id is not a
+// secret, and nothing about ["todos", boardId] is scoped to the *user*, so a
+// persisted cache would still hand the next person to use this browser the
+// rows of whoever was signed in before. Wiring it up needs the persisted key
+// namespaced by user id, and a deliberate decision about what survives
+// sign-out — which is its own task, not a side effect of board scoping.

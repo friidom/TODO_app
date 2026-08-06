@@ -4,6 +4,7 @@ import { reorderTodos } from "@/services/todos/todoApi";
 import { queryKeys } from "@/services/queryClient/queryKeys";
 import type { ISupabaseTodo } from "@/types/data";
 import { applyTodoDrop } from "./applyTodoDrop";
+import { useBoardId } from "@/hooks/useBoardId";
 
 export interface TodoDropVars {
   /** The board as it stands before the drop. */
@@ -26,20 +27,26 @@ export interface TodoDropVars {
  */
 export function useTodoDrop() {
   const queryClient = useQueryClient();
+  const boardId = useBoardId();
 
   return useMutation({
-    mutationFn: ({ todos, activeTodo, columnId, index }: TodoDropVars) =>
-      reorderTodos(applyTodoDrop(todos, activeTodo, columnId, index)),
+    mutationFn: ({ todos, activeTodo, columnId, index }: TodoDropVars) => {
+      if (!boardId) throw new Error("useTodoDrop ran without a board");
+      return reorderTodos(
+        applyTodoDrop(todos, activeTodo, columnId, index),
+        boardId,
+      );
+    },
 
     onMutate: async ({ todos, activeTodo, columnId, index }) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.todos() });
+      await queryClient.cancelQueries({ queryKey: queryKeys.todos(boardId) });
 
       const previousTodos = queryClient.getQueryData<ISupabaseTodo[]>(
-        queryKeys.todos(),
+        queryKeys.todos(boardId),
       );
 
       queryClient.setQueryData<ISupabaseTodo[]>(
-        queryKeys.todos(),
+        queryKeys.todos(boardId),
         applyTodoDrop(todos, activeTodo, columnId, index),
       );
 
@@ -52,14 +59,20 @@ export function useTodoDrop() {
       if (!context) return;
 
       if (context.previousTodos) {
-        queryClient.setQueryData(queryKeys.todos(), context.previousTodos);
+        queryClient.setQueryData(
+          queryKeys.todos(boardId),
+          context.previousTodos,
+        );
         return;
       }
 
       // Nothing to restore: setQueryData(key, undefined) is a no-op, so the
       // optimistic order would survive the failure. Drop the entry and let
       // useTodos fetch the truth.
-      queryClient.removeQueries({ queryKey: queryKeys.todos(), exact: true });
+      queryClient.removeQueries({
+        queryKey: queryKeys.todos(boardId),
+        exact: true,
+      });
     },
   });
 }

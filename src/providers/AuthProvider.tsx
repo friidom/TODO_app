@@ -34,8 +34,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!mounted) return;
 
       // Every sign-out, not just the logout button: token expiry and a
-      // sign-out in another tab arrive here too, and ["todos"] is a global key
-      // that the next user would otherwise read as their own board.
+      // sign-out in another tab arrive here too. Keys are board-scoped now, so
+      // this is no longer about one global ["todos"] entry — but two users of
+      // the same browser can still be shown the same board id, and a cached
+      // entry under it would be the previous user's rows.
       if (event === "SIGNED_OUT") {
         queryClient.clear();
       }
