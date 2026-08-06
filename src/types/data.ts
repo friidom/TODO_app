@@ -24,6 +24,8 @@ export type ISupabaseProfile = Row<"profiles">;
 
 export type IColumn = Row<"columns">;
 
+export type IBoard = Row<"boards">;
+
 export interface TodoItemProps extends ISupabaseTodo {
   overlay?: boolean;
 }
