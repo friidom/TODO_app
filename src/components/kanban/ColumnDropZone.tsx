@@ -1,6 +1,6 @@
 import { useDroppable } from "@dnd-kit/core";
 
-import { cn } from "@/services/lib/utils";
+import { cn } from "@/utils/cn";
 
 interface Props {
   index: number;

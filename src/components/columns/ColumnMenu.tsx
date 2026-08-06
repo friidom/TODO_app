@@ -6,7 +6,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/SideBarUI/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
 
 interface Props {
   onSetLimit: () => void;
