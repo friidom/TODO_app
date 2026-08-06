@@ -1,13 +1,13 @@
 import { Fragment, useMemo, useState } from "react";
 
 import { DndContext } from "@dnd-kit/core";
-import { arrayMove } from "@dnd-kit/sortable";
 import { useQueryClient } from "@tanstack/react-query";
 import { t } from "i18next";
 
 import useKanbanDnd from "@/hooks/useKanbanDnd";
 import { useBoardId } from "@/hooks/useBoardId";
 import useTodosByColumns from "@/hooks/useTodosByColumns";
+import { applyColumnMoved } from "@/services/columns/cache";
 import { useReorderColumns } from "@/services/columns/useReorderColumns";
 import { queryKeys } from "@/services/queryClient/queryKeys";
 import { useTodos } from "@/services/todos/useTodos";
@@ -64,9 +64,7 @@ export default function KanbanBoard() {
 
   /** Swap a column with its neighbour and renumber the whole list. */
   function moveColumn(from: number, to: number) {
-    const reordered = arrayMove(orderedColumns, from, to).map(
-      (column, position) => ({ ...column, position }),
-    );
+    const reordered = applyColumnMoved(orderedColumns, from, to);
 
     queryClient.setQueryData(queryKeys.columns(boardId), reordered);
     reorderColumns.mutate(reordered);
@@ -122,9 +120,7 @@ export default function KanbanBoard() {
               from < columnIndicator ? columnIndicator - 1 : columnIndicator;
 
             if (to !== from) {
-              const reordered = arrayMove(orderedColumns, from, to).map(
-                (column, index) => ({ ...column, position: index }),
-              );
+              const reordered = applyColumnMoved(orderedColumns, from, to);
 
               queryClient.setQueryData(queryKeys.columns(boardId), reordered);
               reorderColumns.mutate(reordered);

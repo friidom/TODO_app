@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { addTodo, reorderTodos } from "./todoApi";
-import { insertDense } from "./insertDense";
+import { applyTodoConfirmed, applyTodoInserted } from "./cache";
 import { queryKeys } from "@/services/queryClient/queryKeys";
 import type { ISupabaseTodo } from "../../types/data";
 import { useBoardId } from "@/hooks/useBoardId";
@@ -65,16 +65,10 @@ export function useAddTodo() {
         isOptimistic: true,
       };
 
-      const renumbered = insertDense(
-        previousTodos.filter((todo) => todo.column_id === column_id),
-        optimisticTodo,
-        index,
+      queryClient.setQueryData<ISupabaseTodo[]>(
+        queryKeys.todos(boardId),
+        applyTodoInserted(previousTodos, optimisticTodo, index),
       );
-
-      queryClient.setQueryData<ISupabaseTodo[]>(queryKeys.todos(boardId), [
-        ...previousTodos.filter((todo) => todo.column_id !== column_id),
-        ...renumbered,
-      ]);
 
       //context
       return {
@@ -93,18 +87,18 @@ export function useAddTodo() {
       const current =
         queryClient.getQueryData<ISupabaseTodo[]>(queryKeys.todos(boardId)) ?? [];
 
-      //keep the slot we picked; the server just appended
-      const position =
-        current.find((todo) => todo.id === context?.optimisticId)?.position ??
-        serverTodo.position;
-
-      const todos = current.map((todo) =>
-        todo.id === context?.optimisticId
-          ? { ...serverTodo, position, isOptimistic: false }
-          : todo,
+      const todos = applyTodoConfirmed(
+        current,
+        context?.optimisticId,
+        serverTodo,
       );
 
       queryClient.setQueryData<ISupabaseTodo[]>(queryKeys.todos(boardId), todos);
+
+      //the slot we kept; the server just appended
+      const position =
+        todos.find((todo) => todo.id === serverTodo.id)?.position ??
+        serverTodo.position;
 
       if (position === serverTodo.position) return;
 

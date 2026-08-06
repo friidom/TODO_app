@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { deleteColumn } from "./columnsApi";
+import { applyColumnDeleted } from "./cache";
 import type { IColumn } from "@/types/data";
-import { byPosition } from "@/utils/position";
 import { queryKeys } from "@/services/queryClient/queryKeys";
 import { useBoardId } from "@/hooks/useBoardId";
 
@@ -16,11 +16,7 @@ export function useDeleteColumn() {
       // Drop the column and close the gap its position left behind.
       queryClient.setQueryData<IColumn[]>(
         queryKeys.columns(boardId),
-        (old = []) =>
-          old
-            .filter((column) => column.id !== id)
-            .sort(byPosition)
-            .map((column, position) => ({ ...column, position })),
+        (old = []) => applyColumnDeleted(old, id),
       );
 
       // The todos moved server-side, so refetch rather than guess their order.

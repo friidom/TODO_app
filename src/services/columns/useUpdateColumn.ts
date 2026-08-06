@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { updateColumn } from "./columnsApi";
+import { applyColumnUpdated } from "./cache";
 import type { IColumn } from "@/types/data";
 import { queryKeys } from "@/services/queryClient/queryKeys";
 import { useBoardId } from "@/hooks/useBoardId";
@@ -19,10 +20,7 @@ export function useUpdateColumn() {
 
       queryClient.setQueryData<IColumn[]>(
         queryKeys.columns(boardId),
-        (old = []) =>
-          old.map((column) =>
-            column.id === id ? { ...column, ...patch } : column,
-          ),
+        (old = []) => applyColumnUpdated(old, { id, ...patch }),
       );
 
       return { previous };

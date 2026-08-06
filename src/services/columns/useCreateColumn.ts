@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createColumn } from "./columnsApi";
+import { applyColumnInserted } from "./cache";
 import type { IColumn } from "@/types/data";
 import type { ColumnCategory } from "@/constants/columns";
 import { queryKeys } from "@/services/queryClient/queryKeys";
@@ -20,7 +21,7 @@ export function useCreateColumn() {
     onSuccess: (newColumn) => {
       queryClient.setQueryData<IColumn[]>(
         queryKeys.columns(boardId),
-        (old = []) => [...old, newColumn],
+        (old = []) => applyColumnInserted(old, newColumn),
       );
     },
   });
