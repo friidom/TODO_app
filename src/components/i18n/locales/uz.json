@@ -1,10 +1,11 @@
 {
   "title": "VAZIFALAR",
   "createTodo": "Yangi vazifa...",
-  "todo": "Bajarilishi kerak",
-  "in_progress": "Jarayonda",
-  "completed": "Bajarilgan",
-  "rejected": "Rad etilgan",
+  "columnCategory": {
+    "todo": "Bajarilishi kerak",
+    "in_progress": "Jarayonda",
+    "done": "Bajarilgan"
+  },
   "clearCompleted": "Bajarilganlarni tozalash",
   "loading": "Yuklanmoqda..."
 }
