@@ -1,16 +1,13 @@
 import { Fragment, useMemo, useState } from "react";
 
 import { DndContext } from "@dnd-kit/core";
-import { useQueryClient } from "@tanstack/react-query";
 import { t } from "i18next";
 
 import useKanbanDnd from "@/hooks/useKanbanDnd";
 import { useBoardDragEnd } from "@/hooks/useBoardDragEnd";
-import { useBoardId } from "@/hooks/useBoardId";
+import { useBoardModals } from "@/hooks/useBoardModals";
+import { useColumnReorder } from "@/hooks/useColumnReorder";
 import useTodosByColumns from "@/hooks/useTodosByColumns";
-import { applyColumnMoved } from "@/services/columns/cache";
-import { useReorderColumns } from "@/services/columns/useReorderColumns";
-import { queryKeys } from "@/services/queryClient/queryKeys";
 import { useTodos } from "@/services/todos/useTodos";
 
 import SortableColumn from "./SortableColumn";
@@ -22,18 +19,12 @@ import ColumnLimitModal from "../columns/ColumnLimitModal";
 import DeleteColumnModal from "../columns/DeleteColumnModal";
 import CollapsedColumn from "../columns/CollapsedColumn";
 import Loading from "../pages/loading/LoadingPage";
-import type { IColumn } from "@/types/data";
 import { byPosition } from "@/utils/position";
 import { titleKey } from "@/constants/columns";
 
 export default function KanbanBoard() {
   const { data: todos = [], isLoading, error } = useTodos();
   const { todosByColumn, columns } = useTodosByColumns();
-  const reorderColumns = useReorderColumns();
-  const queryClient = useQueryClient();
-  // Both column-reorder paths write the cache directly before handing off to
-  // the mutation, so this component needs the board the same way the hooks do.
-  const boardId = useBoardId();
 
   const {
     sensors,
@@ -48,23 +39,27 @@ export default function KanbanBoard() {
     resetDrag,
   } = useKanbanDnd();
 
-  const [createColumnOpen, setCreateColumnOpen] = useState(false);
+  /** Client-only view state: which columns are folded away. Never persisted. */
   const [collapsed, setCollapsed] = useState<string[]>([]);
-  const [limitColumn, setLimitColumn] = useState<IColumn | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<IColumn | null>(null);
+
+  const {
+    createColumnOpen,
+    setCreateColumnOpen,
+    closeCreateColumn,
+    limitColumn,
+    openLimitModal,
+    closeLimitModal,
+    deleteTarget,
+    openDeleteModal,
+    closeDeleteModal,
+  } = useBoardModals();
 
   const orderedColumns = useMemo(
     () => columns.slice().sort(byPosition),
     [columns],
   );
 
-  /** Swap a column with its neighbour and renumber the whole list. */
-  function moveColumn(from: number, to: number) {
-    const reordered = applyColumnMoved(orderedColumns, from, to);
-
-    queryClient.setQueryData(queryKeys.columns(boardId), reordered);
-    reorderColumns.mutate(reordered);
-  }
+  const { moveColumn } = useColumnReorder(orderedColumns);
 
   const { onDragEnd, sourceId, destinationId, sourceColumn } = useBoardDragEnd({
     todos,
@@ -135,8 +130,8 @@ export default function KanbanBoard() {
                     indicator={indicator}
                     isDragSource={!!activeTodo && column.id === sourceId}
                     onCollapse={() => toggleCollapsed(column.id)}
-                    onSetLimit={() => setLimitColumn(column)}
-                    onDelete={() => setDeleteTarget(column)}
+                    onSetLimit={() => openLimitModal(column)}
+                    onDelete={() => openDeleteModal(column)}
                     onMoveLeft={
                       index > 0 ? () => moveColumn(index, index - 1) : undefined
                     }
@@ -178,22 +173,16 @@ export default function KanbanBoard() {
         </div>
       </div>
 
-      <CreateColumnModal
-        open={createColumnOpen}
-        onClose={() => setCreateColumnOpen(false)}
-      />
+      <CreateColumnModal open={createColumnOpen} onClose={closeCreateColumn} />
 
-      <ColumnLimitModal
-        column={limitColumn}
-        onClose={() => setLimitColumn(null)}
-      />
+      <ColumnLimitModal column={limitColumn} onClose={closeLimitModal} />
 
       <DeleteColumnModal
         column={deleteTarget}
         destinations={orderedColumns.filter(
           (column) => column.id !== deleteTarget?.id,
         )}
-        onClose={() => setDeleteTarget(null)}
+        onClose={closeDeleteModal}
       />
 
       <TodoDragOverlay
