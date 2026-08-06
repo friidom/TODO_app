@@ -1,4 +1,5 @@
 import { ChevronDown } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import {
   DropdownMenu,
@@ -9,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   CATEGORY_OPTIONS,
+  categoryLabelKey,
   categoryOf,
   type ColumnCategory,
 } from "@/constants/columns";
@@ -19,8 +21,16 @@ interface Props {
   onChange: (value: ColumnCategory) => void;
 }
 
-/** Swatch + label picker for a column's status category. */
+/**
+ * Swatch + label picker for a column's status category.
+ *
+ * `useTranslation` rather than i18next's bare `t`, so switching language
+ * re-renders the label instead of leaving the previous one until something
+ * else happens to re-render this.
+ */
 export default function CategorySelect({ value, onChange }: Props) {
+  const { t } = useTranslation();
+
   const selected = categoryOf(value);
 
   return (
@@ -31,7 +41,7 @@ export default function CategorySelect({ value, onChange }: Props) {
       >
         <span className={cn("size-4 shrink-0 rounded-sm", selected.swatch)} />
 
-        <span className="truncate">{selected.label}</span>
+        <span className="truncate">{t(categoryLabelKey(value))}</span>
 
         <ChevronDown size={16} className="ml-auto shrink-0 opacity-60" />
       </DropdownMenuTrigger>
@@ -47,7 +57,7 @@ export default function CategorySelect({ value, onChange }: Props) {
                 className={cn("size-4 shrink-0 rounded-sm", option.swatch)}
               />
 
-              {option.label}
+              {t(categoryLabelKey(option.value))}
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>

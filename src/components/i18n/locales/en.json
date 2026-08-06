@@ -1,10 +1,11 @@
 {
   "title": "TODO",
   "createTodo": "Create a new todo...",
-  "todo": "Todo",
-  "in_progress": "In Progress",
-  "completed": "Completed",
-  "rejected": "Rejected",
+  "columnCategory": {
+    "todo": "To do",
+    "in_progress": "In progress",
+    "done": "Done"
+  },
   "clearCompleted": "Clear completed",
   "loading": "Loading..."
 }

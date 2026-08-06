@@ -1,7 +1,6 @@
 import { Fragment, useMemo, useState } from "react";
 
 import { DndContext } from "@dnd-kit/core";
-import { t } from "i18next";
 
 import useKanbanDnd from "@/hooks/useKanbanDnd";
 import { useBoardDragEnd } from "@/hooks/useBoardDragEnd";
@@ -20,7 +19,7 @@ import DeleteColumnModal from "../columns/DeleteColumnModal";
 import CollapsedColumn from "../columns/CollapsedColumn";
 import Loading from "../loading/LoadingPage";
 import { byPosition } from "@/utils/position";
-import { titleKey } from "@/constants/columns";
+import { columnTitle } from "@/constants/columns";
 
 export default function KanbanBoard() {
   const { data: todos = [], isLoading, error } = useTodos();
@@ -117,7 +116,7 @@ export default function KanbanBoard() {
                 {collapsed.includes(column.id) ? (
                   <CollapsedColumn
                     column={column}
-                    headerTitle={t(titleKey(column.title))}
+                    headerTitle={columnTitle(column.title)}
                     count={todosByColumn[column.id]?.length ?? 0}
                     onExpand={() => toggleCollapsed(column.id)}
                   />
@@ -125,7 +124,7 @@ export default function KanbanBoard() {
                   <SortableColumn
                     id={column.id}
                     column={column}
-                    headerTitle={t(titleKey(column.title))}
+                    headerTitle={columnTitle(column.title)}
                     todos={todosByColumn[column.id] ?? []}
                     indicator={indicator}
                     isDragSource={!!activeTodo && column.id === sourceId}
@@ -145,11 +144,11 @@ export default function KanbanBoard() {
                       sourceColumn && column.id === destinationId
                         ? {
                             from: {
-                              title: t(titleKey(sourceColumn.title)),
+                              title: columnTitle(sourceColumn.title),
                               category: sourceColumn.category,
                             },
                             to: {
-                              title: t(titleKey(column.title)),
+                              title: columnTitle(column.title),
                               category: column.category,
                             },
                           }

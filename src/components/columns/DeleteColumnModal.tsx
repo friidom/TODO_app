@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { ArrowRight, ChevronDown, X } from "lucide-react";
-import { t } from "i18next";
 
 import {
   DropdownMenu,
@@ -10,10 +9,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useDeleteColumn } from "@/services/columns/useDeleteColumn";
-import { categoryOf } from "@/constants/columns";
+import { categoryOf, columnTitle } from "@/constants/columns";
 import { cn } from "@/utils/cn";
 import type { IColumn } from "@/types/data";
-import { titleKey } from "@/constants/columns";
 
 const PILL =
   "truncate rounded px-1.5 py-0.5 text-xs font-bold tracking-wide uppercase";
@@ -80,7 +78,7 @@ function DeleteColumnDialog({
         <div className="mb-5 flex items-start justify-between gap-4">
           <h2 className="flex items-center gap-4 text-2xl font-bold text-[#172b4d]">
             <DangerDiamond />
-            Move work from {t(titleKey(column.title))} column
+            Move work from {columnTitle(column.title)} column
           </h2>
 
           <button
@@ -94,7 +92,7 @@ function DeleteColumnDialog({
         </div>
 
         <p className="mb-8 text-[15px] text-[#44546f]">
-          Select a new home for any work with the &quot;{t(titleKey(column.title))}&quot;
+          Select a new home for any work with the &quot;{columnTitle(column.title)}&quot;
           status.
         </p>
 
@@ -116,7 +114,7 @@ function DeleteColumnDialog({
               categoryOf(column.category).pill,
             )}
           >
-            {t(titleKey(column.title))}
+            {columnTitle(column.title)}
           </span>
 
           <ArrowRight className="shrink-0 text-[#172b4d]" size={22} />
@@ -124,7 +122,7 @@ function DeleteColumnDialog({
           <DropdownMenu>
             <DropdownMenuTrigger className="flex w-full items-center gap-2 rounded-md border border-[#8590a2] bg-transparent px-3 py-3.5 text-left outline-none focus-visible:border-blue-600 focus-visible:ring-1 focus-visible:ring-blue-600 data-[popup-open]:border-blue-600 data-[popup-open]:ring-1 data-[popup-open]:ring-blue-600">
               <span className={cn(PILL, categoryOf(selected.category).pill)}>
-                {t(titleKey(selected.title))}
+                {columnTitle(selected.title)}
               </span>
 
               <ChevronDown
@@ -140,7 +138,7 @@ function DeleteColumnDialog({
                     <span
                       className={cn(PILL, categoryOf(option.category).pill)}
                     >
-                      {t(titleKey(option.title))}
+                      {columnTitle(option.title)}
                     </span>
                   </DropdownMenuRadioItem>
                 ))}

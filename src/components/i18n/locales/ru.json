@@ -1,10 +1,11 @@
 {
   "title": "ЗАДАЧИ",
   "createTodo": "Создать новую задачу...",
-  "todo": "Нужно сделать",
-  "in_progress": "В процессе",
-  "completed": "Выполнено",
-  "rejected": "Отклонено",
+  "columnCategory": {
+    "todo": "Нужно сделать",
+    "in_progress": "В процессе",
+    "done": "Выполнено"
+  },
   "clearCompleted": "Очистить выполненные",
   "loading": "Загрузка..."
 }

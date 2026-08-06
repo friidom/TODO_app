@@ -11,17 +11,14 @@
  */
 export const COLUMN_CATEGORIES = {
   todo: {
-    label: "To do",
     swatch: "bg-[#dcdfe4]",
     pill: "bg-[#dcdfe4] text-[#172b4d]",
   },
   in_progress: {
-    label: "In progress",
     swatch: "bg-[#cfe1fd]",
     pill: "bg-[#cfe1fd] text-[#172b4d]",
   },
   done: {
-    label: "Done",
     swatch: "bg-[#b3df72]",
     pill: "bg-[#b3df72] text-[#172b4d]",
   },
@@ -36,12 +33,27 @@ export const CATEGORY_OPTIONS = Object.entries(COLUMN_CATEGORIES).map(
 export const DEFAULT_CATEGORY: ColumnCategory = "todo";
 
 /**
- * Column titles double as i18n keys, but `columns.title` is nullable in the
- * schema. `t()` requires a string, so a null title becomes the empty key —
- * which is what it already resolved to at runtime.
+ * A column's title, as the user wrote it. Nullable in the schema, so a null
+ * renders as nothing.
+ *
+ * This is deliberately *not* run through `t()`. Titles used to be i18n keys,
+ * which meant a user who renamed a column to "todo" had it silently rendered
+ * as whatever the locale mapped that word to, and the seeded English titles
+ * never matched a key at all — they resolved to themselves, so ru and uz users
+ * read English and it looked correct only by accident. Only `category`, a
+ * fixed set the user picks from and cannot invent, is translatable.
  */
-export function titleKey(title?: string | null): string {
+export function columnTitle(title?: string | null): string {
   return title ?? "";
+}
+
+/**
+ * i18n key for a category's label. The labels themselves live in the locale
+ * files rather than here, so there is one copy of each rather than an English
+ * one in this module and a translated one beside it.
+ */
+export function categoryLabelKey(category: ColumnCategory): string {
+  return `columnCategory.${category}`;
 }
 
 /** Falls back to `todo` so rows written before the migration still render. */
