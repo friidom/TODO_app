@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { t } from "i18next";
 
 import useKanbanDnd from "@/hooks/useKanbanDnd";
+import { useBoardId } from "@/hooks/useBoardId";
 import useTodosByColumns from "@/hooks/useTodosByColumns";
 import { useReorderColumns } from "@/services/columns/useReorderColumns";
 import { queryKeys } from "@/services/queryClient/queryKeys";
@@ -32,6 +33,9 @@ export default function KanbanBoard() {
   const reorderColumns = useReorderColumns();
   const todoDrop = useTodoDrop();
   const queryClient = useQueryClient();
+  // Both column-reorder paths write the cache directly before handing off to
+  // the mutation, so this component needs the board the same way the hooks do.
+  const boardId = useBoardId();
 
   const {
     sensors,
@@ -64,7 +68,7 @@ export default function KanbanBoard() {
       (column, position) => ({ ...column, position }),
     );
 
-    queryClient.setQueryData(queryKeys.columns(), reordered);
+    queryClient.setQueryData(queryKeys.columns(boardId), reordered);
     reorderColumns.mutate(reordered);
   }
 
@@ -122,7 +126,7 @@ export default function KanbanBoard() {
                 (column, index) => ({ ...column, position: index }),
               );
 
-              queryClient.setQueryData(queryKeys.columns(), reordered);
+              queryClient.setQueryData(queryKeys.columns(boardId), reordered);
               reorderColumns.mutate(reordered);
             }
           }

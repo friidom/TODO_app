@@ -2,9 +2,11 @@ import { type ISupabaseTodo } from "../../types/data";
 import { deleteTodo } from "./todoApi";
 import { queryKeys } from "@/services/queryClient/queryKeys";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useBoardId } from "@/hooks/useBoardId";
 
 export function useDeleteTodo() {
   const queryClient = useQueryClient();
+  const boardId = useBoardId();
 
   //? Optimistic Update
 
@@ -15,28 +17,33 @@ export function useDeleteTodo() {
     onMutate: async (id) => {
       //stop all quaries
       await queryClient.cancelQueries({
-        queryKey: queryKeys.todos(),
+        queryKey: queryKeys.todos(boardId),
       });
 
       const previousTodos =
-        queryClient.getQueryData<ISupabaseTodo[]>(queryKeys.todos()) ?? [];
+        queryClient.getQueryData<ISupabaseTodo[]>(queryKeys.todos(boardId)) ??
+        [];
 
       //filtered todos
-      queryClient.setQueryData<ISupabaseTodo[]>(queryKeys.todos(), (old = []) =>
-        old.filter((todo) => todo.id !== id),
+      queryClient.setQueryData<ISupabaseTodo[]>(
+        queryKeys.todos(boardId),
+        (old = []) => old.filter((todo) => todo.id !== id),
       );
 
       return { previousTodos };
     },
     onError: (_err, _id, context) => {
       if (context?.previousTodos) {
-        queryClient.setQueryData(queryKeys.todos(), context.previousTodos);
+        queryClient.setQueryData(
+          queryKeys.todos(boardId),
+          context.previousTodos,
+        );
       }
     },
 
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.todos(),
+        queryKey: queryKeys.todos(boardId),
       });
     },
   });

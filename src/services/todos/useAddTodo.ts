@@ -3,6 +3,7 @@ import { addTodo, reorderTodos } from "./todoApi";
 import { insertDense } from "./insertDense";
 import { queryKeys } from "@/services/queryClient/queryKeys";
 import type { ISupabaseTodo } from "../../types/data";
+import { useBoardId } from "@/hooks/useBoardId";
 
 interface AddTodoVars {
   title: string;
@@ -13,10 +14,13 @@ interface AddTodoVars {
 
 export function useAddTodo() {
   const queryClient = useQueryClient();
+  const boardId = useBoardId();
 
   return useMutation({
-    mutationFn: ({ title, column_id }: AddTodoVars) =>
-      addTodo({ title, column_id }),
+    mutationFn: ({ title, column_id }: AddTodoVars) => {
+      if (!boardId) throw new Error("useAddTodo ran without a board");
+      return addTodo({ title, column_id, board_id: boardId });
+    },
 
     //!? Optimistic update
 
@@ -24,12 +28,12 @@ export function useAddTodo() {
       //before request
       //stop all queries
       await queryClient.cancelQueries({
-        queryKey: queryKeys.todos(),
+        queryKey: queryKeys.todos(boardId),
       });
 
       //previous Todos
       const previousTodos =
-        queryClient.getQueryData<ISupabaseTodo[]>(queryKeys.todos()) ?? [];
+        queryClient.getQueryData<ISupabaseTodo[]>(queryKeys.todos(boardId)) ?? [];
 
       //temp todo
       const optimisticTodo: ISupabaseTodo = {
@@ -46,10 +50,10 @@ export function useAddTodo() {
         previous_status: null,
         // Added by M2-02 and M2-03. Mirrors what the server produces for a
         // fresh insert: `archived` has a false default, the rest have none.
-        // board_id stays null because no write path sends it yet — M2-11 is
-        // where this becomes the real board, and where a null here would
-        // start being wrong.
-        board_id: null,
+        // onMutate runs before mutationFn, so this can genuinely be undefined
+        // for the one render where the route param has not resolved. null is
+        // the honest value; mutationFn then throws before anything is sent.
+        board_id: boardId ?? null,
         creator_id: null,
         assignee_id: null,
         description: null,
@@ -67,7 +71,7 @@ export function useAddTodo() {
         index,
       );
 
-      queryClient.setQueryData<ISupabaseTodo[]>(queryKeys.todos(), [
+      queryClient.setQueryData<ISupabaseTodo[]>(queryKeys.todos(boardId), [
         ...previousTodos.filter((todo) => todo.column_id !== column_id),
         ...renumbered,
       ]);
@@ -81,13 +85,13 @@ export function useAddTodo() {
 
     //error
     onError: (_err, _variables, context) => {
-      queryClient.setQueryData(queryKeys.todos(), context?.previousTodos);
+      queryClient.setQueryData(queryKeys.todos(boardId), context?.previousTodos);
     },
 
     //success
     onSuccess: (serverTodo, _variables, context) => {
       const current =
-        queryClient.getQueryData<ISupabaseTodo[]>(queryKeys.todos()) ?? [];
+        queryClient.getQueryData<ISupabaseTodo[]>(queryKeys.todos(boardId)) ?? [];
 
       //keep the slot we picked; the server just appended
       const position =
@@ -100,9 +104,14 @@ export function useAddTodo() {
           : todo,
       );
 
-      queryClient.setQueryData<ISupabaseTodo[]>(queryKeys.todos(), todos);
+      queryClient.setQueryData<ISupabaseTodo[]>(queryKeys.todos(boardId), todos);
 
       if (position === serverTodo.position) return;
+
+      // Unreachable without a board — mutationFn would have thrown before
+      // this ran — but the compiler cannot see that, and a non-null assertion
+      // is not allowed here.
+      if (!boardId) return;
 
       // Inserted mid-column, so every card below it shifted — write that back.
       // ponytail: still-pending inserts are skipped (upserting their fake ids
@@ -112,8 +121,9 @@ export function useAddTodo() {
           (todo) =>
             todo.column_id === serverTodo.column_id && !todo.isOptimistic,
         ),
+        boardId,
       ).catch(() =>
-        queryClient.invalidateQueries({ queryKey: queryKeys.todos() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.todos(boardId) }),
       );
     },
   });
