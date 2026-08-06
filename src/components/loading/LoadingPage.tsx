@@ -1,4 +1,4 @@
-import LiquidLoading from "../../ui/LiquidLoading";
+import LiquidLoading from "../ui/LiquidLoading";
 
 export default function Loading() {
   return (

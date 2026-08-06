@@ -18,7 +18,7 @@ import CreateColumnModal from "../columns/CreateColumnModal";
 import ColumnLimitModal from "../columns/ColumnLimitModal";
 import DeleteColumnModal from "../columns/DeleteColumnModal";
 import CollapsedColumn from "../columns/CollapsedColumn";
-import Loading from "../pages/loading/LoadingPage";
+import Loading from "../loading/LoadingPage";
 import { byPosition } from "@/utils/position";
 import { titleKey } from "@/constants/columns";
 
