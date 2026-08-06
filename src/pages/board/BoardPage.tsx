@@ -1,7 +1,7 @@
 import Layout from "@/components/layout/Layout";
 import KanbanBoard from "@/components/kanban/KanbanBoard";
-import NotFoundPage from "@/components/pages/error/NotFoundPage";
-import Loading from "@/components/pages/loading/LoadingPage";
+import NotFoundPage from "@/pages/error/NotFoundPage";
+import Loading from "@/components/loading/LoadingPage";
 import { useBoard } from "@/services/boards/useBoard";
 import { useBoardId } from "@/hooks/useBoardId";
 import { isUuid } from "@/utils/uuid";

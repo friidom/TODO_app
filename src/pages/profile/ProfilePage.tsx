@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useProfile } from "@/services/profile/useProfile";
 import useUpdateProfile from "@/services/profile/useUpdateProfile";
-import type { ISupabaseProfile } from "../../../types/data";
-import Loading from "../loading/LoadingPage";
+import type { ISupabaseProfile } from "@/types/data";
+import Loading from "@/components/loading/LoadingPage";
 import { useNavigate } from "react-router";
 import { useLogout } from "@/services/auth/useLogout";
 import { ArrowLeft, Loader2, LogOut } from "lucide-react";

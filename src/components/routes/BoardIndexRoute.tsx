@@ -1,5 +1,5 @@
 import { Navigate } from "react-router";
-import Loading from "../pages/loading/LoadingPage";
+import Loading from "../loading/LoadingPage";
 import { useBoards } from "@/services/boards/useBoards";
 
 /**

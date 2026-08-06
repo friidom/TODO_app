@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { useUpdateTodo } from "@/services/todos/useUpdateTodo";
 import TodoMenu from "./TodoItem/TodoMenu";
-import LoadingSpinner from "../pages/loading/LoadingSpinner";
+import LoadingSpinner from "../loading/LoadingSpinner";
 import { cn } from "@/utils/cn";
 import { useDoneFlash } from "@/stores/doneFlash";
 
