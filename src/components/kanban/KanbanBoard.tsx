@@ -5,13 +5,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import { t } from "i18next";
 
 import useKanbanDnd from "@/hooks/useKanbanDnd";
+import { useBoardDragEnd } from "@/hooks/useBoardDragEnd";
 import { useBoardId } from "@/hooks/useBoardId";
 import useTodosByColumns from "@/hooks/useTodosByColumns";
 import { applyColumnMoved } from "@/services/columns/cache";
 import { useReorderColumns } from "@/services/columns/useReorderColumns";
 import { queryKeys } from "@/services/queryClient/queryKeys";
 import { useTodos } from "@/services/todos/useTodos";
-import { useTodoDrop } from "@/services/todos/useTodoDrop";
 
 import SortableColumn from "./SortableColumn";
 import ColumnDropZone from "./ColumnDropZone";
@@ -23,7 +23,6 @@ import DeleteColumnModal from "../columns/DeleteColumnModal";
 import CollapsedColumn from "../columns/CollapsedColumn";
 import Loading from "../pages/loading/LoadingPage";
 import type { IColumn } from "@/types/data";
-import { useDoneFlash } from "@/stores/doneFlash";
 import { byPosition } from "@/utils/position";
 import { titleKey } from "@/constants/columns";
 
@@ -31,7 +30,6 @@ export default function KanbanBoard() {
   const { data: todos = [], isLoading, error } = useTodos();
   const { todosByColumn, columns } = useTodosByColumns();
   const reorderColumns = useReorderColumns();
-  const todoDrop = useTodoDrop();
   const queryClient = useQueryClient();
   // Both column-reorder paths write the cache directly before handing off to
   // the mutation, so this component needs the board the same way the hooks do.
@@ -49,8 +47,6 @@ export default function KanbanBoard() {
     columnIndicator,
     resetDrag,
   } = useKanbanDnd();
-
-  const flashDone = useDoneFlash((state) => state.flash);
 
   const [createColumnOpen, setCreateColumnOpen] = useState(false);
   const [collapsed, setCollapsed] = useState<string[]>([]);
@@ -70,22 +66,22 @@ export default function KanbanBoard() {
     reorderColumns.mutate(reordered);
   }
 
+  const { onDragEnd, sourceId, destinationId, sourceColumn } = useBoardDragEnd({
+    todos,
+    orderedColumns,
+    activeTodo,
+    activeColumn,
+    indicator,
+    columnIndicator,
+    resetDrag,
+    moveColumn,
+  });
+
   function toggleCollapsed(id: string) {
     setCollapsed((open) =>
       open.includes(id) ? open.filter((it) => it !== id) : [...open, id],
     );
   }
-
-  // A card on its way to another column: the destination gets highlighted and
-  // both headers swap to the transition state. Same-column drags are just
-  // reordering, so they stay quiet.
-  const sourceId = activeTodo?.column_id ?? null;
-  const destinationId = activeTodo ? indicator.columnId : null;
-  const crossColumn = !!destinationId && destinationId !== sourceId;
-
-  const sourceColumn = crossColumn
-    ? orderedColumns.find((column) => column.id === sourceId)
-    : undefined;
 
   if (isLoading) return <Loading />;
 
@@ -108,55 +104,7 @@ export default function KanbanBoard() {
         if (todo) setActiveTodo(todo);
       }}
       onDragOver={handleDragOver}
-      onDragEnd={({ active }) => {
-        // ---- column reorder ------------------------------------------------
-        if (activeColumn) {
-          const from = orderedColumns.findIndex((c) => c.id === active.id);
-
-          if (from !== -1 && columnIndicator !== null) {
-            // The gap index counts the dragged column itself while it sits to
-            // the left of the target, so shift by one.
-            const to =
-              from < columnIndicator ? columnIndicator - 1 : columnIndicator;
-
-            if (to !== from) {
-              const reordered = applyColumnMoved(orderedColumns, from, to);
-
-              queryClient.setQueryData(queryKeys.columns(boardId), reordered);
-              reorderColumns.mutate(reordered);
-            }
-          }
-
-          resetDrag();
-          return;
-        }
-
-        // ---- todo drop -----------------------------------------------------
-        if (activeTodo && indicator.columnId) {
-          const destination = orderedColumns.find(
-            (c) => c.id === indicator.columnId,
-          );
-
-          // Landing in a done column is worth celebrating; reordering inside
-          // one the card already sat in is not. Fired before the mutation so
-          // the ring rides the optimistic move, not the network round-trip.
-          if (
-            destination?.category === "done" &&
-            destination.id !== activeTodo.column_id
-          ) {
-            flashDone(activeTodo.id);
-          }
-
-          todoDrop.mutate({
-            todos,
-            activeTodo,
-            columnId: indicator.columnId,
-            index: indicator.index,
-          });
-        }
-
-        resetDrag();
-      }}
+      onDragEnd={onDragEnd}
       onDragCancel={resetDrag}
     >
       <div className="h-full overflow-x-auto">
