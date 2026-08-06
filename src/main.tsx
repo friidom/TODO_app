@@ -1,5 +1,9 @@
 import { createRoot } from "react-dom/client";
 import { QueryClientProvider } from "@tanstack/react-query";
+// Global stylesheet, imported at the entry point. It used to hang off App.tsx,
+// which stopped being rendered when `/` became a redirect — leaving it there
+// would have dropped every style from the bundle.
+import "./styles/global.css";
 import { queryClient } from "./services/queryClient/queryClient.ts";
 import { RouterProvider } from "react-router";
 import { router } from "./components/routes/Routes.tsx";

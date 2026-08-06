@@ -1,10 +1,11 @@
 import { createBrowserRouter } from "react-router";
-import App from "../../App";
 
 import ProtectedRoute from "./ProtectedRoute";
+import BoardIndexRoute from "./BoardIndexRoute";
 import RegisterPage from "../pages/auth/RegisterPage";
 import LoginPage from "../pages/auth/LoginPage";
 import PublicRoute from "./PublicRoute";
+import BoardPage from "../pages/board/BoardPage";
 import ProfilePage from "../pages/profile/ProfilePage";
 import NotFoundPage from "../pages/error/NotFoundPage";
 import RouteErrorPage from "../pages/error/RouteErrorPage";
@@ -14,9 +15,16 @@ export const router = createBrowserRouter([
     element: <ProtectedRoute />,
     errorElement: <RouteErrorPage />,
     children: [
+      // `/` no longer renders a board, it picks one. The board itself is
+      // always addressed by id, so every open board has a shareable URL and
+      // the app has one answer to "which board is this".
       {
         path: "/",
-        element: <App />,
+        element: <BoardIndexRoute />,
+      },
+      {
+        path: "/boards/:boardId",
+        element: <BoardPage />,
       },
       {
         path: "/profile",
