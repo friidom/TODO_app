@@ -741,6 +741,7 @@ Every index `docs/DATABASE.md` lists, plus what the new access pattern needs. Do
 
 #### M2-06 · Backfill: personal board per user — **HIGH RISK**
 
+
 The data migration. Every existing user gets one board; their columns and todos are repointed to it.
 
 - **Files:** `supabase/migrations/<ts>_backfill_personal_boards.sql` (data migration, separate file from any schema DDL).
