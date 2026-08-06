@@ -1556,6 +1556,7 @@ Decisions deliberately postponed, with the trigger that should reopen them. **A 
 
 # Appendix C — Quick Reference
 
+
 ```bash
 npm run dev                  # vite dev server — does NOT typecheck
 npm run build                # tsc -b && vite build — the only typecheck
