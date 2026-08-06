@@ -1562,7 +1562,7 @@ npm run lint                 # eslint .
 npm test                     # vitest (from M1-17)
 
 supabase db pull             # capture live schema
-supabase db push             # apply migrations — the ONLY way schema changes ship
+supabase db push             # apply migrations — the ONLY way schema changes shipç
 supabase db diff -f <name>   # generate a migration from local changes
 supabase gen types typescript --linked > src/types/database.ts
 
@@ -1579,3 +1579,5 @@ supabase db dump --db-url "$PROD_URL" -f backups/pre-<task-id>-$(date +%Y%m%d-%H
 ---
 
 *Milestones 0 and 1 are prerequisites, not suggestions. Milestone 2 is the milestone this plan exists for: every card, menu, modal and query written before it lands is written against an ownership model the documentation has already declared wrong, and each one becomes migration surface.*
+
+`
