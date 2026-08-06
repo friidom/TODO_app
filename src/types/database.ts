@@ -242,6 +242,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      provision_new_user: { Args: never; Returns: string }
       shift_completed_positions: {
         Args: { p_user_id: string }
         Returns: undefined
