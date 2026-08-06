@@ -160,3 +160,52 @@ Note it also inserts into `profiles` on signup, duplicating what `signUp()` in `
 7. Enable PITR before touching data.
 
 Items 1–3 close the active exposure. Items 4–7 are hardening.
+
+---
+
+## M2-08 · Ownership model changed to board-based
+
+**Date:** 2026-08-06
+**Migration:** `supabase/migrations/20260806100619_rls_board_ownership.sql`
+**Status:** written, **not applied** — see preconditions below.
+
+M0-07's model was "a row belongs to the user named in its `user_id`". That was correct for a single-user application and is wrong for a shared one: there is no predicate over `user_id` that can express "this board is shared with you". M2-08 replaces it.
+
+### What changed
+
+All eight policies on `todos` and `columns` are dropped and recreated. The predicate moves from `user_id = auth.uid()` to `board_id in (select public.accessible_board_ids())`.
+
+The old policies are **dropped, not superseded**. Postgres policies are `PERMISSIVE` by default and therefore OR'd together — leaving them would keep `user_id` as a second independent route to every row, making the change cosmetic.
+
+`boards` keeps the owner-based policies from M2-01 (routing them through the helper would be circular — it reads `boards`). `profiles` is untouched.
+
+### The single swap point
+
+`public.accessible_board_ids()` — `SECURITY DEFINER`, `STABLE`, `set search_path = ''`, granted to `authenticated` only and revoked from `PUBLIC` and `anon`.
+
+Two decisions worth recording:
+
+- **Returns a set, not a boolean.** A no-argument `STABLE` function is independent of the row under test, so `board_id in (select …)` plans as an InitPlan evaluated once per statement. A `can_access(board_id) → boolean` form would be invoked per row.
+- **`SECURITY DEFINER` rather than invoker.** The policies on `columns`/`todos` must read `boards` to decide. As invoker that read is itself filtered by `boards`' policies — which works for owner-only access but recurses in M3, where a `board_members` policy would read `board_members`. Establishing the pattern now means M3 edits a function body, not a strategy.
+
+M3 widens this function to membership. No policy definition should need to change.
+
+### Resolved from the M0-06 findings
+
+- **Item 4** — "decide what to do with orphaned rows" is now forced rather than suggested. M2-06 reports rows whose `user_id` matches no profile; M2-07's `NOT NULL` refuses to apply while any remain. After M2-08 they are unreachable regardless, since a NULL `board_id` yields NULL from `in (…)`, which `USING` treats as failure.
+- **Item 7 — PITR is still disabled.** Unchanged since M0-06, and now overdue: M2-06 has already been authored and the plan requires PITR before M2 touches data.
+
+### Not resolved by this migration
+
+- **Item 3** — the avatar storage policies still allow one user to overwrite another's object. Untouched by M2; still open.
+- **Item 5** — `shift_completed_positions` still exists and is still granted to `anon`. It filters on `user_id` and predates columns entirely; it should be dropped, plausibly as part of M2-13.
+
+### Verification owed
+
+Not yet performed — the migration is unapplied. The multi-user `curl` checks are written out at the foot of the migration file. The UI cannot substitute for them: it never requests rows it does not expect, so it cannot demonstrate that a policy denies them.
+
+### Preconditions before applying
+
+1. M2-06 applied and verified — a NULL `board_id` becomes invisible to everyone the moment this runs.
+2. M2-07 applied — `NOT NULL` is what makes that invariant rather than aspiration.
+3. **M2-11 deployed.** `reorderTodos` and `reorderColumns` upsert without `board_id`, and the INSERT policy's `WITH CHECK` is evaluated against the proposed row, whose `board_id` would be NULL. M0-07 solved the equivalent problem with a column default; that is not available here, because `board_id` depends on which board rather than which user. The client must send it.
