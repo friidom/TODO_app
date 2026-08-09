@@ -3,13 +3,14 @@ import { describe, expect, it } from "vitest";
 import { insertDense } from "./insertDense";
 import type { ISupabaseTodo } from "../../types/data";
 
+// Ids are uuids (M2-14); stringified here so the expectations stay readable.
 const todo = (id: number, position: number) =>
-  ({ id, position, column_id: "c" }) as ISupabaseTodo;
+  ({ id: String(id), position, column_id: "c" }) as ISupabaseTodo;
 
 const column = [todo(1, 0), todo(2, 1), todo(3, 2)];
 const fresh = todo(99, 0);
 
-const order = (todos: ISupabaseTodo[]) => todos.map((t) => t.id);
+const order = (todos: ISupabaseTodo[]) => todos.map((t) => Number(t.id));
 const positions = (todos: ISupabaseTodo[]) => todos.map((t) => t.position);
 
 describe("insertDense", () => {

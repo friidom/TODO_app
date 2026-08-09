@@ -35,6 +35,9 @@ export function useCreateBoard() {
         icon: null,
         cover_color: null,
         visibility: "private",
+        // A board with no cards yet, so its first task key will be KAN-1 —
+        // the same value the column defaults to server-side (M2-21).
+        next_key: 1,
         created_at: now,
         updated_at: now,
       };

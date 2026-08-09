@@ -58,8 +58,9 @@ export async function getBoard(id: string): Promise<IBoard | null> {
  * a caller cannot create a board owned by somebody else. The RLS INSERT policy
  * rejects that anyway; this keeps it from being expressible.
  *
- * Unlike `columns.user_id`, `boards.owner_id` has no `auth.uid()` default, so
- * it has to be sent. Giving it one would let the client omit it entirely —
+ * `boards.owner_id` has no `auth.uid()` default, so it has to be sent — the
+ * defaulted `columns.user_id` that used to be the counter-example is gone as
+ * of M2-13. Giving owner_id a default would let the client omit it entirely —
  * worth doing, but it is a schema change and belongs to its own task.
  */
 export async function createBoard({

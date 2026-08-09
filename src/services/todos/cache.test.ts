@@ -9,20 +9,23 @@ import {
   applyTodoUpdated,
 } from "./cache";
 
+// Ids are uuids in the schema (M2-14). These take a number and stringify it,
+// so the fixtures and the expectations below stay readable — what is under
+// test is identity and ordering, and neither cares about the format.
 const todo = (id: number, column_id: string, position: number): ISupabaseTodo =>
   ({
-    id,
+    id: String(id),
     column_id,
     position,
     title: `todo ${id}`,
   }) as ISupabaseTodo;
 
-/** Ids of a column, in stored order. */
+/** Ids of a column, in stored order, back as numbers. */
 const column = (todos: ISupabaseTodo[], columnId: string) =>
   todos
     .filter((it) => it.column_id === columnId)
     .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
-    .map((it) => it.id);
+    .map((it) => Number(it.id));
 
 /** Positions of a column, in stored order. */
 const positions = (todos: ISupabaseTodo[], columnId: string) =>
@@ -41,7 +44,7 @@ const board = () => [
 ];
 
 describe("applyTodoInserted", () => {
-  const fresh = () => ({ ...todo(99, "a", 0), isOptimistic: true });
+  const fresh = () => todo(99, "a", 0);
 
   it("splices into the column at the index and renumbers it", () => {
     const todos = board();
@@ -87,42 +90,37 @@ describe("applyTodoInserted", () => {
 });
 
 describe("applyTodoConfirmed", () => {
-  // The optimistic id is a `Date.now()` stamp; the server row arrives with the
-  // real id and a position appended to the end of the column.
-  const optimistic = { ...todo(1770000000000, "a", 1), isOptimistic: true };
+  // Since M2-14 the client mints the id, so the pending row and the server's
+  // answer are the same row — id 7 in both. What still differs is the
+  // position: the user dropped the card at slot 1, the server appended it.
+  const pendingRow = { ...todo(7, "a", 1), title: "typed by the user" };
   const server = todo(7, "a", 3);
 
-  const pending = () => [todo(1, "a", 0), { ...optimistic }, todo(2, "a", 2)];
+  const pending = () => [todo(1, "a", 0), { ...pendingRow }, todo(2, "a", 2)];
 
-  it("swaps the optimistic row for the server row and clears the flag", () => {
-    const result = applyTodoConfirmed(pending(), optimistic.id, server);
+  it("merges the server row onto the card without changing its identity", () => {
+    const result = applyTodoConfirmed(pending(), server);
 
     expect(column(result, "a")).toEqual([1, 7, 2]);
-    expect(result.find((it) => it.id === 7)?.isOptimistic).toBe(false);
-    expect(result.some((it) => it.id === optimistic.id)).toBe(false);
+    expect(result.length).toBe(3);
+    expect(result.find((it) => it.id === "7")?.title).toBe("todo 7");
   });
 
   it("keeps the slot the user picked over the position the server assigned", () => {
-    const result = applyTodoConfirmed(pending(), optimistic.id, server);
+    const result = applyTodoConfirmed(pending(), server);
 
-    expect(result.find((it) => it.id === 7)?.position).toBe(1);
+    expect(result.find((it) => it.id === "7")?.position).toBe(1);
     expect(server.position).toBe(3);
   });
 
-  it("falls back to the server position when the optimistic row is gone", () => {
-    const result = applyTodoConfirmed(board(), 12345, server);
+  it("falls back to the server position when the row is gone", () => {
+    const result = applyTodoConfirmed(board(), server);
 
-    // Nothing matched, so nothing changed — and the caller reading the
-    // position back off the result gets the server's, which is what tells
-    // `useAddTodo` there is no reorder to write.
+    // Deleted mid-flight: nothing matched, so nothing changed — and the caller
+    // reading the position back off the result gets the server's, which is
+    // what tells `useAddTodo` there is no reorder to write.
     expect(result).toEqual(board());
-    expect(result.find((it) => it.id === 7)).toBeUndefined();
-  });
-
-  it("returns the board unchanged when there is no optimistic id at all", () => {
-    const todos = board();
-
-    expect(applyTodoConfirmed(todos, undefined, server)).toEqual(todos);
+    expect(result.find((it) => it.id === "7")).toBeUndefined();
   });
 });
 
@@ -134,16 +132,16 @@ describe("applyTodoUpdated", () => {
       title: "renamed",
     });
 
-    expect(result.find((it) => it.id === 2)?.title).toBe("renamed");
+    expect(result.find((it) => it.id === "2")?.title).toBe("renamed");
     expect(result.length).toBe(todos.length);
     expect(column(result, "a")).toEqual([1, 2, 3]);
   });
 
-  it("replaces rather than merges, so a client-only flag does not survive", () => {
-    const todos = [{ ...todo(1, "a", 0), isOptimistic: true }];
+  it("replaces rather than merges, so a stale field does not survive", () => {
+    const todos = [{ ...todo(1, "a", 0), description: "stale" }];
     const result = applyTodoUpdated(todos, todo(1, "a", 0));
 
-    expect(result[0].isOptimistic).toBeUndefined();
+    expect(result[0].description).toBeUndefined();
   });
 
   it("leaves the board alone when nothing matches", () => {
@@ -165,14 +163,14 @@ describe("applyTodoUpdated", () => {
 describe("applyTodoDeleted", () => {
   it("removes the row", () => {
     const todos = board();
-    const result = applyTodoDeleted(todos, 2);
+    const result = applyTodoDeleted(todos, "2");
 
     expect(result.length).toBe(todos.length - 1);
-    expect(result.some((it) => it.id === 2)).toBe(false);
+    expect(result.some((it) => it.id === "2")).toBe(false);
   });
 
   it("leaves the gap in the surviving positions", () => {
-    const result = applyTodoDeleted(board(), 2);
+    const result = applyTodoDeleted(board(), "2");
 
     // Deliberate: useDeleteTodo invalidates in onSettled, so the server's
     // numbering arrives moments later. Renumbering here would be a second
@@ -184,14 +182,14 @@ describe("applyTodoDeleted", () => {
   it("leaves the board alone when nothing matches", () => {
     const todos = board();
 
-    expect(applyTodoDeleted(todos, 404)).toEqual(todos);
+    expect(applyTodoDeleted(todos, "404")).toEqual(todos);
   });
 
   it("never mutates the input", () => {
     const todos = board();
     const before = todos.map((it) => ({ ...it }));
 
-    applyTodoDeleted(todos, 2);
+    applyTodoDeleted(todos, "2");
 
     expect(todos).toEqual(before);
   });
@@ -234,7 +232,7 @@ describe("applyTodoMoved", () => {
       const result = applyTodoMoved(todos, todos[0], "b", 1);
 
       expect(column(result, "b")).toEqual([4, 1, 5]);
-      expect(result.find((it) => it.id === 1)?.column_id).toBe("b");
+      expect(result.find((it) => it.id === "1")?.column_id).toBe("b");
 
       expect(column(result, "a")).toEqual([2, 3]);
       expect(positions(result, "a")).toEqual([0, 1]);
@@ -292,7 +290,7 @@ describe("applyTodoMoved", () => {
     it("shares untouched columns by reference, so React can skip them", () => {
       const todos = board();
       const result = applyTodoMoved(todos, todos[0], "b", 0);
-      const untouched = result.find((row) => row.id === 6);
+      const untouched = result.find((row) => row.id === "6");
 
       expect(todos.some((original) => original === untouched)).toBe(true);
     });
