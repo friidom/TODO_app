@@ -26,11 +26,24 @@ export async function fetchTodos(boardId: string) {
 }
 
 //!post
+/**
+ * `id` is minted by the caller (M2-14) rather than by the database, which is
+ * what lets the optimistic row and the stored row be the same row.
+ *
+ * An upsert rather than an insert, for the same reason: the client owns the
+ * key, so the write is idempotent. It also settles a race the `isOptimistic`
+ * flag used to guard — `useAddTodo`'s follow-up `reorderTodos` is itself an
+ * upsert, and if it reaches a still-pending card first it creates that row
+ * with a position and no title. An insert would then fail on the duplicate
+ * key; the upsert fills the title in.
+ */
 export async function addTodo({
+  id,
   title,
   column_id,
   board_id,
 }: {
+  id: string;
   title: string;
   column_id: string;
   board_id: string;
@@ -59,16 +72,17 @@ export async function addTodo({
   //insert it in database
   const { data, error } = await supabase
     .from("todos")
-    .insert({
+    .upsert({
+      id,
       title,
       column_id,
       board_id,
-      completed: false,
-      // Still sent: user_id is NOT NULL with an auth.uid() default, and stays
-      // the ownership column until M2-13 drops it.
-      user_id: user.id,
+      // Authorship moved here when M2-13 dropped user_id. Unlike user_id,
+      // creator_id has no auth.uid() default — left unset, every card created
+      // from now on would have no recorded author at all.
+      creator_id: user.id,
       position,
-    })
+    }, { onConflict: "id" })
     .select()
     .single();
 
@@ -79,7 +93,7 @@ export async function addTodo({
 
 
 //!delete
-export async function deleteTodo(id: number) {
+export async function deleteTodo(id: string) {
   const { error } = await supabase.from("todos").delete().eq("id", id);
   
   if (error) throw error;
@@ -116,24 +130,12 @@ export async function reorderTodos(todos: ISupabaseTodo[], boardId: string) {
 }
 
 //!patch
-//!clear completed
-export async function clearCompleted(boardId: string) {
-  const { error } = await supabase
-    .from("todos")
-    .delete()
-    .eq("board_id", boardId)
-    .eq("completed", true);
-
-  if (error) throw error;
-}
-
 //!edit todos
 export async function updateTodo(todo: ISupabaseTodo) {
   const { data, error } = await supabase
     .from("todos")
     .update({
       title: todo.title,
-      completed: todo.completed,
       column_id: todo.column_id,
     })
     .eq("id", todo.id)
@@ -146,7 +148,7 @@ export async function updateTodo(todo: ISupabaseTodo) {
 }
 
 //!update todo status
-export async function updateTodoColumn(id: number, column_id: string) {
+export async function updateTodoColumn(id: string, column_id: string) {
   const { data, error } = await supabase
     .from("todos")
     .update({ column_id })

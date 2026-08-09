@@ -46,6 +46,7 @@ export type Database = {
           description: string | null
           icon: string | null
           id: string
+          next_key: number
           owner_id: string
           title: string | null
           updated_at: string
@@ -57,6 +58,7 @@ export type Database = {
           description?: string | null
           icon?: string | null
           id?: string
+          next_key?: number
           owner_id: string
           title?: string | null
           updated_at?: string
@@ -68,6 +70,7 @@ export type Database = {
           description?: string | null
           icon?: string | null
           id?: string
+          next_key?: number
           owner_id?: string
           title?: string | null
           updated_at?: string
@@ -85,7 +88,7 @@ export type Database = {
       }
       columns: {
         Row: {
-          board_id: string | null
+          board_id: string
           category: string | null
           created_at: string
           id: string
@@ -94,10 +97,9 @@ export type Database = {
           position: number | null
           title: string | null
           updated_at: string
-          user_id: string | null
         }
         Insert: {
-          board_id?: string | null
+          board_id: string
           category?: string | null
           created_at?: string
           id?: string
@@ -106,10 +108,9 @@ export type Database = {
           position?: number | null
           title?: string | null
           updated_at?: string
-          user_id?: string | null
         }
         Update: {
-          board_id?: string | null
+          board_id?: string
           category?: string | null
           created_at?: string
           id?: string
@@ -118,9 +119,16 @@ export type Database = {
           position?: number | null
           title?: string | null
           updated_at?: string
-          user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "columns_board_id_fkey"
+            columns: ["board_id"]
+            isOneToOne: false
+            referencedRelation: "boards"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -156,62 +164,59 @@ export type Database = {
         Row: {
           archived: boolean
           assignee_id: string | null
-          board_id: string | null
+          board_id: string
+          board_key: number | null
           column_id: string | null
-          completed: boolean | null
           created_at: string
           creator_id: string | null
           description: string | null
           due_date: string | null
           estimate: number | null
-          id: number
+          id: string
           position: number | null
           previous_status: string | null
           priority: string | null
           status: string | null
           title: string | null
           updated_at: string | null
-          user_id: string
         }
         Insert: {
           archived?: boolean
           assignee_id?: string | null
-          board_id?: string | null
+          board_id: string
+          board_key?: number | null
           column_id?: string | null
-          completed?: boolean | null
           created_at?: string
           creator_id?: string | null
           description?: string | null
           due_date?: string | null
           estimate?: number | null
-          id?: number
+          id?: string
           position?: number | null
           previous_status?: string | null
           priority?: string | null
           status?: string | null
           title?: string | null
           updated_at?: string | null
-          user_id?: string
         }
         Update: {
           archived?: boolean
           assignee_id?: string | null
-          board_id?: string | null
+          board_id?: string
+          board_key?: number | null
           column_id?: string | null
-          completed?: boolean | null
           created_at?: string
           creator_id?: string | null
           description?: string | null
           due_date?: string | null
           estimate?: number | null
-          id?: number
+          id?: string
           position?: number | null
           previous_status?: string | null
           priority?: string | null
           status?: string | null
           title?: string | null
           updated_at?: string | null
-          user_id?: string
         }
         Relationships: [
           {
@@ -219,6 +224,13 @@ export type Database = {
             columns: ["assignee_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "todos_board_id_fkey"
+            columns: ["board_id"]
+            isOneToOne: false
+            referencedRelation: "boards"
             referencedColumns: ["id"]
           },
           {
@@ -242,11 +254,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accessible_board_ids: { Args: never; Returns: string[] }
       provision_new_user: { Args: never; Returns: string }
-      shift_completed_positions: {
-        Args: { p_user_id: string }
-        Returns: undefined
-      }
     }
     Enums: {
       [_ in never]: never

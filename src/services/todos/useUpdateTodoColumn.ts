@@ -8,7 +8,7 @@ export function useUpdateTodoColumn() {
   const boardId = useBoardId();
 
   return useMutation({
-    mutationFn: ({ id, column_id }: { id: number; column_id: string }) =>
+    mutationFn: ({ id, column_id }: { id: string; column_id: string }) =>
       updateTodoColumn(id, column_id),
 
     onSuccess: () => {

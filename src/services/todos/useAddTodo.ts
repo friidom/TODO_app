@@ -12,19 +12,29 @@ interface AddTodoVars {
   index?: number;
 }
 
+/** `AddTodoVars` once the hook has stamped the client-minted id on. */
+type AddTodoInput = AddTodoVars & { id: string };
+
 export function useAddTodo() {
   const queryClient = useQueryClient();
   const boardId = useBoardId();
 
-  return useMutation({
-    mutationFn: ({ title, column_id }: AddTodoVars) => {
+  const mutation = useMutation({
+    mutationFn: ({ id, title, column_id }: AddTodoInput) => {
       if (!boardId) throw new Error("useAddTodo ran without a board");
-      return addTodo({ title, column_id, board_id: boardId });
+      return addTodo({ id, title, column_id, board_id: boardId });
     },
 
     //!? Optimistic update
 
-    onMutate: async ({ title, column_id, index }) => {
+    onMutate: async ({ id, title, column_id, index }) => {
+      // A todo cannot exist without a board — `board_id` is NOT NULL as of
+      // M2-07. Refusing here states that requirement instead of inventing a
+      // value for it. onMutate runs before mutationFn, so this fails the
+      // mutation before anything is written to the cache or sent, which is
+      // strictly earlier than the equivalent guard in mutationFn.
+      if (!boardId) throw new Error("useAddTodo ran without a board");
+
       //before request
       //stop all queries
       await queryClient.cancelQueries({
@@ -33,14 +43,15 @@ export function useAddTodo() {
 
       //previous Todos
       const previousTodos =
-        queryClient.getQueryData<ISupabaseTodo[]>(queryKeys.todos(boardId)) ?? [];
+        queryClient.getQueryData<ISupabaseTodo[]>(queryKeys.todos(boardId)) ??
+        [];
 
-      //temp todo
+      // Not a placeholder any more: this carries the id the row will really
+      // have, so the server's answer reconciles onto the same card rather than
+      // replacing it.
       const optimisticTodo: ISupabaseTodo = {
-        id: Date.now(),
+        id,
         title,
-        completed: false,
-        user_id: "",
         created_at: new Date().toISOString(),
         position: 0, //renumbered below
         column_id,
@@ -50,10 +61,10 @@ export function useAddTodo() {
         previous_status: null,
         // Added by M2-02 and M2-03. Mirrors what the server produces for a
         // fresh insert: `archived` has a false default, the rest have none.
-        // onMutate runs before mutationFn, so this can genuinely be undefined
-        // for the one render where the route param has not resolved. null is
-        // the honest value; mutationFn then throws before anything is sent.
-        board_id: boardId ?? null,
+        board_id: boardId,
+        // Allocated by the M2-21 trigger, so the client cannot know it yet.
+        // The card renders without its key until the server answers.
+        board_key: null,
         creator_id: null,
         assignee_id: null,
         description: null,
@@ -62,7 +73,6 @@ export function useAddTodo() {
         estimate: null,
         archived: false,
         updated_at: null,
-        isOptimistic: true,
       };
 
       queryClient.setQueryData<ISupabaseTodo[]>(
@@ -71,10 +81,7 @@ export function useAddTodo() {
       );
 
       //context
-      return {
-        previousTodos,
-        optimisticId: optimisticTodo.id,
-      };
+      return { previousTodos };
     },
 
     //error
@@ -83,15 +90,12 @@ export function useAddTodo() {
     },
 
     //success
-    onSuccess: (serverTodo, _variables, context) => {
+    onSuccess: (serverTodo) => {
       const current =
-        queryClient.getQueryData<ISupabaseTodo[]>(queryKeys.todos(boardId)) ?? [];
+        queryClient.getQueryData<ISupabaseTodo[]>(queryKeys.todos(boardId)) ??
+        [];
 
-      const todos = applyTodoConfirmed(
-        current,
-        context?.optimisticId,
-        serverTodo,
-      );
+      const todos = applyTodoConfirmed(current, serverTodo);
 
       queryClient.setQueryData<ISupabaseTodo[]>(queryKeys.todos(boardId), todos);
 
@@ -108,17 +112,24 @@ export function useAddTodo() {
       if (!boardId) return;
 
       // Inserted mid-column, so every card below it shifted — write that back.
-      // ponytail: still-pending inserts are skipped (upserting their fake ids
-      // would create blank rows); their own onSuccess writes the column again.
+      // Still-pending inserts are included now: their ids are real, and
+      // `addTodo` upserts, so whichever write lands first the row ends up
+      // complete. Before M2-14 they had to be filtered out, because upserting
+      // a `Date.now()` id would have created a blank row that nothing owned.
       reorderTodos(
-        todos.filter(
-          (todo) =>
-            todo.column_id === serverTodo.column_id && !todo.isOptimistic,
-        ),
+        todos.filter((todo) => todo.column_id === serverTodo.column_id),
         boardId,
       ).catch(() =>
         queryClient.invalidateQueries({ queryKey: queryKeys.todos(boardId) }),
       );
     },
   });
+
+  // The id is minted here rather than in `onMutate` because it has to reach
+  // `mutationFn` too, and context flows only forward to the callbacks — both
+  // receive the same variables, and `onMutate` cannot add to them.
+  const mutate = (variables: AddTodoVars) =>
+    mutation.mutate({ ...variables, id: crypto.randomUUID() });
+
+  return { ...mutation, mutate };
 }

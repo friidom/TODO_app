@@ -6,7 +6,6 @@ import { useEffect, useRef, useState } from "react";
 
 import { useUpdateTodo } from "@/services/todos/useUpdateTodo";
 import TodoMenu from "./TodoItem/TodoMenu";
-import LoadingSpinner from "../loading/LoadingSpinner";
 import { cn } from "@/utils/cn";
 import { useDoneFlash } from "@/stores/doneFlash";
 
@@ -138,8 +137,10 @@ function TodoCard({
           )}
         </div>
 
-        {/* actions */}
-        {!todo.isOptimistic && !editing && (
+        {/* actions — no pending state to hide behind since M2-14: the card
+            already holds its real id, so its menu and its key are valid the
+            moment it appears. */}
+        {!editing && (
           <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
             {/* edit */}
             <button
@@ -156,7 +157,6 @@ function TodoCard({
             )}
           </div>
         )}
-        {todo.isOptimistic && <LoadingSpinner size="md" />}
       </div>
 
       {/* META */}
@@ -165,18 +165,19 @@ function TodoCard({
           {/* bug */}
           <Bug size={18} className="text-red-400" />
 
-          {/* issue key */}
+          {/* issue key — a per-board counter (M2-21), not the row id, which is
+              a uuid. Allocated server-side, so it is null for the moment a
+              freshly created card is still in flight: that absence is the
+              pending state now that there is no isOptimistic flag. */}
           <span className="text-sm font-medium text-gray-600">
-            {!todo.isOptimistic && `KAN-${todo.id}`}
+            {todo.board_key !== null && `KAN-${todo.board_key}`}
           </span>
         </div>
 
         {/* assignee */}
-        {!todo.isOptimistic && (
-          <div className="flex size-8 items-center justify-center rounded-full bg-gray-200 text-gray-600">
-            <User size={17} />
-          </div>
-        )}
+        <div className="flex size-8 items-center justify-center rounded-full bg-gray-200 text-gray-600">
+          <User size={17} />
+        </div>
       </div>
     </div>
   );

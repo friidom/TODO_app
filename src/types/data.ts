@@ -15,10 +15,13 @@ type Row<T extends keyof Database["public"]["Tables"]> =
  * Most of these nulls are invisible today because `strictNullChecks` is off;
  * they become real once M0-09 lands.
  */
-export type ISupabaseTodo = Row<"todos"> & {
-  /** Client-only: set on a card the server has not confirmed yet. */
-  isOptimistic?: boolean;
-};
+/**
+ * No client-only fields. There used to be an `isOptimistic` flag, needed only
+ * because an optimistic row carried a fake `Date.now()` id that had to be told
+ * apart from a real one. Since M2-14 the client mints the row's real uuid, so
+ * the optimistic row *is* the row — there is nothing to distinguish.
+ */
+export type ISupabaseTodo = Row<"todos">;
 
 export type ISupabaseProfile = Row<"profiles">;
 

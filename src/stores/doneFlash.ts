@@ -5,8 +5,8 @@ const DURATION = 1600;
 
 interface DoneFlashStore {
   /** The todo that just landed in a "done" column, or `null`. */
-  todoId: number | null;
-  flash: (todoId: number) => void;
+  todoId: string | null;
+  flash: (todoId: string) => void;
 }
 
 let timer: ReturnType<typeof setTimeout> | undefined;

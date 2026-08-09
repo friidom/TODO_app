@@ -8,8 +8,8 @@ interface Props {
   index: number;
   active: boolean;
   /** Card directly above / below the gap — used to skip no-op drops. */
-  beforeId?: number;
-  afterId?: number;
+  beforeId?: string;
+  afterId?: string;
   /** Opens the inline create form at this gap. */
   onAdd?: () => void;
 }

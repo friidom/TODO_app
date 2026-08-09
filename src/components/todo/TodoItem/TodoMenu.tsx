@@ -13,7 +13,7 @@ import TodoStatusMenu from "./TodoColumnMenu";
 import { useDeleteTodo } from "@/services/todos/useDeleteTodo";
 
 interface TodoMenuProps {
-  todoId: number;
+  todoId: string;
   /** The card's column, so the move menu can leave it out. Nullable, as the column is. */
   columnId: string | null;
 }

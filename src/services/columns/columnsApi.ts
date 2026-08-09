@@ -30,12 +30,6 @@ export async function createColumn({
   category: ColumnCategory;
   board_id: string;
 }) {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) throw new Error("Not authenticated");
-
   // Scoped to the board, not the user: with more than one board, the tail
   // position of "everything this user owns" is the wrong number entirely.
   const { data: lastColumn } = await supabase
@@ -54,8 +48,6 @@ export async function createColumn({
       title,
       category,
       board_id,
-      // Still sent: user_id remains the ownership column until M2-13.
-      user_id: user.id,
       position,
     })
     .select()
@@ -116,7 +108,7 @@ export async function deleteColumn({
 }) {
   const { data: moving, error: movingError } = await supabase
     .from("todos")
-    .select("id")
+    .select("id, board_id")
     .eq("column_id", id)
     .order("position", { ascending: true });
 
@@ -136,8 +128,15 @@ export async function deleteColumn({
     const start = (last?.position ?? -1) + 1;
 
     const { error: moveError } = await supabase.from("todos").upsert(
+      // board_id is required on the payload: an upsert is an INSERT for policy
+      // purposes, so a proposed row without it fails both M2-08's WITH CHECK
+      // and M2-07's NOT NULL. Read off each row rather than stamped from the
+      // viewed board — `moving` came straight from the server, so it cannot be
+      // a stale cache entry, and the card keeps the board it actually belongs
+      // to.
       moving.map((todo, index) => ({
         id: todo.id,
+        board_id: todo.board_id,
         column_id: moveToColumnId,
         position: start + index,
       })),

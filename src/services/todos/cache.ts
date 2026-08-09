@@ -44,31 +44,31 @@ export function applyTodoInserted(
 }
 
 /**
- * The board with the optimistic row `optimisticId` replaced by the row the
- * server actually wrote.
+ * The board with the pending row replaced by the row the server wrote back.
  *
- * Client-only — the realtime handler has no optimistic row to reconcile, so
- * this one has no M6 caller. It is here because the slot-keeping rule is the
- * subtle part: the server appends to the end of the column, but the user
- * dropped the card at a chosen gap, so the position picked optimistically wins
- * and `useAddTodo` writes the corrected order back afterwards.
+ * Since M2-14 the client mints the uuid, so this matches on `serverTodo.id`
+ * alone — before that it took the fake optimistic id as a third argument,
+ * because the server's id was a different number entirely.
  *
- * A missing `optimisticId` matches nothing and returns the board unchanged,
- * which is what the old inline `map` did.
+ * Client-only — the realtime handler has no pending row to reconcile, so this
+ * one has no M6 caller. It is here because the slot-keeping rule is the subtle
+ * part: the server appends to the end of the column, but the user dropped the
+ * card at a chosen gap, so the position picked optimistically wins and
+ * `useAddTodo` writes the corrected order back afterwards.
+ *
+ * An id matching nothing returns the board unchanged, which is what the old
+ * inline `map` did.
  */
 export function applyTodoConfirmed(
   todos: ISupabaseTodo[],
-  optimisticId: ISupabaseTodo["id"] | undefined,
   serverTodo: ISupabaseTodo,
 ): ISupabaseTodo[] {
   const position =
-    todos.find((todo) => todo.id === optimisticId)?.position ??
+    todos.find((todo) => todo.id === serverTodo.id)?.position ??
     serverTodo.position;
 
   return todos.map((todo) =>
-    todo.id === optimisticId
-      ? { ...serverTodo, position, isOptimistic: false }
-      : todo,
+    todo.id === serverTodo.id ? { ...serverTodo, position } : todo,
   );
 }
 
@@ -76,9 +76,8 @@ export function applyTodoConfirmed(
  * The board with `row` in place of the row that shares its id.
  *
  * A whole-row replacement rather than a merge: both callers — `updateTodo`'s
- * response and an M6 `UPDATE` payload — carry the complete row, and merging
- * would preserve client-only fields like `isOptimistic` that the server row is
- * entitled to clear.
+ * response and an M6 `UPDATE` payload — carry the complete row, so the server's
+ * answer is the whole answer and a merge could only keep something staler.
  */
 export function applyTodoUpdated(
   todos: ISupabaseTodo[],
