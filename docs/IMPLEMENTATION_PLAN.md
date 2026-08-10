@@ -1,17 +1,36 @@
 # Implementation Plan
 
-**Status:** Active
+**Status:** Active — Milestone 3 in progress
 **Owner:** Tech Lead
 **Source of truth:** the Architecture Review (2026-08-05) + `docs/ARCHITECTURE.md`, `docs/DATABASE.md`, `docs/FRONTEND.md`, `docs/API.md`, `docs/PRODUCT_SPEC.md`
-**Scope:** takes the codebase from its current state (single-user, user-owned board, broken build) to the documented target (board-centric, collaborative, realtime platform).
+**Scope:** takes the codebase from its original state (single-user, user-owned board, broken build) to a collaborative, permissioned, realtime work-management product with Jira-level functional depth and its own product identity.
+**Last audited against the repository:** 2026-08-10.
+
+This document is two things at once, and both matter:
+
+1. A **historical ledger.** Completed tasks keep their IDs, their ordering and their original descriptions. Where what shipped diverged from what was planned, the divergence is recorded next to the task — not edited out of it.
+2. A **forward roadmap.** Future tasks carry dependencies, risk labels, acceptance criteria and rollback notes.
+
+Nothing in here is a claim of verification unless the verification actually happened. Where a check was skipped or could not be run, it says so.
 
 ---
 
 ## How to use this document
 
-Part I is the **working agreement** — branch strategy, migration rules, review checklists, Definition of Done. Read it once, before starting Task M0-01. It applies to every task in Part II.
+Part I is the **product direction** — what this application is for, what it borrows from Jira functionally, and what it refuses to borrow. It is the tie-breaker when a task could reasonably be built two ways.
 
-Part II is the **task list**, grouped into ten milestones. Every task is sized for a single focused session (~1–3 hours), is independently testable, and becomes exactly one commit or one Pull Request.
+Part II is the **working agreement** — branch strategy, migration rules, the authoritative permission model, review checklists, Definition of Done. It applies to every task in Part III.
+
+Part III is the **task list**, grouped into milestones. Every task is sized for a single focused session (~1–3 hours), is independently testable, and becomes exactly one commit or one Pull Request. Milestones M0–M9 are fully broken down; M10 onward are roadmap sketches, deliberately not yet decomposed into tasks (see *Milestone status legend*).
+
+### Milestone and task status legend
+
+| Marker | Meaning |
+|---|---|
+| ✅ **Done** | Shipped, and the evidence is named (migration file, commit, or code path). |
+| 🔶 **Applied, verification outstanding** | The change is live in the database or the app, but a test the task called for has not been run. The outstanding check is named. |
+| ⬜ **Not started** | Planned, decomposed, not built. |
+| 🗺 **Roadmap** | Direction agreed, scope not yet understood well enough to decompose. Not a commitment to build. |
 
 Rules that are not negotiable:
 
@@ -19,10 +38,55 @@ Rules that are not negotiable:
 2. **Never start a milestone whose dependencies are not fully done.** "Mostly done" is not done; see Definition of Done.
 3. **A task that grows past ~3 hours is not one task.** Split it and add the new ID to this document in the same PR.
 4. Every task ships with its manual test checklist executed. An unchecked box is an unmerged PR.
+5. **Authorization is a database concern.** No task may introduce an authorization rule that exists only in React. See *Permission Model* in Part II.
 
 ---
 
-# PART I — WORKING AGREEMENTS
+# PART I — PRODUCT DIRECTION
+
+## What this product is
+
+A collaborative work-management application built around Kanban boards, aiming at **Jira-level flexibility and functional depth** — flexible work items, real permissions, configurable workflows, backlog, search, collaboration, history and reporting — with **its own UX, interaction model and visual identity**.
+
+Jira is the **functional** reference. It is not a UI reference, not a template, and not a target to resemble.
+
+`docs/PRODUCT_SPEC.md` states the same thing from the design side: *"The UI should NOT look like Jira… closer to Linear than Jira while still having its own identity."*
+
+## The distinction every task must respect
+
+| Borrowed from Jira (functional model) | Ours (product design) |
+|---|---|
+| Work items with types, keys, priorities, assignees, labels | How a work item is opened, edited and dismissed |
+| Board / backlog / list as views over the same data | What a view looks like, and how you move between them |
+| Statuses and configurable workflow transitions | How a transition is offered and confirmed |
+| Membership roles and permissioned operations | How permission is communicated in the UI |
+| Activity history and comments | How history is surfaced and read |
+| Filters and saved filters | Filter authoring UX, command palette, keyboard model |
+
+**A feature is in scope if it adds capability. It is out of scope if its only justification is that Jira's screen looks like that.**
+
+## UX principles
+
+These are principles, not tasks. They constrain how features get built; they do not by themselves authorise building anything.
+
+1. **Board context is never lost.** Inspecting or editing a work item should not feel like navigating away from the board. This is the single strongest argument against a full-page issue view as the primary interaction.
+2. **One data model, many views.** Board, backlog and list are views over the same work items, not separate features with separate state. Any schema decision that makes a second view expensive is a bad schema decision.
+3. **Keyboard is a first-class input**, not an accessibility afterthought. `docs/PRODUCT_SPEC.md` names *Keyboard Friendly* and *Accessible* as core principles; both are currently unmet (M9).
+4. **Drag and drop is a differentiator, not a checkbox.** The hand-rolled DnD in `src/hooks/useKanbanDnd.ts` exists because the library defaults were not good enough. Keep that bar.
+5. **The UI tells the truth about permission.** A viewer should not see affordances that will fail. But hiding a button is never the enforcement — see Part II.
+6. **History is a feature, not an audit log.** If activity is built, it is built to be read by humans.
+7. **Configurability over hardcoding, where it is cheap.** A single hardcoded workflow is a redesign later; an over-configurable one nobody uses is waste now. Prefer the smallest configurable shape that fits the next two milestones.
+
+## Terminology (deliberate)
+
+- **Work item** is the product word. **`todos`** is the physical table name and stays that way — renaming it would touch every policy, index, FK, cache function, realtime publication and query key for zero user-visible gain. The rename is explicitly rejected, not deferred; see Appendix D.
+- **Board membership** ≠ **board ownership**. `boards.owner_id` names the single Owner. `board_members` holds every member *including* the Owner. Code and prose must not use one to mean the other.
+- **Role** always means one of `viewer | editor | admin | owner`. No other role exists.
+- **Column** is the physical table and the board's visual unit. **Status** is what a column means to a workflow. They are the same row today (`columns.category`); M13 is where that could change, and Appendix D records the cost.
+
+---
+
+# PART II — WORKING AGREEMENTS
 
 ## Branch Strategy
 
@@ -45,7 +109,7 @@ main                    ← protected, always deployable, always green
 
 ### Exception: integration branches for XL migration milestones
 
-M2 (Boards) and M6 (Realtime) rewrite the ownership model and the ordering model respectively. Their intermediate states are not deployable. Both get a long-lived integration branch:
+M2 (Boards), M3 (Members & Roles) and M6 (Realtime) rewrite the ownership model, the authorization model and the ordering model respectively. Their intermediate states are not deployable. Each gets a long-lived integration branch:
 
 ```
 main
@@ -62,14 +126,16 @@ main
 ### Protected-branch rules on `main`
 
 - No direct pushes.
-- CI must pass: `npm run lint`, `npm run build`, both `*.check.ts` self-checks.
+- CI must pass: `npm run lint`, `npm run build`, `npm test`.
 - At least one review approval (self-review with the checklist counts on a solo project — but write the checklist out, don't nod at it).
 - Linear history; squash merge only.
 
-### Current state note
+### Current state note — updated 2026-08-10
 
-Work is currently on a branch named `features` with `docs/` untracked. Before M0-01: commit `docs/`, then either rename `features` → `main` or merge and adopt `main` as the trunk. Do not start the plan with an ambiguous trunk.
-`
+The original note here described an ambiguous trunk (a branch named `features`, `docs/` untracked). **That is resolved.** `main` is the trunk, `docs/` is committed, and Milestone 3 work is on the `m3` branch, which is the M3 integration branch in practice.
+
+One item is outstanding and is a fact, not a plan: `supabase/migrations/20260810120000_columns_todos_rls_via_membership.sql` (M3-05) **is applied to the linked project but is not yet committed.** An applied-but-uncommitted migration is exactly the failure mode Migration Rule 1 exists to prevent — it must be committed before any further M3 work lands.
+
 ---
 
 ## Migration Strategy
@@ -82,8 +148,18 @@ The two existing migrations were applied by hand in the Supabase SQL editor. Tha
 **Rule 2 — Supabase migrations are forward-only.**
 There is no `supabase migration down`. "Rollback" always means one of:
 - **Forward-fix migration** — a new migration that reverses the change. This is the default and it is what you will use 95% of the time.
-- **Point-in-Time Recovery** — for data loss only. Requires PITR enabled on the project (verify this in M0-05; if it is not enabled, enable it before M2).
+- **Point-in-Time Recovery** — for data loss only. Requires PITR enabled on the project.
 - **Restore from dump** — for a total loss, with downtime.
+
+> **⚠ Standing limitation — PITR is NOT enabled, and never has been.**
+> `docs/RLS_AUDIT.md` (M0-06, finding E) recorded `pitr_enabled: false` with `backups: []`. It was still false when M2 ran and it is still false today. The original plan said "enable it before M2"; **that did not happen, and M2's destructive migrations (M2-13, M2-14) were applied without it.** That was luck, not process.
+>
+> The consequence is concrete: for any migration that destroys data, **the only recovery is a dump taken beforehand**. There is no timestamp to roll back to. Every task below that names PITR as its rollback path is naming a mechanism that does not currently exist.
+>
+> **Enabling PITR is a prerequisite for the next destructive or policy-replacing migration.** It is tracked as M3-00 and in Appendix B.
+
+> **⚠ Standing limitation — dumps have not always been possible.**
+> `npm run db:diff`/`db:dump` need Docker Desktop running, and M3-01 → M3-05 were applied in a session where Docker and a direct database connection were unavailable. **No pre-migration dump was taken for any of them.** They were additive or policy-only and were judged recoverable by forward-fix, which held. That reasoning is specific to those five migrations and **does not generalise** — see Rule 6.
 
 **Rule 3 — Expand → Backfill → Contract. Never in one migration.**
 
@@ -101,6 +177,18 @@ A schema migration is idempotent DDL. A data migration is a one-shot `UPDATE`/`I
 **Rule 5 — Every destructive migration is rehearsed on a branch database first.**
 `supabase branches create` (or a manually restored copy) → apply → run the app against it → then production. A migration that has never been run is a migration that does not work.
 
+**Rule 6 — "Additive and reversible" is a property of a specific migration, never a precedent.**
+M3-03 was applied without a dump because it only inserted rows and its reversal was a single `delete`. That judgement was sound *for that migration*. It says nothing about a migration that **replaces policies**, **drops** anything, or **grants privileges**.
+
+A migration needs a verified pre-migration dump and a written rollback if any of the following is true:
+
+- it drops a column, table, constraint, index, policy or function;
+- it replaces an existing policy (the old definition is only recoverable if it was captured first);
+- it grants or widens access — including a new `SECURITY DEFINER` function;
+- it writes to rows that already exist (`UPDATE`/`DELETE`), as opposed to inserting new ones.
+
+**Never cite M3-03's reasoning to skip a backup on a migration in that list.**
+
 ### When to create which
 
 | Change | Migration type | When |
@@ -110,13 +198,16 @@ A schema migration is idempotent DDL. A data migration is a one-shot `UPDATE`/`I
 | `NOT NULL`, `DROP COLUMN`, FK addition, type change | Schema (contract) | Only after the app no longer reads the old shape in production |
 | RLS policy | Schema | Same commit as the table it protects, never later |
 | `SECURITY DEFINER` function | Schema | Before the policies that call it |
+| Membership / privilege-granting RPC | Schema | Reviewed line by line before it is applied — see *Permission Model* |
 
 ### Backup procedure (run before every HIGH RISK task)
 
 1. `supabase db dump --db-url "$PROD_URL" -f backups/pre-<task-id>-$(date +%Y%m%d-%H%M).sql` — schema + data.
 2. Verify the dump is non-empty and restores into a scratch database. **An untested backup is not a backup.**
-3. Confirm PITR is enabled and note the current timestamp; that timestamp is the recovery target.
+3. Confirm PITR is enabled and note the current timestamp; that timestamp is the recovery target. **PITR is currently disabled — until M3-00 lands, this step cannot be completed and step 1 is the only recovery path there is.**
 4. Record row counts for every affected table (`select count(*) from todos;` etc.) in the PR description. These are the numbers you compare against after the migration.
+
+If the dump cannot be taken — Docker not running, no direct connection — the correct response is to **stop and fix that**, not to proceed and note it afterwards. The one exception is a migration that satisfies none of Rule 6's four conditions, and the exemption must be written into the PR with the reason.
 
 Backups directory is gitignored — dumps contain user data and must never be committed.
 
@@ -125,8 +216,102 @@ Backups directory is gitignored — dumps contain user data and must never be co
 1. **Stop writes** if the app is live — take the deploy down or flip to a maintenance page. A half-migrated database taking writes is how a recoverable incident becomes an unrecoverable one.
 2. **Revert the application deploy first**, so the old code talks to the old shape.
 3. **If schema-only:** write and push the reversing migration.
-4. **If data was lost:** PITR to the timestamp recorded in step 3 of the backup procedure.
+4. **If data was lost:** PITR to the timestamp recorded in step 3 of the backup procedure — **or, while PITR is disabled, restore the dump from step 1.**
 5. Write a short note in the PR describing what failed. The next attempt starts from that note.
+
+---
+
+## Permission Model — authoritative
+
+This section is the single definition of who may do what. Any task, policy, RPC or component that disagrees with it is wrong, including tasks written earlier in this document.
+
+### The four roles
+
+```
+viewer  →  editor  →  admin  →  owner
+```
+
+Exactly four roles exist. **Do not invent additional roles. Do not replace roles with ad-hoc boolean permission columns.** A separate permission system is only justified if a future requirement genuinely cannot be expressed as a role, and that would be its own architecture task with its own migration.
+
+Each role includes everything the role to its left can do.
+
+### Board content matrix
+
+"Content" means work items (`todos`) and columns, including every Kanban operation that changes order.
+
+| Capability | viewer | editor | admin | owner |
+|---|:---:|:---:|:---:|:---:|
+| Read board, columns, work items | ✅ | ✅ | ✅ | ✅ |
+| Create / update / delete work items | ❌ | ✅ | ✅ | ✅ |
+| Create / update / delete columns | ❌ | ✅ | ✅ | ✅ |
+| Reorder work items and columns (drag, move, rehome) | ❌ | ✅ | ✅ | ✅ |
+
+### Membership matrix
+
+| Capability | viewer | editor | admin | owner |
+|---|:---:|:---:|:---:|:---:|
+| See the member list | ✅ | ✅ | ✅ | ✅ |
+| Add / invite a member as viewer or editor | ❌ | ❌ | ✅ | ✅ |
+| Add / invite a member as admin | ❌ | ❌ | ❌ | ✅ |
+| Change a viewer ↔ editor role | ❌ | ❌ | ✅ | ✅ |
+| Promote to / demote from admin | ❌ | ❌ | ❌ | ✅ |
+| Remove a viewer or editor | ❌ | ❌ | ✅ | ✅ |
+| Remove an admin | ❌ | ❌ | ❌ | ✅ |
+| **Modify the Owner in any way** | ❌ | ❌ | ❌ | ❌ |
+| Leave the board voluntarily | ✅ | ✅ | ✅ | ❌ |
+
+Read as a single rule: **an actor may only act on a member strictly below their own rank, and never on the Owner.** An admin acting on another admin is denied; that is what "removes members below owner level" and "changes roles of Viewer and Editor" mean together.
+
+### Owner immutability — invariants
+
+These are database invariants, not UI rules. I1–I5 each have a named test in M3-16; I6 is a scoping rule, enforced by M3-14 refusing `role = 'owner'` and by no transfer operation existing.
+
+- **I1.** A board always has exactly one Owner.
+- **I2.** The Owner's membership row cannot be deleted by any membership operation, by **any** actor — an admin, another owner-level caller, or the Owner themselves.
+- **I3.** The Owner's role cannot be changed to anything else by any membership operation, by **any** actor, on the same terms as I2.
+- **I4.** An admin has no path to an Owner-held row at all: not their role, not their membership, not through any RPC, not through a `boards` update. This is the specific rule the whole hierarchy rests on, and it is stated separately from I2/I3 because it is the one an implementation is most likely to get subtly wrong — a caller-rank check that stops at "is the caller admin or owner" satisfies I2 and I3 and still lets an admin through.
+- **I5.** `boards.owner_id` and the `owner` row in `board_members` always name the same user. Neither may drift from the other.
+- **I6.** Changing who the Owner is, is **not** a membership operation. It is board ownership transfer — a separate, explicitly scoped operation that does not exist yet (Appendix B). Until it exists, the Owner of a board never changes.
+
+Together I2 and I3 mean the Owner's membership row is immutable **as a membership row**. Nothing here restricts the Owner from editing their own profile, their own boards, or the board's content.
+
+Deleting the Owner's *profile* cascades the board away entirely (`boards.owner_id … on delete cascade`, verified in `20260806090000_create_boards.sql`). That is a user-deletion path, not a membership operation, and it does not violate I1.
+
+### Enforcement rules
+
+1. **Postgres is the authority.** Every rule above is enforced by RLS policies, `SECURITY DEFINER` functions, constraints or triggers.
+2. **Frontend permission checks are UX only.** They decide what to render. They are never a security control, and a task may not treat them as one.
+3. **Membership-sensitive policies call `SECURITY DEFINER` helpers** (`is_board_member`, `board_role`, `accessible_board_ids`). A policy on `board_members` that sub-selects `board_members` recurses and returns a hard 500.
+4. **`board_members` is never directly writable by the client.** It has no INSERT, UPDATE or DELETE policy, deliberately. Every membership mutation goes through a `SECURITY DEFINER` RPC that performs its own authorization check. Adding a client-writable policy to `board_members` is a security regression, not a shortcut.
+5. **Every privileged RPC checks the caller's role itself.** `SECURITY DEFINER` bypasses RLS; a function that forgets its own check is an open door.
+6. **Invariants that must hold for every writer go in triggers or constraints**, not in one RPC's body — the M2-21 `todos_assign_board_key` trigger is the precedent.
+7. **Proof is REST-level.** A UI check proves nothing about a policy, because the UI never asks for rows it does not expect. Role tests use direct PostgREST/RPC calls with a real token for that role.
+
+### Where each rule is enforced today — verified 2026-08-10 against the migration files
+
+| Rule | Enforced by | Status |
+|---|---|---|
+| Read board / columns / work items for any member | `accessible_board_ids()` (owner ∪ membership) + SELECT policies | ✅ applied (M3-04, M3-05) |
+| Write work items / columns requires editor+ | `board_role(board_id) in ('owner','admin','editor')` on INSERT/UPDATE/DELETE | 🔶 applied (M3-05), editor/admin paths not yet verified |
+| No client writes to `board_members` | RLS on, self-read policy only, no write policy | ✅ applied (M3-01) |
+| New board gets an owner membership | `boards_add_owner_membership` AFTER INSERT trigger | ✅ applied (M3-03) |
+| Membership mutation RPCs with role checks | — | ⬜ not built (M3-14) |
+| Owner immutability I1–I5 in the database | — | ⬜ not built (M3-15) |
+| Member list visibility to co-members | — | ⬜ not built (M3-13); `board_members` is self-read only and `profiles` is self-read only, so the member list **cannot** be built before it |
+| Board settings by role | `boards` UPDATE/DELETE policies are owner-only (M2-01) | 🔶 applied, but the role matrix for board settings is undecided (M3-17) |
+
+### Decisions this section makes that the role specification did not state
+
+Flagged explicitly so they are visible rather than smuggled in. Changing one means changing this table, the policies and the tests together.
+
+| Question | Decision | Why |
+|---|---|---|
+| **May an admin remove or demote another admin?** | **No** (M3-14) | The role specification is genuinely ambiguous here: *"can remove members below owner level"* would include admins, while *"can change roles of Viewer and Editor"* and the Owner's *"can promote/demote Admins"* would not. Resolved as **strictly-below-own-rank**, which is the reading that keeps "promote/demote admins" as the Owner's distinguishing power. **If the other reading is intended, this row, both matrices, M3-14's checks and M3-16's tests change together.** |
+| **May a member leave a board on their own?** | **Yes for viewer/editor/admin, never for the Owner** (M3-14, M8-09) | Not in the role specification at all. Membership you can be given and cannot decline is a defect, not a safeguard. The Owner exception falls out of invariant I1. |
+| Who may rename a board / change its appearance? | **admin and owner** (M3-17) | It is board administration, which is what "admin" names. Editors manage content, not the board. |
+| Who may delete or archive a board? | **owner only** (M3-17) | Irreversible and cascades across every table. "Owner is the ultimate authority over the board." |
+| May a viewer be assigned a work item? | **Yes** — assignment requires membership, not write permission (M5-05) | Being responsible for something you cannot edit is a real state; refusing it would be a surprise, not a safeguard. |
+| May a viewer comment? | **Undecided — M7 must decide before `comments` RLS is written** | Not derivable from the role spec. Recorded as an open decision, not silently resolved. |
 
 ---
 
@@ -136,9 +321,9 @@ Backups directory is gitignored — dumps contain user data and must never be co
 
 - [ ] `npm run build` passes (this is the only typecheck — `npm run dev` passing means nothing).
 - [ ] `npm run lint` passes with no new warnings.
-- [ ] Both self-checks pass if touched: `node --experimental-strip-types src/services/lib/todos/insertDense.check.ts` and `.../limitBreach.check.ts`.
+- [ ] `npm test` passes. Vitest is the only test mechanism; the `*.check.ts` + `node --experimental-strip-types` self-checks were retired in M1-17 and ported to `*.test.ts` siblings.
 - [ ] Every box in the task's Manual Test checklist is ticked, by having actually done it.
-- [ ] Non-trivial pure logic added by the task has a `*.check.ts` sibling (or a Vitest test, once M1-17 lands).
+- [ ] Non-trivial pure logic added by the task has a `*.test.ts` sibling.
 - [ ] The Code Review Checklist has been walked, in writing.
 - [ ] One commit / one PR, message matching the suggested form.
 - [ ] If the task changed behaviour documented in `CLAUDE.md` or `docs/*`, that document is updated **in the same PR**.
@@ -179,6 +364,15 @@ Walk this on every PR. Answer each line; do not skip lines that "obviously" pass
 - [ ] No ownership column (`user_id`, `owner_id`, `creator_id`) is sent from the client where a DB default could set it.
 - [ ] No secrets, tokens, or user data in `console.*`.
 - [ ] New `SECURITY DEFINER` functions are `STABLE` where possible and have an explicit `search_path`.
+
+**Permission model** (every PR that touches authorization)
+- [ ] The change matches the matrices in *Permission Model*. If it does not, that section is updated in the same PR, with a reason.
+- [ ] No new rule exists only in React. Name the policy, constraint, trigger or RPC that enforces it server-side.
+- [ ] No new INSERT/UPDATE/DELETE policy was added to `board_members`.
+- [ ] Any new `SECURITY DEFINER` function performs its own authorization check on the caller, and is revoked from `public`/`anon`.
+- [ ] Nothing the PR adds can remove, demote or otherwise modify an Owner (invariants I1–I6).
+- [ ] Membership-sensitive policies call the helper functions rather than sub-selecting `board_members`.
+- [ ] The claim was tested at REST level with a token for the role in question, not through the UI.
 
 **React Query**
 - [ ] Query key comes from the key factory. No inline `["todos"]` string literals.
@@ -228,13 +422,65 @@ Run in full after every milestone, against a real browser and a real Supabase pr
 - [ ] Toggle dark mode.
 - [ ] Update profile name/username/bio; upload an avatar.
 
-### Multi-user — from M3 onward
+### Multi-user and roles — from M3 onward
 
-- [ ] User B cannot see User A's board by guessing its URL.
-- [ ] User B cannot read User A's rows via a direct PostgREST call with B's token. **Test this with `curl`, not through the UI** — the UI proves nothing about RLS.
-- [ ] A `viewer` cannot drag, create, or delete.
-- [ ] An `editor` can edit cards but cannot remove members.
-- [ ] Removing a member revokes their access immediately on next request.
+Run with four real accounts, one per role, on one board. **Every ❌ expectation is proved with `curl` against PostgREST or the RPC endpoint using that role's own JWT.** The UI proves nothing about RLS: it never asks for rows it does not expect, and a hidden button is not a denied request. Where a check is UI-only it says so.
+
+**Non-member**
+- [ ] Cannot see the board by guessing its URL.
+- [ ] `GET /rest/v1/boards?id=eq.<board>` → `[]`.
+- [ ] `GET /rest/v1/columns` and `/todos` filtered to that board → `[]`.
+- [ ] `PATCH`, `POST`, `DELETE` against any of that board's rows → 0 rows affected or `42501`.
+
+**Viewer**
+- [ ] Reads the board, its columns and its work items — same counts as the Owner sees.
+- [ ] `POST /rest/v1/todos` on that board → denied.
+- [ ] `PATCH /rest/v1/todos?id=eq.<row>` (rename) → denied.
+- [ ] `DELETE /rest/v1/todos?id=eq.<row>` → denied.
+- [ ] Bulk reorder upsert on `todos` → denied.
+- [ ] Same four verbs on `columns` → denied.
+- [ ] Any membership RPC → denied.
+- [ ] UI: create, drag handles, column menu and delete affordances are absent.
+
+**Editor**
+- [ ] Create, rename, delete a work item — all succeed and survive a reload.
+- [ ] Create, rename, delete a column; set and clear limits — all succeed.
+- [ ] **Drag within a column, drag across columns, drag a column** — the bulk `upsert` path. Each persists after a hard refresh. This is the single most important Editor check: it exercises INSERT *and* UPDATE policies simultaneously, and a missing one fails silently rather than loudly.
+- [ ] Delete a column with cards → cards rehome to the chosen destination.
+- [ ] Creating a work item allocates a `board_key` (the `KAN-n` label appears), proving the `boards.next_key` trigger works for a non-owner.
+- [ ] Any membership RPC → denied.
+- [ ] Board rename / delete → denied.
+
+**Admin**
+- [ ] Everything in the Editor list succeeds.
+- [ ] Add a member as viewer, and as editor → succeeds.
+- [ ] Add a member as **admin** → denied.
+- [ ] Change viewer ↔ editor → succeeds.
+- [ ] Promote an editor to admin, or demote an admin → denied.
+- [ ] Remove a viewer, remove an editor → succeeds.
+- [ ] Remove another admin → denied.
+- [ ] **Remove the Owner → denied.**
+- [ ] **Demote the Owner to any other role → denied.**
+- [ ] Set themselves to `owner` → denied.
+- [ ] Board rename → succeeds (per M3-17). Board delete → denied.
+
+**Owner**
+- [ ] Everything in the Admin list succeeds, plus promoting/demoting admins.
+- [ ] **Cannot delete or demote their own owner membership** — the invariant holds against the Owner too (I2, I3).
+- [ ] Cannot leave the board.
+- [ ] Board delete → succeeds.
+
+**Transitions and revocation**
+- [ ] Promote viewer → editor: the promoted user can write on their **next** request, with no re-login.
+- [ ] Demote editor → viewer: writes stop immediately; a drag already in flight fails visibly and rolls back.
+- [ ] Remove a member: their next request for the board returns nothing; a stale open tab degrades without leaking data.
+- [ ] Every role change and removal survives a reload on both sides.
+
+**Direct-API hardening**
+- [ ] Editor on board A cannot move one of A's work items into board B by sending B's `board_id` in an upsert.
+- [ ] Editor on board A cannot inject a work item id belonging to board B into a reorder payload.
+- [ ] Editor cannot set a work item's `column_id` to a column belonging to a different board.
+- [ ] No membership RPC accepts a board the caller is not a member of.
 
 ### Concurrency — from M6 onward
 
@@ -248,13 +494,13 @@ Run in full after every milestone, against a real browser and a real Supabase pr
 
 - [ ] `npm run build` green.
 - [ ] `npm run lint` green.
-- [ ] Both `*.check.ts` self-checks print their pass line.
+- [ ] `npm test` green.
 - [ ] Browser console clean — no errors, no unhandled promise rejections, no logged user data.
 - [ ] Network tab: loading a board issues a bounded number of requests, not one per card.
 
 ---
 
-# PART II — MILESTONES
+# PART III — MILESTONES
 
 Risk labels, applied to every task:
 
@@ -264,9 +510,30 @@ Risk labels, applied to every task:
 | **MEDIUM RISK** | Touches shared state, the write path, or many files. Needs deliberate testing. |
 | **HIGH RISK** | Destructive, or changes the security boundary, or migrates data. Requires backup + rollback + migration strategy, documented per task below. |
 
+## Milestone status — as of 2026-08-10
+
+| Milestone | Status | Note |
+|---|---|---|
+| M0 · Stabilise | ✅ Done | Build green, `strict` on, schema and RLS in Git, CI running. |
+| M1 · Foundation | ✅ Done | Auth provider, key factory, error surfacing, Vitest. |
+| M2 · Boards | ✅ Done | Board ownership across schema, RLS, routing and queries. |
+| M3 · Members & Roles | 🔶 In progress | M3-01 → M3-05 applied; the role matrix, member management and Owner protection are the remaining work. |
+| M4 · Invitations | ⬜ Not started | Depends on M3's membership RPCs. |
+| M5 · Work Item Model | ⬜ Not started | Columns exist in the schema since M2-03; the UI does not. |
+| M6 · Realtime | ⬜ Not started | Ordering migration first, then channels. |
+| M7 · Comments & Activity | ⬜ Not started | Carries an undecided permission question. |
+| M8 · Boards UX | ⬜ Not started | |
+| M9 · Quality | ⬜ Not started | Four stated core principles are unmet until this lands. |
+| M10 · Work Item Depth | 🗺 Roadmap | Types, labels, subtasks, links. |
+| M11 · Backlog & Views | 🗺 Roadmap | |
+| M12 · Search & Filtering | 🗺 Roadmap | |
+| M13 · Configurable Workflow | 🗺 Roadmap | |
+
+The original plan described ten milestones (M0–M9). M10–M13 are roadmap direction added in the 2026-08-10 audit; they are **not** decomposed into tasks and are **not** commitments. Appendix E records what is deliberately out of scope.
+
 ---
 
-## Milestone 0 — Stabilise
+## Milestone 0 — Stabilise · ✅ **Done**
 
 **Goal.** Make the project compile, make its schema and security reproducible from the repository, and turn on the type checking the spec assumes is already on.
 
@@ -436,9 +703,33 @@ Turn the Code Review Checklist's mechanical half into something that cannot be s
 
 M0-05 through M0-07 are independent of M0-01 through M0-04 and can run in parallel if two people are working.
 
+### As built — Milestone 0 · ✅ Done
+
+Recorded 2026-08-10 from the repository. The task descriptions above are left as written; this is what actually shipped and what did not.
+
+| Task | Evidence |
+|---|---|
+| M0-05 | `supabase/migrations/20260804000000_baseline_schema.sql` |
+| M0-06 | `docs/RLS_AUDIT.md` |
+| M0-07 | `supabase/migrations/20260805121441_rls_policies.sql` |
+| M0-08 | `src/types/database.ts`, generated by `npm run db:types` |
+| M0-09 / M0-10 | `strict: true` in `tsconfig.app.json` and `tsconfig.node.json` |
+| M0-11 | `.github/workflows/ci.yml` — runs `npm ci`, `npm run lint`, `npm run build`, `npm test` |
+
+**What M0-06 found.** RLS was **disabled** on `todos` and `columns`, and both were granted `ALL` to `anon` — the publishable key that ships in the client bundle. The exposure was unauthenticated, not merely user-to-user. M0-07 closed it.
+
+**Divergences and leftovers, still open.** These are recorded here so they are not lost; each has a home in Appendix B.
+
+- `noUncheckedIndexedAccess` was deferred as the task recommended. Still off.
+- **RLS_AUDIT item 3 — avatar storage.** Any authenticated user can `upsert` over `avatars/<any-uuid>.<ext>` and replace another person's avatar. The upload path is still `${userId}.${ext}` in `src/services/profile/uploadAvatars.ts`. **Not fixed.** Real, exploitable, and unowned by any task — see Appendix B.
+- **RLS_AUDIT item 6 — `handle_new_user()`** is `SECURITY DEFINER` with no `search_path`. **Not fixed.**
+- **RLS_AUDIT item 7 — PITR.** Recorded as disabled. Still disabled; see Migration Strategy Rule 2 and M3-00.
+- **RLS_AUDIT item 5 — `shift_completed_positions`.** Fixed: dropped in `20260807190500_drop_user_id.sql`.
+- **RLS_AUDIT finding D — dead columns.** `todos.status` and `todos.previous_status` still exist in the schema (confirmed in `src/types/database.ts`). They predate the columns schema and nothing reads them. They will actively confuse M13's workflow design; cleanup is M10-00.
+
 ---
 
-## Milestone 1 — Foundation
+## Milestone 1 — Foundation · ✅ **Done**
 
 **Goal.** Fix the six structural defects that would otherwise make Milestone 2 dramatically harder, and give the application an error surface.
 
@@ -655,9 +946,25 @@ Nine milestones of schema migrations and realtime races cannot be defended by tw
 
 The three mechanical refactors land **last**, after the behavioural work, so their large diffs never obscure a real change. M1-06 must precede M1-07.
 
+### As built — Milestone 1 · ✅ Done
+
+| Task | Evidence |
+|---|---|
+| M1-01 / M1-02 | `src/providers/AuthProvider.tsx` + `authContext.ts`; `queryClient.clear()` on `SIGNED_OUT` |
+| M1-03 | `src/services/queryClient/queryKeys.ts` — the only place a key is spelled out |
+| M1-05 / M1-07 | `src/services/queryClient/queryClient.ts` (`MutationCache`/`QueryCache` toasts, `meta: { silent: true }` opt-out) and `retryPolicy.ts` |
+| M1-06 | `src/providers/ToastProvider.tsx` — hand-rolled, no dependency added |
+| M1-08 | `src/components/ErrorBoundary.tsx`, route `errorElement`s in `src/components/routes/Routes.tsx` |
+| M1-09 | `src/services/todos/useTodoDrop.ts` — a real mutation with snapshot rollback |
+| M1-13 | `src/utils/validation.ts` + `validation.test.ts` |
+| M1-14 / M1-15 / M1-16 | `src/providers/`, `src/utils/`, one folder per feature under `src/services/`; `services/lib/` is gone |
+| M1-17 | `vitest.config.ts`, `npm test`; the two `*.check.ts` self-checks were **ported to Vitest and deleted**, so there is one way to run tests |
+
+**Divergence worth recording.** M1-17 offered a choice between keeping both test mechanisms or migrating to one. The decision was to migrate: `insertDense.test.ts`, `limitBreach.test.ts` and the `cache.test.ts` siblings are Vitest, `*.check.ts` no longer exists, and CI runs `npm test` rather than enumerating files. **Every reference to `*.check.ts` elsewhere in this document is historical; do not resurrect it.** `CLAUDE.md` records the same decision.
+
 ---
 
-## Milestone 2 — Boards
+## Milestone 2 — Boards · ✅ **Done**
 
 **Goal.** Move ownership from User to Board, across the schema, the RLS policies, the routing, and every query.
 
@@ -959,122 +1266,340 @@ The card shows `KAN-{id}` from the raw row id. With UUIDs that is unreadable; wi
 
 **The two marked checkpoints are not optional.** Deploying the application rewrite before contracting the schema is what makes commits 11–15 a revert instead of an incident.
 
+### As built — Milestone 2 · ✅ Done
+
+Every task landed, including the two the plan offered as deferrable (M2-14 and M2-21). Where the implementation chose differently from the task text, the choice is recorded below rather than back-written into the task.
+
+| Task | Migration / evidence |
+|---|---|
+| M2-01 | `20260806090000_create_boards.sql` |
+| M2-02 | `20260806092634_add_board_id.sql` |
+| M2-03 | `20260806092902_todos_task_fields.sql` |
+| M2-04 | `20260806093353_timestamps.sql` |
+| M2-05 | `20260806093650_indexes.sql` |
+| M2-06 | `20260806094242_backfill_personal_boards.sql` |
+| M2-07 | `20260806095331_board_id_constraints.sql` |
+| M2-08 | `20260806100619_rls_board_ownership.sql` |
+| M2-12 | `20260806094000_provision_new_user.sql` |
+| M2-13 | `20260807190500_drop_user_id.sql` |
+| M2-14 | `20260807190600_todos_uuid.sql` |
+| M2-15 | `20260807190700_drop_todos_completed.sql` |
+| M2-21 | `20260807190800_board_task_keys.sql` |
+| M2-09 → M2-11, M2-16 → M2-20 | `src/services/boards/`, `src/services/*/cache.ts` + tests, `src/hooks/useBoardDragEnd.ts`, `useColumnReorder.ts`, `useBoardModals.ts`, `src/pages/` |
+
+**Decisions the tasks left open, and how they were resolved.**
+
+- **M2-07, the `todos.column_id` FK.** Resolved as **`on delete restrict`**. `docs/DATABASE.md` requires that deleting a column must not destroy its work items, and `deleteColumn` in `columnsApi.ts` rehomes them server-side before the delete. `restrict` turns "forgot to rehome" into a loud error instead of silent data loss.
+- **M2-12, provisioning.** Resolved as the recommended single RPC: `provision_new_user()`, `SECURITY DEFINER`, idempotent — it returns the caller's existing board if there is one, so a retried signup cannot mint a second board.
+- **M2-14, the `KAN-` label.** No `legacy_id` column was kept. The label moved to `todos.board_key` (M2-21) instead, so the integer id was not needed for display. `isOptimistic` is gone: the client mints the uuid, `addTodo` upserts, and the optimistic row *is* the stored row.
+- **M2-21, key allocation.** Built as a **`BEFORE INSERT` trigger** (`todos_assign_board_key`) reading `boards.next_key`, not as an insert RPC as the task text suggested. The trigger is the stronger choice and is now the project's precedent for "an invariant every writer must satisfy": an RPC only constrains callers who use it, a trigger constrains all of them. A unique index on `(board_id, board_key)` backs it, and keys are never reused.
+  - Consequence worth knowing before M3-16: inserting a work item performs an `UPDATE` on `boards`. It succeeds for a non-owner **only** because the trigger is `SECURITY DEFINER` and bypasses the owner-only `boards` UPDATE policy. The Editor create path depends on that, which is why M3-16 tests it explicitly.
+- **M2-08's swap point held.** `accessible_board_ids()` was widened to membership in M3-05 without touching a single policy definition, exactly as designed. The pattern is worth repeating.
+
+**Known leftover.** The `KAN-` prefix is hardcoded in `src/components/todo/TodoItem.tsx`. A per-board prefix is a Jira-shaped requirement; the schema decision is recorded in Appendix D rather than being built now.
+
 ---
 
-## Milestone 3 — Members & Roles
+## Milestone 3 — Members & Roles · 🔶 **In progress**
 
-**Goal.** Replace row ownership with a real permission model backed by `board_members`, enforced in RLS.
+**Goal.** Replace row ownership with the permission model defined in Part II — `viewer → editor → admin → owner`, enforced in the database, with the Owner protected against every membership operation.
 
-**Why this milestone exists.** Boards without members are just namespaced personal boards. Today "can I edit this?" is answered by `user_id = auth.uid()`; in the target it must be answered by a role lookup, and that lookup must happen in the database, not in React. `docs/ARCHITECTURE.md`: *"Frontend authorization is only for UI convenience."*
+**Why this milestone exists.** Boards without members are just namespaced personal boards. Before M3, "can I edit this?" was answered by "do you own the board"; in the target it is answered by a role lookup, and that lookup must happen in the database, not in React. `docs/ARCHITECTURE.md`: *"Frontend authorization is only for UI convenience."*
 
-**Dependencies.** Milestone 2, fully complete and soaked.
+**Dependencies.** Milestone 2, fully complete and soaked. ✅
 
-**Estimated difficulty.** L (12 tasks).
+**Estimated difficulty.** L→XL (19 tasks: 4 done, 1 applied with verification outstanding, 14 remaining). Grew during the 2026-08-10 audit: the original 12 tasks assumed membership could be written from the client and assumed the member list was readable. Neither is true — see *Where the original M3 was wrong*, below.
 
 **Risks.**
-- **The RLS recursion trap.** A policy on `board_members` that itself queries `board_members` causes infinite recursion in Postgres and a hard 500. This catches most teams. The remedy — `SECURITY DEFINER STABLE` helper functions — must be in place from the first policy, not added after the outage.
-- Membership sub-selects run per row. Without the M2-05 indexes, board load time degrades sharply. Test with a 500-card board and 10 members before declaring this done.
+- **The RLS recursion trap.** A policy on `board_members` that itself queries `board_members` causes infinite recursion in Postgres and a hard 500. The remedy — `SECURITY DEFINER STABLE` helper functions — is in place from M3-02 and every later policy must use it.
+- **Privilege escalation through membership mutation.** Every membership RPC is a privilege-granting function. An admin who can edit an admin, or set their own role, defeats the whole hierarchy. M3-14 and M3-15 are the two highest-risk tasks in the milestone and neither may be merged on a UI test.
+- Membership sub-selects run per row. Without the M2-05 indexes and both `board_members` indexes, board load time degrades sharply. Test with a 500-card board and 10 members before declaring this done.
+- **No dump was taken for M3-01 → M3-05, and PITR is off.** The remaining M3 tasks replace policies and grant privileges — Rule 6 applies to every one of them.
 
 **Success criteria.**
-- Every board has at least one `owner` row in `board_members`.
-- All RLS on boards, columns and todos routes through the helper functions.
-- A `viewer` cannot write; an `editor` cannot manage members; verified by `curl`, not only by UI.
+- Every board has exactly one `owner` row in `board_members`, and `boards.owner_id` agrees with it.
+- All RLS on boards, columns and work items routes through the helper functions.
+- Every cell of both matrices in *Permission Model* has a passing REST-level test (M3-16).
+- Owner immutability invariants I1–I5 hold against a direct API attempt by an admin, and against the Owner's own attempt.
+- No client-writable policy exists on `board_members`.
 - Board load time with 500 cards and 10 members is within 20% of its pre-milestone figure.
+
+### Where the original M3 was wrong
+
+Found in the 2026-08-10 audit, against the applied migrations. Recorded because the corrections change task scope, not merely wording.
+
+1. **M3-06 as written implied direct client writes to `board_members`.** `board_members` has RLS on with a **self-read policy only** — no INSERT, UPDATE or DELETE policy — which is correct and deliberate. Hooks named `useAddMember` / `useUpdateMemberRole` / `useRemoveMember` therefore cannot call PostgREST tables; they must call RPCs. M3-06 is re-scoped and M3-14 is new.
+2. **M3-07 (member list) could not have worked.** A member can only read *their own* `board_members` row, and `profiles` carries one `FOR ALL … USING (auth.uid() = id)` policy, so a member cannot read a teammate's name or avatar either. Two read policies are missing. M3-13 is new and blocks M3-06, M3-07 and M3-08. It does **not** block M3-09 — permission gating reads only the caller's own membership row, which the self-read policy already allows.
+3. **M3-08 said "guard against removing the last owner".** That is a weaker rule than the model requires. The Owner is immutable — not merely "not the last one" — and the guard belongs in the database against every writer, not in a UI check. M3-15 is new.
+4. **Nothing owned the Admin-versus-Owner boundary.** The single most important negative rule in the model ("an admin must never modify the Owner") had no task and no test. M3-14, M3-15 and M3-16 now carry it.
+5. **The role matrix was never going to be verified by the tasks as written.** M3-05's one-line test asked for "all four roles against all four verbs" as a side note on a migration task. That is a milestone-gating verification, not a footnote. M3-16 is new.
+6. **There is currently no way to create an editor or admin membership at all.** The only writer to `board_members` is the `add_owner_membership` trigger. The existing viewer fixture was seeded out-of-band. So M3-16 cannot run before either M3-14 lands or fixtures are seeded with the service role — the dependency is stated in the task.
 
 ### Tasks
 
-#### M3-01 · Create `board_members` — **SAFE**
+#### M3-00 · Enable PITR — **SAFE** (project configuration) — ⬜ Not started
+
+Not a migration. The remaining M3 tasks replace policies and add privilege-granting functions, and Rule 6 requires a real recovery path for both. PITR has been off since M0-06 recorded it, and M2's destructive migrations ran without it.
+
+- **Files:** none. Project setting on `nxnnfaoyttbzndphnawe`, plus a line in `docs/RLS_AUDIT.md` marking item 7 resolved.
+- **Test:** the Supabase dashboard reports PITR enabled, and the earliest recovery point is recorded in the PR.
+- **Blocks:** M3-14, M3-15, M3-17. Those three either replace policies or grant privileges.
+- **If PITR cannot be enabled** (plan tier, cost), that is an acceptable answer — but then it must be written down here, and each blocked task must take a verified dump instead. What is not acceptable is proceeding while assuming a recovery path that does not exist.
+- **Commit:** `docs: record PITR status ahead of the M3 privilege work`
+
+#### M3-01 · Create `board_members` — **SAFE** — ✅ Done
 `board_id`, `user_id`, `role text check (role in ('owner','admin','editor','viewer'))`, `joined_at`, PK `(board_id, user_id)`, indexes on both columns per `docs/DATABASE.md`. RLS enabled with a deliberately minimal self-read policy for now.
 **Test:** insert a membership; a user can read their own rows; regenerated types include the table.
 **Commit:** `feat(db): create board_members`
+> **As applied** — `20260810090000_create_board_members.sql`, commit `c19ab03`. Both foreign keys cascade. `role` has no default, deliberately: a membership without an explicit role is a call-site bug, and `'viewer'` as a default would hide it. The only policy is `"Users select own memberships"` — self-read. **There is no INSERT/UPDATE/DELETE policy and there must never be one** (Permission Model, rule 4).
+> **Divergence:** the migration created only `board_members_user_id_idx`. The `board_id` index the task called for was missed and added by a follow-up, `20260810094000_add_board_members_board_id_index.sql` (commit `4d2b04e`). Both indexes exist now. It matters because `is_board_member`/`board_role` filter on `board_id` on every policy evaluation.
 
-#### M3-02 · `is_board_member` / `board_role` helpers — **MEDIUM RISK**
+#### M3-02 · `is_board_member` / `board_role` helpers — **MEDIUM RISK** — ✅ Done
 `SECURITY DEFINER STABLE` functions with an explicit `search_path`. Every future policy calls these instead of sub-selecting `board_members` — this is the recursion remedy and it must exist before any policy uses it.
 **Test:** call each as two different users; confirm no recursion; confirm `STABLE` lets the planner cache within a statement; `explain analyze` a board fetch.
 **Commit:** `feat(db): board membership helper functions`
+> **As applied** — `20260810093000_board_membership_helpers.sql`, commit `403fd5e`. Both are `language sql`, `stable`, `security definer`, `set search_path = ''`, revoked from `public`/`anon` and granted to `authenticated` and `service_role`. `board_role(uuid)` returns `NULL` for a non-member, and `NULL in (…)` is `NULL`, which both `USING` and `WITH CHECK` treat as failure — non-membership is denied by the same expression that grades roles, with no separate branch to forget.
+> 🔶 **Outstanding:** the `explain analyze` half of the test was not run. It is folded into M3-12.
 
-#### M3-03 · Backfill owner memberships — **HIGH RISK**
+#### M3-03 · Backfill owner memberships — **HIGH RISK** — ✅ Done
 Every existing board gets an `owner` row for its `owner_id`.
 **Test:** `select count(*) from boards b where not exists (select 1 from board_members m where m.board_id = b.id and m.role = 'owner')` → 0.
 > **Backup:** dump before. **Rollback:** `delete from board_members` — purely additive, so reversal is clean. **Migration:** run before M3-04/M3-05, or the new policies lock every existing owner out of their own board.
 **Commit:** `feat(db): backfill owner memberships for existing boards`
+> **As applied** — `20260810100000_backfill_owner_memberships.sql`, commit `fc7372a`. **No dump was taken**: Docker and a direct database connection were unavailable in that session. The migration inserts only, with `on conflict do nothing`, and reverses with a single `delete`, so it was judged recoverable by forward-fix. That judgement was specific to this migration — see Rule 6 before reusing it.
+> **Divergence, and an important one:** the task described a backfill only. What shipped also added `add_owner_membership()` (`SECURITY DEFINER`, revoked from `public`/`anon`/`authenticated`) and the `boards_add_owner_membership` AFTER INSERT trigger. That is what makes "every board has an owner membership" an **invariant for future boards** rather than a one-time fact about existing ones. The trigger is the only writer that can mint a board's first membership, because that row cannot be authorized by membership — there is none yet. M3-15 builds on this.
 
-#### M3-04 · Boards RLS via helpers — **HIGH RISK**
+#### M3-04 · Boards RLS via helpers — **HIGH RISK** — ✅ Done
 **Test:** owner full access; member read access; non-member no access, verified by `curl`.
 > **Backup:** dump; capture current policies into the PR. **Rollback:** forward-fix restoring the captured M2-08 policies. **Migration:** branch DB, full multi-user test, then production off-peak; watch 403s for 15 minutes.
 **Commit:** `feat(db): board RLS via membership helpers`
+> **As applied** — `20260810110000_boards_rls_via_membership.sql`, commit `1419dee`. **Only the SELECT policy changed**: `"Users select own boards"` was replaced by `"Members select accessible boards"`, `using (owner_id = auth.uid() or is_board_member(id))`. INSERT, UPDATE and DELETE on `boards` remain **owner-only** from M2-01. That is a deliberate narrow scope, not an omission, but it leaves board settings unassigned to a role — M3-17 closes it.
+> The `owner_id = auth.uid()` disjunct is kept alongside the membership check on purpose: it is a safety net. If an owner's membership row ever went missing, they would still reach their own board.
+> **No pre-migration dump was taken** (same session constraint as M3-03). This one *replaced a policy*, so under Rule 6 it should have had one; the old definition survives only because it is in the M2-01 migration file.
 
-#### M3-05 · Columns and todos RLS via helpers — **HIGH RISK**
+#### M3-05 · Columns and todos RLS via helpers — **HIGH RISK** — 🔶 Applied, verification outstanding
 Read for any member; write for `editor` and above; `viewer` read-only.
 **Test:** all four roles against all four verbs on both tables, via `curl`; then the full Smoke checklist as `owner` and again as `editor`.
 > **Backup / Rollback / Migration:** as M3-04. Additionally confirm `upsert` paths still work for `editor` — both INSERT and UPDATE policies are required.
 **Commit:** `feat(db): column and todo RLS via membership helpers`
+> **As applied** — `supabase/migrations/20260810120000_columns_todos_rls_via_membership.sql`. ⚠ **Applied to the linked project but not yet committed to Git.** Commit it before anything else in M3 lands; an applied migration that is not in the repository is the exact failure Rule 1 exists to prevent.
+> What it does: widens `accessible_board_ids()` to `boards.owner_id ∪ board_members.user_id` — the M2-08 swap point, used exactly as designed, with **no policy definition edited** for reads. The two SELECT policies are renamed to `"Members select …"`. The six write policies are dropped and recreated as `"Editors and above insert/update/delete todos"` and the three column equivalents, each `using`/`with check` on `board_role(board_id) in ('owner','admin','editor')`.
+> **Read and write use different predicates on purpose, and this is worth understanding before changing either.** Reads go through `accessible_board_ids()`, which includes `boards.owner_id`; writes go through `board_role()`, which reads `board_members` only. An owner with no membership row could therefore read but not write. In practice M3-03's backfill and trigger make that state unreachable, and M3-15 makes it an enforced invariant.
+> **Verified:** read behaviour only. On the current fixture — board `5819a045-0bca-4a8a-9dc1-a67f7911b854`, owner `qwerty@gmail.com`, viewer `qqq@gmail.com` — both accounts see the same 5 columns and 21 work items, and the viewer cannot mutate.
+> **Not verified — and not to be claimed as verified:** the Editor path, the Admin path, the upsert/reorder path for any non-owner, and every REST-level denial. No editor or admin membership exists yet, because nothing can create one. The whole matrix is M3-16.
+> **No pre-migration dump was taken.** This migration replaced eight policies; Rule 6 applies to anything like it from here on.
 
-#### M3-06 · `services/members/` — **SAFE**
+#### M3-13 · Co-member read policies on `board_members` and `profiles` — **MEDIUM RISK** — ⬜ Not started
+
+**New in the 2026-08-10 audit. This blocks M3-06, M3-07 and M3-08** — none of them can render a member list against today's policies. It does not block M3-09, which reads only the caller's own row.
+
+Today `board_members` is self-read only and `profiles` carries a single `FOR ALL … USING (auth.uid() = id)` policy. A member can see neither who else is on the board nor their names and avatars.
+
+- **Files:** `supabase/migrations/<ts>_membership_read_policies.sql`, `docs/RLS_AUDIT.md`.
+- **DB / RLS:**
+  - `board_members` gains a SELECT policy: a member of a board may read every membership row of that board — `using (public.is_board_member(board_id))`. Via the helper, never a sub-select on `board_members` itself; that is the recursion trap.
+  - `profiles` gains a SELECT policy for co-members. **This widens profile visibility and is the risk in this task.** Decide and record which columns are exposed: `id`, `username`, `full_name`, `avatar_url` are needed for a member list; `email` and `bio` are not. If the split matters, expose a view rather than the table — decide explicitly and write the reason in the PR.
+  - The existing `"Users can manage own profile"` `FOR ALL` policy stays for self-writes. Policies are `PERMISSIVE`/OR'd, so adding a SELECT policy widens reads without widening writes.
+- **Breaking:** no, additive. But it changes what one user can learn about another — treat the column list as a product decision, not a detail.
+- **Test:** as a co-member, `GET /rest/v1/board_members?board_id=eq.<board>` returns every member; as a non-member it returns `[]`. As a co-member, the teammate's profile row is readable and contains **only** the agreed columns. As a non-member, the teammate's profile is not readable. No recursion, no 500. A user removed from the board immediately stops seeing the roster.
+- **Commit:** `feat(db): let board members read the roster and each other's profiles`
+> **Rule 6 applies** — this widens access and adds policies. Dump first, capture the current `profiles` policy verbatim into the PR, rollback is a forward-fix dropping the two new policies.
+
+#### M3-14 · Membership mutation RPCs — **HIGH RISK** — ⬜ Not started
+
+**New in the 2026-08-10 audit.** This is the task that makes membership manageable at all, and it is a privilege-granting surface. Review it line by line.
+
+`board_members` has no client write policy and must not get one. Every mutation is a `SECURITY DEFINER` function that performs its own authorization against the *Membership matrix* in Part II.
+
+- **Files:** `supabase/migrations/<ts>_membership_rpcs.sql`, regenerate types.
+- **DB:** four functions, all `SECURITY DEFINER`, `set search_path = ''`, revoked from `public`/`anon`, granted to `authenticated`:
+  - `add_board_member(p_board_id uuid, p_user_id uuid, p_role text)`
+  - `set_member_role(p_board_id uuid, p_user_id uuid, p_role text)`
+  - `remove_board_member(p_board_id uuid, p_user_id uuid)`
+  - `leave_board(p_board_id uuid)` — the self-removal path; see the exception below
+- **Authorization each function must enforce, in this order:**
+  1. Caller is authenticated; otherwise raise.
+  2. Caller's role on the board comes from `board_role(p_board_id)`, never from an argument. A caller with no role on the board is denied outright.
+  3. **The target is never the Owner** — neither the row whose role is `owner`, nor `boards.owner_id`. Denied for every caller, including the Owner themselves (I2, I3, I4). This check comes before the caller-rank check deliberately: it must not be reachable past an `admin or owner` gate.
+  4. `p_role` is never `'owner'`. Ownership transfer is not a membership operation (I6).
+  5. Caller is `admin` or `owner`; otherwise raise — **except for the self-removal branch below.**
+  6. An `admin` caller may only act on a target whose current role is `viewer` or `editor`, and may only set `p_role` to `viewer` or `editor`. An admin acting on another admin, or on themselves via these functions, is denied.
+  7. An `owner` caller may act on any non-owner target and may set any non-owner role.
+- **Self-service exception, and it is the one branch that skips step 5:** removing *yourself* is allowed for admin, editor and viewer, and denied for the Owner (step 3 already denies it). **Build it as a separate `leave_board(p_board_id)` function rather than a branch inside `remove_board_member`.** A rule that reads "remove_board_member happens to allow self" is one refactor away from disappearing, and the two operations have genuinely different authorization: one is administration, the other is consent. M8-09 is its UI.
+- **Breaking:** no — nothing calls these yet.
+- **Test:** every row of the *Membership matrix* and every invariant, called directly as RPC with each role's own JWT. Both the ✅ and the ❌ cells. Specifically: admin removing the owner, admin demoting the owner, admin promoting themselves to owner, admin editing another admin, owner demoting themselves, editor calling any of the three, a non-member calling any of the three, and a caller passing a `p_board_id` they have no membership on. Concurrent double-call is idempotent, not duplicating.
+- **Commit:** `feat(db): membership mutation RPCs with role enforcement`
+> **HIGH RISK — privilege-granting.**
+> **Prerequisite:** M3-00.
+> **Backup:** dump first (Rule 6 — this grants privileges). **Rollback:** forward-fix dropping the three functions; audit `board_members` for any row they created, using `joined_at` as the window. **Migration:** review every authorization branch against the matrix before applying, and test the failure branches first — a flaw here hands over a board. Do not merge on a UI test.
+
+#### M3-15 · Owner immutability in the database — **HIGH RISK** — ⬜ Not started
+
+**New in the 2026-08-10 audit.** M3-14 enforces the rules for callers who use it. This task enforces them for **every** writer — a future RPC, a migration, a careless `service_role` script, an admin screen written in six months.
+
+The M2-21 `todos_assign_board_key` trigger is the precedent: an invariant every writer must satisfy belongs in a trigger, not in one function's body.
+
+- **Files:** `supabase/migrations/<ts>_owner_immutability.sql`.
+- **DB:** a `BEFORE UPDATE OR DELETE` trigger on `board_members` that raises when the affected row is the board's Owner (I2, I3). Plus enforcement that `boards.owner_id` and the `owner` membership row cannot drift apart (I5) — a `BEFORE UPDATE` trigger on `boards.owner_id`, or a documented decision that `owner_id` is immutable until ownership transfer exists.
+- **Decide and record:** whether the trigger exempts `service_role`. Recommendation: **no exemption.** An exemption is a hole that exists precisely when someone is operating under pressure. Ownership transfer, when it is built, should be a function that lifts the invariant explicitly and transactionally, not a role that is quietly outside it.
+- **Breaking:** yes for any writer that currently deletes owner rows. Nothing in `src/` does; confirm no migration does either.
+- **Test:** as `service_role` — the most privileged path there is — attempt `delete from board_members where role = 'owner'`, `update … set role = 'viewer'` on an owner row, and `update boards set owner_id = <someone else>`. Each raises. Then re-run M3-14's owner tests and confirm they still fail at the RPC layer, so both layers hold independently. Then confirm a normal membership change to a viewer/editor/admin row still succeeds — an over-broad trigger that blocks everything would pass the negative tests.
+- **Commit:** `feat(db): enforce owner immutability for every writer`
+> **HIGH RISK — changes what the database will accept.**
+> **Prerequisite:** M3-00. **Backup:** dump first. **Rollback:** forward-fix dropping the triggers. **Migration:** apply after M3-14 so the RPC tests can be re-run against it, and verify that `provision_new_user()` and `add_owner_membership()` still work — signup creates a board, which creates an owner row, and a badly scoped trigger would break account creation.
+
+#### M3-17 · Board settings by role — **MEDIUM RISK** — ⬜ Not started
+
+**New in the 2026-08-10 audit.** M3-04 changed only the SELECT policy on `boards`; UPDATE and DELETE are still owner-only from M2-01, which no longer matches the model.
+
+Implements the two decisions recorded in *Permission Model → Decisions this section makes*: **admin and owner may update a board; only the owner may delete it.**
+
+- **Files:** `supabase/migrations/<ts>_boards_settings_by_role.sql`.
+- **DB / RLS:** replace `"Users update own boards"` with an admin-or-owner predicate via `board_role(id)`. Leave DELETE owner-only. Leave INSERT as-is — creating a board makes you its owner by definition.
+- **Watch:** `updateBoard` in `boardsApi.ts` already excludes `owner_id` from its patch type, and the UPDATE policy must keep `owner_id` unchangeable through this path (I5, I6). A `WITH CHECK` that permits changing `owner_id` would be an ownership transfer with no ceremony.
+- **Test:** admin renames a board → succeeds; admin deletes → denied; editor renames → denied; admin changes `owner_id` via PATCH → denied; owner deletes → succeeds and cascades.
+- **Commit:** `feat(db): board settings editable by admins, deletable by the owner`
+> **Rule 6 applies** — replaces a policy. Dump first; capture the M2-01 definitions into the PR.
+
+#### M3-18 · Cross-board integrity constraint — **MEDIUM RISK** — ⬜ Not started
+
+**New in the 2026-08-10 audit.** A real gap, reachable by any editor through the API.
+
+`todos.board_id` and `todos.column_id` are independent foreign keys. Nothing requires the column to belong to the same board as the work item. An editor on board A can `PATCH` one of A's work items with a `column_id` from board B: `USING` and `WITH CHECK` both evaluate `board_role(board_id)` on A, both pass, and the result is a work item that renders on neither board correctly.
+
+- **Files:** `supabase/migrations/<ts>_todo_column_same_board.sql`.
+- **DB:** the standard shape is a composite foreign key — add a `unique (id, board_id)` on `columns` and make `todos (column_id, board_id)` reference it. That is one constraint, enforced for every writer, with no function to maintain. A trigger is the fallback if the composite FK conflicts with something.
+- **Preflight:** count existing violations before adding the constraint; it cannot be added while any exist. If there are any, they are their own fix-up migration first.
+- **Breaking:** only for writes that were already producing invalid rows.
+- **Test:** preflight count is 0; a `PATCH` setting a foreign board's `column_id` is rejected; a normal drag across columns within a board still works; `deleteColumn`'s rehoming upsert still works.
+- **Commit:** `feat(db): a work item's column must belong to its board`
+> Do this **before** M3-10. It removes most of M3-10's security rationale and leaves it a transactional-integrity task, which is a smaller and clearer thing to build.
+
+#### M3-06 · `services/members/` — **SAFE** — ⬜ Not started
 `membersApi.ts` + `useBoardMembers`, `useAddMember`, `useUpdateMemberRole`, `useRemoveMember`. Keys `["members", boardId]` via the factory.
 **Commit:** `feat(members): members API and query hooks`
+> **Re-scoped 2026-08-10.** The read hook queries the `board_members` table (allowed by M3-13). **The three mutation hooks call the M3-14 RPCs via `supabase.rpc(...)` — never `.from("board_members").insert/update/delete()`.** There is no policy that would let those succeed, and adding one is prohibited (Permission Model, rule 4).
+> Add `queryKeys.members(boardId)` to the factory — no inline key literals, per the Code Review Checklist.
+> **Depends on:** M3-13 (read policy), M3-14 (the RPCs).
+> **Test:** the list renders every member for a member of the board; each mutation hook rolls back optimistically on a denied RPC and surfaces the error through the M1-07 toast path.
 
-#### M3-07 · Member list UI — **SAFE**
+#### M3-07 · Member list UI — **SAFE** — ⬜ Not started
 Avatars, names, role badges, joined date. Read-only.
 **Commit:** `feat(members): board member list`
+> **Depends on:** M3-13 — a teammate's `profiles` row is not readable without it, so avatars and names would render empty. Show only the profile columns M3-13 agreed to expose.
+> The Owner is visually distinguished from admins: it is the one role no control can change, and the UI should say so rather than offering a disabled button with no explanation.
 
-#### M3-08 · Role management UI — **MEDIUM RISK**
-Change role, remove member, with optimistic update and rollback. Guard against removing the last owner.
-**Test:** promote, demote, remove; attempt to remove the last owner → blocked in UI **and** in the database; a removed member loses access on their next request.
+#### M3-08 · Role management UI — **MEDIUM RISK** — ⬜ Not started
+Change role, remove member, with optimistic update and rollback. The Owner is never a target of either control.
+**Test:** promote, demote, remove; attempt to target the Owner → no control exists in the UI **and** the operation is refused by the database; a removed member loses access on their next request.
 **Commit:** `feat(members): manage roles and remove members`
+> **Re-scoped 2026-08-10.** The original wording was *"guard against removing the last owner"*, which understates the rule and implies a board can have several owners. **A board has exactly one Owner and the Owner is immutable** (I1–I4) — the UI offers no control that targets them at all, for any caller. Enforcement is M3-14 and M3-15; this task only makes the UI honest about it. The task body above was corrected rather than annotated, because this task has not been started and a stale instruction here would be implemented.
+> The role selector an **admin** sees offers `viewer` and `editor` only, and is absent on rows held by an admin or the Owner. The selector an **owner** sees offers `viewer`, `editor`, `admin` — never `owner`.
+> **Test additions:** as an admin, no control exists that targets the Owner or another admin; a role change that the database rejects rolls back visibly rather than sticking optimistically; the actor's own row cannot be escalated.
 
-#### M3-09 · Frontend permission gating — **SAFE**
+#### M3-09 · Frontend permission gating — **SAFE** — ⬜ Not started
 `usePermissions()` derived from the current user's role. Hide destructive affordances from viewers. UI convenience only — RLS remains the boundary.
 **Test:** as a `viewer`, the create button, drag handles, column menu and delete are absent; bypassing the UI still fails at the database.
 **Commit:** `feat(members): gate UI affordances by role`
+> **Re-scoped 2026-08-10.** `usePermissions(boardId)` reads the current user's role from their own `board_members` row — readable under M3-01's self-read policy, so this does **not** depend on M3-13. Derive booleans (`canEditContent`, `canManageMembers`, `canManageAdmins`, `canDeleteBoard`) from the matrices in Part II, in **one** module, so a rule lives in one place. Do not scatter `role === "admin"` comparisons through components.
+> Gate the drag sensors too, not only the buttons: a viewer who can start a drag gets an optimistic move that silently reverts, which reads as a broken board rather than as a permission.
+> **This is UX. It is never the enforcement.** Every gated action must already be denied by M3-05, M3-14, M3-15 or M3-17 with the UI bypassed entirely.
 
-#### M3-10 · `reorder_todos` RPC — **MEDIUM RISK**
+#### M3-10 · `reorder_todos` RPC — **MEDIUM RISK** — ⬜ **Deferred to M6** (decided 2026-08-10)
 Replaces the client-supplied bulk `upsert`, which is an unbounded client-controlled write of `column_id` and `position` across arbitrary row ids. The RPC validates membership and renumbers server-side in one transaction.
 **Test:** drag within and across columns; attempt to reorder a board you are not a member of → rejected; attempt to inject a foreign todo id into the payload → rejected.
 **Commit:** `feat(db): transactional reorder_todos RPC`
+> **Deferred, with the reason, per Definition of Done.** It keeps its ID and stays documented here; it is **not** part of M3's Definition of Done and does not block the milestone. It is re-evaluated at M6-04 and appears in M6's commit order.
+> **Why.** Most of the security case is already covered: M3-05's `USING` clause is evaluated against each *existing* row, so a foreign work item id in the payload is rejected by the policy, and M3-18 closes the cross-board `column_id` gap. What remains is transactional integrity — a partial bulk upsert leaves a column with duplicate or gapped positions — and payload size. **M6-04 replaces whole-column renumbering with a single-row rank write, which removes both.** Building this now means building something M6 deletes.
+> **The trigger to reopen it:** M6-04 ships and a bulk renumber path still exists (rebalancing, or an import). If it is built at any point, it must take the board id and derive everything else server-side.
 
-#### M3-11 · `delete_column` RPC — **MEDIUM RISK**
+#### M3-11 · `delete_column` RPC — **MEDIUM RISK** — ⬜ Not started
 The current path is four sequential round-trips; a failure between the rehoming upsert and the delete leaves an empty column the user believes is gone.
 **Test:** delete a column with cards → all cards arrive at the destination in order, column gone; simulate a mid-operation failure → nothing is half-applied.
 **Commit:** `feat(db): transactional delete_column RPC`
+> Unlike M3-10 this does not go away with M6 — rehome-then-delete is inherently multi-statement. Build it as `SECURITY INVOKER` so the caller's own RLS still applies, and it inherits the editor+ gate from M3-05 for free. If it must be `SECURITY DEFINER` for any reason, it takes on its own `board_role` check (Permission Model, rule 5).
+> Verify the destination column belongs to the same board as the one being deleted — the same class of gap M3-18 closes for work items.
 
-#### M3-12 · Membership performance verification — **SAFE** (verification)
+#### M3-16 · Role matrix acceptance verification — **SAFE** (verification) — ⬜ Not started
+
+**New in the 2026-08-10 audit. This task gates the milestone: M3 is not done until it passes.**
+
+Execute the entire *Multi-user and roles* section of the Testing Checklist and record the results. It is deliberately a separate task with its own commit, because a verification folded into a feature task is a verification that gets skipped.
+
+- **Fixtures:** four accounts on one board, one per role, plus a fifth non-member. The existing fixture is board `5819a045-0bca-4a8a-9dc1-a67f7911b854` with owner `qwerty@gmail.com` and viewer `qqq@gmail.com`; editor, admin and non-member accounts still need creating.
+- **Dependency, and it is a real one:** nothing can currently create an editor or admin membership — `board_members` has no write policy and the only writer is the owner trigger. Either land M3-14 first and mint the fixtures through it (preferred — it tests the RPC at the same time), or seed them with the service role for an interim run of the content matrix only. **State in the PR which was used**; a matrix verified against service-role-seeded fixtures says nothing about M3-14.
+- **Method:** direct PostgREST and RPC calls with each role's own JWT. Every ❌ cell needs an observed denial — an empty array for a filtered read, `42501` or 0 rows affected for a write. A UI screenshot is not evidence.
+- **Reload persistence:** every ✅ write is re-read after a hard refresh. The Editor drag path especially: it exercises INSERT and UPDATE policies through one `upsert`, and a missing policy reverts silently on refresh rather than erroring.
+- **Output:** a results table committed to `docs/RLS_AUDIT.md` — every cell of both matrices, plus I1–I5, with the observed status code or row count. Any failure becomes a new task in this document before the milestone closes.
+- **Commit:** `docs: role matrix verification results`
+
+#### M3-12 · Membership performance verification — **SAFE** (verification) — ⬜ Not started
 Seed a board with 500 cards, 12 columns and 10 members. `explain analyze` the board load. Compare against the M2-05 baseline.
 **Test:** load time within 20% of baseline; no sequential scan on `board_members`; findings recorded in the PR. If it regresses, that is a finding — fix it here, not in M9.
 **Commit:** `perf(db): verify RLS membership lookup cost`
+> Also absorbs the `explain analyze` check M3-02 did not run. Two plans to look at, and they are not the same shape: reads go through `accessible_board_ids()` (set-returning, planned once per statement as an InitPlan) while writes go through `board_role(board_id)` (row-dependent, potentially once per row on a bulk upsert). **Profile the bulk reorder path specifically**, not only the board load — it is the one that can degrade per row.
 
 ### Expected commit order — Milestone 3
 
+Done, in the order it happened:
+
 ```
-1.  feat(db): create board_members                          (M3-01)
-2.  feat(db): board membership helper functions             (M3-02)
-3.  feat(db): backfill owner memberships                    (M3-03)  ← HIGH
-4.  feat(db): board RLS via membership helpers              (M3-04)  ← HIGH
-5.  feat(db): column and todo RLS via membership helpers    (M3-05)  ← HIGH
-6.  perf(db): verify RLS membership lookup cost             (M3-12)
-7.  feat(members): members API and query hooks              (M3-06)
-8.  feat(members): board member list                        (M3-07)
-9.  feat(members): manage roles and remove members          (M3-08)
-10. feat(members): gate UI affordances by role              (M3-09)
-11. feat(db): transactional reorder_todos RPC               (M3-10)
-12. feat(db): transactional delete_column RPC               (M3-11)
+1.  feat(db): create board_members                          (M3-01)  ✅
+2.  feat(db): board membership helper functions             (M3-02)  ✅
+3.  fix(db): add missing board_members(board_id) index      (M3-01 follow-up)  ✅
+4.  feat(db): backfill owner memberships                    (M3-03)  ✅ HIGH
+5.  feat(db): allow board reads via membership              (M3-04)  ✅ HIGH
+6.  feat(db): column and todo RLS via membership helpers    (M3-05)  🔶 HIGH — applied, NOT COMMITTED
 ```
 
-M3-12 sits deliberately early — discovering an RLS performance cliff after building four screens on top of it is the expensive order.
+Remaining, in dependency order:
+
+```
+0.  commit the applied M3-05 migration                      ← do this first
+1.  docs: record PITR status ahead of the privilege work    (M3-00)
+2.  feat(db): let board members read the roster + profiles  (M3-13)
+3.  feat(db): membership mutation RPCs                      (M3-14)  ← HIGH
+4.  feat(db): enforce owner immutability for every writer   (M3-15)  ← HIGH
+5.  feat(db): board settings by role                        (M3-17)
+6.  feat(db): a work item's column must belong to its board (M3-18)
+7.  docs: role matrix verification results                  (M3-16)  ← MILESTONE GATE
+8.  perf(db): verify RLS membership lookup cost             (M3-12)
+9.  feat(members): members API and query hooks              (M3-06)
+10. feat(members): board member list                        (M3-07)
+11. feat(members): manage roles and remove members          (M3-08)
+12. feat(members): gate UI affordances by role              (M3-09)
+13. feat(db): transactional delete_column RPC               (M3-11)
+
+deferred out of this milestone:
+    feat(db): transactional reorder_todos RPC               (M3-10)  → re-evaluated at M6-04
+```
+
+**The database work comes before the UI work, and the verification comes before both UI and performance.** Building four member screens on top of an unverified permission model is how a permission bug ships behind a polished interface. M3-16 can be re-run cheaply after the UI lands; it cannot be usefully run for the first time then.
+
+M3-12 sat deliberately early in the original ordering — discovering an RLS performance cliff after building four screens on top of it is the expensive order. It stays early, just behind the correctness gate.
 
 ---
 
-## Milestone 4 — Invitations
+## Milestone 4 — Invitations · ⬜ **Not started**
 
-**Goal.** Let a board owner add members without a manual database insert.
+**Goal.** Let an admin or owner add members without a manual database insert.
 
-**Why this milestone exists.** M3 makes membership meaningful but provides no way to acquire it.
+**Why this milestone exists.** M3 makes membership meaningful and mutable by RPC, but provides no way for a new person to acquire it without an administrator knowing their user id.
 
-**Dependencies.** Milestone 3.
+**Dependencies.** Milestone 3 — specifically M3-14 (the authorization rules an invite must reuse) and M3-16 (the matrix those rules are verified against). An invite that bypasses the membership matrix is a second, weaker permission system.
 
 **Estimated difficulty.** M (7 tasks).
 
 **Risks.** Invite acceptance is one of the very few paths where a not-yet-member touches board data, so its RLS deserves its own review. Token generation must be cryptographically random and acceptance must be atomic, or a replayed link creates duplicate memberships.
+
+**Permission rules this milestone inherits — not negotiable, and each needs a test.**
+
+- An invite's `role` may **never** be `owner`. Ownership is not grantable by link (invariant I6).
+- An **admin** may create invites for `viewer` and `editor` only.
+- An **owner** may create invites for `viewer`, `editor` and `admin`.
+- `editor` and `viewer` may not create invites at all.
+- Acceptance grants exactly the invite's role and never upgrades an existing membership to a higher one — decide the collision rule explicitly (recommended: accepting an invite while already a member is a clean no-op, never a downgrade and never an upgrade).
+- Enforcement is inside the RPCs. The invite role selector in the UI is UX.
 
 **Scope decision.** `docs/DATABASE.md` describes both email invitations and invite links. **Ship link invites only.** Email invites require a transactional provider, deliverability handling and bounce logic — real work for no additional capability in v1. Schema keeps the `email` column so email invites are additive later.
 
@@ -1085,15 +1610,18 @@ M3-12 sits deliberately early — discovering an RLS performance cliff after bui
 #### M4-01 · Create `board_invites` — **SAFE**
 `id`, `board_id`, `email` (nullable — unused in v1), `token unique`, `role`, `expires_at`, `created_by`, `accepted_at`. RLS: board admins read their board's invites; nobody reads by token directly (acceptance goes through the RPC).
 **Commit:** `feat(db): create board_invites`
+> **Added 2026-08-10.** `role` carries `check (role in ('admin','editor','viewer'))` — `owner` is excluded at the column level, so no code path can express it. The read policy uses `board_role(board_id) in ('owner','admin')` via the helper, never a sub-select on `board_members`. As with `board_members`, there is **no client INSERT/UPDATE/DELETE policy**: creation and revocation go through RPCs.
 
 #### M4-02 · `create_invite` RPC — **MEDIUM RISK**
 Validates the caller is `owner`/`admin`, generates a cryptographically random token, sets expiry.
 **Test:** an `editor` calling it is rejected; the token is unguessable; expiry is set correctly.
 **Commit:** `feat(db): create_invite RPC`
+> **Added 2026-08-10.** The caller's role comes from `board_role(p_board_id)`, never from an argument. An admin requesting `role = 'admin'` is **denied** — admins may not create admins, by the same rule that stops them promoting one. Any request for `role = 'owner'` is denied. Test both denials explicitly; they are the two that a "caller is admin or owner" check alone would let through.
 
 #### M4-03 · `accept_invite` RPC — **HIGH RISK**
 Single transaction: validate token, check not expired, check not already accepted, insert the membership, stamp `accepted_at`.
 **Test:** valid token → membership created, exactly once; **calling twice → second call is a clean no-op, not a duplicate**; expired token rejected; revoked token rejected; unauthenticated call rejected; garbage token rejected without leaking whether it exists.
+> **Added 2026-08-10.** Two more denials to test: a token whose stored `role` is `owner` (however it got there) must be refused rather than honoured — defence in depth behind M4-01's constraint. And accepting while already a member must not change the existing role in either direction, which is what makes a leaked old link harmless to someone who has since been promoted or demoted.
 > **HIGH RISK — this is a privilege-granting function.**
 > **Backup:** dump before deploying. **Rollback:** forward-fix dropping the function; any memberships it created must be audited manually against `board_invites.accepted_at`. **Migration:** review the function line by line before deploying — a flaw here grants board access. Test every failure branch explicitly, including the concurrent double-accept. Decide and document what happens when the invited email does not match the accepting account (recommended for v1: allow it — the link is the credential).
 **Commit:** `feat(db): accept_invite RPC`
@@ -1131,19 +1659,23 @@ Public route. Unauthenticated visitors are sent to login/register and returned t
 
 ---
 
-## Milestone 5 — Task Model
+## Milestone 5 — Work Item Model · ⬜ **Not started**
 
-**Goal.** Make the four remaining MVP task features real: assignment, due dates, priorities, descriptions.
+**Goal.** Make the four remaining MVP work-item features real: assignment, due dates, priorities, descriptions.
 
 **Why this milestone exists.** The columns landed in M2-03 and the UI placeholders already exist and are inert — the assignee avatar in `TodoItem.tsx` and the calendar/user/priority buttons in `TodoCreateForm.tsx` render and do nothing. The design is ahead of the schema; this closes the gap. It is also where the card component's accumulated shortcuts finally get paid off.
 
-**Dependencies.** M2 (columns), M3 (assignee must be a board member).
+**Dependencies.** M2 (columns), M3 (assignee must be a board member — M3-13's read policy is what makes the picker able to show names at all).
 
 **Estimated difficulty.** M (8 tasks).
 
 **Risks.** Low structurally. Budget more than the feature list suggests — M5-01 and M5-02 are refactors of a component every other feature touches.
 
-**Success criteria.** A card can be assigned, prioritised, dated and described; all four persist and survive refresh; the card component no longer fetches or mutates on its own.
+**Success criteria.** A work item can be assigned, prioritised, dated and described; all four persist and survive refresh; the card component no longer fetches or mutates on its own.
+
+**Permission rules this milestone inherits.** Every field added here is work-item content: **editor and above may set it, viewers may not.** No new policy is needed — M3-05's UPDATE policy already covers the whole row — but M5's UI must gate the new controls through `usePermissions` (M3-09), and M5-05's picker must offer only board members.
+
+> **Architecture decision that outlives this milestone: M5-06.** The task detail view is where UX principle 1 ("board context is never lost") is either honoured or lost, and M11 builds more views on whatever shape it establishes. Decide deliberately between a panel/overlay that keeps the board behind it and a full-page route, record the choice and the reason in the M5-06 PR, and make the work item addressable by URL either way — a deep link is what M12's search results and M7's comment notifications will point at.
 
 ### Tasks
 
@@ -1171,6 +1703,9 @@ Use `<input type="date">`. **Do not add a date-picker dependency** for this.
 Picker sourced from `useBoardMembers`. Replaces the placeholder icon on the card.
 **Test:** assign, reassign, unassign; only board members are offered; a removed member's assignment degrades gracefully (`on delete set null` from M2-03); optimistic update rolls back offline.
 **Commit:** `feat(todos): assign a board member to a task`
+> **Added 2026-08-10.** Assignability follows **membership, not write permission**: a viewer may be assigned work (see *Permission Model → Decisions*). Setting an assignee is still an editor+ action, because it writes the row.
+> Two cases the test list must cover, both reachable in normal use: assigning someone who is then **removed from the board** (`assignee_id` survives as a dangling reference until the profile is deleted — decide whether the card shows "unassigned" or a former-member state), and assigning someone whose role is later **demoted to viewer** (the assignment stays valid).
+> **Depends on M3-13.** Without the co-member profile read policy the picker can list ids but no names.
 
 #### M5-06 · Description and task detail view — **MEDIUM RISK**
 **Test:** open, edit, save, close; unsaved changes prompt; deep link to a task; a task from another board 404s.
@@ -1201,13 +1736,13 @@ The bug, chevron, calendar and user buttons in `TodoCreateForm` currently do not
 
 ---
 
-## Milestone 6 — Realtime
+## Milestone 6 — Realtime · ⬜ **Not started**
 
 **Goal.** Two people on one board see each other's changes without refreshing, and concurrent edits merge instead of overwriting.
 
 **Why this milestone exists.** `docs/PRODUCT_SPEC.md` names Realtime Collaboration a core principle. Everything before this made it possible; this makes it happen.
 
-**Dependencies.** M2 (board-scoped keys, pure cache functions from M2-16, UUIDs from M2-14), M3 (membership). If M2-14 or M2-16 were deferred, do them **here, first**, and expect this milestone to grow by half.
+**Dependencies.** M2 (board-scoped keys, pure cache functions from M2-16, UUIDs from M2-14) — **all shipped**, so the "if they were deferred, do them here first" contingency in the original plan no longer applies. M3 (membership) must be complete: a realtime channel that ignores roles is a permission bypass with a socket attached.
 
 **Estimated difficulty.** L–XL (12 tasks).
 
@@ -1216,6 +1751,12 @@ The bug, chevron, calendar and user buttons in `TodoCreateForm` currently do not
 - The fractional-rank migration is a second rewrite of the ordering column. Get the rebalance path right, or precision exhaustion becomes a production incident a year out.
 
 **Ordering decision.** Fractional ranks come **first**, before any channel is subscribed. Dense integer positions plus concurrent editors is not a merge conflict — it is silent data loss, because each client renumbers the entire column from its own stale snapshot and last-write-wins across every row. Shipping realtime on top of dense integers means debugging phantom reorders in production.
+
+**Consequences for other milestones, recorded 2026-08-10.**
+
+- **M3-10 (`reorder_todos` RPC) should wait for M6-04.** A single-row rank update makes a bulk-reorder RPC pointless. Building it first means building something M6 deletes.
+- **The rank column is what M11's backlog will order by.** A backlog is another ordered view of the same rows; if ordering is still dense integers when the backlog arrives, two views renumber the same column from two stale snapshots. M6 before M11 is not negotiable.
+- **Realtime is a permission surface, not only a transport.** Every channel event carries row data, so RLS must apply to replication exactly as it applies to a query, and a demoted or removed member must stop receiving events. M6-07 owns proving it.
 
 **Success criteria.**
 - A card move writes exactly one row.
@@ -1251,7 +1792,7 @@ A move computes the midpoint between its two neighbours and updates **one row**.
 
 #### M6-05 · Drop `position` — **HIGH RISK** (contract)
 Removes `insertDense` and the whole-column renumbering path.
-> **Backup:** mandatory dump; PITR is the only recovery. **Rollback:** one-way. **Migration:** only after M6-04 has soaked and no ordering bugs have been reported. Retire `insertDense.ts` and `insertDense.check.ts` in the same commit.
+> **Backup:** mandatory dump; PITR is the only recovery. **Rollback:** one-way. **Migration:** only after M6-04 has soaked and no ordering bugs have been reported. Retire `insertDense.ts` and `insertDense.test.ts` in the same commit — the `*.check.ts` this originally named was replaced by a Vitest sibling in M1-17.
 **Commit:** `refactor(db): drop position in favour of rank`
 
 #### M6-06 · Rank rebalancing — **MEDIUM RISK**
@@ -1263,6 +1804,10 @@ Repeated midpoint insertion between two adjacent ranks eventually exhausts preci
 Add `todos` and `columns` to `supabase_realtime`. Confirm RLS applies to realtime — **a client must not receive change events for boards it cannot read.**
 **Test:** subscribe as a non-member → receives nothing for that board. Verify explicitly; this is a security check, not a plumbing check.
 **Commit:** `feat(db): enable realtime on todos and columns`
+> **Added 2026-08-10 — three more security checks, each a state that happens in normal use.**
+> - A **viewer** subscribed to a board receives events (they can read) but cannot act on them. Confirm the handlers do not assume the receiving client has write permission.
+> - A member **removed while subscribed** stops receiving events on that board — and if the transport keeps an authorized connection open until the token refreshes, that window is a finding: write it down and decide whether to force a resubscribe on membership change.
+> - Nothing in a payload exposes a column the client could not have read through a query. Realtime replicates the row, not the `select` list.
 
 #### M6-08 · `useBoardRealtime` — **MEDIUM RISK**
 One channel per board, subscribed in `BoardPage`, torn down on unmount. Per-board filter so clients react only to their own board's events, per `docs/ARCHITECTURE.md`.
@@ -1296,6 +1841,8 @@ Execute the full Concurrency section of the Testing Checklist and record results
 2.  feat(db): backfill ranks from positions             (M6-02)  ← HIGH
 3.  feat(todos): order by rank                          (M6-03)  ← HIGH
 4.  feat(todos): single-row rank writes on move         (M6-04)  ← HIGH
+                    ← re-evaluate M3-10 here: if no bulk renumber
+                      path survives M6-04, close it as unnecessary
 5.  feat(db): rebalance ranks on precision exhaustion   (M6-06)
                                             ← SOAK SEVERAL DAYS
 6.  refactor(db): drop position in favour of rank       (M6-05)  ← HIGH
@@ -1311,25 +1858,36 @@ Execute the full Concurrency section of the Testing Checklist and record results
 
 ---
 
-## Milestone 7 — Comments & Activity
+## Milestone 7 — Comments & Activity · ⬜ **Not started**
 
 **Goal.** Ship the last MVP item (comments). Add activity history only if it is genuinely being built.
 
 **Why this milestone exists.** Comments complete the MVP list in `docs/PRODUCT_SPEC.md`.
 
-**Dependencies.** M5 (task detail view), M6 (realtime patterns).
+**Dependencies.** M5 (work item detail view), M6 (realtime patterns), M3-13 (a comment author's name and avatar are another user's profile).
 
 **Estimated difficulty.** M (5 tasks).
 
-**Risks.** Low. Watch comment volume on the board query — do **not** join comments into the board fetch; load them per open task.
+**Risks.** Low. Watch comment volume on the board query — do **not** join comments into the board fetch; load them per open work item.
 
-**Success criteria.** Comments post, edit, delete and appear live for other viewers of the same task.
+**Success criteria.** Comments post, edit, delete and appear live for other viewers of the same work item.
+
+> **⚠ Open permission decision — must be resolved before M7-01's RLS is written.**
+> **May a viewer comment?** The role specification covers work items, columns and membership; it does not mention comments, and this plan will not invent the answer.
+> The two defensible positions: *commenting is content, so it needs editor+* (consistent with the content matrix, and a viewer is by definition read-only); or *commenting is participation, not content, so any member may comment* (a reviewer or stakeholder who can read a board but not change it is exactly the person who has something to say about it).
+> **Recommendation: any member may comment, and may edit or delete only their own comments.** It matches what "viewer" means in practice on collaborative tools and costs nothing to reverse in the other direction later; the reverse is harder, because it would remove a capability people already use.
+> **Whichever is chosen, record it in the *Permission Model* table in Part II in the same PR**, and give it a row in the M3-16 matrix. A permission rule that exists only in a milestone's prose is a rule nobody will find.
+>
+> The same question recurs for **editing and deleting other people's comments**. Recommendation: authors edit their own; admins and owners may delete any (moderation); nobody edits someone else's text. Decide it here rather than discovering it in a moderation incident.
 
 ### Tasks
 
 #### M7-01 · Create `comments` — **SAFE**
 `id`, `todo_id`, `author_id`, `content`, `created_at`, `updated_at`. Index on `todo_id` per `docs/DATABASE.md`. RLS via the board-membership helpers.
 **Commit:** `feat(db): create comments`
+> **Added 2026-08-10 — carry `board_id` on the row.** The membership helpers take a board id; without a denormalised `board_id`, every policy evaluation joins `comments → todos` to find one, on every row. `docs/DATABASE.md` warns against duplicated information, and this is the exception worth making: it is a *derived key used by the security boundary*, not duplicated user data, and it keeps every collaborative table on the same one-hop predicate. Enforce it with the same composite-FK shape as M3-18 so it cannot drift from the work item's board.
+> This also decides the shape for `attachments`, `labels` and `activities` when they arrive: **every board-scoped table carries `board_id` and is policed by `board_role(board_id)`.** Deciding it once here is cheaper than four inconsistent designs later.
+> Resolve the viewer-comment question above before writing the INSERT policy.
 
 #### M7-02 · `services/comments/` — **SAFE**
 Key `["comments", todoId]`. Optimistic create/edit/delete with rollback.
@@ -1349,6 +1907,9 @@ Subscribe only while a task is open; tear down on close.
 **Only build this if the activity feed UI is actually being designed in this milestone.** `docs/DATABASE.md` lists `activities` in the base ERD, but an unbounded audit table with no reader grows forever and is silently wrong the day you finally build the UI. If there is no feed, skip it and record the deferral here.
 If built: write via trigger, never from the client. Plan retention from day one.
 **Commit:** `feat(db): activity history`
+> **Added 2026-08-10 — the shape, if and when it is built.** Activity is named as a differentiator in Part I ("history is a feature, not an audit log"), so its schema is worth getting right in one attempt: `board_id` (policy key, as above), `actor_id`, `entity_type`, `entity_id`, `action`, a `jsonb` change payload, `created_at`. Read policy: any member of the board. **No client write policy at all** — triggers are the only writer, which is also what makes the log trustworthy.
+> Two rules that are cheap now and expensive later: record the **actor**, never infer it at read time; and never let an activity row outlive the ability to explain it — if `entity_id` points at a deleted row, the payload must still say what happened.
+> Membership changes are the entries most worth having (who added whom, who changed a role) and the ones a client-written log would never capture honestly. If activity is built, membership events go in it.
 
 ### Expected commit order — Milestone 7
 
@@ -1362,19 +1923,21 @@ If built: write via trigger, never from the client. Plan retention from day one.
 
 ---
 
-## Milestone 8 — Boards UX
+## Milestone 8 — Boards UX · ⬜ **Not started**
 
 **Goal.** Make multiple boards usable, not merely possible.
 
 **Why this milestone exists.** By M7 the data model is complete, but the product still effectively opens on one board. This is deliberately late: building the board management screens after members and roles exist means building them once.
 
-**Dependencies.** M2 functionally; sequenced here so roles and members are already available.
+**Dependencies.** M2 functionally; M3-17 for the settings permissions these screens surface; sequenced here so roles and members are already available.
 
-**Estimated difficulty.** M (8 tasks).
+**Estimated difficulty.** M (9 tasks).
 
 **Risks.** Low, except board deletion, which cascades across every table.
 
-**Success criteria.** A user creates, renames, decorates, archives and deletes boards; the sidebar shows real data; every route in `docs/FRONTEND.md` exists.
+**Success criteria.** A user creates, renames, decorates, archives and deletes boards; the sidebar shows boards they own **and** boards they are a member of; every route in `docs/FRONTEND.md` exists.
+
+**Permission note.** `getBoards()` deliberately has no `owner_id` filter, so it already returns membership boards once RLS allows them (M3-04, applied). Every screen here shows the caller's role and gates its controls through `usePermissions` (M3-09): an editor sees a board they cannot rename, an admin sees one they cannot delete.
 
 ### Tasks
 
@@ -1391,6 +1954,8 @@ Modal creating the board and seeding four default columns, reusing the M2-12 RPC
 Delete requires typed confirmation.
 **Test:** rename persists; archive hides without destroying; delete requires the exact title; a non-owner cannot delete.
 **Commit:** `feat(boards): rename, archive and delete boards`
+> **Added 2026-08-10.** The permissions are M3-17's: **admin and owner rename and archive; owner alone deletes.** The typed confirmation is a mistake-guard, not a permission — the denial for a non-owner happens in the database whether or not the modal is reached.
+> `archived` needs a decision this task must record: does an archived board disappear for its members too, and can a member still read it? Recommendation: archived is board-wide and read-only for everyone, owner included, until it is restored. That keeps "archived" from becoming a second, weaker delete with per-user semantics.
 
 #### M8-04 · Board appearance — **SAFE**
 `icon`, `cover_color`, `visibility`. Per `docs/DATABASE.md` colours are presentation — store a token or key, not a hex value, and keep the palette in `src/constants/`.
@@ -1415,6 +1980,16 @@ Specified as a public route in `docs/FRONTEND.md` and currently missing.
 **Test:** on a scratch board — delete it, then confirm zero orphans in `columns`, `todos`, `comments`, `board_members`, `board_invites`, `activities`; delete a user and confirm their created tasks and comments survive with a null author while their memberships are gone.
 > **Backup:** run against a scratch board on a branch database. **Never** verify a cascade against production data. **Rollback:** none needed if the rule is followed. **Migration:** any FK found to have the wrong `on delete` becomes its own follow-up task, sequenced before this milestone closes.
 **Commit:** `test(db): verify board and user deletion cascades`
+> **Added 2026-08-10.** Add two membership cases to the checks: deleting a **member's** profile removes their `board_members` rows and leaves the boards intact, and deleting an **owner's** profile cascades their boards away entirely (`boards.owner_id … on delete cascade`). The second is a large, quiet blast radius — every member of every board that person owned loses it. Confirm it is what the product wants **before** M8-03 ships a delete-account path; if it is not, the answer is ownership transfer (Appendix B), not a softened cascade.
+
+#### M8-09 · Leave a board — **SAFE**
+
+**New in the 2026-08-10 audit.** Membership is now something a person can be given; it must be something they can decline.
+
+Calls the self-removal path from M3-14. Available to viewer, editor and admin. **The Owner cannot leave** (invariant I1 — a board always has an Owner), and the control is absent rather than disabled-with-no-reason.
+
+**Test:** each non-owner role leaves and immediately loses access; the board disappears from their list; their assigned work items survive with the assignment intact; the Owner has no leave control and the RPC denies it if called directly; leaving a board you are not a member of is a clean no-op.
+**Commit:** `feat(members): leave a board`
 
 ### Expected commit order — Milestone 8
 
@@ -1424,14 +1999,15 @@ Specified as a public route in `docs/FRONTEND.md` and currently missing.
 3. feat(boards): rename, archive and delete boards       (M8-03)
 4. feat(boards): board icon, cover colour and visibility (M8-04)
 5. feat(sidebar): list real boards                       (M8-05)
-6. feat: settings page                                   (M8-06)
-7. feat(auth): password reset flow                       (M8-07)
-8. test(db): verify board and user deletion cascades     (M8-08)  ← HIGH
+6. feat(members): leave a board                          (M8-09)
+7. feat: settings page                                   (M8-06)
+8. feat(auth): password reset flow                       (M8-07)
+9. test(db): verify board and user deletion cascades     (M8-08)  ← HIGH
 ```
 
 ---
 
-## Milestone 9 — Quality
+## Milestone 9 — Quality · ⬜ **Not started**
 
 **Goal.** Meet the four core principles in `docs/PRODUCT_SPEC.md` that are currently unmet: Accessible, Keyboard Friendly, Fast, Mobile Friendly.
 
@@ -1513,26 +2089,113 @@ Eight strings are translated. Everything else — "Create", "Transition to...", 
 
 ---
 
+# PART IV — ROADMAP (M10 → M13)
+
+**These are directions, not commitments, and they are deliberately not decomposed into tasks.** A milestone leaves this part and enters Part III when its architecture is understood well enough to write task IDs, dependencies, risk labels and acceptance criteria for it — the same standard M0–M9 meet. Writing forty speculative task IDs now would produce a plan that is wrong in forty places.
+
+One exception, and it is deliberate: **M10-00** is named below because it is a cleanup whose scope is already fully known and which must happen before the rest of M10 is designed. It is the only pre-assigned ID in this part.
+
+Each section below records the same four things: what the milestone is for, what it depends on, **the schema decisions it forces** (the reason it is written down this early), and what it is explicitly *not*.
+
+Everything here inherits the *Permission Model* unchanged. None of it introduces a new role, and none of it may be enforced in the client.
+
+---
+
+## Milestone 10 — Work Item Depth · 🗺 Roadmap
+
+**For.** Making a work item more than a title: types (Task / Bug / Story / Epic), labels, subtasks, and links between items. This is the largest single step toward Jira-level functional depth, and the one with the most schema consequences.
+
+**Depends on.** M5 (the detail view is where all of this is edited), M7 (comments establish the board-scoped child-table pattern).
+
+**Schema decisions it forces — the reason this section exists.**
+
+- **Where does a type live?** A `todos.type` text column with a check constraint, mirroring `columns.category` and `priority`, or a lookup table. The existing precedent is the constrained text column, and it is the right default: a fixed set users pick from and never define. **A lookup table only becomes right when users can define their own types**, which is a different product decision and would be its own task.
+- **Do Epics live in `todos`?** A hierarchy where an Epic is a work item with children is one table and one self-referencing `parent_id`; an Epic as its own entity is a second table and a second set of policies, views and cache functions. The one-table answer is almost certainly right, and it must be decided **before** subtasks are built, not after.
+- **Subtasks vs. children.** If `parent_id` serves both "subtask of a task" and "task in an epic", the difference is `type`, not structure. Decide whether a subtask appears on the board as a card. Answering "no" is what makes a subtask cheap; answering "yes" makes ordering, columns and the backlog all inherit the question.
+- **Links.** A `work_item_links(from_id, to_id, type)` table with a symmetric-pair rule. Decide whether links are directional (`blocks`/`blocked by`) and whether the inverse is stored or derived — storing both halves doubles the write path and the delete path forever.
+- **Labels.** `labels` + `todo_labels`, board-scoped (Appendix B already defers these). Labels belong to a board, not globally, or two teams fight over one namespace.
+- **Every new table carries `board_id` and is policed by `board_role(board_id)`**, per M7-01. That decision is already made; do not re-litigate it per table.
+
+**Explicitly not.** Custom fields. User-defined work item types. Cross-board links. See Appendix E.
+
+**Prerequisite cleanup — M10-00.** `todos.status` and `todos.previous_status` still exist and are dead (RLS_AUDIT finding D). Drop them before adding `type`, or the schema will carry two plausible-looking status concepts into the milestone that is about to add a third.
+
+---
+
+## Milestone 11 — Backlog & Views · 🗺 Roadmap
+
+**For.** UX principle 2 — one data model, many views. A backlog, a list/table view, and the Kanban board as three renderings of the same rows.
+
+**Depends on.** **M6 is a hard prerequisite**, not a soft one. A backlog is a second ordered view of the same work items; with dense integer positions, two views renumber a column from two stale snapshots and the loser's ordering is silently lost. Fractional ranks are what make a second ordering surface safe.
+
+**Schema decisions it forces.**
+
+- **What is "in the backlog"?** A nullable `column_id` (a work item that exists on the board but is in no column) or an explicit flag. `todos.column_id` is already nullable, so the shape exists — but the FK is `on delete restrict` and every current query assumes a column. Decide before building, and check what a null `column_id` does to `useTodosByColumns`, the DnD collision detection, and every cache function.
+- **Does the backlog have its own ordering?** If a work item's position in the backlog is independent of its position in a column, that is a second rank, not a reused one.
+- **View state: persisted or ephemeral?** Column collapse is client-only today (`KanbanBoard`). A saved view configuration is a table; a per-session one is not. **Do not build a `board_views` table until a user can actually name and reuse a view** — that is M12 territory.
+
+**Explicitly not.** Timeline/Gantt and roadmap views. They need dependencies and date ranges that do not exist yet, and they are the clearest example of a Jira feature that is easy to want and expensive to justify. Revisit only if scheduling becomes a real requirement.
+
+---
+
+## Milestone 12 — Search & Filtering · 🗺 Roadmap
+
+**For.** Finding work across a board — by text, assignee, label, type, priority, status — and reusing a filter without rebuilding it.
+
+**Depends on.** M10 (there is little worth filtering by until types and labels exist).
+
+**Schema and architecture decisions it forces.**
+
+- **Where does filtering run?** Client-side filtering over the already-cached board array is nearly free and correct up to the board size the cache holds; server-side filtering is a new query shape, a new cache key per filter, and a new interaction with the PostgREST `max_rows = 1000` cap. **Start client-side over the existing `["todos", boardId]` cache.** Move server-side when a board outgrows the cache, and record the threshold when it does — that is the same trigger as the cursor-pagination deferral in Appendix B.
+- **Text search.** Postgres full-text (`tsvector` + a GIN index) is the answer when server-side search arrives, and it is a migration, not a library. Do not add a search dependency.
+- **Saved filters.** A `saved_filters` table is board-scoped and permission-scoped like everything else. Decide whether a saved filter is personal or shared — a shared filter is visible to every member and therefore has an owner and an edit permission, which is a small permission system of its own. **Personal-only is the cheaper first answer.**
+- **Command palette.** A Part I differentiator, and it is a UI surface over search, not a separate data feature. It can ship before saved filters and needs no schema at all. It is the highest product-identity return in this milestone.
+
+**Explicitly not.** A query language (JQL-equivalent). Cross-board search. Both are real features; neither is justified before the single-board case is good.
+
+---
+
+## Milestone 13 — Configurable Workflow · 🗺 Roadmap
+
+**For.** Turning columns into statuses with rules: which transitions are allowed, what a transition requires, and who may perform one. This is what separates "a Kanban board" from "a work-management product", and it is deliberately last because it is the decision most expensive to get wrong early.
+
+**Depends on.** M10 (transition rules that cannot mention work item type are half a feature), M3 (transition permissions are role-scoped).
+
+**Schema decisions it forces.**
+
+- **Is a column a status?** Today they are the same row, and `columns.category` (`todo | in_progress | done`) is the coarse semantic. Two possible futures: keep one table and hang transition rules off column pairs, or split `statuses` from `columns` so several columns can show one status. **One table is right until a board genuinely needs the split**, and the plan should say so rather than pre-splitting — but the decision must be conscious, because it is the one migration in this document that would touch every work item row, every policy and every DnD path at once.
+- **Where are transitions enforced?** In the database, like every other rule. A transition rule enforced only in `onDragEnd` is not a rule. That means `todos.column_id` changes get a trigger or an RPC, which interacts directly with M6's single-row rank writes — design them together or one will undo the other.
+- **Is `category` still needed?** It drives the done-flash, the column palette and the derived doneness that replaced `todos.completed` in M2-15. A workflow model must either keep it or replace every one of those consumers. Keeping it is fine; forgetting it is not.
+- **Per-board or global?** Per-board, like everything else in this architecture. `docs/ARCHITECTURE.md`: *"Does this belong to a Board?"*
+
+**Explicitly not.** Automation rules ("when X then Y"), workflow approval steps, and shared workflow schemes across boards. Each is a product in itself. See Appendix E.
+
+---
+
 # Appendix A — Task Index by Risk
 
-**HIGH RISK (16).** Each carries a documented backup, rollback and migration strategy in its task entry.
+Each carries a documented backup, rollback and migration strategy in its task entry.
 
-| Task | What makes it high risk |
-|---|---|
-| M0-07 | Changes the live security boundary |
-| M2-06 | First data migration; reversible only because `user_id` still exists |
-| M2-07 | Constraints and FKs; breaks inserts that omit `board_id` |
-| M2-08 | Rewrites the authorization boundary |
-| M2-13 | **Point of no return** — drops `user_id` |
-| M2-14 | Primary key type change in one transaction |
-| M3-03 | Must precede M3-04/05 or every owner is locked out |
-| M3-04 | Authorization boundary |
-| M3-05 | Authorization boundary |
-| M4-03 | Privilege-granting function |
-| M6-01 → M6-05 | Ordering migration (five tasks, expand→contract) |
-| M8-08 | Cascade verification; never run against production |
+| Task | Status | What makes it high risk |
+|---|---|---|
+| M0-07 | ✅ | Changes the live security boundary |
+| M2-06 | ✅ | First data migration; reversible only because `user_id` still existed |
+| M2-07 | ✅ | Constraints and FKs; breaks inserts that omit `board_id` |
+| M2-08 | ✅ | Rewrites the authorization boundary |
+| M2-13 | ✅ | **Point of no return** — dropped `user_id` |
+| M2-14 | ✅ | Primary key type change in one transaction |
+| M3-03 | ✅ | Must precede M3-04/05 or every owner is locked out. **Applied without a dump** |
+| M3-04 | ✅ | Authorization boundary. **Applied without a dump** |
+| M3-05 | 🔶 | Authorization boundary. **Applied without a dump, and not yet committed** |
+| M3-14 | ⬜ | Privilege-granting functions; a flaw hands over a board |
+| M3-15 | ⬜ | Changes what the database will accept from every writer, including `service_role` |
+| M4-03 | ⬜ | Privilege-granting function |
+| M6-01 → M6-05 | ⬜ | Ordering migration (five tasks, expand→contract) |
+| M8-08 | ⬜ | Cascade verification; never run against production |
 
-**Standing rule for every HIGH RISK task:** dump first, rehearse on a branch database, record row counts before and after in the PR, apply off-peak, watch for fifteen minutes.
+Medium-risk tasks that touch the authorization boundary and therefore inherit Rule 6: **M3-13** (widens read access), **M3-17** (replaces a policy), **M3-18** (adds a constraint that can fail on existing rows).
+
+**Standing rule for every HIGH RISK task:** dump first, rehearse on a branch database, record row counts before and after in the PR, apply off-peak, watch for fifteen minutes. **Three M3 tasks did not meet this rule** (M3-03, M3-04, M3-05) and the reason is recorded in Migration Strategy Rule 2. That is history, not licence.
 
 ---
 
@@ -1546,40 +2209,121 @@ Decisions deliberately postponed, with the trigger that should reopen them. **A 
 | Cache persistence (`persist-client`) | M9-08 | Keys are board-scoped and cache clears on sign-out — both true after M2/M1-02 |
 | Email invitations | Post-M4 | A transactional email provider is in place |
 | `activities` table | M7-05 | An activity feed UI is actually being designed |
-| `attachments`, `labels`, `todo_labels` | Post-MVP | A product requirement exists. Design FKs so they *can* attach to `todos`; build nothing |
+| `attachments`, `labels`, `todo_labels` | M10 | A product requirement exists. Design FKs so they *can* attach to `todos`; build nothing |
 | Soft deletion beyond `archived` | Indefinite | A concrete undo requirement appears. Broad soft-delete taxes every query and every RLS policy forever |
 | List virtualisation | M9-10 | Profiling proves a real problem |
 | React Testing Library | Post-M9 | A component bug ships that a unit test would have caught. Pure logic is where the risk lives |
 | Cursor pagination | Post-M8 | A board approaches the `max_rows = 1000` PostgREST cap. `docs/API.md`: *"Avoid until necessary"* |
 
+**Added in the 2026-08-10 audit:**
+
+| Decision | Deferred to | Reopen when |
+|---|---|---|
+| **PITR** | **M3-00 — blocking, not open-ended** | Immediately. It has been deferred since M0-06 and two destructive migrations have already run without it |
+| **Avatar storage path hole** (RLS_AUDIT item 3) | **Unowned — needs a task** | Now. Any authenticated user can overwrite any other user's avatar; it is a live, exploitable bug with no home in this plan. The fix is a path change (`<uid>/avatar.png`) plus three storage policies plus a bucket size limit, and it is one task |
+| `handle_new_user()` missing `search_path` (RLS_AUDIT item 6) | Next migration that touches auth provisioning | Cheap hardening; fold it into whichever task is next in that file |
+| Dead `todos.status` / `previous_status` columns | M10-00 | Before work item types are added — three status-shaped concepts in one table is a trap |
+| **Board ownership transfer** | Post-M4 | A user asks to hand over a board, or an owner leaves the organisation. **Until it exists, the Owner of a board never changes** (invariant I6). It is not a membership operation and must not be smuggled into one |
+| Board-level roles vs. workspace/organisation roles | Post-M8 | Workspaces become real (`docs/ARCHITECTURE.md` names them as future scope). The four roles are **board**-scoped; an organisation role is a second, orthogonal system and a deliberate architecture decision, not an extension of this one |
+| Multiple owners per board | Rejected, not deferred | Would break invariant I1 and make "the ultimate authority" ambiguous. Admins exist for shared administration |
+| Renaming the `todos` table to `work_items` | **Rejected** | Touches every policy, index, FK, cache function, realtime publication and query key for zero user-visible gain. "Work item" is the product word; `todos` is the table name |
+| Server-side filtering and full-text search | M12 | A board outgrows what the client cache can filter — same trigger as cursor pagination |
+| Splitting `statuses` from `columns` | M13 | A board genuinely needs two columns showing one status |
+| Viewer comment permission | **M7 — must be decided, not deferred again** | Before `comments` RLS is written |
+
 ---
 
 # Appendix C — Quick Reference
-
 
 ```bash
 npm run dev                  # vite dev server — does NOT typecheck
 npm run build                # tsc -b && vite build — the only typecheck
 npm run lint                 # eslint .
-npm test                     # vitest (from M1-17)
+npm test                     # vitest run — the only test mechanism
+npm run test:watch
 
-supabase db pull             # capture live schema
-supabase db push             # apply migrations — the ONLY way schema changes shipç
-supabase db diff -f <name>   # generate a migration from local changes
-supabase gen types typescript --linked > src/types/database.ts
-
-node --experimental-strip-types src/services/lib/todos/insertDense.check.ts
-node --experimental-strip-types src/services/columns/limitBreach.check.ts
+npm run db:pull              # capture live schema        (needs Docker)
+npm run db:push              # apply migrations — the ONLY way schema changes ship
+npm run db:diff -- -f <name> # generate a migration from local changes (needs Docker)
+npm run db:types             # regenerate src/types/database.ts
 ```
 
 **Before every HIGH RISK task:**
 ```bash
 supabase db dump --db-url "$PROD_URL" -f backups/pre-<task-id>-$(date +%Y%m%d-%H%M).sql
 # then: verify the dump restores, record row counts, confirm PITR, note the timestamp
+# PITR is currently DISABLED — until M3-00, the dump is the only recovery path.
+```
+
+**Proving a permission rule** — the only evidence that counts (see Testing Checklist):
+```bash
+# read denial: expect [] , not the rows
+curl "$URL/rest/v1/todos?board_id=eq.$BOARD&select=*" \
+  -H "apikey: $ANON" -H "Authorization: Bearer $ROLE_JWT"
+
+# write denial: expect 42501, or 0 rows affected
+curl -X PATCH "$URL/rest/v1/todos?id=eq.$ROW" \
+  -H "apikey: $ANON" -H "Authorization: Bearer $ROLE_JWT" \
+  -H "Content-Type: application/json" -d '{"title":"nope"}'
+
+# RPC denial: expect the function's own raised error
+curl -X POST "$URL/rest/v1/rpc/set_member_role" \
+  -H "apikey: $ANON" -H "Authorization: Bearer $ADMIN_JWT" \
+  -H "Content-Type: application/json" \
+  -d '{"p_board_id":"'$BOARD'","p_user_id":"'$OWNER_ID'","p_role":"viewer"}'
 ```
 
 ---
 
-*Milestones 0 and 1 are prerequisites, not suggestions. Milestone 2 is the milestone this plan exists for: every card, menu, modal and query written before it lands is written against an ownership model the documentation has already declared wrong, and each one becomes migration surface.*
+# Appendix D — Forward Schema Decisions
 
-`
+Decisions whose **cost of delay is real**, listed with the milestone that must make them and what gets more expensive by waiting. This is the answer to "will this make a later feature harder?", written down once instead of rediscovered per milestone.
+
+A decision is on this list only if deferring it makes the eventual change *structurally* harder — a migration that touches every row, every policy, or a foreign key that other tables have started pointing at. A nullable column that can be added cheaply at any time is **not** on this list, and adding it early would be speculative work.
+
+| Decision | Must be made by | Cost of deciding late |
+|---|---|---|
+| Work item type in `todos` vs. a separate entity | **M10** | Once `comments`, links and activity hold FKs to `todos.id`, restructuring the entity is the M2-14 problem again, at ten times the row count. This is the same argument that put the uuid migration in M2 |
+| Epic/subtask hierarchy: `parent_id` in one table vs. a second table | **M10, before subtasks are built** | A second table means a second set of policies, cache functions, realtime handlers and views — permanently, and in every future milestone |
+| Whether a subtask renders as a board card | **M10** | Decides whether subtasks inherit column, position, rank, DnD and backlog semantics. Reversing it touches every one of them |
+| Link directionality and whether the inverse is stored | **M10** | Storing both halves doubles the write and delete paths forever; switching later requires a data migration and a dedupe |
+| `board_id` denormalised onto every board-scoped child table | **M7-01 — sets the precedent** | Retrofitting means rewriting each table's policies from a join to a key, and every one of them is a security-boundary change |
+| Backlog: nullable `column_id` vs. an explicit flag | **M11** | Every query, cache function and DnD path currently assumes a column. The FK is `on delete restrict`. Changing the assumption later is a sweep through the whole board layer |
+| Second ordering surface (backlog rank vs. column rank) | **M11, after M6** | Two views renumbering one column from stale snapshots is silent data loss, not a merge conflict |
+| Columns as statuses vs. a separate `statuses` table | **M13** | The only remaining migration that would touch every work item row, every policy and every DnD path at once |
+| Where transition rules are enforced | **M13** | A rule enforced in `onDragEnd` is not a rule, and retrofitting it into the database after M6's single-row rank writes means redesigning both |
+| Per-board task key prefix (`boards.key_prefix`, replacing the hardcoded `KAN-`) | **Before keys appear anywhere outside the card** | Once a key is in a URL, a comment, a notification or an external reference, it is an identifier people rely on. Cheap now: one nullable column plus one string interpolation in `TodoItem.tsx` |
+| Board-scoped roles vs. workspace/organisation roles | **Before workspaces** | A second permission system layered on a first is the hardest kind of authorization change to get right. Decide the relationship before either exists |
+
+---
+
+# Appendix E — Explicitly Out of Scope
+
+Capabilities Jira has that this project is **not** committing to. Listing them is the point: an unlisted feature gets re-argued every few months, and "Jira has it" is not a requirement.
+
+None of these are refused permanently. Each has a condition that would reopen it — and none of those conditions is "it would be impressive".
+
+| Not building | Would reconsider when |
+|---|---|
+| Sprints and sprint planning | The product has real users running iterations, and the backlog (M11) is in daily use. Sprints without a used backlog are ceremony |
+| Releases and versions | Something is actually being released against these boards |
+| Advanced roadmaps, timeline/Gantt | Dependencies and date ranges exist and are maintained — neither is true today |
+| Automation rules ("when X then Y") | Workflows (M13) exist and users are hand-repeating a transition often enough to name it |
+| Custom fields | Users hit a genuine limit of the fixed field set. Custom fields tax every query, every view, every filter and every form, permanently |
+| User-defined work item types | Same trigger as custom fields, and it converts the type constraint into a lookup table |
+| Enterprise SSO / SAML / SCIM | An organisation that requires it is adopting the product |
+| Marketplace, plugins, third-party integrations | There is a product to integrate *with*, and a stable public API — neither exists |
+| Jira-style administration console (schemes, permission schemes, screens) | Never in this shape. It is the clearest example of Jira complexity that exists to serve Jira's configurability, not the user's work |
+| A query language (JQL-equivalent) | Filtering (M12) is good and users are still hitting its ceiling |
+| Cross-board search and cross-board links | Multi-board usage is real and the single-board case is already good |
+| Guest users / public boards | `boards.visibility` already has the column; it needs a permission story of its own, not a fifth role |
+| Notifications, AI assistant, templates, calendar view | `docs/PRODUCT_SPEC.md` lists these as long-term. They stay long-term until a milestone can state their dependencies |
+
+The two questions that decide anything on this list:
+
+1. **Does it add capability, or does it add resemblance?** Resemblance is not a feature.
+2. **Does the thing it depends on already exist and get used?** Sprints need a used backlog; automation needs used workflows; custom fields need a felt limit. Building the dependent feature first is how a product ends up with a configuration surface nobody configures.
+
+---
+
+*Milestones 0 and 1 were prerequisites, not suggestions. Milestone 2 is the milestone this plan originally existed for — every card, menu, modal and query written before it landed was written against an ownership model the documentation had already declared wrong. Milestone 3 is the one it exists for now: until the role matrix is verified at REST level and the Owner is protected by the database, every screen built on top of membership is a screen built on an assumption.*
