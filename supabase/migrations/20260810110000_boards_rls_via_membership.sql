@@ -1,0 +1,272 @@
+-- M3-04 · Boards RLS via membership helpers. HIGH RISK.
+--
+-- This migration is the authorization boundary for the `boards` table. Until
+-- now a board was visible only to the account named in owner_id; from here it
+-- is visible to anyone holding a membership row. Nothing else about boards
+-- changes — not who may create one, not who may rename or delete one.
+--
+-- Scope, stated narrowly because a HIGH RISK migration should not be doing
+-- anything it did not announce:
+--
+--     ONE policy is replaced: the SELECT policy on public.boards.
+--
+-- The INSERT, UPDATE and DELETE policies are NOT touched. Their predicate does
+-- not change, so dropping and recreating them would add three chances to
+-- mistype an authorization rule in exchange for nothing. They are reproduced
+-- verbatim in section 3 so this file still documents the whole boundary.
+--
+-- columns and todos are untouched. accessible_board_ids() is untouched. Those
+-- are M3-05, and widening them here would give this migration a blast radius
+-- its own acceptance test does not cover.
+--
+--
+-- THE SPEC, from IMPLEMENTATION_PLAN.md line 1003 — the task has no
+-- description paragraph, so its test is the specification:
+--
+--     "owner full access; member read access; non-member no access"
+--
+-- Member read access. Not member write access: an admin, editor or viewer
+-- gains SELECT on the board row and nothing else. Role-differentiated writes
+-- are M3-05, and they apply to columns and todos, not to the board row itself.
+--
+--
+-- PRECONDITIONS — all three, verified before applying.
+--
+--   1. M3-02 applied: public.is_board_member(uuid) exists, SECURITY DEFINER,
+--      STABLE, search_path pinned. This policy is unusable without it.
+--
+--   2. M3-02's grant is in place: EXECUTE on is_board_member to `authenticated`.
+--      Without it every board SELECT fails with 42501 for every user,
+--      including owners. The revoke in M3-02 removed it from public and anon
+--      only — but confirm rather than assume, because the failure is total.
+--
+--   3. M3-03 applied AND verified: every board has an owner membership row,
+--      and the trigger maintains it for new boards. Confirmed in production —
+--      orphan_boards 0, boards count = board_members count, all roles 'owner'.
+--
+--
+-- BACKUP — NOT TAKEN. Same limitation recorded in M3-03, restated because the
+-- risk profile here is different.
+--
+--   No dump (Docker not running, no connection string). PITR is NOT enabled on
+--   this project. No branch-database rehearsal was possible.
+--
+--   What the plan actually asks for as rollback (line 1004) is "forward-fix
+--   restoring the captured M2-08 policies" — not a restore. That is the right
+--   instinct: a wrong policy loses ACCESS, not DATA. No row is written, read
+--   or deleted by this migration, so a dump would not be the recovery path and
+--   PITR would have nothing to recover. The recovery path is section 5's SQL.
+--
+--   The requirement that IS binding here, and that was satisfied: the exact
+--   pre-change policy definitions are captured below, and a real multi-user
+--   fixture exists to test against. Applying a policy change with no way to
+--   verify it as a second user would be the actual negligence.
+
+
+-- 1. Captured pre-change policies ---------------------------------------------
+--
+-- The four M2-01 definitions as they stand immediately before this migration,
+-- verbatim, so reversal is copy-paste rather than reconstruction. Nothing has
+-- altered them since 20260806090000 — M2-08 deliberately left boards alone.
+--
+--   create policy "Users select own boards" on public.boards
+--     for select to authenticated
+--     using (owner_id = (select auth.uid()));
+--
+--   create policy "Users insert own boards" on public.boards
+--     for insert to authenticated
+--     with check (owner_id = (select auth.uid()));
+--
+--   create policy "Users update own boards" on public.boards
+--     for update to authenticated
+--     using (owner_id = (select auth.uid()))
+--     with check (owner_id = (select auth.uid()));
+--
+--   create policy "Users delete own boards" on public.boards
+--     for delete to authenticated
+--     using (owner_id = (select auth.uid()));
+
+
+-- 2. The SELECT policy ---------------------------------------------------------
+--
+-- The old policy is DROPPED, not left in place. Postgres policies are
+-- PERMISSIVE by default and therefore OR'd together, so a leftover
+-- "Users select own boards" would be a second independent route to the same
+-- rows. Harmless here, since its predicate is a subset of the new one — but
+-- leaving stale policies on a table is how a later reader loses track of what
+-- the actual boundary is.
+--
+-- Renamed because the semantics changed. "Users select own boards" describing
+-- a policy that also returns boards you do not own is worse than no name at
+-- all. M2-08 set this convention when it renamed "Users select own todos" to
+-- "Board owner selects todos" for the same reason.
+--
+--
+-- THE PREDICATE, one branch at a time:
+--
+--   owner_id = (select auth.uid())
+--
+--     Unchanged from M2-01, and deliberately retained rather than folded into
+--     the membership check. After M3-03 every board has an owner membership,
+--     so this branch is strictly redundant TODAY — is_board_member() alone
+--     would admit every owner. It stays for two reasons.
+--
+--     It is doctrinally right. docs/DATABASE.md lines 358-360: "Permissions
+--     belong in board_members. Ownership belongs to boards." This disjunction
+--     is those two rules composed — the owner branch reads ownership from
+--     where ownership lives, the member branch reads permission from where
+--     permission lives.
+--
+--     And it is the only recovery path from a lost membership row. If M3-08's
+--     remove-member ever deletes a board's last owner row, a membership-only
+--     policy locks that owner out of their own board permanently — they cannot
+--     see it, so they cannot repair it, and no UI path exists to re-add
+--     themselves. One indexed comparison against boards_owner_id_idx is a
+--     cheap premium against an unrecoverable state.
+--
+--   public.is_board_member(id)
+--
+--     The new access. True for any role — owner, admin, editor, viewer — since
+--     M3-04 draws no distinction between them on the board row. board_role()
+--     is deliberately NOT called here: there is no role comparison to make.
+--
+--     Called as a function, NOT as a sub-select against board_members. That is
+--     the whole point of M3-02. A policy that queried board_members directly
+--     would work on `boards` but establishes the pattern that recurses the
+--     moment it is copied onto board_members itself.
+--
+-- Non-members match neither branch: `false or false`. NULL is not reachable —
+-- owner_id is NOT NULL and is_board_member returns a strict boolean from an
+-- EXISTS, never NULL.
+
+drop policy if exists "Users select own boards" on public.boards;
+
+create policy "Members select accessible boards" on public.boards
+  for select to authenticated
+  using (
+    owner_id = (select auth.uid())
+    or public.is_board_member(id)
+  );
+
+
+-- 3. What is deliberately NOT changed ------------------------------------------
+--
+-- INSERT — stays `owner_id = (select auth.uid())`, and MUST.
+--
+--   This is the single most dangerous edit available in this task. A
+--   membership predicate here would reject every board creation, from both
+--   createBoard() and provision_new_user(), because no membership can exist
+--   before the board it refers to. The first membership row is minted by
+--   M3-03's AFTER INSERT trigger, which fires only once the board row exists.
+--   Board creation is owner-authenticated and stays that way.
+--
+-- UPDATE — stays owner-only, USING and WITH CHECK both.
+--
+--   "member read access" is read. An admin cannot rename or re-theme a board
+--   under this migration; whether they should is a question the docs never
+--   answer — neither DATABASE.md nor ARCHITECTURE.md defines role
+--   capabilities, and the plan's role matrix (M3-05, M3-08, M4-02) is about
+--   columns, todos, members and invites, never about the board row. Widening
+--   it later is another policy change; guessing now is a security decision
+--   made by inference.
+--
+--   Note this also blocks ownership transfer: an owner cannot set owner_id to
+--   another account, because the proposed row fails WITH CHECK. M2-01 flagged
+--   that for revisit in M3. Transfer needs an RPC, not a looser policy, and
+--   belongs to whichever task actually ships the feature.
+--
+-- DELETE — stays owner-only. Deleting a board cascades to its columns, todos
+--   and memberships. Not a member's call at any role.
+--
+-- A note on something that already works and would be easy to "fix" wrongly:
+-- assign_todo_board_key() updates boards.next_key on every card insert. It is
+-- SECURITY DEFINER, so it bypasses the UPDATE policy entirely — an editor
+-- creating a card does not need UPDATE on the board row and will not acquire
+-- it. M2-21 anticipated exactly this milestone. Nothing to do.
+
+
+-- 4. Why this cannot recurse ---------------------------------------------------
+--
+--   select * from public.boards
+--     → boards SELECT policy evaluates
+--     → calls public.is_board_member(id)
+--     → SECURITY DEFINER: executes as the function's owner, which owns
+--       board_members, and Postgres does not apply RLS to a table's owner
+--     → reads public.board_members directly, no policy consulted
+--     → returns boolean
+--
+-- Policy evaluation is never re-entered, so there is no cycle. board_members'
+-- own M3-01 policy is not consulted anywhere on this path.
+--
+-- The same reasoning is what will make M3-07's widening safe: a policy ON
+-- board_members written as `using (public.is_board_member(board_id))` also
+-- terminates in one hop. A direct sub-select there would not, which is why
+-- section 2 uses the helper even though `boards` alone could tolerate a
+-- sub-select.
+--
+-- Two ways to break it, neither of which this migration does: `alter table
+-- public.board_members force row level security` (applies policies to the
+-- owner too), or a `create or replace` that silently drops prosecdef from
+-- is_board_member.
+
+
+-- Rollback ----------------------------------------------------------------------
+--
+-- Forward-only. To reverse, put this in a NEW migration:
+--
+--   drop policy if exists "Members select accessible boards" on public.boards;
+--
+--   create policy "Users select own boards" on public.boards
+--     for select to authenticated
+--     using (owner_id = (select auth.uid()));
+--
+-- That is the whole reversal — the other three policies were never touched, so
+-- there is nothing to restore. Reverting removes shared-board visibility;
+-- owners are unaffected either way, which is what makes this safe to roll back
+-- under load.
+
+
+-- Verification --------------------------------------------------------------------
+--
+-- Fixture, already in place and to be KEPT for M3-05:
+--   board  5819a045-0bca-4a8a-9dc1-a67f7911b854
+--   owner  qwerty@gmail.com
+--   viewer qqq@gmail.com
+--
+-- Baseline before this migration: the viewer's GET returns 200 [] and the UI
+-- shows "Not found". Both must change to a visible board, and nothing else
+-- may change.
+--
+--   -- 1. the helper is callable by the role that needs it. If this is false,
+--   --    every board SELECT fails for everyone, owners included.
+--   select has_function_privilege('authenticated',
+--            'public.is_board_member(uuid)', 'EXECUTE');   -- expect true
+--
+--   -- 2. exactly one SELECT policy on boards, with the new name
+--   select polname, cmd from pg_policies where tablename = 'boards';
+--   -- expect: Members select accessible boards (SELECT), plus the three
+--   -- untouched Users insert/update/delete own boards
+--
+-- Then by curl, per the task. NOTE the PostgREST semantics, or the write tests
+-- will be misread: a write blocked by USING returns 200/204 with ZERO ROWS,
+-- not 403. Only a WITH CHECK violation raises 42501. Send
+-- `Prefer: return=representation` so a permitted write echoes its row and a
+-- blocked one returns [].
+--
+--   VIEWER (qqq)   GET    boards?id=eq.<board>   → 200, 1 row   ← the change
+--   VIEWER (qqq)   PATCH  boards?id=eq.<board>   → 200, []  (0 rows, unchanged)
+--   VIEWER (qqq)   DELETE boards?id=eq.<board>   → 200, []  (0 rows, present)
+--   OWNER          GET    boards?id=eq.<board>   → 200, 1 row
+--   OWNER          POST   boards {scratch}       → 201, 1 row
+--   OWNER          PATCH  boards?id=eq.<scratch> → 200, 1 row
+--   OWNER          DELETE boards?id=eq.<scratch> → 200, 1 row
+--   NON-MEMBER     GET    boards?id=eq.<board>   → 200, []
+--   NON-MEMBER     PATCH  boards?id=eq.<board>   → 200, []  (0 rows)
+--
+-- Delete the SCRATCH board from the POST, never the fixture board — a board
+-- delete cascades to its columns, todos and memberships.
+--
+-- Then in the UI as qqq: the board opens instead of "Not found", and its
+-- columns and cards are EMPTY. That is correct, not a bug — columns and todos
+-- still route through accessible_board_ids(), which still reads
+-- boards.owner_id. M3-05 closes that.
