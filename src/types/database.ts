@@ -291,6 +291,8 @@ export type Database = {
     }
     Functions: {
       accessible_board_ids: { Args: never; Returns: string[] }
+      board_role: { Args: { p_board_id: string }; Returns: string }
+      is_board_member: { Args: { p_board_id: string }; Returns: boolean }
       provision_new_user: { Args: never; Returns: string }
     }
     Enums: {
