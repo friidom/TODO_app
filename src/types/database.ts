@@ -39,6 +39,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      board_members: {
+        Row: {
+          board_id: string
+          joined_at: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          board_id: string
+          joined_at?: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          board_id?: string
+          joined_at?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "board_members_board_id_fkey"
+            columns: ["board_id"]
+            isOneToOne: false
+            referencedRelation: "boards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "board_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       boards: {
         Row: {
           cover_color: string | null
