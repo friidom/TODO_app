@@ -292,6 +292,17 @@ export type Database = {
     Functions: {
       accessible_board_ids: { Args: never; Returns: string[] }
       board_role: { Args: { p_board_id: string }; Returns: string }
+      board_roster: {
+        Args: { p_board_id: string }
+        Returns: {
+          avatar_url: string
+          full_name: string
+          id: string
+          joined_at: string
+          role: string
+          username: string
+        }[]
+      }
       is_board_member: { Args: { p_board_id: string }; Returns: boolean }
       provision_new_user: { Args: never; Returns: string }
     }
