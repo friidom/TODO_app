@@ -21,7 +21,11 @@ Part I is the **product direction** — what this application is for, what it bo
 
 Part II is the **working agreement** — branch strategy, migration rules, the authoritative permission model, review checklists, Definition of Done. It applies to every task in Part III.
 
-Part III is the **task list**, grouped into milestones. Every task is sized for a single focused session (~1–3 hours), is independently testable, and becomes exactly one commit or one Pull Request. Milestones M0–M9 are fully broken down; M10 onward are roadmap sketches, deliberately not yet decomposed into tasks (see *Milestone status legend*).
+Part III is the **task list**, grouped into milestones. Every task is sized for a single focused session (~1–3 hours), is independently testable, and becomes exactly one commit or one Pull Request. Milestones M0–M9 are fully broken down; M10 onward (Part IV) are roadmap sketches, deliberately not yet decomposed into tasks (see *Milestone status legend*).
+
+Part V is **Deferred / Production Hardening** — real concerns, kept and costed, that do not block anything. Read it once so you recognise a deferred control when a task mentions one. **Security is not in Part V**; the permission model is a product requirement.
+
+**The order this project builds in:** solid foundation → product features → advanced features → production hardening. Not the reverse. This is a portfolio project with no users; infrastructure work that insures against losses that cannot currently happen is deferred on purpose, and the *Calibration* box in Part II says exactly how far that reasoning extends.
 
 ### Milestone and task status legend
 
@@ -134,7 +138,7 @@ main
 
 The original note here described an ambiguous trunk (a branch named `features`, `docs/` untracked). **That is resolved.** `main` is the trunk, `docs/` is committed, and Milestone 3 work is on the `m3` branch, which is the M3 integration branch in practice.
 
-One item is outstanding and is a fact, not a plan: `supabase/migrations/20260810120000_columns_todos_rls_via_membership.sql` (M3-05) **is applied to the linked project but is not yet committed.** An applied-but-uncommitted migration is exactly the failure mode Migration Rule 1 exists to prevent — it must be committed before any further M3 work lands.
+The M3-05 migration (`20260810120000_columns_todos_rls_via_membership.sql`) was applied to the linked project before it was committed. **That gap is now closed** — committed as `3c3eec8`, and `supabase migration list` shows all 23 versions paired local↔remote. Git and the database agree.
 
 ---
 
@@ -145,21 +149,31 @@ One item is outstanding and is a fact, not a plan: `supabase/migrations/20260810
 **Rule 1 — Migrations live in Git, are applied by the CLI, and only by the CLI.**
 The two existing migrations were applied by hand in the Supabase SQL editor. That stops with M0-05. From then on: write the migration file → `supabase db push` → commit. No SQL editor, no exceptions. A schema change made in the dashboard is a schema change that does not exist.
 
+> ### Calibration — read before applying any rule in this section
+>
+> **This is a portfolio project.** The database holds test fixtures — a handful of accounts and a few dozen work items. There are no paying users, no uptime commitment and no data whose loss would be an incident.
+>
+> Recovery machinery is therefore **sized to what a migration can actually destroy**, not to what a bank would do. The rules below distinguish two tiers and only the second one is expensive. Nothing in this section may be used to block feature work on a migration that cannot lose data.
+>
+> **What does not get relaxed:** the security model. RLS, `SECURITY DEFINER` helpers, privileged-RPC review and the role matrix are *product requirements* (see *Permission Model*), not production hardening. A portfolio project with a broken permission model is a worse portfolio project.
+>
+> Disaster-recovery apparatus — PITR, verified restore rehearsals, branch-database dry runs, observability — is deferred wholesale to **Part V**. It is recorded, not deleted, and it comes back if this project ever takes real users.
+
 **Rule 2 — Supabase migrations are forward-only.**
 There is no `supabase migration down`. "Rollback" always means one of:
-- **Forward-fix migration** — a new migration that reverses the change. This is the default and it is what you will use 95% of the time.
-- **Point-in-Time Recovery** — for data loss only. Requires PITR enabled on the project.
-- **Restore from dump** — for a total loss, with downtime.
+- **Forward-fix migration** — a new migration that reverses the change. **This is the default and it is what you will use essentially always.** It is also free, which is why it is the backbone of this project's recovery story.
+- **Restore from dump** — for data loss, with downtime. Requires a dump to have been taken first.
+- **Point-in-Time Recovery** — not available; deferred (Part V, PH-01).
 
-> **⚠ Standing limitation — PITR is NOT enabled, and never has been.**
-> `docs/RLS_AUDIT.md` (M0-06, finding E) recorded `pitr_enabled: false` with `backups: []`. It was still false when M2 ran and it is still false today. The original plan said "enable it before M2"; **that did not happen, and M2's destructive migrations (M2-13, M2-14) were applied without it.** That was luck, not process.
+> **Standing fact — PITR is not enabled, and never has been.**
+> `docs/RLS_AUDIT.md` (M0-06, finding E) recorded `pitr_enabled: false` with `backups: []`, and `supabase backups list` confirmed the same on 2026-08-10. M2's destructive migrations (M2-13, M2-14) were applied without it.
 >
-> The consequence is concrete: for any migration that destroys data, **the only recovery is a dump taken beforehand**. There is no timestamp to roll back to. Every task below that names PITR as its rollback path is naming a mechanism that does not currently exist.
+> **This is an accepted condition, not an outstanding blocker.** Enabling PITR requires the Pro plan plus a Small compute add-on plus the add-on itself — roughly $125/month, uncapped by the spend cap — to insure a fixture dataset. That is not a sensible trade for this project today. It is deferred to Part V with the trigger that reopens it.
 >
-> **Enabling PITR is a prerequisite for the next destructive or policy-replacing migration.** It is tracked as M3-00 and in Appendix B.
+> The practical consequence is narrow: **a migration that destroys data needs a dump taken beforehand.** Migrations that only change structure do not, because forward-fix SQL reverses them completely.
 
-> **⚠ Standing limitation — dumps have not always been possible.**
-> `npm run db:diff`/`db:dump` need Docker Desktop running, and M3-01 → M3-05 were applied in a session where Docker and a direct database connection were unavailable. **No pre-migration dump was taken for any of them.** They were additive or policy-only and were judged recoverable by forward-fix, which held. That reasoning is specific to those five migrations and **does not generalise** — see Rule 6.
+> **Standing note — M3-01 → M3-05 were applied without a dump.**
+> Docker and a direct database connection were unavailable in that session. All five were additive or policy-only and were reversible by forward-fix, which is exactly the Tier A case Rule 6 now describes. Recorded for accuracy; no longer treated as a process failure.
 
 **Rule 3 — Expand → Backfill → Contract. Never in one migration.**
 
@@ -174,20 +188,27 @@ Deploy the application code that reads the new shape **between** Backfill and Co
 **Rule 4 — Schema migrations and data migrations are separate files and separate commits.**
 A schema migration is idempotent DDL. A data migration is a one-shot `UPDATE`/`INSERT`. Mixing them makes the schema file non-replayable on a fresh database, which breaks environment reproduction — the exact problem M0 exists to fix.
 
-**Rule 5 — Every destructive migration is rehearsed on a branch database first.**
-`supabase branches create` (or a manually restored copy) → apply → run the app against it → then production. A migration that has never been run is a migration that does not work.
+**Rule 5 — Rehearse on a branch database before a migration that can destroy data.**
+`supabase branches create` (or a manually restored copy) → apply → run the app against it → then production. **Required for Tier B only** (Rule 6). Rehearsing a `create policy` costs an afternoon and proves nothing that the migration's own verification block does not.
 
-**Rule 6 — "Additive and reversible" is a property of a specific migration, never a precedent.**
-M3-03 was applied without a dump because it only inserted rows and its reversal was a single `delete`. That judgement was sound *for that migration*. It says nothing about a migration that **replaces policies**, **drops** anything, or **grants privileges**.
+**Rule 6 — Recovery effort scales with what a migration can destroy.**
 
-A migration needs a verified pre-migration dump and a written rollback if any of the following is true:
+Two tiers. Classify every migration before writing it, and put the classification in the PR.
 
-- it drops a column, table, constraint, index, policy or function;
-- it replaces an existing policy (the old definition is only recoverable if it was captured first);
-- it grants or widens access — including a new `SECURITY DEFINER` function;
-- it writes to rows that already exist (`UPDATE`/`DELETE`), as opposed to inserting new ones.
+**Tier A — structure only. Cannot lose data.**
+Creating or replacing policies, functions, triggers, constraints, indexes; adding tables or nullable columns; inserting new rows.
 
-**Never cite M3-03's reasoning to skip a backup on a migration in that list.**
+- Required: **capture the exact prior definition verbatim in the migration file**, and write the forward-fix rollback in the same file. Both are free, both are already this project's practice (M2-08, M3-04 and M3-05 all do it), and together they make reversal copy-paste.
+- **Not required: a dump, a rehearsal, or PITR.** These migrations are reversed with SQL, not with a restore.
+- **A Tier A migration is never blocked on backup infrastructure.**
+
+**Tier B — can destroy data.**
+`DROP COLUMN`/`DROP TABLE`, a type change, or any `UPDATE`/`DELETE` against rows that already exist.
+
+- Required: the Backup procedure below, a branch-database rehearsal (Rule 5), and row counts recorded before and after.
+- This is where the money and the caution go, because this is the only place data actually disappears.
+
+Worked classification for the tasks in flight — all of M3-13 → M3-18 are **Tier A**: they add five functions, two triggers, one policy and two constraints, and touch no existing row. M2-13 and M2-14 were Tier B, and M6-05 will be.
 
 ### When to create which
 
@@ -200,24 +221,24 @@ A migration needs a verified pre-migration dump and a written rollback if any of
 | `SECURITY DEFINER` function | Schema | Before the policies that call it |
 | Membership / privilege-granting RPC | Schema | Reviewed line by line before it is applied — see *Permission Model* |
 
-### Backup procedure (run before every HIGH RISK task)
+### Backup procedure — **Tier B migrations only**
 
-1. `supabase db dump --db-url "$PROD_URL" -f backups/pre-<task-id>-$(date +%Y%m%d-%H%M).sql` — schema + data.
-2. Verify the dump is non-empty and restores into a scratch database. **An untested backup is not a backup.**
-3. Confirm PITR is enabled and note the current timestamp; that timestamp is the recovery target. **PITR is currently disabled — until M3-00 lands, this step cannot be completed and step 1 is the only recovery path there is.**
-4. Record row counts for every affected table (`select count(*) from todos;` etc.) in the PR description. These are the numbers you compare against after the migration.
+Not a gate on Tier A. Do not run this before a policy or function change.
 
-If the dump cannot be taken — Docker not running, no direct connection — the correct response is to **stop and fix that**, not to proceed and note it afterwards. The one exception is a migration that satisfies none of Rule 6's four conditions, and the exemption must be written into the PR with the reason.
+1. `supabase db dump --linked -f backups/pre-<task-id>-$(date +%Y%m%d-%H%M).sql` — schema + data.
+2. Confirm the dump is non-empty and contains the affected tables.
+3. Record row counts for every affected table (`select count(*) from todos;` etc.) in the PR description. These are the numbers you compare against afterwards.
+
+*Verifying the dump actually restores into a scratch database is the stronger check and is deferred to Part V (PH-02). For a fixture dataset, a non-empty dump plus forward-fix SQL is proportionate.*
 
 Backups directory is gitignored — dumps contain user data and must never be committed.
 
 ### Rollback procedure
 
-1. **Stop writes** if the app is live — take the deploy down or flip to a maintenance page. A half-migrated database taking writes is how a recoverable incident becomes an unrecoverable one.
-2. **Revert the application deploy first**, so the old code talks to the old shape.
-3. **If schema-only:** write and push the reversing migration.
-4. **If data was lost:** PITR to the timestamp recorded in step 3 of the backup procedure — **or, while PITR is disabled, restore the dump from step 1.**
-5. Write a short note in the PR describing what failed. The next attempt starts from that note.
+1. **Revert the application deploy first** if one is live, so the old code talks to the old shape.
+2. **Structure change (Tier A):** write and push the reversing migration, copy-pasted from the prior definition the migration captured. This is the path for every migration in M3.
+3. **Data loss (Tier B):** restore the dump taken in the Backup procedure.
+4. Write a short note in the PR describing what failed. The next attempt starts from that note.
 
 ---
 
@@ -297,7 +318,7 @@ Deleting the Owner's *profile* cascades the board away entirely (`boards.owner_i
 | New board gets an owner membership | `boards_add_owner_membership` AFTER INSERT trigger | ✅ applied (M3-03) |
 | Membership mutation RPCs with role checks | — | ⬜ not built (M3-14) |
 | Owner immutability I1–I5 in the database | — | ⬜ not built (M3-15) |
-| Member list visibility to co-members | — | ⬜ not built (M3-13); `board_members` is self-read only and `profiles` is self-read only, so the member list **cannot** be built before it |
+| Member list visibility to co-members | `board_roster(uuid)` — `SECURITY DEFINER`, membership-guarded, returns `id, username, full_name, avatar_url, role, joined_at` | 🔶 applied (M3-13). Anonymous denial verified; the authenticated role matrix is outstanding. `board_members` stays self-read and `profiles` stays self-only **by design** — the RPC's return list is the exposure boundary, not a policy |
 | Board settings by role | `boards` UPDATE/DELETE policies are owner-only (M2-01) | 🔶 applied, but the role matrix for board settings is undecided (M3-17) |
 
 ### Decisions this section makes that the role specification did not state
@@ -723,7 +744,7 @@ Recorded 2026-08-10 from the repository. The task descriptions above are left as
 - `noUncheckedIndexedAccess` was deferred as the task recommended. Still off.
 - **RLS_AUDIT item 3 — avatar storage.** Any authenticated user can `upsert` over `avatars/<any-uuid>.<ext>` and replace another person's avatar. The upload path is still `${userId}.${ext}` in `src/services/profile/uploadAvatars.ts`. **Not fixed.** Real, exploitable, and unowned by any task — see Appendix B.
 - **RLS_AUDIT item 6 — `handle_new_user()`** is `SECURITY DEFINER` with no `search_path`. **Not fixed.**
-- **RLS_AUDIT item 7 — PITR.** Recorded as disabled. Still disabled; see Migration Strategy Rule 2 and M3-00.
+- **RLS_AUDIT item 7 — PITR.** Recorded as disabled. Still disabled, now as an explicit costed decision rather than an oversight — deferred to Part V, PH-01.
 - **RLS_AUDIT item 5 — `shift_completed_positions`.** Fixed: dropped in `20260807190500_drop_user_id.sql`.
 - **RLS_AUDIT finding D — dead columns.** `todos.status` and `todos.previous_status` still exist in the schema (confirmed in `src/types/database.ts`). They predate the columns schema and nothing reads them. They will actively confuse M13's workflow design; cleanup is M10-00.
 
@@ -1313,8 +1334,9 @@ Every task landed, including the two the plan offered as deferrable (M2-14 and M
 **Risks.**
 - **The RLS recursion trap.** A policy on `board_members` that itself queries `board_members` causes infinite recursion in Postgres and a hard 500. The remedy — `SECURITY DEFINER STABLE` helper functions — is in place from M3-02 and every later policy must use it.
 - **Privilege escalation through membership mutation.** Every membership RPC is a privilege-granting function. An admin who can edit an admin, or set their own role, defeats the whole hierarchy. M3-14 and M3-15 are the two highest-risk tasks in the milestone and neither may be merged on a UI test.
-- Membership sub-selects run per row. Without the M2-05 indexes and both `board_members` indexes, board load time degrades sharply. Test with a 500-card board and 10 members before declaring this done.
-- **No dump was taken for M3-01 → M3-05, and PITR is off.** The remaining M3 tasks replace policies and grant privileges — Rule 6 applies to every one of them.
+- Membership sub-selects run per row. The M2-05 indexes and both `board_members` indexes exist, which is the structural mitigation. Measuring it at scale is deferred (PH-03) — a fixture board of 21 work items cannot show a cliff.
+
+**Every remaining M3 task is Tier A** under Rule 6: functions, triggers, policies and one constraint, touching no existing row. None needs a dump, a rehearsal or PITR, and **none is blocked on backup infrastructure.** Their real risk is authorization logic, which is mitigated by review and by M3-16 — not by recovery tooling.
 
 **Success criteria.**
 - Every board has exactly one `owner` row in `board_members`, and `boards.owner_id` agrees with it.
@@ -1322,7 +1344,7 @@ Every task landed, including the two the plan offered as deferrable (M2-14 and M
 - Every cell of both matrices in *Permission Model* has a passing REST-level test (M3-16).
 - Owner immutability invariants I1–I5 hold against a direct API attempt by an admin, and against the Owner's own attempt.
 - No client-writable policy exists on `board_members`.
-- Board load time with 500 cards and 10 members is within 20% of its pre-milestone figure.
+- The board still loads and drags without visible regression on the fixture board. *Load-testing at 500 cards / 10 members is deferred to PH-03 — it is a production-scale question and this milestone has no production scale to measure.*
 
 ### Where the original M3 was wrong
 
@@ -1337,15 +1359,21 @@ Found in the 2026-08-10 audit, against the applied migrations. Recorded because 
 
 ### Tasks
 
-#### M3-00 · Enable PITR — **SAFE** (project configuration) — ⬜ Not started
+#### M3-00 · ~~Enable PITR~~ — **DEFERRED to Part V (PH-01)** — decided 2026-08-10
 
-Not a migration. The remaining M3 tasks replace policies and add privilege-granting functions, and Rule 6 requires a real recovery path for both. PITR has been off since M0-06 recorded it, and M2's destructive migrations ran without it.
+**This task no longer exists in M3 and blocks nothing.** It is retained as a numbered entry so the decision is visible rather than silently dropped.
 
-- **Files:** none. Project setting on `nxnnfaoyttbzndphnawe`, plus a line in `docs/RLS_AUDIT.md` marking item 7 resolved.
-- **Test:** the Supabase dashboard reports PITR enabled, and the earliest recovery point is recorded in the PR.
-- **Blocks:** M3-14, M3-15, M3-17. Those three either replace policies or grant privileges.
-- **If PITR cannot be enabled** (plan tier, cost), that is an acceptable answer — but then it must be written down here, and each blocked task must take a verified dump instead. What is not acceptable is proceeding while assuming a recovery path that does not exist.
-- **Commit:** `docs: record PITR status ahead of the M3 privilege work`
+It was written as a prerequisite for M3-14, M3-15 and M3-17 on the reasoning that Rule 6 demanded "a real recovery path" for migrations that replace policies or grant privileges. Investigation showed that reasoning does not hold:
+
+- **PITR cannot be enabled with current access.** The Supabase CLI has no command for it — `supabase backups` exposes only `list` and `restore`, and `config.toml` has no PITR key. It is a billing add-on set in the dashboard or via `PATCH /v1/projects/{ref}/billing/addons`.
+- **It requires the Pro plan plus a Small compute add-on plus the add-on itself** — roughly **$125/month, recurring, and explicitly not covered by the spend cap**. The compute change alone causes up to ~2 minutes of downtime.
+- **None of the tasks it "blocked" can lose data.** They create functions, triggers, policies and a constraint. All are Tier A under Rule 6 and reverse with forward-fix SQL.
+- **PITR's recovery window starts at enablement**, so it could never have protected anything already in the database, and a PITR restore is a whole-project rollback that destroys every later write — the wrong instrument for reverting a policy.
+
+Spending $1,500/year to insure a fixture dataset of two accounts and 21 work items, while blocking the permission model on it, is the wrong trade. **Deferred to PH-01 with a stated reopen trigger.**
+
+- **Replaced by:** nothing. M3-13 → M3-18 carry their own Tier A rollback (prior definition captured verbatim in each migration file), which is what the project has done since M2-08 and what actually reverses these changes.
+- **Reopen when:** the project takes real users, or before the next Tier B migration (M6-05 drops `position`).
 
 #### M3-01 · Create `board_members` — **SAFE** — ✅ Done
 `board_id`, `user_id`, `role text check (role in ('owner','admin','editor','viewer'))`, `joined_at`, PK `(board_id, user_id)`, indexes on both columns per `docs/DATABASE.md`. RLS enabled with a deliberately minimal self-read policy for now.
@@ -1382,28 +1410,41 @@ Read for any member; write for `editor` and above; `viewer` read-only.
 **Test:** all four roles against all four verbs on both tables, via `curl`; then the full Smoke checklist as `owner` and again as `editor`.
 > **Backup / Rollback / Migration:** as M3-04. Additionally confirm `upsert` paths still work for `editor` — both INSERT and UPDATE policies are required.
 **Commit:** `feat(db): column and todo RLS via membership helpers`
-> **As applied** — `supabase/migrations/20260810120000_columns_todos_rls_via_membership.sql`. ⚠ **Applied to the linked project but not yet committed to Git.** Commit it before anything else in M3 lands; an applied migration that is not in the repository is the exact failure Rule 1 exists to prevent.
+> **As applied** — `supabase/migrations/20260810120000_columns_todos_rls_via_membership.sql`, committed as `3c3eec8`. It was applied before it was committed, which Rule 1 exists to prevent; the gap is closed and `supabase migration list` confirms local and remote agree on all 23 versions.
 > What it does: widens `accessible_board_ids()` to `boards.owner_id ∪ board_members.user_id` — the M2-08 swap point, used exactly as designed, with **no policy definition edited** for reads. The two SELECT policies are renamed to `"Members select …"`. The six write policies are dropped and recreated as `"Editors and above insert/update/delete todos"` and the three column equivalents, each `using`/`with check` on `board_role(board_id) in ('owner','admin','editor')`.
 > **Read and write use different predicates on purpose, and this is worth understanding before changing either.** Reads go through `accessible_board_ids()`, which includes `boards.owner_id`; writes go through `board_role()`, which reads `board_members` only. An owner with no membership row could therefore read but not write. In practice M3-03's backfill and trigger make that state unreachable, and M3-15 makes it an enforced invariant.
 > **Verified:** read behaviour only. On the current fixture — board `5819a045-0bca-4a8a-9dc1-a67f7911b854`, owner `qwerty@gmail.com`, viewer `qqq@gmail.com` — both accounts see the same 5 columns and 21 work items, and the viewer cannot mutate.
 > **Not verified — and not to be claimed as verified:** the Editor path, the Admin path, the upsert/reorder path for any non-owner, and every REST-level denial. No editor or admin membership exists yet, because nothing can create one. The whole matrix is M3-16.
-> **No pre-migration dump was taken.** This migration replaced eight policies; Rule 6 applies to anything like it from here on.
+> **No pre-migration dump was taken.** It replaced eight policies and touched no row — Tier A under Rule 6, reversible by the forward-fix SQL captured in the migration file itself. Correct as applied.
 
-#### M3-13 · Co-member read policies on `board_members` and `profiles` — **MEDIUM RISK** — ⬜ Not started
+#### M3-13 · Board roster RPC (`board_roster`) — **MEDIUM RISK** — 🔶 Applied 2026-08-11, verification outstanding
 
 **New in the 2026-08-10 audit. This blocks M3-06, M3-07 and M3-08** — none of them can render a member list against today's policies. It does not block M3-09, which reads only the caller's own row.
 
-Today `board_members` is self-read only and `profiles` carries a single `FOR ALL … USING (auth.uid() = id)` policy. A member can see neither who else is on the board nor their names and avatars.
+Today `board_members` is self-read only and `profiles` carries a single `FOR ALL … USING (auth.uid() = id)` policy. A member can see neither who else is on the board nor their names and avatars. This task closes that gap **without widening either policy**.
 
-- **Files:** `supabase/migrations/<ts>_membership_read_policies.sql`, `docs/RLS_AUDIT.md`.
-- **DB / RLS:**
-  - `board_members` gains a SELECT policy: a member of a board may read every membership row of that board — `using (public.is_board_member(board_id))`. Via the helper, never a sub-select on `board_members` itself; that is the recursion trap.
-  - `profiles` gains a SELECT policy for co-members. **This widens profile visibility and is the risk in this task.** Decide and record which columns are exposed: `id`, `username`, `full_name`, `avatar_url` are needed for a member list; `email` and `bio` are not. If the split matters, expose a view rather than the table — decide explicitly and write the reason in the PR.
-  - The existing `"Users can manage own profile"` `FOR ALL` policy stays for self-writes. Policies are `PERMISSIVE`/OR'd, so adding a SELECT policy widens reads without widening writes.
-- **Breaking:** no, additive. But it changes what one user can learn about another — treat the column list as a product decision, not a detail.
-- **Test:** as a co-member, `GET /rest/v1/board_members?board_id=eq.<board>` returns every member; as a non-member it returns `[]`. As a co-member, the teammate's profile row is readable and contains **only** the agreed columns. As a non-member, the teammate's profile is not readable. No recursion, no 500. A user removed from the board immediately stops seeing the roster.
-- **Commit:** `feat(db): let board members read the roster and each other's profiles`
-> **Rule 6 applies** — this widens access and adds policies. Dump first, capture the current `profiles` policy verbatim into the PR, rollback is a forward-fix dropping the two new policies.
+**The approved boundary is an RPC, not a policy (Option B, decided 2026-08-11).** RLS filters *rows*, not *columns*. `profiles` carries `email` and `bio`, and any co-member SELECT policy hands both over whatever the client asks for — `fetchProfile` already issues `select("*")`. A `SECURITY DEFINER` function is the only place the database can state which columns leave it, so the function's return list is the exposure boundary.
+
+- **Files:** `supabase/migrations/20260811090000_membership_roster.sql`, `docs/RLS_AUDIT.md`.
+- **DB:**
+  - New `public.board_roster(p_board_id uuid)` — `language plpgsql`, `stable`, `security definer`, `set search_path = ''`, every identifier schema-qualified.
+  - Two ordered guards: raise `28000` if `auth.uid()` is null; `return` an empty set unless `public.is_board_member(p_board_id)`. Membership goes through the M3-02 helper, never a sub-select on `board_members` (recursion trap, Enforcement rule 3).
+  - Returns exactly six columns: `id`, `username`, `full_name`, `avatar_url`, `role`, `joined_at`. **`email` and `bio` are never exposed.** Changing this list is a product decision, not a refactor.
+  - Grants: `revoke all … from public, anon`; `grant execute` to `authenticated` and `service_role`.
+  - `board_members` table privileges narrowed in the same migration: `anon` revoked outright; `authenticated` revoke-all-then-`grant select`. The captured production ACL showed `anon` and `authenticated` each holding all eight privileges including `TRUNCATE`, which RLS does not filter. Client writes were previously blocked only by the absence of a policy; this makes it two independent mistakes deep. `SELECT` is retained because M3-01's self-read policy and M3-09's `usePermissions` both need it. **`service_role` untouched.**
+- **NOT in this task:** `profiles` RLS — unchanged, still self-only; **no broad co-member SELECT policy is added**. `board_members` policies — unchanged, M3-01's self-read stays. Membership mutations are M3-14's `SECURITY DEFINER` RPCs.
+- **Breaking:** no, additive. But it changes what one user can learn about another — treat the six-column list as a product decision.
+- **Test (REST-level, a real JWT per role):**
+  - Owner and viewer of the same board: `POST /rest/v1/rpc/board_roster` returns every member, each carrying **exactly** those six keys. Assert on the payload *keys*, not only the values — `email` and `bio` must be absent.
+  - Non-member with a real board id → `200 []`. Non-member with a fabricated uuid → `200 []`, byte-identical. If those differ the function is an existence oracle and the task has failed.
+  - No `Authorization` header → `42501 permission denied for function board_roster`, stopped by the grant rather than by guard 1.
+  - Co-member: `GET /rest/v1/profiles?id=eq.<teammate>&select=*` still returns `[]`. This is the property the RPC exists to preserve.
+  - Member: `GET /rest/v1/board_members?board_id=eq.<board>` still returns exactly **one** row, the caller's own. Correct under this design.
+  - Member: `POST /rest/v1/board_members` → `42501` — privilege denied, not merely an RLS filter.
+  - A user removed from the board immediately stops seeing the roster.
+- **Follow-up:** run `npm run db:types` after applying so `board_roster` reaches the generated `Database` type before M3-06 starts. **`returns table` carries no nullability**, so `username`, `full_name` and `avatar_url` — nullable in `profiles` — will likely generate as non-null. Narrow at the API-function boundary rather than trusting the generated type.
+- **Commit:** `feat(db): board roster RPC with explicit column exposure`
+> **Tier A** — adds one function and adjusts privileges, touches no row. The production ACL is captured verbatim in the migration file; rollback is a forward-fix dropping the function and restoring the captured grants. No dump, no blocker.
 
 #### M3-14 · Membership mutation RPCs — **HIGH RISK** — ⬜ Not started
 
@@ -1429,9 +1470,9 @@ Today `board_members` is self-read only and `profiles` carries a single `FOR ALL
 - **Breaking:** no — nothing calls these yet.
 - **Test:** every row of the *Membership matrix* and every invariant, called directly as RPC with each role's own JWT. Both the ✅ and the ❌ cells. Specifically: admin removing the owner, admin demoting the owner, admin promoting themselves to owner, admin editing another admin, owner demoting themselves, editor calling any of the three, a non-member calling any of the three, and a caller passing a `p_board_id` they have no membership on. Concurrent double-call is idempotent, not duplicating.
 - **Commit:** `feat(db): membership mutation RPCs with role enforcement`
-> **HIGH RISK — privilege-granting.**
-> **Prerequisite:** M3-00.
-> **Backup:** dump first (Rule 6 — this grants privileges). **Rollback:** forward-fix dropping the three functions; audit `board_members` for any row they created, using `joined_at` as the window. **Migration:** review every authorization branch against the matrix before applying, and test the failure branches first — a flaw here hands over a board. Do not merge on a UI test.
+> **HIGH RISK — privilege-granting.** The risk here is a **logic flaw**, not data loss. No backup mitigates a function that lets an admin demote the Owner; only reading it does.
+> **Tier A** — creates four functions, touches no row. **Rollback:** forward-fix dropping the four functions; audit `board_members` for any row they created, using `joined_at` as the window. **No dump, no PITR, no prerequisite task.**
+> **What this task actually requires:** review every authorization branch against the matrix before applying, and test the failure branches **first**. A flaw here hands over a board. Do not merge on a UI test.
 
 #### M3-15 · Owner immutability in the database — **HIGH RISK** — ⬜ Not started
 
@@ -1445,8 +1486,9 @@ The M2-21 `todos_assign_board_key` trigger is the precedent: an invariant every 
 - **Breaking:** yes for any writer that currently deletes owner rows. Nothing in `src/` does; confirm no migration does either.
 - **Test:** as `service_role` — the most privileged path there is — attempt `delete from board_members where role = 'owner'`, `update … set role = 'viewer'` on an owner row, and `update boards set owner_id = <someone else>`. Each raises. Then re-run M3-14's owner tests and confirm they still fail at the RPC layer, so both layers hold independently. Then confirm a normal membership change to a viewer/editor/admin row still succeeds — an over-broad trigger that blocks everything would pass the negative tests.
 - **Commit:** `feat(db): enforce owner immutability for every writer`
-> **HIGH RISK — changes what the database will accept.**
-> **Prerequisite:** M3-00. **Backup:** dump first. **Rollback:** forward-fix dropping the triggers. **Migration:** apply after M3-14 so the RPC tests can be re-run against it, and verify that `provision_new_user()` and `add_owner_membership()` still work — signup creates a board, which creates an owner row, and a badly scoped trigger would break account creation.
+> **HIGH RISK — changes what the database will accept.** The failure mode is an over-broad trigger breaking signup, which is an availability bug caught in seconds, not data loss.
+> **Tier A** — creates triggers, touches no row. **Rollback:** forward-fix dropping the triggers. **No dump, no PITR, no prerequisite task.**
+> **Sequencing that does matter:** apply after M3-14 so the RPC tests can be re-run against it, and verify `provision_new_user()` and `add_owner_membership()` still work — signup creates a board, which creates an owner row, and a badly scoped trigger would break account creation.
 
 #### M3-17 · Board settings by role — **MEDIUM RISK** — ⬜ Not started
 
@@ -1459,7 +1501,7 @@ Implements the two decisions recorded in *Permission Model → Decisions this se
 - **Watch:** `updateBoard` in `boardsApi.ts` already excludes `owner_id` from its patch type, and the UPDATE policy must keep `owner_id` unchangeable through this path (I5, I6). A `WITH CHECK` that permits changing `owner_id` would be an ownership transfer with no ceremony.
 - **Test:** admin renames a board → succeeds; admin deletes → denied; editor renames → denied; admin changes `owner_id` via PATCH → denied; owner deletes → succeeds and cascades.
 - **Commit:** `feat(db): board settings editable by admins, deletable by the owner`
-> **Rule 6 applies** — replaces a policy. Dump first; capture the M2-01 definitions into the PR.
+> **Tier A** — replaces one policy, touches no row. Capture the M2-01 definitions verbatim in the migration file; rollback is a forward-fix restoring them. No dump, no blocker.
 
 #### M3-18 · Cross-board integrity constraint — **MEDIUM RISK** — ⬜ Not started
 
@@ -1478,15 +1520,15 @@ Implements the two decisions recorded in *Permission Model → Decisions this se
 #### M3-06 · `services/members/` — **SAFE** — ⬜ Not started
 `membersApi.ts` + `useBoardMembers`, `useAddMember`, `useUpdateMemberRole`, `useRemoveMember`. Keys `["members", boardId]` via the factory.
 **Commit:** `feat(members): members API and query hooks`
-> **Re-scoped 2026-08-10.** The read hook queries the `board_members` table (allowed by M3-13). **The three mutation hooks call the M3-14 RPCs via `supabase.rpc(...)` — never `.from("board_members").insert/update/delete()`.** There is no policy that would let those succeed, and adding one is prohibited (Permission Model, rule 4).
+> **Re-scoped 2026-08-10, revised 2026-08-11 for M3-13's RPC boundary.** The read hook calls `supabase.rpc("board_roster", { p_board_id: boardId })` — **never** `.from("board_members").select()`. That table is self-read only and stays that way; a direct query returns the caller's own row and nothing else, which would render a one-person member list with no error to signal it. **The three mutation hooks call the M3-14 RPCs via `supabase.rpc(...)` — never `.from("board_members").insert/update/delete()`.** There is no policy that would let those succeed, and adding one is prohibited (Permission Model, rule 4).
 > Add `queryKeys.members(boardId)` to the factory — no inline key literals, per the Code Review Checklist.
-> **Depends on:** M3-13 (read policy), M3-14 (the RPCs).
+> **Depends on:** M3-13 (the `board_roster` RPC), M3-14 (the mutation RPCs).
 > **Test:** the list renders every member for a member of the board; each mutation hook rolls back optimistically on a denied RPC and surfaces the error through the M1-07 toast path.
 
 #### M3-07 · Member list UI — **SAFE** — ⬜ Not started
 Avatars, names, role badges, joined date. Read-only.
 **Commit:** `feat(members): board member list`
-> **Depends on:** M3-13 — a teammate's `profiles` row is not readable without it, so avatars and names would render empty. Show only the profile columns M3-13 agreed to expose.
+> **Depends on:** M3-13. A teammate's `profiles` row is not readable directly and will not become readable — the data comes from `board_roster`, which returns exactly `id`, `username`, `full_name`, `avatar_url`, `role`, `joined_at`. Render from those six and no others; there is no `email` or `bio` to fall back on. `username`, `full_name` and `avatar_url` are nullable in the base table, so the UI must handle a null name and a missing avatar.
 > The Owner is visually distinguished from admins: it is the one role no control can change, and the UI should say so rather than offering a disabled button with no explanation.
 
 #### M3-08 · Role management UI — **MEDIUM RISK** — ⬜ Not started
@@ -1533,11 +1575,13 @@ Execute the entire *Multi-user and roles* section of the Testing Checklist and r
 - **Output:** a results table committed to `docs/RLS_AUDIT.md` — every cell of both matrices, plus I1–I5, with the observed status code or row count. Any failure becomes a new task in this document before the milestone closes.
 - **Commit:** `docs: role matrix verification results`
 
-#### M3-12 · Membership performance verification — **SAFE** (verification) — ⬜ Not started
+#### M3-12 · Membership performance verification — **DEFERRED to Part V (PH-03)** — decided 2026-08-10
 Seed a board with 500 cards, 12 columns and 10 members. `explain analyze` the board load. Compare against the M2-05 baseline.
 **Test:** load time within 20% of baseline; no sequential scan on `board_members`; findings recorded in the PR. If it regresses, that is a finding — fix it here, not in M9.
 **Commit:** `perf(db): verify RLS membership lookup cost`
-> Also absorbs the `explain analyze` check M3-02 did not run. Two plans to look at, and they are not the same shape: reads go through `accessible_board_ids()` (set-returning, planned once per statement as an InitPlan) while writes go through `board_role(board_id)` (row-dependent, potentially once per row on a bulk upsert). **Profile the bulk reorder path specifically**, not only the board load — it is the one that can degrade per row.
+> **Deferred, and it does not gate the milestone.** Seeding 500 cards and 10 members to measure a fixture-scale application is production-readiness work, not product work. The structural mitigation — indexes on `board_members(board_id)` and `(user_id)`, plus the M2-05 indexes — is already in place, and the set-returning `accessible_board_ids()` design deliberately plans as an InitPlan.
+> **What stays in M3, for free:** if the board becomes visibly slower to load or drag on the fixture after M3-13 → M3-18, that is a finding and it gets its own task. No instrumentation needed to notice it.
+> **Reopen (PH-03) when:** a real board passes a few hundred work items, or someone reports slowness. Two plans to look at then, and they are not the same shape: reads go through `accessible_board_ids()` (row-independent, once per statement), writes through `board_role(board_id)` (row-dependent, potentially once per row on a bulk upsert). Profile the bulk reorder path specifically. This also absorbs the `explain analyze` check M3-02 did not run.
 
 ### Expected commit order — Milestone 3
 
@@ -1549,34 +1593,46 @@ Done, in the order it happened:
 3.  fix(db): add missing board_members(board_id) index      (M3-01 follow-up)  ✅
 4.  feat(db): backfill owner memberships                    (M3-03)  ✅ HIGH
 5.  feat(db): allow board reads via membership              (M3-04)  ✅ HIGH
-6.  feat(db): column and todo RLS via membership helpers    (M3-05)  🔶 HIGH — applied, NOT COMMITTED
+6.  feat(db): record M3-05 membership RLS migration         (M3-05)  ✅ HIGH
+7.  feat(db): board roster RPC with explicit column exposure (M3-13) 🔶 applied 2026-08-11
 ```
 
-Remaining, in dependency order:
+M3-13 is **applied but uncommitted** — the migration file and the regenerated `src/types/database.ts` are still in the working tree. Anonymous denial is verified; the authenticated role matrix is not (no JWT credentials), and M3-16 covers it.
+
+Remaining, in dependency order. **The next action is M3-14.**
 
 ```
-0.  commit the applied M3-05 migration                      ← do this first
-1.  docs: record PITR status ahead of the privilege work    (M3-00)
-2.  feat(db): let board members read the roster + profiles  (M3-13)
-3.  feat(db): membership mutation RPCs                      (M3-14)  ← HIGH
-4.  feat(db): enforce owner immutability for every writer   (M3-15)  ← HIGH
-5.  feat(db): board settings by role                        (M3-17)
-6.  feat(db): a work item's column must belong to its board (M3-18)
-7.  docs: role matrix verification results                  (M3-16)  ← MILESTONE GATE
-8.  perf(db): verify RLS membership lookup cost             (M3-12)
-9.  feat(members): members API and query hooks              (M3-06)
-10. feat(members): board member list                        (M3-07)
-11. feat(members): manage roles and remove members          (M3-08)
-12. feat(members): gate UI affordances by role              (M3-09)
-13. feat(db): transactional delete_column RPC               (M3-11)
+── permission model in the database ───────────────────────────────────
+1.  feat(db): membership mutation RPCs                      (M3-14)  ← HIGH
+2.  feat(db): enforce owner immutability for every writer   (M3-15)  ← HIGH
+3.  feat(db): board settings by role                        (M3-17)
+4.  feat(db): a work item's column must belong to its board (M3-18)
+
+── the gate ───────────────────────────────────────────────────────────
+5.  docs: role matrix verification results                  (M3-16)  ← MILESTONE GATE
+
+── the product surface ────────────────────────────────────────────────
+6.  feat(members): members API and query hooks              (M3-06)
+7.  feat(members): board member list                        (M3-07)
+8.  feat(members): manage roles and remove members          (M3-08)
+9.  feat(members): gate UI affordances by role              (M3-09)
+10. feat(db): transactional delete_column RPC               (M3-11)
 
 deferred out of this milestone:
     feat(db): transactional reorder_todos RPC               (M3-10)  → re-evaluated at M6-04
+    perf(db): verify RLS membership lookup cost             (M3-12)  → PH-03
+    enable PITR                                             (M3-00)  → PH-01
 ```
 
-**The database work comes before the UI work, and the verification comes before both UI and performance.** Building four member screens on top of an unverified permission model is how a permission bug ships behind a polished interface. M3-16 can be re-run cheaply after the UI lands; it cannot be usefully run for the first time then.
+**Nothing in this list waits on infrastructure.** Every one of steps 1–5 is a Tier A migration that can be written, applied and reversed with SQL alone. The old ordering put a $125/month billing decision in front of the permission model; it is gone.
 
-M3-12 sat deliberately early in the original ordering — discovering an RLS performance cliff after building four screens on top of it is the expensive order. It stays early, just behind the correctness gate.
+**The order that remains is a real dependency chain, not ceremony:**
+
+- **M3-13 before M3-06/07/08** — a member list cannot render rows RLS will not return.
+- **M3-14 before M3-15** — the triggers need the RPCs to exist so both layers can be tested against each other.
+- **M3-14 before M3-16** — the matrix needs editor and admin fixtures, and nothing else can create them.
+- **M3-16 before the UI** — building four member screens on an unverified permission model is how a permission bug ships behind a polished interface. It re-runs cheaply later; it cannot usefully run for the first time later.
+- **M3-18 before M3-11** — both concern a column belonging to the right board.
 
 ---
 
@@ -1665,7 +1721,7 @@ Public route. Unauthenticated visitors are sent to login/register and returned t
 
 **Why this milestone exists.** The columns landed in M2-03 and the UI placeholders already exist and are inert — the assignee avatar in `TodoItem.tsx` and the calendar/user/priority buttons in `TodoCreateForm.tsx` render and do nothing. The design is ahead of the schema; this closes the gap. It is also where the card component's accumulated shortcuts finally get paid off.
 
-**Dependencies.** M2 (columns), M3 (assignee must be a board member — M3-13's read policy is what makes the picker able to show names at all).
+**Dependencies.** M2 (columns), M3 (assignee must be a board member — M3-13's `board_roster` RPC is what makes the picker able to show names at all; `profiles` stays self-only).
 
 **Estimated difficulty.** M (8 tasks).
 
@@ -1705,7 +1761,7 @@ Picker sourced from `useBoardMembers`. Replaces the placeholder icon on the card
 **Commit:** `feat(todos): assign a board member to a task`
 > **Added 2026-08-10.** Assignability follows **membership, not write permission**: a viewer may be assigned work (see *Permission Model → Decisions*). Setting an assignee is still an editor+ action, because it writes the row.
 > Two cases the test list must cover, both reachable in normal use: assigning someone who is then **removed from the board** (`assignee_id` survives as a dangling reference until the profile is deleted — decide whether the card shows "unassigned" or a former-member state), and assigning someone whose role is later **demoted to viewer** (the assignment stays valid).
-> **Depends on M3-13.** Without the co-member profile read policy the picker can list ids but no names.
+> **Depends on M3-13.** The picker's names come from `board_roster`; `profiles` is not directly readable by co-members and will not receive a broad co-member SELECT policy. See the standing roster-boundary decision in `docs/RLS_AUDIT.md`.
 
 #### M5-06 · Description and task detail view — **MEDIUM RISK**
 **Test:** open, edit, save, close; unsaved changes prompt; deep link to a task; a task from another board 404s.
@@ -1792,7 +1848,7 @@ A move computes the midpoint between its two neighbours and updates **one row**.
 
 #### M6-05 · Drop `position` — **HIGH RISK** (contract)
 Removes `insertDense` and the whole-column renumbering path.
-> **Backup:** mandatory dump; PITR is the only recovery. **Rollback:** one-way. **Migration:** only after M6-04 has soaked and no ordering bugs have been reported. Retire `insertDense.ts` and `insertDense.test.ts` in the same commit — the `*.check.ts` this originally named was replaced by a Vitest sibling in M1-17.
+> **Tier B — the first one since M2.** Mandatory dump; a dropped column is not recoverable by forward-fix. **This is the task that reopens PH-01 and PH-02** — decide on PITR and prove a dump restores *before* applying it, not after. **Rollback:** one-way. **Migration:** only after M6-04 has soaked and no ordering bugs have been reported. Retire `insertDense.ts` and `insertDense.test.ts` in the same commit — the `*.check.ts` this originally named was replaced by a Vitest sibling in M1-17.
 **Commit:** `refactor(db): drop position in favour of rank`
 
 #### M6-06 · Rank rebalancing — **MEDIUM RISK**
@@ -2172,6 +2228,47 @@ Everything here inherits the *Permission Model* unchanged. None of it introduces
 
 ---
 
+# PART V — DEFERRED / PRODUCTION HARDENING
+
+**Nothing in this part blocks any task in Part III or Part IV.**
+
+These are real concerns and they are kept, not deleted. They are deferred because this is a portfolio project: the database holds fixtures, there are no users, there is no uptime commitment, and every item here costs money or days to buy insurance against a loss that would currently be a shrug.
+
+Each carries the trigger that reopens it. **The single trigger that reopens most of this part at once: the project takes real users.**
+
+> **What is NOT in this part, and must never be moved here:**
+> - The role matrix — viewer / editor / admin / owner — and its enforcement in RLS, `SECURITY DEFINER` helpers and RPCs.
+> - Owner immutability (I1–I6), enforced in the database.
+> - `board_members` having no client-writable policy.
+> - M3-16, the REST-level role verification.
+> - The avatar storage hole (Appendix B) — a live, exploitable bug, cheap to fix.
+>
+> Those are **product requirements and security correctness**, not hardening. A portfolio project that leaks other people's boards is not a portfolio project. Deferring recovery tooling is a budget decision; deferring authorization would be a defect.
+
+| ID | Deferred item | Why it is deferred | Reopen when |
+|---|---|---|---|
+| **PH-01** | **Enable PITR** (was M3-00) | ~$125/month recurring, uncapped by the spend cap, requiring Pro + a Small compute add-on and ~2 min of downtime — to insure two test accounts and 21 work items. Its window starts at enablement, so it protects nothing already stored, and a PITR restore is a whole-project rollback that is the wrong tool for reverting a policy. | Real user data exists, **or** before the next Tier B migration (M6-05 drops `position`). |
+| **PH-02** | **Verified dump-restore rehearsal** ("an untested backup is not a backup") | Restoring a dump into a scratch database to prove it works is the right standard for data that matters. For Tier A migrations there is nothing to restore, and Tier B is currently one future task. | The first Tier B migration is scheduled (M6-05), or real user data exists. |
+| **PH-03** | **RLS membership performance verification** (was M3-12) | Seeding 500 cards, 12 columns and 10 members to `explain analyze` a fixture-scale app measures a problem that does not exist yet. The structural mitigation — both `board_members` indexes plus the M2-05 set — is already in place. | A real board passes a few hundred work items, or the board is visibly slow. Absorbs the `explain analyze` M3-02 skipped. |
+| **PH-04** | **Branch-database rehearsals** (Rule 5, for Tier B) | `supabase branches create` per destructive migration is a paid feature and a day of setup. Tier A migrations reverse with SQL. | Same as PH-02. |
+| **PH-05** | **Deployment ritual**: apply off-peak, watch 403s for fifteen minutes, maintenance windows, stop-writes procedures | There is no peak, no traffic and nobody to inconvenience. Applying a migration and then using the app is the honest equivalent today. | The app is deployed somewhere users reach it. |
+| **PH-06** | **Observability**: error tracking, uptime monitoring, query performance dashboards, billing alerts | Nothing to observe and nobody paged. The `MutationCache` toasts from M1-07 already surface failures to the one person using the app. | Real users, or a deploy that is not a laptop. |
+| **PH-07** | **Backup retention and incident runbooks** | Rule 2's forward-fix migration is the whole recovery story at this scale, and it is written into each migration file already. | Real user data exists. |
+| **PH-08** | **Revoke unnecessary `anon` table privileges on `public.profiles`** | Privilege hygiene, not an exposure — see the note below. Fixing it means touching the table the signup path writes to, which is its own blast radius; M0-07 deferred it for that reason and the reasoning still holds. | The production-hardening / security pass, or any change that already touches `profiles` privileges. |
+| **PH-09** | **Normalize excessive non-DML table privileges across `boards`, `todos`, `columns`, `profiles`** | `authenticated` retains `TRUNCATE`, `REFERENCES` and `TRIGGER` on all four, inherited from the baseline's `GRANT ALL`. PostgREST issues only SELECT/INSERT/UPDATE/DELETE, so none is reachable today. Four tables × the revoke-all-then-grant-back shape is a focused hardening pass, not a bug fix. | The production-hardening / security pass. Do it in one migration, not piecemeal. |
+
+**PH-08 and PH-09 in more detail**, because both were surfaced by the M3-13 review and both are easy to mis-state.
+
+**PH-08 — `anon` on `public.profiles`.** `20260804000000_baseline_schema.sql:367` grants `ALL` on `profiles` to `anon`, and no migration has ever revoked it. RLS *is* enabled on the table (`baseline:172`) and its only policy is `USING (auth.uid() = id)`; for `anon`, `auth.uid()` is null, so the comparison yields null and **no row is returned**. **This is excessive table privilege, not an active data exposure** — do not describe it as a leak. It is the second exception to the pattern M0-07 and M2-01 established; the M3-13 migration comment records that correction. **Not part of M3-13**, which touches `board_members` only.
+
+**PH-09 — non-DML grants.** Verified against every revoke in the repository: the complete set is `todos`, `columns`, `todos_id_seq` (M0-07), `boards` (M2-01) and `board_members` (M3-13). M0-07 and M2-01 revoked `anon` only and never narrowed `authenticated`, so `authenticated` still holds the three non-DML privileges on all four tables. `TRUNCATE` in particular is not filtered by RLS — which is why it is worth fixing eventually, and why "unreachable through PostgREST" is a reason to defer rather than to dismiss. M3-13 is the first migration to use revoke-all-then-grant-back; PH-09 applies that shape to the rest.
+
+Neither becomes M3 work. M3 stays on the product permission system.
+
+**How to use this part.** When a Part III task references a deferred control — a dump, a rehearsal, PITR, a soak window — that reference is satisfied by the corresponding PH row. Do not re-add the control to the task; if you believe it is genuinely needed, move the PH row back into a milestone with the reason, in the same PR.
+
+---
+
 # Appendix A — Task Index by Risk
 
 Each carries a documented backup, rollback and migration strategy in its task entry.
@@ -2186,16 +2283,21 @@ Each carries a documented backup, rollback and migration strategy in its task en
 | M2-14 | ✅ | Primary key type change in one transaction |
 | M3-03 | ✅ | Must precede M3-04/05 or every owner is locked out. **Applied without a dump** |
 | M3-04 | ✅ | Authorization boundary. **Applied without a dump** |
-| M3-05 | 🔶 | Authorization boundary. **Applied without a dump, and not yet committed** |
-| M3-14 | ⬜ | Privilege-granting functions; a flaw hands over a board |
-| M3-15 | ⬜ | Changes what the database will accept from every writer, including `service_role` |
+| M3-05 | 🔶 | Authorization boundary. Applied without a dump (Tier A, correct); committed `3c3eec8`. Role matrix still unverified — M3-16 |
+| M3-14 | ⬜ | Privilege-granting functions; a flaw hands over a board. **Tier A** — the mitigation is review and M3-16, not backups |
+| M3-15 | ⬜ | Changes what the database will accept from every writer, including `service_role`. **Tier A** |
 | M4-03 | ⬜ | Privilege-granting function |
 | M6-01 → M6-05 | ⬜ | Ordering migration (five tasks, expand→contract) |
 | M8-08 | ⬜ | Cascade verification; never run against production |
 
-Medium-risk tasks that touch the authorization boundary and therefore inherit Rule 6: **M3-13** (widens read access), **M3-17** (replaces a policy), **M3-18** (adds a constraint that can fail on existing rows).
+Medium-risk tasks that touch the authorization boundary: **M3-13** (widens read access), **M3-17** (replaces a policy), **M3-18** (adds a constraint that can fail on existing rows). All three are Tier A.
 
-**Standing rule for every HIGH RISK task:** dump first, rehearse on a branch database, record row counts before and after in the PR, apply off-peak, watch for fifteen minutes. **Three M3 tasks did not meet this rule** (M3-03, M3-04, M3-05) and the reason is recorded in Migration Strategy Rule 2. That is history, not licence.
+**HIGH RISK does not mean "needs backup infrastructure".** It means the change is easy to get wrong and expensive to notice. Match the mitigation to the failure mode:
+
+- **Tier A** (every remaining M3 task): capture the prior definition verbatim in the migration, write the forward-fix rollback in the same file, and **test the denial branches before the success branches**. That is the whole procedure.
+- **Tier B** (M2-13 and M2-14, already shipped; M6-05, future): the Backup procedure, plus the deferred controls in Part V when they are reopened.
+
+The deployment ritual the original plan attached to every HIGH RISK task — off-peak windows, fifteen-minute 403 watches, branch rehearsals — is deferred to PH-04 and PH-05. M3-03, M3-04 and M3-05 shipped without it, correctly, and that is recorded rather than treated as debt.
 
 ---
 
@@ -2219,8 +2321,8 @@ Decisions deliberately postponed, with the trigger that should reopen them. **A 
 
 | Decision | Deferred to | Reopen when |
 |---|---|---|
-| **PITR** | **M3-00 — blocking, not open-ended** | Immediately. It has been deferred since M0-06 and two destructive migrations have already run without it |
-| **Avatar storage path hole** (RLS_AUDIT item 3) | **Unowned — needs a task** | Now. Any authenticated user can overwrite any other user's avatar; it is a live, exploitable bug with no home in this plan. The fix is a path change (`<uid>/avatar.png`) plus three storage policies plus a bucket size limit, and it is one task |
+| **PITR** | **Part V, PH-01** | Real users, or the next Tier B migration (M6-05). Costed and decided 2026-08-10 — see M3-00 |
+| **Avatar storage path hole** (RLS_AUDIT item 3) | **Unowned — needs a task. NOT production hardening** | Now-ish. Any authenticated user can overwrite any other user's avatar: a live, exploitable authorization bug. It is security correctness, so it does **not** belong in Part V. One task: path change (`<uid>/avatar.png`), three storage policies, a bucket size limit. Cheap. Fold it into M3 or M8 rather than leaving it homeless |
 | `handle_new_user()` missing `search_path` (RLS_AUDIT item 6) | Next migration that touches auth provisioning | Cheap hardening; fold it into whichever task is next in that file |
 | Dead `todos.status` / `previous_status` columns | M10-00 | Before work item types are added — three status-shaped concepts in one table is a trap |
 | **Board ownership transfer** | Post-M4 | A user asks to hand over a board, or an owner leaves the organisation. **Until it exists, the Owner of a board never changes** (invariant I6). It is not a membership operation and must not be smuggled into one |
@@ -2248,11 +2350,12 @@ npm run db:diff -- -f <name> # generate a migration from local changes (needs Do
 npm run db:types             # regenerate src/types/database.ts
 ```
 
-**Before every HIGH RISK task:**
+**Before a Tier B migration only** (drops a column/table, changes a type, or writes existing rows):
 ```bash
-supabase db dump --db-url "$PROD_URL" -f backups/pre-<task-id>-$(date +%Y%m%d-%H%M).sql
-# then: verify the dump restores, record row counts, confirm PITR, note the timestamp
-# PITR is currently DISABLED — until M3-00, the dump is the only recovery path.
+supabase db dump --linked -f backups/pre-<task-id>-$(date +%Y%m%d-%H%M).sql
+# then: confirm non-empty, record row counts for the affected tables
+# Tier A — policies, functions, triggers, constraints — needs none of this.
+# PITR is deliberately not enabled: Part V, PH-01.
 ```
 
 **Proving a permission rule** — the only evidence that counts (see Testing Checklist):
