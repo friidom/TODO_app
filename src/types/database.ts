@@ -291,7 +291,12 @@ export type Database = {
     }
     Functions: {
       accessible_board_ids: { Args: never; Returns: string[] }
+      add_board_member: {
+        Args: { p_board_id: string; p_role: string; p_user_id: string }
+        Returns: undefined
+      }
       board_role: { Args: { p_board_id: string }; Returns: string }
+      board_role_rank: { Args: { p_role: string }; Returns: number }
       board_roster: {
         Args: { p_board_id: string }
         Returns: {
@@ -304,7 +309,20 @@ export type Database = {
         }[]
       }
       is_board_member: { Args: { p_board_id: string }; Returns: boolean }
+      is_board_owner: {
+        Args: { p_board_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      leave_board: { Args: { p_board_id: string }; Returns: undefined }
       provision_new_user: { Args: never; Returns: string }
+      remove_board_member: {
+        Args: { p_board_id: string; p_user_id: string }
+        Returns: undefined
+      }
+      set_member_role: {
+        Args: { p_board_id: string; p_role: string; p_user_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
