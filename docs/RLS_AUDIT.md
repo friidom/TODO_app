@@ -499,8 +499,7 @@ Defects found by running it, all fixed:
 
 ## M3-17, M3-18, M3-11 · Board settings, cross-board integrity, atomic column deletion
 
-**Status: written and committed 2026-08-12. NOT APPLIED.** Three migrations sit in
-`supabase/migrations/` with no remote counterpart:
+**Status: applied 2026-08-12.** Three migrations, one `npm run db:push`:
 
 ```
 20260811120000_boards_settings_by_role.sql    (M3-17)
@@ -508,11 +507,10 @@ Defects found by running it, all fixed:
 20260811140000_delete_column_rpc.sql          (M3-11)
 ```
 
-`supabase db push` was attempted and **refused by the sandbox**. It was not worked
-around. Given the process note recorded above — a previous push that applied two
-pending migrations that were meant to be held — that refusal is the correct
-outcome, not an obstacle: the same command would have applied all three at once.
-Applying them is the Lead's action.
+All three were reviewed and committed before being applied, and applied on an
+explicit instruction naming them — which is the sequencing the process note above
+records going wrong once. `supabase migration list` now shows 29 of 29 versions
+paired local↔remote.
 
 ### What changed
 
@@ -601,24 +599,31 @@ violation after the fact.
 
 ### Verification status
 
-**NOT VERIFIED. No behavioural test of these three has been run anywhere.**
+**Applied, and NOT behaviourally verified. No role-matrix test of these three has
+been run anywhere.** `scripts/verify-m3-16-role-matrix.sql` covers all of it — §5
+and §6 for M3-17, §7 for M3-18, §10 for M3-11 — and has never been executed. This
+environment has no Docker, no `psql`, no service-role key and no SQL-editor access,
+and the Supabase CLI exposes no arbitrary-SQL path: `migration up` targets the
+local database, and `inspect db` runs a fixed set of reports. Running the harness
+is the Lead's action.
 
-`scripts/verify-m3-16-role-matrix.sql` is written and covers all of it — §5 and §6
-for M3-17, §7 for M3-18, §10 for M3-11 — but it has not been executed, because the
-migrations are not applied and this environment has no Docker, no `psql`, no
-service-role key and no SQL-editor access. **Nothing below the line "written" may
-be claimed for these three.**
+What the apply itself proves, and it is more than nothing:
 
-What *was* verified, and it is structural only:
+- **M3-18's preflight ran against real production data and found zero cross-board
+  work items**, then `add constraint` succeeded — which validates the composite key
+  against every existing row in `todos`. That is the one claim in this section
+  backed by production rather than by reading.
+- **M3-11 is live**: `delete_column` appears in `src/types/database.ts` regenerated
+  from the linked project.
+- **M3-18's FK really is composite**: the generated relationship changed from
+  `["column_id"] → ["id"]` to `["column_id", "board_id"] → ["id", "board_id"]`.
+- `supabase migration list`: 29 of 29 paired, no unpaired entry in either direction.
 
-- `supabase migration list` against the linked project: 26 of 29 local versions
-  paired local↔remote. The three above show a local version and an empty remote
-  column, which is the expected signature of a committed-but-unapplied migration.
-- `src/types/database.ts` regenerated from the live schema is **byte-identical** to
-  the committed file, so the generated types carry no drift. The live function list
-  contains `board_roster`, `is_board_owner`, `board_role_rank` and M3-14's four
-  RPCs — confirming M3-13 and M3-14 are live — and does **not** contain
-  `delete_column`, confirming M3-11 is not.
+What it does not prove: **M3-17 entirely.** A policy is invisible in generated
+types, so the only evidence it exists is that the migration applied without error.
+Whether an admin can now rename a board, whether an editor still cannot, and
+whether `owner_id` is still refused through the widened policy are all unobserved.
+§5, §6 and §11 of the harness are what answer them.
 - `npm test` 91/91, `npm run build`, `npm run lint`, `git diff --check` all clean.
 
 ### M3-16 · the gate itself
@@ -646,5 +651,6 @@ It also cannot observe reload persistence — everything runs in one transaction
 upsert path is the one that fails silently on reload, so §4 asserts it by re-reading
 the rows rather than by trusting the row count.
 
-**M3 is not done.** The gate has not been run, and running it requires the three
-migrations to be applied first.
+**M3's backend is applied in full; M3 is not done.** The gate has not been run.
+The migrations it depends on are now live, so the only thing standing between here
+and a verified milestone is executing the file.

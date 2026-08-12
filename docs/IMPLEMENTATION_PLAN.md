@@ -319,9 +319,9 @@ Deleting the Owner's *profile* cascades the board away entirely (`boards.owner_i
 | Membership mutation RPCs with role checks | `add_board_member` / `set_member_role` / `remove_board_member` / `leave_board` — `SECURITY DEFINER`, rank arithmetic, owner test before the rank gate | ✅ applied (M3-14). Full matrix verified: 67/67 in `scripts/verify-m3-14-membership.sql` |
 | Owner immutability I1–I5 in the database | `board_members_owner_immutable` BEFORE INSERT/UPDATE/DELETE + `boards_owner_immutable` BEFORE UPDATE — every writer, `service_role` included | ✅ applied (M3-15). 37/37 in `scripts/verify-m3-15-owner-immutability.sql` |
 | Member list visibility to co-members | `board_roster(uuid)` — `SECURITY DEFINER`, membership-guarded, returns `id, username, full_name, avatar_url, role, joined_at` | 🔶 applied (M3-13). Anonymous denial verified and the signature confirmed against the live schema; the authenticated role matrix is outstanding — `scripts/verify-m3-16-role-matrix.sql` §9. `board_members` stays self-read and `profiles` stays self-only **by design** — the RPC's return list is the exposure boundary, not a policy |
-| Board settings by role | `"Admins and above update boards"` — `board_role(id) in ('owner','admin')` on UPDATE; DELETE left owner-only from M2-01 | ⬜ **written, NOT APPLIED** (M3-17). `owner_id` stays unwritable through the widened policy because M3-15's `boards_owner_immutable` trigger refuses it — no policy can express "unchanged" |
-| A work item's column belongs to its board | composite FK `todos (column_id, board_id) → columns (id, board_id)` | ⬜ **written, NOT APPLIED** (M3-18). Integrity, not authorization — it refuses the owner exactly as it refuses an editor |
-| Column deletion is atomic and editor-gated | `delete_column(uuid, uuid)` — `SECURITY INVOKER`, so M3-05's policies authorize it; the zero-row DELETE check turns a silent RLS denial into 42501 | ⬜ **written, NOT APPLIED** (M3-11). Backend only; the client still uses the four round-trip path |
+| Board settings by role | `"Admins and above update boards"` — `board_role(id) in ('owner','admin')` on UPDATE; DELETE left owner-only from M2-01 | 🔶 applied 2026-08-12 (M3-17), role matrix not yet run. `owner_id` stays unwritable through the widened policy because M3-15's `boards_owner_immutable` trigger refuses it — no policy can express "unchanged" |
+| A work item's column belongs to its board | composite FK `todos (column_id, board_id) → columns (id, board_id)` | 🔶 applied 2026-08-12 (M3-18). The preflight passed against production data, so no existing row violated it. Integrity, not authorization — it refuses the owner exactly as it refuses an editor |
+| Column deletion is atomic and editor-gated | `delete_column(uuid, uuid)` — `SECURITY INVOKER`, so M3-05's policies authorize it; the zero-row DELETE check turns a silent RLS denial into 42501 | 🔶 applied 2026-08-12 (M3-11). Backend only; the client still uses the four round-trip path |
 
 ### Decisions this section makes that the role specification did not state
 
@@ -540,7 +540,7 @@ Risk labels, applied to every task:
 | M0 · Stabilise | ✅ Done | Build green, `strict` on, schema and RLS in Git, CI running. |
 | M1 · Foundation | ✅ Done | Auth provider, key factory, error surfacing, Vitest. |
 | M2 · Boards | ✅ Done | Board ownership across schema, RLS, routing and queries. |
-| M3 · Members & Roles | 🔶 In progress | Membership, roles and Owner immutability are applied and verified (M3-01 → M3-05, M3-13 → M3-15). Three written-but-unapplied migrations (M3-17, M3-18, M3-11), the M3-16 gate run, and the four UI tasks remain. |
+| M3 · Members & Roles | 🔶 In progress | **Every M3 backend migration is applied** — M3-01 → M3-05, M3-11, M3-13 → M3-15, M3-17, M3-18; 29 of 29 versions paired local↔remote. The M3-16 gate run and the four UI tasks remain. |
 | M4 · Invitations | ⬜ Not started | Depends on M3's membership RPCs. |
 | M5 · Work Item Model | ⬜ Not started | Columns exist in the schema since M2-03; the UI does not. |
 | M6 · Realtime | ⬜ Not started | Ordering migration first, then channels. |
@@ -1492,9 +1492,9 @@ The M2-21 `todos_assign_board_key` trigger is the precedent: an invariant every 
 > **Tier A** — creates triggers, touches no row. **Rollback:** forward-fix dropping the triggers. **No dump, no PITR, no prerequisite task.**
 > **Sequencing that does matter:** apply after M3-14 so the RPC tests can be re-run against it, and verify `provision_new_user()` and `add_owner_membership()` still work — signup creates a board, which creates an owner row, and a badly scoped trigger would break account creation.
 
-#### M3-17 · Board settings by role — **MEDIUM RISK** — ⬜ Written 2026-08-12, **NOT APPLIED**
+#### M3-17 · Board settings by role — **MEDIUM RISK** — 🔶 Applied 2026-08-12, verification outstanding
 
-> **State.** `supabase/migrations/20260811120000_boards_settings_by_role.sql` exists and is committed. It has **not** been pushed — `supabase db push` was refused by the sandbox, so applying it is the Lead's action. Apply, then run `scripts/verify-m3-16-role-matrix.sql` §5, §6 and §11.
+> **State.** `supabase/migrations/20260811120000_boards_settings_by_role.sql` applied 2026-08-12. A policy is invisible in the generated types, so the apply succeeding is the only evidence so far — `scripts/verify-m3-16-role-matrix.sql` §5, §6 and §11 are what confirm the behaviour, and they have not been run.
 > **What shipped that the task body below does not describe:** the task asks the UPDATE policy's `WITH CHECK` to keep `owner_id` unchangeable. It cannot — `USING` sees the old row and `WITH CHECK` the new one, and no policy expression can compare them. That rule is enforced instead by M3-15's `boards_owner_immutable` trigger, which landed after this task was written. §3 of the migration records the reasoning and the rejected column-privilege alternative.
 
 **New in the 2026-08-10 audit.** M3-04 changed only the SELECT policy on `boards`; UPDATE and DELETE are still owner-only from M2-01, which no longer matches the model.
@@ -1508,9 +1508,9 @@ Implements the two decisions recorded in *Permission Model → Decisions this se
 - **Commit:** `feat(db): board settings editable by admins, deletable by the owner`
 > **Tier A** — replaces one policy, touches no row. Capture the M2-01 definitions verbatim in the migration file; rollback is a forward-fix restoring them. No dump, no blocker.
 
-#### M3-18 · Cross-board integrity constraint — **MEDIUM RISK** — ⬜ Written 2026-08-12, **NOT APPLIED**
+#### M3-18 · Cross-board integrity constraint — **MEDIUM RISK** — 🔶 Applied 2026-08-12, verification outstanding
 
-> **State.** `supabase/migrations/20260811130000_todo_column_same_board.sql` exists and is committed, not pushed. It carries the preflight the task asks for, as a `do $$ … $$` block inside the migration rather than a separate query — so the count cannot drift between checking it by hand and applying. Verified by `scripts/verify-m3-16-role-matrix.sql` §7.
+> **State.** `supabase/migrations/20260811130000_todo_column_same_board.sql` applied 2026-08-12. **Two things the apply itself proves, against real production data:** the preflight found zero cross-board work items, and `add constraint` succeeded — which validates the composite key across every existing row. The behavioural half is `scripts/verify-m3-16-role-matrix.sql` §7 and has not been run.
 > **One decision the task left open:** the constraint name `todos_column_id_fkey` is reused rather than renamed to match the now-composite key. It is not private to the database — `db:types` writes it into `src/types/database.ts` and PostgREST accepts it as an embedding hint, so renaming would be a generated-types diff and a possible runtime break for a tidier label.
 
 **New in the 2026-08-10 audit.** A real gap, reachable by any editor through the API.
@@ -1563,9 +1563,9 @@ Replaces the client-supplied bulk `upsert`, which is an unbounded client-control
 > **Why.** Most of the security case is already covered: M3-05's `USING` clause is evaluated against each *existing* row, so a foreign work item id in the payload is rejected by the policy, and M3-18 closes the cross-board `column_id` gap. What remains is transactional integrity — a partial bulk upsert leaves a column with duplicate or gapped positions — and payload size. **M6-04 replaces whole-column renumbering with a single-row rank write, which removes both.** Building this now means building something M6 deletes.
 > **The trigger to reopen it:** M6-04 ships and a bulk renumber path still exists (rebalancing, or an import). If it is built at any point, it must take the board id and derive everything else server-side.
 
-#### M3-11 · `delete_column` RPC — **MEDIUM RISK** — ⬜ Backend written 2026-08-12, **NOT APPLIED**; frontend not started
+#### M3-11 · `delete_column` RPC — **MEDIUM RISK** — 🔶 Backend applied 2026-08-12; frontend not started
 
-> **State.** `supabase/migrations/20260811140000_delete_column_rpc.sql` exists and is committed, not pushed. Verified by `scripts/verify-m3-16-role-matrix.sql` §10.
+> **State.** `supabase/migrations/20260811140000_delete_column_rpc.sql` applied 2026-08-12; `delete_column` is present in the regenerated types. Behaviour is `scripts/verify-m3-16-role-matrix.sql` §10 and has not been run.
 > **The half that is not done is the frontend half, and it belongs to the Lead:** `deleteColumn` in `src/services/columns/columnsApi.ts` still performs the four round-trips. Swapping it to `supabase.rpc('delete_column', { p_column_id, p_move_to_column_id })` is what makes the RPC live. Nothing was removed, so the old path keeps working until then.
 > **Why the row count is checked inside the function.** An RLS denial on UPDATE or DELETE is zero rows, not an error. Without the check a viewer would call this, change nothing, and be told it worked — the exact silent failure the task exists to remove, one layer up. The zero-row `DELETE` raises 42501, and that *is* the authorization check: not "what role is the caller" but "did the write actually happen".
 The current path is four sequential round-trips; a failure between the rehoming upsert and the delete leaves an empty column the user believes is gone.
@@ -1616,13 +1616,13 @@ Done, in the order it happened:
 
 **Applied and verified:** M3-14 at 67/67 and M3-15 at 37/37, both on a clean replica built from all 26 migrations, with mutation testing confirming the harnesses catch a removed protection. Both carry an independent security review at APPROVE. `supabase migration list` shows all 26 paired local↔remote, and `src/types/database.ts` matches the live schema byte for byte.
 
-Written, committed, and **NOT YET APPLIED** — `supabase db push` is the next action and it is the Lead's:
+Applied 2026-08-12, in one `supabase db push`:
 
 ```
 ── permission model in the database ───────────────────────────────────
-1.  feat(db): board settings by role                        (M3-17)  ⬜ not pushed
-2.  feat(db): a work item's column must belong to its board (M3-18)  ⬜ not pushed
-3.  feat(db): transactional delete_column RPC               (M3-11)  ⬜ not pushed, backend half only
+1.  feat(db): board settings by role                        (M3-17)  ✅ applied
+2.  feat(db): a work item's column must belong to its board (M3-18)  ✅ applied
+3.  feat(db): transactional delete_column RPC               (M3-11)  ✅ applied, backend half only
 
 ── the gate ───────────────────────────────────────────────────────────
 4.  docs: role matrix verification results                  (M3-16)  ← MILESTONE GATE
@@ -1644,7 +1644,9 @@ deferred out of this milestone:
 
 **Nothing in this list waits on infrastructure.** Every remaining migration is Tier A — written, applied and reversed with SQL alone. The old ordering put a $125/month billing decision in front of the permission model; it is gone.
 
-> **The one gap between git and the database, stated plainly.** Steps 1–3 are committed but not applied, which is the mirror image of the M3-05 problem recorded at the top of this document — there, the database was ahead of git; here, git is ahead of the database. It is the safer direction and it is deliberate: the working tree would otherwise hold three untracked migrations that could be lost. It stops being acceptable the moment anyone assumes a committed migration is a live one. **`supabase migration list` is the check, and it will show three local versions with an empty remote column until they are pushed.**
+> **Git and the database agree.** `supabase migration list` shows **29 of 29 versions paired local↔remote**, with no unpaired entry in either direction, and `src/types/database.ts` is generated from the live schema. The gap that opened when these three were committed ahead of being applied is closed.
+>
+> **What is still outstanding is verification, not deployment.** Every M3 migration is live; the M3-16 harness that proves the role matrix behaves as specified has never been executed. Applied is not verified, and the milestone gate is the second of those.
 
 **The order that remains is a real dependency chain, not ceremony:**
 

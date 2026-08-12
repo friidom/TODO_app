@@ -271,10 +271,10 @@ export type Database = {
           },
           {
             foreignKeyName: "todos_column_id_fkey"
-            columns: ["column_id"]
+            columns: ["column_id", "board_id"]
             isOneToOne: false
             referencedRelation: "columns"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "board_id"]
           },
           {
             foreignKeyName: "todos_creator_id_fkey"
@@ -307,6 +307,10 @@ export type Database = {
           role: string
           username: string
         }[]
+      }
+      delete_column: {
+        Args: { p_column_id: string; p_move_to_column_id: string }
+        Returns: undefined
       }
       is_board_member: { Args: { p_board_id: string }; Returns: boolean }
       is_board_owner: {
