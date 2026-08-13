@@ -4,26 +4,46 @@ import { DndContext } from "@dnd-kit/core";
 
 import useKanbanDnd from "@/hooks/useKanbanDnd";
 import { useBoardDragEnd } from "@/hooks/useBoardDragEnd";
+import { useBoardId } from "@/hooks/useBoardId";
 import { useBoardModals } from "@/hooks/useBoardModals";
+import { useBoardView } from "@/hooks/useBoardView";
 import { useColumnReorder } from "@/hooks/useColumnReorder";
 import useTodosByColumns from "@/hooks/useTodosByColumns";
-import { useTodos } from "@/services/todos/useTodos";
+import { useVisibleTodos } from "@/hooks/useVisibleTodos";
+import { useBoardMembers } from "@/services/members/useBoardMembers";
+import { groupTodos, isSwimlaneGroup } from "@/services/todos/view";
 
 import SortableColumn from "./SortableColumn";
 import ColumnDropZone from "./ColumnDropZone";
+import Swimlanes from "./Swimlanes";
 import TodoDragOverlay from "./TodoDragOverlay";
 import AddColumnButton from "../columns/AddColumnButton";
 import CreateColumnModal from "../columns/CreateColumnModal";
 import ColumnLimitModal from "../columns/ColumnLimitModal";
 import DeleteColumnModal from "../columns/DeleteColumnModal";
 import CollapsedColumn from "../columns/CollapsedColumn";
+import ViewNotice from "../board/ViewNotice";
 import Loading from "../loading/LoadingPage";
 import { byPosition } from "@/utils/position";
 import { columnTitle } from "@/constants/columns";
 
 export default function KanbanBoard() {
-  const { data: todos = [], isLoading, error } = useTodos();
-  const { todosByColumn, columns } = useTodosByColumns();
+  const boardId = useBoardId();
+  const view = useBoardView();
+
+  // `todos` is what the view asked for; `all` is the board as it is stored. The
+  // drop mutation rewrites positions across whole columns, so it needs every
+  // row — a filtered array would renumber the visible cards and silently strand
+  // the hidden ones.
+  const { todos, all, isLoading, error } = useVisibleTodos();
+
+  const { data: members = [] } = useBoardMembers(boardId);
+
+  const swimlanes = isSwimlaneGroup(view.group);
+
+  // Already in display order — `useVisibleTodos` filtered and ordered it, so
+  // this only buckets.
+  const { todosByColumn, columns } = useTodosByColumns(todos);
 
   const {
     sensors,
@@ -58,10 +78,16 @@ export default function KanbanBoard() {
     [columns],
   );
 
+  const lanes = useMemo(
+    () => (swimlanes ? groupTodos(todos, view.group, { columns, members }) : []),
+    [swimlanes, todos, view.group, columns, members],
+  );
+
   const { moveColumn } = useColumnReorder(orderedColumns);
 
   const { onDragEnd, sourceId, destinationId, sourceColumn } = useBoardDragEnd({
-    todos,
+    todos: all,
+    visibleByColumn: todosByColumn,
     orderedColumns,
     activeTodo,
     activeColumn,
@@ -93,7 +119,7 @@ export default function KanbanBoard() {
           return;
         }
 
-        const todo = todos.find((todo) => todo.id === active.id);
+        const todo = all.find((todo) => todo.id === active.id);
 
         if (todo) setActiveTodo(todo);
       }}
@@ -101,75 +127,97 @@ export default function KanbanBoard() {
       onDragEnd={onDragEnd}
       onDragCancel={resetDrag}
     >
-      <div className="h-full overflow-x-auto">
-        <div className="flex min-w-max px-0 pb-6">
-          <div className="flex h-full min-w-max">
-            {orderedColumns.map((column, index) => (
-              <Fragment key={column.id}>
+      <div className="flex h-full min-h-0 flex-col">
+        <ViewNotice view={view} visibleCount={todos.length} showDragHint />
+
+        {swimlanes ? (
+          <Swimlanes
+            groups={lanes}
+            group={view.group}
+            orderedColumns={orderedColumns}
+            members={members}
+          />
+        ) : (
+          <div className="min-h-0 flex-1 overflow-x-auto">
+            <div className="flex min-w-max px-0 pb-6">
+              <div className="flex h-full min-w-max">
+                {orderedColumns.map((column, index) => (
+                  <Fragment key={column.id}>
+                    {/* Column gaps stay: reordering columns is still meaningful
+                        while the cards inside them are sorted, because the
+                        columns themselves are always in stored order. */}
+                    <ColumnDropZone
+                      index={index}
+                      active={!!activeColumn && columnIndicator === index}
+                      beforeId={orderedColumns[index - 1]?.id}
+                      afterId={column.id}
+                    />
+
+                    {collapsed.includes(column.id) ? (
+                      <CollapsedColumn
+                        column={column}
+                        headerTitle={columnTitle(column.title)}
+                        count={todosByColumn[column.id]?.length ?? 0}
+                        onExpand={() => toggleCollapsed(column.id)}
+                      />
+                    ) : (
+                      <SortableColumn
+                        id={column.id}
+                        column={column}
+                        headerTitle={columnTitle(column.title)}
+                        todos={todosByColumn[column.id] ?? []}
+                        indicator={indicator}
+                        isDragSource={!!activeTodo && column.id === sourceId}
+                        dragDisabled={view.dndDisabled}
+                        exactOrder={
+                          view.filterCount === 0 && view.sort === "manual"
+                        }
+                        onCollapse={() => toggleCollapsed(column.id)}
+                        onSetLimit={() => openLimitModal(column)}
+                        onDelete={() => openDeleteModal(column)}
+                        onMoveLeft={
+                          index > 0
+                            ? () => moveColumn(index, index - 1)
+                            : undefined
+                        }
+                        onMoveRight={
+                          index < orderedColumns.length - 1
+                            ? () => moveColumn(index, index + 1)
+                            : undefined
+                        }
+                        canDelete={orderedColumns.length > 1}
+                        transition={
+                          sourceColumn && column.id === destinationId
+                            ? {
+                                from: {
+                                  title: columnTitle(sourceColumn.title),
+                                  category: sourceColumn.category,
+                                },
+                                to: {
+                                  title: columnTitle(column.title),
+                                  category: column.category,
+                                },
+                              }
+                            : null
+                        }
+                      />
+                    )}
+                  </Fragment>
+                ))}
+
                 <ColumnDropZone
-                  index={index}
-                  active={!!activeColumn && columnIndicator === index}
-                  beforeId={orderedColumns[index - 1]?.id}
-                  afterId={column.id}
+                  index={orderedColumns.length}
+                  active={
+                    !!activeColumn && columnIndicator === orderedColumns.length
+                  }
+                  beforeId={orderedColumns[orderedColumns.length - 1]?.id}
                 />
+              </div>
 
-                {collapsed.includes(column.id) ? (
-                  <CollapsedColumn
-                    column={column}
-                    headerTitle={columnTitle(column.title)}
-                    count={todosByColumn[column.id]?.length ?? 0}
-                    onExpand={() => toggleCollapsed(column.id)}
-                  />
-                ) : (
-                  <SortableColumn
-                    id={column.id}
-                    column={column}
-                    headerTitle={columnTitle(column.title)}
-                    todos={todosByColumn[column.id] ?? []}
-                    indicator={indicator}
-                    isDragSource={!!activeTodo && column.id === sourceId}
-                    onCollapse={() => toggleCollapsed(column.id)}
-                    onSetLimit={() => openLimitModal(column)}
-                    onDelete={() => openDeleteModal(column)}
-                    onMoveLeft={
-                      index > 0 ? () => moveColumn(index, index - 1) : undefined
-                    }
-                    onMoveRight={
-                      index < orderedColumns.length - 1
-                        ? () => moveColumn(index, index + 1)
-                        : undefined
-                    }
-                    canDelete={orderedColumns.length > 1}
-                    transition={
-                      sourceColumn && column.id === destinationId
-                        ? {
-                            from: {
-                              title: columnTitle(sourceColumn.title),
-                              category: sourceColumn.category,
-                            },
-                            to: {
-                              title: columnTitle(column.title),
-                              category: column.category,
-                            },
-                          }
-                        : null
-                    }
-                  />
-                )}
-              </Fragment>
-            ))}
-
-            <ColumnDropZone
-              index={orderedColumns.length}
-              active={
-                !!activeColumn && columnIndicator === orderedColumns.length
-              }
-              beforeId={orderedColumns[orderedColumns.length - 1]?.id}
-            />
+              <AddColumnButton setCreateColumnOpen={setCreateColumnOpen} />
+            </div>
           </div>
-
-          <AddColumnButton setCreateColumnOpen={setCreateColumnOpen} />
-        </div>
+        )}
       </div>
 
       <CreateColumnModal open={createColumnOpen} onClose={closeCreateColumn} />

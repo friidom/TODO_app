@@ -14,11 +14,11 @@ export default function UserAvatar() {
               profile?.username || "User",
             )}`
           }
-          className="h-12 w-12 rounded-full border-2 border-white object-cover"
+          className="border-hairline hover:border-brand size-8 rounded-full border object-cover transition-colors"
         />
       </Link>
 
-      <div className="pointer-events-none absolute top-13 right-5 w-max translate-y-2 rounded-xl bg-gray-900 px-4 py-2 text-sm text-white opacity-0 shadow-xl transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+      <div className="bg-elevated text-ink border-hairline pointer-events-none absolute top-11 right-0 z-50 w-max translate-y-2 rounded-control border px-3 py-1.5 text-xs opacity-0 shadow-lg transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100">
         {profile?.email}
       </div>
     </div>

@@ -76,7 +76,7 @@ function DeleteColumnDialog({
         className="bg-card w-[640px] rounded-2xl p-8 shadow-2xl"
       >
         <div className="mb-5 flex items-start justify-between gap-4">
-          <h2 className="flex items-center gap-4 text-2xl font-bold text-[#172b4d]">
+          <h2 className="flex items-center gap-4 text-2xl font-bold text-ink">
             <DangerDiamond />
             Move work from {columnTitle(column.title)} column
           </h2>
@@ -85,25 +85,25 @@ function DeleteColumnDialog({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="-mt-1 shrink-0 rounded p-1 text-[#44546f] hover:bg-[#dcdfe4]"
+            className="-mt-1 shrink-0 rounded p-1 text-ink-2 hover:bg-ink/10"
           >
             <X size={22} />
           </button>
         </div>
 
-        <p className="mb-8 text-[15px] text-[#44546f]">
+        <p className="mb-8 text-[15px] text-ink-2">
           Select a new home for any work with the &quot;{columnTitle(column.title)}&quot;
           status.
         </p>
 
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-x-5 gap-y-3">
-          <p className="text-sm font-semibold text-[#172b4d]">
+          <p className="text-sm font-semibold text-ink">
             This status will be deleted
           </p>
 
           <span aria-hidden="true" />
 
-          <p className="text-sm font-semibold text-[#172b4d]">
+          <p className="text-sm font-semibold text-ink">
             Work will be moved to
           </p>
 
@@ -117,17 +117,17 @@ function DeleteColumnDialog({
             {columnTitle(column.title)}
           </span>
 
-          <ArrowRight className="shrink-0 text-[#172b4d]" size={22} />
+          <ArrowRight className="shrink-0 text-ink" size={22} />
 
           <DropdownMenu>
-            <DropdownMenuTrigger className="flex w-full items-center gap-2 rounded-md border border-[#8590a2] bg-transparent px-3 py-3.5 text-left outline-none focus-visible:border-blue-600 focus-visible:ring-1 focus-visible:ring-blue-600 data-[popup-open]:border-blue-600 data-[popup-open]:ring-1 data-[popup-open]:ring-blue-600">
+            <DropdownMenuTrigger className="flex w-full items-center gap-2 rounded-md border border-hairline bg-transparent px-3 py-3.5 text-left outline-none focus-visible:border-brand focus-visible:ring-1 focus-visible:ring-brand data-[popup-open]:border-brand data-[popup-open]:ring-1 data-[popup-open]:ring-brand">
               <span className={cn(PILL, categoryOf(selected.category).pill)}>
                 {columnTitle(selected.title)}
               </span>
 
               <ChevronDown
                 size={18}
-                className="ml-auto shrink-0 text-[#44546f]"
+                className="ml-auto shrink-0 text-ink-2"
               />
             </DropdownMenuTrigger>
 
@@ -148,7 +148,7 @@ function DeleteColumnDialog({
         </div>
 
         {deleteColumn.error && (
-          <p className="mt-6 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
+          <p className="mt-6 rounded-md bg-status-red/15 px-4 py-3 text-sm text-status-red">
             {deleteColumn.error.message}
           </p>
         )}
@@ -157,7 +157,7 @@ function DeleteColumnDialog({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md px-4 py-2.5 text-[17px] text-[#172b4d] hover:bg-[#dcdfe4]"
+            className="rounded-md px-4 py-2.5 text-[17px] text-ink hover:bg-ink/10"
           >
             Cancel
           </button>
@@ -165,7 +165,7 @@ function DeleteColumnDialog({
           <button
             type="submit"
             disabled={deleteColumn.isPending}
-            className="rounded-md bg-[#c9372c] px-5 py-2.5 text-[17px] font-medium text-white hover:bg-[#ae2e24] disabled:opacity-50"
+            className="rounded-md bg-status-red px-5 py-2.5 text-[17px] font-medium text-white hover:bg-status-red/85 disabled:opacity-50"
           >
             {deleteColumn.isPending ? "Deleting..." : "Delete"}
           </button>
@@ -182,7 +182,7 @@ function DangerDiamond() {
       width="26"
       height="26"
       viewBox="0 0 24 24"
-      className="shrink-0 text-[#c9372c]"
+      className="shrink-0 text-status-red"
       aria-hidden="true"
     >
       <rect

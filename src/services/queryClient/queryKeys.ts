@@ -34,6 +34,15 @@ export const queryKeys = {
    */
   board: (boardId: string | undefined) => ["board", boardId] as const,
 
+  /**
+   * One board's roster, as returned by the `board_roster` RPC.
+   *
+   * Board-scoped like `todos`/`columns`, and named for the concept rather than
+   * the table: the data never comes from `board_members`, which is self-read
+   * only and would return exactly one row.
+   */
+  members: (boardId: string | undefined) => ["members", boardId] as const,
+
   /** Prefix covering every profile entry; matches them all when invalidating. */
   profiles: () => PROFILE_ROOT,
 

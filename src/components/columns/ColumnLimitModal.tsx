@@ -103,7 +103,7 @@ function ColumnLimitDialog({
               value={min}
               onChange={(e) => setMin(e.target.value)}
               placeholder="No limit set"
-              className="border-app w-full rounded-xl border bg-transparent px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+              className="border-app w-full rounded-xl border bg-transparent px-4 py-3 outline-none focus:ring-2 focus:ring-brand"
             />
           </div>
 
@@ -121,13 +121,13 @@ function ColumnLimitDialog({
               value={max}
               onChange={(e) => setMax(e.target.value)}
               placeholder="No limit set"
-              className="border-app w-full rounded-xl border bg-transparent px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+              className="border-app w-full rounded-xl border bg-transparent px-4 py-3 outline-none focus:ring-2 focus:ring-brand"
             />
           </div>
         </div>
 
         {(error || updateColumn.error) && (
-          <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+          <p className="mt-4 rounded-xl bg-status-red/15 px-4 py-3 text-sm text-status-red">
             {error ?? updateColumn.error?.message}
           </p>
         )}
@@ -144,7 +144,7 @@ function ColumnLimitDialog({
           <button
             type="submit"
             disabled={!!error || updateColumn.isPending}
-            className="rounded-xl bg-blue-600 px-4 py-2 text-white disabled:opacity-50"
+            className="rounded-xl bg-brand hover:bg-brand/90 px-4 py-2 text-brand-fg disabled:opacity-50"
           >
             {updateColumn.isPending ? "Saving..." : "Save"}
           </button>

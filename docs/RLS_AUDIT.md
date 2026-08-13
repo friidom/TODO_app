@@ -599,15 +599,24 @@ violation after the fact.
 
 ### Verification status
 
-**Applied, and NOT behaviourally verified. No role-matrix test of these three has
-been run anywhere.** `scripts/verify-m3-16-role-matrix.sql` covers all of it — §5
-and §6 for M3-17, §7 for M3-18, §10 for M3-11 — and has never been executed. This
-environment has no Docker, no `psql`, no service-role key and no SQL-editor access,
-and the Supabase CLI exposes no arbitrary-SQL path: `migration up` targets the
-local database, and `inspect db` runs a fixed set of reports. Running the harness
-is the Lead's action.
+**PASSED — 105/105, 2026-08-12**, on a local replica built from all 29 migrations.
+`scripts/verify-m3-16-role-matrix.sql` §5 and §6 cover M3-17, §7 covers M3-18, §10
+covers M3-11. M3-14 (67/67) and M3-15 (37/37) were re-run against the same replica
+and are unaffected — **209 cases green.**
 
-What the apply itself proves, and it is more than nothing:
+**Not run against production, and that limitation is real.** This machine has no
+Docker, no service-role key and no SQL-editor access, and the Supabase CLI exposes
+no arbitrary-SQL path — `migration up` targets a local database, `inspect db` runs
+a fixed set of reports. The replica is stock PostgreSQL 17 plus a hand-written shim
+for what the migrations assume but no migration creates: the `anon`,
+`authenticated` and `service_role` roles, the `auth` schema, `auth.users`,
+`auth.uid()` written to Supabase's published definition, and the
+`on_auth_user_created` trigger. **What that does not cover:** anything Supabase
+configures outside the migration history, PostgREST itself, and any drift between
+production and the migration files. **A re-run against the linked project is still
+owed** and is one paste.
+
+What the apply itself independently proves, on production rather than the replica:
 
 - **M3-18's preflight ran against real production data and found zero cross-board
   work items**, then `add constraint` succeeded — which validates the composite key
@@ -619,11 +628,11 @@ What the apply itself proves, and it is more than nothing:
   `["column_id"] → ["id"]` to `["column_id", "board_id"] → ["id", "board_id"]`.
 - `supabase migration list`: 29 of 29 paired, no unpaired entry in either direction.
 
-What it does not prove: **M3-17 entirely.** A policy is invisible in generated
-types, so the only evidence it exists is that the migration applied without error.
-Whether an admin can now rename a board, whether an editor still cannot, and
-whether `owner_id` is still refused through the widened policy are all unobserved.
-§5, §6 and §11 of the harness are what answer them.
+M3-17 is the one the production apply says least about — a policy is invisible in
+generated types, so "it applied without error" was all that could be claimed from
+here. §5, §6 and §11 answer it on the replica: an admin renames and re-themes, an
+editor and a viewer cannot, an admin cannot delete a board, and `owner_id` is still
+refused through the widened policy.
 - `npm test` 91/91, `npm run build`, `npm run lint`, `git diff --check` all clean.
 
 ### M3-16 · the gate itself
@@ -651,6 +660,41 @@ It also cannot observe reload persistence — everything runs in one transaction
 upsert path is the one that fails silently on reload, so §4 asserts it by re-reading
 the rows rather than by trusting the row count.
 
-**M3's backend is applied in full; M3 is not done.** The gate has not been run.
-The migrations it depends on are now live, so the only thing standing between here
-and a verified milestone is executing the file.
+### Two harness defects, no schema defects
+
+Both found by running it, both fixed in the harness:
+
+1. **`42P01: relation "m3_16_results" does not exist`** in the Supabase SQL editor,
+   which does not reproduce under psql — the reason it survived review. The results
+   table was referenced unqualified, so resolution depended on the client leaving
+   `pg_temp` in the search path. Every reference is now `pg_temp.m3_16_results`, and
+   `on commit drop` is gone: the script ends in `ROLLBACK`, so depending on
+   commit-time behaviour bought nothing and cost portability.
+
+2. **Four §8 expectations were wrong, and wrong in the safe direction.** Direct
+   `UPDATE`/`DELETE` on `board_members` was expected to be filtered to zero rows by
+   RLS. It raises `42501` instead, because **Postgres checks table privileges before
+   row security** and M3-13 revoked the write privileges from `authenticated`. The
+   implementation is one layer stronger than the expectation assumed: the grant
+   would have to be restored *and* a write policy added before any of those could
+   succeed. Expectations corrected to `42501`; nothing in the schema changed.
+
+### Mutation-tested
+
+"It passed" is only worth something if it could have failed. Reverting each new rule
+turns the run red:
+
+| Mutation | Failures |
+|---|---|
+| `boards` UPDATE policy → `using (true) with check (true)` | 2 |
+| composite FK → M2-07's single-column form | 5 |
+| `delete_column`'s zero-row DELETE check removed | 5 |
+
+Two rather than four for the first is not a weak assertion — it is a second layer
+showing through. The `boards` SELECT policy independently prevents a non-member from
+seeing the row at all, so only the viewer and editor cases flip when the UPDATE
+policy is opened up. Worth knowing before anyone "simplifies" the SELECT policy.
+
+**M3's backend is applied and verified in full.** What remains in the milestone is
+the four UI tasks and the M3-11 client swap, plus one re-run of all three harnesses
+against the linked project.

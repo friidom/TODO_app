@@ -16,10 +16,15 @@
 --
 -- HOW TO RUN
 --
---   Paste the whole file into the Supabase SQL editor and execute it.
---   It ends in ROLLBACK. Nothing it creates survives.
+--   psql -f scripts/verify-m3-16-role-matrix.sql
 --
---   Run it against the LINKED PROJECT, after 20260811140000 is applied.
+--   It ends in ROLLBACK. Nothing it creates survives, so it is safe against the
+--   linked project as well as a replica.
+--
+--   The Supabase SQL editor also works, but it is the environment that produced
+--   `42P01: relation "m3_16_results" does not exist` — see the note on the
+--   results table below. Every reference is schema-qualified now, so it should
+--   not recur; psql remains the reference client.
 --
 --
 -- WHY THERE IS NO JWT PER ROLE
@@ -59,6 +64,24 @@
 --   counts are the only assertion that separates them, which is why rows_as()
 --   exists alongside try_as().
 --
+--   ONE EXCEPTION, and it is section 8. Table privileges are checked BEFORE row
+--   security, so where the role does not hold the privilege at all the statement
+--   raises 42501 instead of quietly filtering. `authenticated` holds only SELECT
+--   on board_members after M3-13, so every write there raises. That is stronger
+--   than a zero-row filter, not weaker, and section 8 expects it explicitly.
+--
+--
+-- MUTATION-TESTED, so that "it passed" means "it would have noticed"
+--
+--   · boards UPDATE policy replaced with `using (true) with check (true)`
+--       → 2 failures. Only two, and the reason is worth knowing: the boards
+--         SELECT policy still backstops it, so a non-member cannot see the row
+--         to update it even when the UPDATE policy permits everything. The
+--         viewer and editor cases are the ones that flip, because they can read
+--         the board. Two layers, and the harness sees through the outer one.
+--   · composite FK reverted to the single-column M2-07 form   → 5 failures.
+--   · delete_column's zero-row DELETE check removed           → 5 failures.
+--
 --
 -- A FAILING ROW IS A SECURITY DEFECT. The final SELECT lists failures first.
 
@@ -75,7 +98,16 @@ create temporary table m3_16_results (
   expected text,
   actual   text,
   pass     boolean
-) on commit drop;
+);
+
+-- Deliberately NOT `on commit drop`: the script ends in ROLLBACK, which removes
+-- the table anyway, and depending on commit-time behaviour is what makes a
+-- harness environment-sensitive. Every reference below is written
+-- `pg_temp.m3_16_results` rather than bare, so resolution never depends on
+-- whether the running client leaves pg_temp in the search_path — a bare
+-- reference is what produces `42P01: relation "m3_16_results" does not exist`
+-- in clients that set an explicit search_path, and it does not reproduce under
+-- psql, which is what makes it easy to miss.
 
 create or replace function pg_temp.as_user(p_uid uuid)
 returns void
@@ -119,7 +151,7 @@ begin
   end;
   execute 'reset role';
 
-  insert into m3_16_results (section, label, expected, actual, pass)
+  insert into pg_temp.m3_16_results (section, label, expected, actual, pass)
   values (p_section, p_label, p_expect, v_actual, v_actual = p_expect);
 end;
 $fn$;
@@ -148,7 +180,7 @@ begin
   end;
   execute 'reset role';
 
-  insert into m3_16_results (section, label, expected, actual, pass)
+  insert into pg_temp.m3_16_results (section, label, expected, actual, pass)
   values (p_section, p_label, p_expect::text, v_actual, v_actual = p_expect::text);
 end;
 $fn$;
@@ -182,7 +214,7 @@ begin
   end;
   execute 'reset role';
 
-  insert into m3_16_results (section, label, expected, actual, pass)
+  insert into pg_temp.m3_16_results (section, label, expected, actual, pass)
   values (p_section, p_label, 'raised or 0 rows', v_actual,
           v_actual <> 'ok' and v_actual !~ '^[1-9][0-9]* rows$');
 end;
@@ -195,7 +227,7 @@ returns void
 language plpgsql
 as $fn$
 begin
-  insert into m3_16_results (section, label, expected, actual, pass)
+  insert into pg_temp.m3_16_results (section, label, expected, actual, pass)
   values (p_section, p_label, 'true', coalesce(p_cond::text, 'null'),
           coalesce(p_cond, false));
 end;
@@ -680,6 +712,20 @@ select pg_temp.expect_true('7 cross-board',
 -- all. Membership changes go through M3-14's RPCs or they do not happen.
 -- Permission Model rule 4 prohibits adding a write policy here; these cases are
 -- what would fail if someone did.
+--
+-- EVERY DENIAL HERE IS 42501, INCLUDING UPDATE AND DELETE, and that is the one
+-- place in this file where the rule stated at the top does not apply.
+--
+-- Everywhere else an UPDATE denial is zero rows, because the role holds the
+-- privilege and RLS filters the row. Here `authenticated` does not hold the
+-- privilege: M3-13 revoked all and granted back SELECT alone. Postgres checks
+-- table privileges BEFORE row security, so the statement is rejected outright
+-- and never reaches a policy.
+--
+-- That is strictly stronger than a zero-row filter, and it is two independent
+-- mistakes deep — the grant would have to be restored AND a write policy added
+-- before any of these could succeed. §11 asserts the privilege half directly;
+-- the state assertion at the foot of this section asserts that nothing moved.
 
 select pg_temp.try_as('8 board_members', 'the owner cannot insert a membership row directly',
   '00000000-0000-4000-8000-00000000f001',
@@ -699,29 +745,33 @@ select pg_temp.try_as('8 board_members', 'a viewer cannot promote themselves by 
     values ('00000000-0000-4000-8000-0000000000fa','00000000-0000-4000-8000-00000000f004','owner')$$,
   '42501');
 
-select pg_temp.rows_as('8 board_members', 'an admin cannot change a role directly',
+select pg_temp.try_as('8 board_members', 'an admin cannot change a role directly',
   '00000000-0000-4000-8000-00000000f002',
   $$update public.board_members set role = 'admin'
      where board_id = '00000000-0000-4000-8000-0000000000fa'
-       and user_id = '00000000-0000-4000-8000-00000000f004'$$, 0);
+       and user_id = '00000000-0000-4000-8000-00000000f004'$$, '42501');
 
-select pg_temp.rows_as('8 board_members', 'a viewer cannot promote themselves by updating',
+select pg_temp.try_as('8 board_members', 'a viewer cannot promote themselves by updating',
   '00000000-0000-4000-8000-00000000f004',
   $$update public.board_members set role = 'owner'
      where board_id = '00000000-0000-4000-8000-0000000000fa'
-       and user_id = '00000000-0000-4000-8000-00000000f004'$$, 0);
+       and user_id = '00000000-0000-4000-8000-00000000f004'$$, '42501');
 
-select pg_temp.rows_as('8 board_members', 'an admin cannot remove a member directly',
+select pg_temp.try_as('8 board_members', 'an admin cannot remove a member directly',
   '00000000-0000-4000-8000-00000000f002',
   $$delete from public.board_members
      where board_id = '00000000-0000-4000-8000-0000000000fa'
-       and user_id = '00000000-0000-4000-8000-00000000f004'$$, 0);
+       and user_id = '00000000-0000-4000-8000-00000000f004'$$, '42501');
 
-select pg_temp.rows_as('8 board_members', 'the owner cannot remove their own row directly',
+-- Refused by the missing DELETE privilege, which fires before M3-15's I2
+-- trigger is reached. I2 itself is proven against a privileged role in
+-- scripts/verify-m3-15-owner-immutability.sql; this case proves only that the
+-- client-facing path never gets that far.
+select pg_temp.try_as('8 board_members', 'the owner cannot remove their own row directly',
   '00000000-0000-4000-8000-00000000f001',
   $$delete from public.board_members
      where board_id = '00000000-0000-4000-8000-0000000000fa'
-       and user_id = '00000000-0000-4000-8000-00000000f001'$$, 0);
+       and user_id = '00000000-0000-4000-8000-00000000f001'$$, '42501');
 
 -- The self-read policy: your own row, and only your own.
 select pg_temp.rows_as('8 board_members', 'a viewer reads exactly one membership row — their own',
@@ -956,20 +1006,20 @@ select pg_temp.expect_true('11 structure',
 select
   case when pass then 'PASS' else '*** FAIL ***' end as result,
   section, label, expected, actual
-from m3_16_results
+from pg_temp.m3_16_results
 order by pass, seq;
 
 select section,
        count(*)                            as cases,
        count(*) filter (where pass)        as passed,
        count(*) filter (where not pass)    as failed
-from m3_16_results
+from pg_temp.m3_16_results
 group by section
 order by section;
 
 select count(*) as total,
        count(*) filter (where pass)     as passed,
        count(*) filter (where not pass) as failed
-from m3_16_results;
+from pg_temp.m3_16_results;
 
 rollback;

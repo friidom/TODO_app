@@ -214,6 +214,7 @@ export type Database = {
           priority: string | null
           status: string | null
           title: string | null
+          type: string
           updated_at: string | null
         }
         Insert: {
@@ -233,6 +234,7 @@ export type Database = {
           priority?: string | null
           status?: string | null
           title?: string | null
+          type?: string
           updated_at?: string | null
         }
         Update: {
@@ -252,6 +254,7 @@ export type Database = {
           priority?: string | null
           status?: string | null
           title?: string | null
+          type?: string
           updated_at?: string | null
         }
         Relationships: [

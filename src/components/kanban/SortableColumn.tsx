@@ -7,6 +7,11 @@ import KanbanColumn from "./KanbanColumn";
 type Props = Omit<ComponentProps<typeof KanbanColumn>, "dragHandleProps">;
 
 export default function SortableColumn(props: Props) {
+  // Not disabled alongside the cards, deliberately. Columns render in
+  // `columns.position` order whatever the view sort is doing to the cards
+  // inside them, so a column drop still means exactly one thing — and taking a
+  // working capability away because a neighbouring one is ambiguous would be
+  // the wrong trade.
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: props.column.id,
     data: { type: "column", columnId: props.column.id },

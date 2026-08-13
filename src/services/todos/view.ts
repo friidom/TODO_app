@@ -1,0 +1,485 @@
+import { memberName } from "@/components/members/memberLabels";
+import {
+  PRIORITIES,
+  PRIORITY_OPTIONS,
+  priorityRank,
+  toPriority,
+} from "@/constants/priorities";
+import { columnTitle } from "@/constants/columns";
+import { WORK_TYPE_OPTIONS, toWorkType } from "@/constants/workTypes";
+import type { BoardMember } from "@/services/members/membersApi";
+import type { IColumn, ISupabaseTodo } from "@/types/data";
+import { dueStatus, todayISO } from "@/utils/dueDate";
+import { byPosition } from "@/utils/position";
+
+/**
+ * Filtering, sorting and grouping, as pure functions over the board array.
+ *
+ * They live beside the feature they serve and outside any hook, the same
+ * arrangement `cache.ts`, `insertDense.ts` and `limitBreach.ts` use, and for the
+ * same two reasons: they are the part worth testing, and both views need them.
+ * The board and the list run this identical pipeline — filter, then sort, then
+ * group — so the two can never disagree about what "assigned to me, by due
+ * date" means.
+ *
+ * **None of them touches the database.** A view is a view: `todos.position` is
+ * the board's real order and stays exactly as the user dragged it, whatever this
+ * file is asked to show. `sortTodos` under `"manual"` is the identity function,
+ * which is what makes switching back free.
+ *
+ * `docs/IMPLEMENTATION_PLAN.md` M12 settled where this runs: *"Start client-side
+ * over the existing `["todos", boardId]` cache."* Every function here takes the
+ * already-loaded array and returns a new one; nothing re-queries.
+ */
+
+// ---------------------------------------------------------------------------
+// Filtering
+// ---------------------------------------------------------------------------
+
+/** The dimensions a board can be narrowed by. Each is independent of the others. */
+export const FILTER_CATEGORIES = [
+  "assignee",
+  "type",
+  "priority",
+  "due",
+  "status",
+] as const;
+
+export type FilterCategory = (typeof FILTER_CATEGORIES)[number];
+
+/**
+ * The selected values per category.
+ *
+ * **An empty array means the category is off, not that it excludes everything.**
+ * That is the only reading that makes a filter panel usable: unchecking your
+ * last work type should show every card again, not none of them.
+ */
+export type TodoFilters = Record<FilterCategory, string[]>;
+
+export const EMPTY_FILTERS: TodoFilters = {
+  assignee: [],
+  type: [],
+  priority: [],
+  due: [],
+  status: [],
+};
+
+/** The pseudo-value for "no value set", used by assignee, priority and due date. */
+export const UNSET = "none";
+
+/** The assignee pseudo-value that resolves to whoever is looking. */
+export const ME = "me";
+
+/** Where a due date sits, plus the case of not having one. */
+export const DUE_BUCKETS = ["none", "overdue", "today", "upcoming"] as const;
+
+export type DueBucket = (typeof DUE_BUCKETS)[number];
+
+export const DUE_LABELS: Record<DueBucket, string> = {
+  none: "No due date",
+  overdue: "Overdue",
+  today: "Due today",
+  upcoming: "Upcoming",
+};
+
+/** How many values are selected across every category — the badge on the button. */
+export function countFilters(filters: TodoFilters): number {
+  return FILTER_CATEGORIES.reduce(
+    (total, category) => total + filters[category].length,
+    0,
+  );
+}
+
+function matchesAssignee(
+  todo: ISupabaseTodo,
+  selected: string[],
+  currentUserId: string | undefined,
+) {
+  if (!selected.length) return true;
+
+  return selected.some((value) => {
+    if (value === UNSET) return todo.assignee_id === null;
+
+    // `me` is resolved here rather than stored, so a shared URL means "assigned
+    // to whoever opened it" — which is what the option says.
+    if (value === ME)
+      return !!currentUserId && todo.assignee_id === currentUserId;
+
+    return todo.assignee_id === value;
+  });
+}
+
+function matchesType(todo: ISupabaseTodo, selected: string[]) {
+  if (!selected.length) return true;
+
+  // Normalised through `toWorkType`, so a row holding a value the CHECK
+  // constraint no longer allows is filtered as the default rather than
+  // disappearing from every selection.
+  return selected.includes(toWorkType(todo.type));
+}
+
+function matchesPriority(todo: ISupabaseTodo, selected: string[]) {
+  if (!selected.length) return true;
+
+  const priority = toPriority(todo.priority);
+
+  return selected.includes(priority ?? UNSET);
+}
+
+function matchesDue(todo: ISupabaseTodo, selected: string[], today: string) {
+  if (!selected.length) return true;
+
+  if (todo.due_date === null) return selected.includes(UNSET);
+
+  // The card's own chip reads its colour from this same call, so a card the
+  // "Overdue" filter keeps is exactly a card wearing the overdue tone.
+  return selected.includes(dueStatus(todo.due_date, today));
+}
+
+function matchesStatus(todo: ISupabaseTodo, selected: string[]) {
+  if (!selected.length) return true;
+
+  return todo.column_id !== null && selected.includes(todo.column_id);
+}
+
+/**
+ * The cards that survive every active category.
+ *
+ * **AND between categories, OR within one.** "Bug or Story, assigned to me" is
+ * the question a filter panel is asked; "Bug and Story" would always be empty.
+ *
+ * Returns the input array itself when nothing is filtered, so an unfiltered
+ * board hands the same reference to `useMemo` downstream and re-renders nothing.
+ */
+export function filterTodos(
+  todos: ISupabaseTodo[],
+  filters: TodoFilters,
+  currentUserId?: string,
+  today: string = todayISO(),
+): ISupabaseTodo[] {
+  if (countFilters(filters) === 0) return todos;
+
+  return todos.filter(
+    (todo) =>
+      matchesAssignee(todo, filters.assignee, currentUserId) &&
+      matchesType(todo, filters.type) &&
+      matchesPriority(todo, filters.priority) &&
+      matchesDue(todo, filters.due, today) &&
+      matchesStatus(todo, filters.status),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Sorting
+// ---------------------------------------------------------------------------
+
+export const SORT_KEYS = [
+  "manual",
+  "due",
+  "created",
+  "updated",
+  "priority",
+  "title",
+] as const;
+
+export type SortKey = (typeof SORT_KEYS)[number];
+export type SortDir = "asc" | "desc";
+
+/**
+ * How each key is named in the menu, in the trigger, and in the hint strip that
+ * explains why dragging is off. One map rather than three, so the reason the
+ * board gives can never name a sort differently from the menu that set it.
+ */
+export const SORT_LABELS: Record<SortKey, string> = {
+  manual: "Manual",
+  due: "Due date",
+  created: "Created",
+  updated: "Updated",
+  priority: "Priority",
+  title: "Title",
+};
+
+/**
+ * What a card is worth under one sort key, or `null` when it has no answer.
+ *
+ * Due dates compare as `YYYY-MM-DD` strings, which is correct because the format
+ * is fixed-width and big-endian — the reason `dueDate.ts` slices rather than
+ * parses. Priority compares by rank, never by spelling.
+ */
+function sortValue(todo: ISupabaseTodo, key: SortKey): string | number | null {
+  switch (key) {
+    case "due":
+      return todo.due_date;
+    case "created":
+      return todo.created_at;
+    case "updated":
+      return todo.updated_at;
+    case "priority":
+      return toPriority(todo.priority) === null
+        ? null
+        : priorityRank(todo.priority);
+    case "title":
+      return todo.title?.trim() || null;
+    case "manual":
+      return null;
+  }
+}
+
+/**
+ * The cards in view order. **Never written back.**
+ *
+ * `manual` returns the input untouched — not a copy, not a re-sort — so the
+ * board's stored `position` order survives a round trip through the sort control
+ * unchanged, and `byPosition` remains the only thing that decides it.
+ *
+ * **Cards with no value sort last in both directions.** A card with no due date
+ * is not the most overdue one, and flipping to descending should not promote
+ * every unanswered card to the top; the direction orders the answers, not the
+ * absence of them. `Array.prototype.sort` is stable, so cards that tie keep
+ * their board order.
+ */
+export function sortTodos(
+  todos: ISupabaseTodo[],
+  key: SortKey,
+  dir: SortDir = "asc",
+): ISupabaseTodo[] {
+  if (key === "manual") return todos;
+
+  const sign = dir === "desc" ? -1 : 1;
+
+  return todos.slice().sort((a, b) => {
+    const left = sortValue(a, key);
+    const right = sortValue(b, key);
+
+    if (left === null && right === null) return 0;
+    if (left === null) return 1;
+    if (right === null) return -1;
+
+    if (typeof left === "number" && typeof right === "number") {
+      return sign * (left - right);
+    }
+
+    return sign * String(left).localeCompare(String(right));
+  });
+}
+
+/**
+ * The board's own order, as one flat list: columns left to right, `position`
+ * top to bottom inside each.
+ *
+ * This is what `manual` means, and it has to be stated once. The cache does not
+ * hold it — `applyTodoMoved` returns `[...untouched, ...source, ...destination]`,
+ * so array order stops matching board order the first time anything is dragged,
+ * and both views have to reconstruct it. They used to reconstruct it separately:
+ * the Kanban sorted each column bucket, the list sorted by column-then-position
+ * of its own. Two implementations of one rule, and only one of them would have
+ * been fixed by the next change to it.
+ *
+ * Applied in `useVisibleTodos`, so the array both views render is already in
+ * display order and neither of them sorts again.
+ */
+export function orderByBoard(
+  todos: ISupabaseTodo[],
+  columns: IColumn[],
+): ISupabaseTodo[] {
+  const rank = new Map(
+    columns
+      .slice()
+      .sort(byPosition)
+      .map((column, index) => [column.id, index]),
+  );
+
+  // A card whose column is missing sorts to the end rather than to the front,
+  // where a `-1` would have put it.
+  const of = (todo: ISupabaseTodo) =>
+    rank.get(todo.column_id ?? "") ?? Number.MAX_SAFE_INTEGER;
+
+  return todos.slice().sort((a, b) => of(a) - of(b) || byPosition(a, b));
+}
+
+// ---------------------------------------------------------------------------
+// Grouping
+// ---------------------------------------------------------------------------
+
+export const GROUP_KEYS = [
+  "none",
+  "status",
+  "assignee",
+  "type",
+  "priority",
+] as const;
+
+export type GroupKey = (typeof GROUP_KEYS)[number];
+
+export const GROUP_LABELS: Record<GroupKey, string> = {
+  none: "None",
+  status: "Status",
+  assignee: "Assignee",
+  type: "Work type",
+  priority: "Priority",
+};
+
+/**
+ * Grouping the board can render as swimlanes.
+ *
+ * `status` is missing on purpose, and so is `none`: the columns already *are*
+ * the statuses, so grouping by status is the identity and the board it produces
+ * is the board that was already there. Nothing has to be rendered differently
+ * for it, which is the cheapest possible implementation of a feature.
+ */
+export function isSwimlaneGroup(group: GroupKey): boolean {
+  return group !== "none" && group !== "status";
+}
+
+export interface TodoGroup {
+  /**
+   * Identifies the group and decorates it: a column id under `status`, a profile
+   * id under `assignee`, a `WorkType` or `Priority` otherwise, and `UNSET` for
+   * the cards with no value. The renderer already knows which dimension is
+   * active, so it can look up a dot or an avatar from this without the group
+   * having to carry one.
+   */
+  key: string;
+  label: string;
+  todos: ISupabaseTodo[];
+}
+
+export interface GroupContext {
+  columns: IColumn[];
+  members: BoardMember[];
+}
+
+/** The single group an ungrouped view is, so callers have one shape to render. */
+const ALL = "all";
+
+function bucketBy(
+  todos: ISupabaseTodo[],
+  keyOf: (todo: ISupabaseTodo) => string,
+): Map<string, ISupabaseTodo[]> {
+  const buckets = new Map<string, ISupabaseTodo[]>();
+
+  for (const todo of todos) {
+    const key = keyOf(todo);
+    const bucket = buckets.get(key);
+
+    if (bucket) bucket.push(todo);
+    else buckets.set(key, [todo]);
+  }
+
+  return buckets;
+}
+
+/**
+ * The cards split along one dimension, in an order that means something.
+ *
+ * Runs **last**, on the already-filtered and already-sorted array, so grouping
+ * composes with both rather than competing with them: each group holds the cards
+ * that survived the filter, in the order the sort put them.
+ *
+ * **Empty groups are dropped, except under `status`.** A lane for an assignee
+ * with no cards is a band of whitespace saying nothing; an empty column is part
+ * of the board whether or not anything is in it, and hiding it would make the
+ * board's shape depend on its contents.
+ */
+export function groupTodos(
+  todos: ISupabaseTodo[],
+  group: GroupKey,
+  { columns, members }: GroupContext,
+): TodoGroup[] {
+  if (group === "none") return [{ key: ALL, label: "", todos }];
+
+  if (group === "status") {
+    const buckets = bucketBy(todos, (todo) => todo.column_id ?? UNSET);
+
+    const groups: TodoGroup[] = columns
+      .slice()
+      .sort(byPosition)
+      .map((column) => ({
+        key: column.id,
+        label: columnTitle(column.title),
+        todos: buckets.get(column.id) ?? [],
+      }));
+
+    // A card whose column was deleted out from under it would otherwise vanish
+    // from a list that claims to show everything.
+    const orphans = buckets.get(UNSET);
+
+    if (orphans?.length) {
+      groups.push({ key: UNSET, label: "No status", todos: orphans });
+    }
+
+    return groups;
+  }
+
+  if (group === "assignee") {
+    const buckets = bucketBy(todos, (todo) => todo.assignee_id ?? UNSET);
+
+    // `memberName` rather than a second `full_name || username` chain — the
+    // roster's display rules live in one place and the picker, the rail and this
+    // must agree on what a member is called. It sits under `components/` only
+    // because react-refresh cannot handle a module mixing a component with other
+    // exports; it is a pure function.
+    const named = members
+      .filter((member) => buckets.has(member.id))
+      .map((member) => ({
+        key: member.id,
+        label: memberName(member),
+        todos: buckets.get(member.id) ?? [],
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+
+    // Assigned to somebody the roster no longer lists — `assignee_id` survives a
+    // removal from the board (`on delete set null` only fires when the profile
+    // itself goes). Their cards still belong somewhere.
+    const known = new Set(members.map((member) => member.id));
+
+    const former = [...buckets.keys()]
+      .filter((key) => key !== UNSET && !known.has(key))
+      .map((key) => ({
+        key,
+        label: "Former member",
+        todos: buckets.get(key) ?? [],
+      }));
+
+    const unassigned = buckets.get(UNSET);
+
+    return [
+      ...named,
+      ...former,
+      // Last deliberately: it is the group people scan past, not the one they
+      // are looking for.
+      ...(unassigned?.length
+        ? [{ key: UNSET, label: "Unassigned", todos: unassigned }]
+        : []),
+    ];
+  }
+
+  if (group === "type") {
+    const buckets = bucketBy(todos, (todo) => toWorkType(todo.type));
+
+    return WORK_TYPE_OPTIONS.filter((type) => buckets.get(type)?.length).map(
+      (type) => ({ key: type, label: type, todos: buckets.get(type) ?? [] }),
+    );
+  }
+
+  const buckets = bucketBy(todos, (todo) => toPriority(todo.priority) ?? UNSET);
+
+  const ranked = PRIORITY_OPTIONS.filter(
+    (priority) => buckets.get(priority)?.length,
+  ).map((priority) => ({
+    key: priority,
+    // The constants own the wording; the levels are stored lowercase and shown
+    // capitalised, and doing that here would be a second answer to the question.
+    label: PRIORITIES[priority].label,
+    todos: buckets.get(priority) ?? [],
+  }));
+
+  const unset = buckets.get(UNSET);
+
+  return [
+    ...ranked,
+    ...(unset?.length
+      ? [{ key: UNSET, label: "No priority", todos: unset }]
+      : []),
+  ];
+}

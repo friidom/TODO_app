@@ -7,11 +7,11 @@ export default function ThemeToggle() {
   return (
     <button
       onClick={toggleTheme}
-      className="cursor-pointer text-white transition hover:scale-110 active:scale-90"
+      className="text-ink-2 hover:bg-elevated hover:text-ink grid size-9 cursor-pointer place-items-center rounded-control transition-colors active:scale-90"
     >
-      <div className="relative h-7 w-7">
+      <div className="relative size-[18px]">
         <Sun
-          size={28}
+          size={18}
           className={`absolute transition-all duration-500 ${
             theme === "dark"
               ? "scale-100 rotate-0 opacity-100"
@@ -20,7 +20,7 @@ export default function ThemeToggle() {
         />
 
         <Moon
-          size={28}
+          size={18}
           className={`absolute transition-all duration-500 ${
             theme === "light"
               ? "scale-100 rotate-0 opacity-100"

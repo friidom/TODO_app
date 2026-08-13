@@ -31,4 +31,12 @@ export type IBoard = Row<"boards">;
 
 export interface TodoItemProps extends ISupabaseTodo {
   overlay?: boolean;
+  /**
+   * Whether this card may be picked up.
+   *
+   * A drop means "put it here", and "here" is only answerable while the board is
+   * showing stored order in its own columns. Under a view sort or a swimlane it
+   * is not, so the card says so by not moving. See `useBoardView.dndDisabled`.
+   */
+  dragDisabled?: boolean;
 }

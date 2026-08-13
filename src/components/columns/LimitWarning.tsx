@@ -24,7 +24,7 @@ export default function LimitWarning({
       <Tooltip>
         <TooltipTrigger
           aria-label={message}
-          className="shrink-0 rounded bg-[#ffecea] p-1 text-[#c9372c] outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          className="shrink-0 rounded bg-status-red/15 p-1 text-status-red outline-none focus-visible:ring-2 focus-visible:ring-brand"
         >
           <Gauge size={16} />
         </TooltipTrigger>
