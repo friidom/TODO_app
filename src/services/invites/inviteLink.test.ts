@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { expiresLabel, inviteUrl } from "./inviteLink";
+import { expiresLabel, inviteUrl, isExpired } from "./inviteLink";
 
 describe("inviteUrl", () => {
   it("builds the redemption URL the route expects", () => {
@@ -15,6 +15,26 @@ describe("inviteUrl", () => {
     expect(inviteUrl("abc123", "https://example.test/")).toBe(
       "https://example.test/invite/abc123",
     );
+  });
+});
+
+describe("isExpired", () => {
+  const now = new Date("2026-08-14T09:00:00.000Z");
+
+  it("decides to the second, not to the day", () => {
+    // The distinction that matters: expiresLabel calls both of these "today",
+    // and only one of them is still usable.
+    expect(isExpired("2026-08-14T09:00:01.000Z", now)).toBe(false);
+    expect(isExpired("2026-08-14T08:59:59.000Z", now)).toBe(true);
+  });
+
+  it("treats the exact instant as spent", () => {
+    // Matches the RPC, which refuses on `expires_at <= now()`.
+    expect(isExpired("2026-08-14T09:00:00.000Z", now)).toBe(true);
+  });
+
+  it("keeps a live invite", () => {
+    expect(isExpired("2026-08-21T09:00:00.000Z", now)).toBe(false);
   });
 });
 
