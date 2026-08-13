@@ -296,10 +296,10 @@ select pg_temp.try_as('non-member invites — DENIED',
   $$select public.create_invite('00000000-0000-4000-8000-00000000004a','viewer')$$, '42501');
 
 -- Five invites exist that create_invite made: three from §1, two from §2, and
--- none from the six denials. Every assertion from here on is scoped to the
--- fixture board — this script runs against a real database, and an unscoped
--- aggregate would read production rows and fail on their expiry dates.
-select pg_temp.expect_true('the six denials created nothing; the five grants did',
+-- none from the seven denials in §3–§5. Every assertion from here on is scoped
+-- to the fixture board — this script runs against a real database, and an
+-- unscoped aggregate would read production rows and fail on their expiry dates.
+select pg_temp.expect_true('the seven denials created nothing; the five grants did',
   (select count(*) = 5 from public.board_invites
    where board_id = '00000000-0000-4000-8000-00000000004a'
      and token not like 'm4-tok-%'));
@@ -510,16 +510,27 @@ select pg_temp.expect_true('board_invites has no INSERT/UPDATE/DELETE policy',
   (select count(*) = 0 from pg_policies
    where schemaname = 'public' and tablename = 'board_invites' and cmd <> 'SELECT'));
 
+-- has_table_privilege rather than information_schema.role_table_grants: that
+-- view only shows grants involving a role the CURRENT user is a member of, so
+-- it can report nothing for anon and authenticated and turn a real grant into
+-- a silent pass. has_table_privilege answers directly, whoever is asking.
 select pg_temp.expect_true('anon holds no privilege on board_invites',
-  (select count(*) = 0 from information_schema.role_table_grants
-   where table_schema = 'public' and table_name = 'board_invites'
-     and grantee = 'anon'));
+  not has_table_privilege('anon', 'public.board_invites', 'SELECT')
+  and not has_table_privilege('anon', 'public.board_invites', 'INSERT')
+  and not has_table_privilege('anon', 'public.board_invites', 'UPDATE')
+  and not has_table_privilege('anon', 'public.board_invites', 'DELETE'));
 
 select pg_temp.expect_true('authenticated holds SELECT and nothing else',
-  (select array_agg(distinct privilege_type) = array['SELECT']
-   from information_schema.role_table_grants
-   where table_schema = 'public' and table_name = 'board_invites'
-     and grantee = 'authenticated'));
+  has_table_privilege('authenticated', 'public.board_invites', 'SELECT')
+  and not has_table_privilege('authenticated', 'public.board_invites', 'INSERT')
+  and not has_table_privilege('authenticated', 'public.board_invites', 'UPDATE')
+  and not has_table_privilege('authenticated', 'public.board_invites', 'DELETE'));
+
+-- The RPCs are the write path, so anon must not be able to call them either.
+select pg_temp.expect_true('anon cannot execute the invite RPCs',
+  not has_function_privilege('anon', 'public.create_invite(uuid,text,integer)', 'EXECUTE')
+  and not has_function_privilege('anon', 'public.accept_invite(text)', 'EXECUTE')
+  and not has_function_privilege('anon', 'public.revoke_invite(uuid)', 'EXECUTE'));
 
 -- Unscoped deliberately, unlike the assertions above: the check constraint is
 -- a global promise, and an 'owner' row anywhere in production is a finding.
