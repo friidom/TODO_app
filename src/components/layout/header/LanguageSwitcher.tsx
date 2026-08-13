@@ -12,7 +12,7 @@ export default function LanguageSwitcher() {
     <select
       value={i18n.language}
       onChange={(e) => changeLanguage(e.target.value)}
-      className="rounded-lg border border-app bg-card px-3 py-2 text-main"
+      className="border-hairline bg-surface text-ink-2 hover:text-ink h-9 cursor-pointer rounded-control border px-2 text-sm transition-colors"
     >
       <option value="en">🇺🇸 EN</option>
       <option value="ru">🇷🇺 RU</option>

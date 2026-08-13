@@ -1,3 +1,4 @@
+import { DEFAULT_WORK_TYPE } from "@/constants/workTypes";
 import type { ISupabaseTodo } from "../../types/data";
 // import axios from "axios";
 import { supabase } from "../api/supabase";
@@ -42,11 +43,19 @@ export async function addTodo({
   title,
   column_id,
   board_id,
+  assignee_id = null,
+  due_date = null,
+  type = DEFAULT_WORK_TYPE,
 }: {
   id: string;
   title: string;
   column_id: string;
   board_id: string;
+  /** Chosen in the create form before the card existed. Null when untouched. */
+  assignee_id?: string | null;
+  due_date?: string | null;
+  /** Omitted falls through to the column's own 'Task' default. */
+  type?: string;
 }) {
   //get current user
   const {
@@ -82,6 +91,9 @@ export async function addTodo({
       // from now on would have no recorded author at all.
       creator_id: user.id,
       position,
+      assignee_id,
+      due_date,
+      type,
     }, { onConflict: "id" })
     .select()
     .single();
@@ -131,14 +143,62 @@ export async function reorderTodos(todos: ISupabaseTodo[], boardId: string) {
 
 //!patch
 //!edit todos
-export async function updateTodo(todo: ISupabaseTodo) {
+
+/**
+ * The fields a card's own controls may write.
+ *
+ * Deliberately a narrow allow-list rather than `Partial<ISupabaseTodo>`:
+ * `creator_id` and `board_key` are the server's, and `position` belongs to the
+ * drag path. `column_id` stays because `updateTodo` was already writing it.
+ *
+ * `board_id` is required rather than patchable — it identifies the row's board
+ * for the upsert below, and every value sent is the one the card already holds.
+ * It is also what M2-08's INSERT policy is evaluated against, so omitting it
+ * would propose a row with a NULL board and be refused.
+ *
+ * `priority` joined the list when the priority control was built. The column and
+ * its CHECK constraint have existed since M2-04 — this allow-list was the only
+ * thing standing between them and the UI, which is why that feature needed no
+ * migration.
+ */
+export type TodoPatch = { id: string; board_id: string } & Partial<
+  Pick<
+    ISupabaseTodo,
+    "title" | "column_id" | "due_date" | "assignee_id" | "type" | "priority"
+  >
+>;
+
+/**
+ * Patch one card.
+ *
+ * **Takes a patch, not a whole row.** It used to accept an `ISupabaseTodo` and
+ * write `title` and `column_id` off it, so every caller had to spread a cached
+ * row it did not intend to change — and a title edit would write back whatever
+ * else that row happened to be holding. Sending only the changed keys removes
+ * that. A key set to `undefined` is dropped during serialisation and is left
+ * alone; clearing a field is an explicit `null`, which is how the due date's
+ * Clear button and the assignee's Unassign work.
+ *
+ * **An upsert rather than an update, and `board_id` is required for that
+ * reason.** This is the same argument M2-14 records for `addTodo`, reaching the
+ * card's own controls.
+ *
+ * A freshly created card is on screen with its real id and working controls
+ * before its INSERT has landed — `addTodo` makes two round trips (the auth
+ * lookup and the position query) before it writes. An `.update().single()` in
+ * that window matches zero rows and fails with PGRST116, so setting a due date
+ * or an assignee on a card that was just created silently did nothing until the
+ * page was reloaded. The upsert has no such window: whichever write arrives
+ * first creates the row and the other fills its columns in.
+ *
+ * `ON CONFLICT DO UPDATE` only assigns the columns present in the payload, so
+ * patching a due date on an existing card cannot disturb its title, column or
+ * position.
+ */
+export async function updateTodo({ id, board_id, ...patch }: TodoPatch) {
   const { data, error } = await supabase
     .from("todos")
-    .update({
-      title: todo.title,
-      column_id: todo.column_id,
-    })
-    .eq("id", todo.id)
+    .upsert({ id, board_id, ...patch }, { onConflict: "id" })
     .select()
     .single();
 
@@ -146,18 +206,3 @@ export async function updateTodo(todo: ISupabaseTodo) {
 
   return data;
 }
-
-//!update todo status
-export async function updateTodoColumn(id: string, column_id: string) {
-  const { data, error } = await supabase
-    .from("todos")
-    .update({ column_id })
-    .eq("id", id)
-    .select()
-    .single();
-
-  if (error) throw error;
-
-  return data;
-}
-

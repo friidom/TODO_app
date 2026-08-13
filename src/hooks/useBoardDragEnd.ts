@@ -1,13 +1,24 @@
 import type { DragEndEvent } from "@dnd-kit/core";
 
+import { resolveDropIndex } from "@/services/todos/dropIndex";
 import { useTodoDrop } from "@/services/todos/useTodoDrop";
 import { useDoneFlash } from "@/stores/doneFlash";
 import type { IColumn, ISupabaseTodo } from "@/types/data";
+import { byPosition } from "@/utils/position";
 import type { TodoIndicator } from "./useKanbanDnd";
 
 interface BoardDragEndParams {
   /** Every todo on the board — the flat array the drop mutation rewrites. */
   todos: ISupabaseTodo[];
+  /**
+   * What each column actually rendered, keyed by column id.
+   *
+   * Not the same thing as `todos` grouped: a filter, a sort or a swimlane means
+   * the user is looking at a subset, in an order of their choosing. The gap they
+   * dropped into is numbered over *this*, and `resolveDropIndex` is what turns
+   * that number back into one the stored column understands.
+   */
+  visibleByColumn: Record<string, ISupabaseTodo[]>;
   /** Columns sorted by position: the indices `columnIndicator` counts. */
   orderedColumns: IColumn[];
   activeTodo: ISupabaseTodo | null;
@@ -35,6 +46,7 @@ interface BoardDragEndParams {
  */
 export function useBoardDragEnd({
   todos,
+  visibleByColumn,
   orderedColumns,
   activeTodo,
   activeColumn,
@@ -80,11 +92,23 @@ export function useBoardDragEnd({
         flashDone(activeTodo.id);
       }
 
+      // The gap the user saw, translated into the index `applyTodoMoved` splices
+      // at. The two are not the same number — see `dropIndex.ts` — and were only
+      // ever accidentally equal on an unfiltered board dragged upwards.
+      const index = resolveDropIndex(
+        todos
+          .filter((todo) => todo.column_id === indicator.columnId)
+          .sort(byPosition),
+        visibleByColumn[indicator.columnId] ?? [],
+        indicator.index,
+        activeTodo.id,
+      );
+
       todoDrop.mutate({
         todos,
         activeTodo,
         columnId: indicator.columnId,
-        index: indicator.index,
+        index,
       });
     }
 

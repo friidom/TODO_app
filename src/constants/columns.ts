@@ -13,14 +13,18 @@ export const COLUMN_CATEGORIES = {
   todo: {
     swatch: "bg-[#dcdfe4]",
     pill: "bg-[#dcdfe4] text-[#172b4d]",
+    /** Theme-aware dot, for surfaces that follow the shell tokens. */
+    dot: "bg-ink-3",
   },
   in_progress: {
     swatch: "bg-[#cfe1fd]",
     pill: "bg-[#cfe1fd] text-[#172b4d]",
+    dot: "bg-status-blue",
   },
   done: {
     swatch: "bg-[#b3df72]",
     pill: "bg-[#b3df72] text-[#172b4d]",
+    dot: "bg-status-green",
   },
 } as const;
 

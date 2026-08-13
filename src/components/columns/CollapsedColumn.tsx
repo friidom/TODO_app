@@ -37,7 +37,7 @@ export default function CollapsedColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        "group/rail flex h-fit max-h-[calc(100vh-220px)] w-11 shrink-0 flex-col items-center gap-3 rounded-xl bg-[#f7f8f9] py-3",
+        "group/rail flex h-fit max-h-[calc(100vh-220px)] w-11 shrink-0 flex-col items-center gap-3 rounded-xl bg-surface py-3",
         isDragging && "opacity-40",
       )}
     >
@@ -49,13 +49,13 @@ export default function CollapsedColumn({
         className="flex min-h-0 cursor-grab touch-none flex-col items-center gap-3 select-none active:cursor-grabbing"
       >
         <h2
-          className="truncate text-[15px] font-semibold text-[#172b4d]"
+          className="truncate text-[15px] font-semibold text-ink"
           style={{ writingMode: "vertical-rl" }}
         >
           {headerTitle}
         </h2>
 
-        <span className="shrink-0 rounded bg-[#dcdfe4] px-1.5 py-0.5 text-xs font-semibold text-[#44546f]">
+        <span className="shrink-0 rounded bg-ink/10 px-1.5 py-0.5 text-xs font-semibold text-ink-2">
           {count}
         </span>
       </div>
@@ -68,7 +68,7 @@ export default function CollapsedColumn({
         onClick={onExpand}
         aria-label="Expand column"
         title="Expand column"
-        className="hidden rounded p-1 text-[#44546f] group-focus-within/rail:block group-hover/rail:block hover:bg-[#dcdfe4]"
+        className="hidden rounded p-1 text-ink-2 group-focus-within/rail:block group-hover/rail:block hover:bg-ink/10"
       >
         <svg
           width="18"

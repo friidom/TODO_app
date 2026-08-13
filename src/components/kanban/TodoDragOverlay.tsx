@@ -32,7 +32,7 @@ export default function TodoDragOverlay({
       {activeColumn && (
         <div
           className={cn(
-            "rounded-xl bg-[#f7f8f9] shadow-xl",
+            "rounded-xl bg-surface shadow-xl",
             columnCollapsed
               ? "flex w-14 flex-col items-center gap-3 py-3"
               : "w-[280px] px-3 py-3",
@@ -45,7 +45,7 @@ export default function TodoDragOverlay({
             )}
           >
             <h2
-              className="text-[15px] font-semibold text-[#172b4d]"
+              className="text-[15px] font-semibold text-ink"
               style={
                 columnCollapsed ? { writingMode: "vertical-rl" } : undefined
               }
@@ -53,7 +53,7 @@ export default function TodoDragOverlay({
               {columnTitle(activeColumn.title)}
             </h2>
 
-            <span className="shrink-0 rounded bg-[#dcdfe4] px-1.5 py-0.5 text-xs font-semibold text-[#44546f]">
+            <span className="shrink-0 rounded bg-ink/10 px-1.5 py-0.5 text-xs font-semibold text-ink-2">
               {todosCount}
             </span>
           </div>

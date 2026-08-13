@@ -16,7 +16,45 @@ body,
   background: var(--background);
   transition: background-color 0.2s;
 }
+/* Design tokens — M3 shell.
+   ---------------------------------------------------------------------------
+   Two groups, and the split is deliberate.
+
+   The shadcn tokens below (--background, --card, --primary …) were already here
+   and are already consumed by every vendored primitive and by the classes at
+   the foot of this file. They are RETUNED rather than replaced, so the board,
+   the modals and the cards pick up the new palette without touching twenty
+   component files.
+
+   The shell tokens (--canvas … --status-red) are new, and named so they cannot
+   collide with a shadcn token that Tailwind already turns into a utility —
+   `--color-primary` is taken, so primary text is `--ink`, not `--text-primary`.
+   They are registered in @theme inline at the foot of this file, which is what
+   makes bg-canvas / text-ink-2 / border-hairline real utilities. */
 :root {
+  /* shell — light.
+     The same four-step hierarchy as dark, not a flat white: canvas is the
+     page, surface is a column, elevated is a card. Collapsing surface and
+     elevated to white would leave a card invisible against its own column. */
+  --canvas: oklch(0.958 0.004 265);
+  --rail: oklch(0.99 0.002 265);
+  --surface: oklch(0.978 0.003 265);
+  --elevated: oklch(1 0 0);
+  --hairline: oklch(0.15 0.02 260 / 9%);
+  --ink: oklch(0.24 0.02 265);
+  --ink-2: oklch(0.48 0.02 265);
+  --ink-3: oklch(0.62 0.015 265);
+  --brand: oklch(0.58 0.21 292);
+  --brand-fg: oklch(0.99 0 0);
+  --brand-soft: oklch(0.58 0.21 292 / 12%);
+  --status-blue: oklch(0.62 0.19 255);
+  --status-orange: oklch(0.72 0.16 62);
+  --status-green: oklch(0.68 0.17 149);
+  --status-red: oklch(0.62 0.22 22);
+  --radius-surface-size: 0.875rem;
+  --radius-card-size: 0.625rem;
+  --radius-control-size: 0.5rem;
+
   --background: oklch(1 0 0);
   --card: oklch(1 0 0);
   --text: #494c6b;
@@ -26,8 +64,8 @@ body,
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
+  --primary: var(--brand);
+  --primary-foreground: var(--brand-fg);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
@@ -36,15 +74,15 @@ body,
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
   --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --ring: var(--brand);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar: var(--rail);
+  --sidebar-foreground: var(--ink-2);
   --sidebar-primary: oklch(0.205 0 0);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.97 0 0);
@@ -54,39 +92,58 @@ body,
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --card: oklch(0.205 0 0);
-  --text: #c8cbe7;
-  --secondary-text: #5b5e7e;
-  --border: oklch(1 0 0 / 10%);
-  --foreground: oklch(0.985 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  /* shell — dark navy. This is the reference direction, and the theme the app
+     opens in (ThemeProvider defaults to dark). Hues sit around 265deg so the
+     greys read navy rather than neutral charcoal. */
+  --canvas: oklch(0.17 0.021 267);
+  --rail: oklch(0.19 0.022 267);
+  --surface: oklch(0.225 0.023 267);
+  --elevated: oklch(0.262 0.025 267);
+  --hairline: oklch(1 0 0 / 8%);
+  --ink: oklch(0.94 0.006 267);
+  --ink-2: oklch(0.72 0.022 267);
+  --ink-3: oklch(0.58 0.024 267);
+  --brand: oklch(0.62 0.2 292);
+  --brand-fg: oklch(0.99 0 0);
+  --brand-soft: oklch(0.62 0.2 292 / 18%);
+  --status-blue: oklch(0.66 0.17 253);
+  --status-orange: oklch(0.76 0.15 65);
+  --status-green: oklch(0.72 0.16 152);
+  --status-red: oklch(0.66 0.2 22);
+
+  --background: var(--canvas);
+  --card: var(--surface);
+  --text: var(--ink);
+  --secondary-text: var(--ink-2);
+  --border: var(--hairline);
+  --foreground: var(--ink);
+  --card-foreground: var(--ink);
+  --popover: var(--elevated);
+  --popover-foreground: var(--ink);
+  --primary: var(--brand);
+  --primary-foreground: var(--brand-fg);
+  --secondary: var(--elevated);
+  --secondary-foreground: var(--ink);
+  --muted: var(--elevated);
+  --muted-foreground: var(--ink-3);
+  --accent: var(--elevated);
+  --accent-foreground: var(--ink);
+  --destructive: var(--status-red);
+  --input: oklch(1 0 0 / 12%);
+  --ring: var(--brand);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar: var(--rail);
+  --sidebar-foreground: var(--ink-2);
+  --sidebar-primary: var(--brand);
+  --sidebar-primary-foreground: var(--brand-fg);
+  --sidebar-accent: var(--elevated);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--hairline);
+  --sidebar-ring: var(--brand);
 }
 /* Chrome, Edge, Safari */
 ::-webkit-scrollbar {
@@ -193,6 +250,27 @@ body,
 }
 
 @theme inline {
+  /* shell tokens → utilities: bg-canvas, bg-surface, bg-elevated, border-hairline,
+     text-ink / text-ink-2 / text-ink-3, bg-brand, text-status-green, … */
+  --color-canvas: var(--canvas);
+  --color-rail: var(--rail);
+  --color-surface: var(--surface);
+  --color-elevated: var(--elevated);
+  --color-hairline: var(--hairline);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-brand: var(--brand);
+  --color-brand-fg: var(--brand-fg);
+  --color-brand-soft: var(--brand-soft);
+  --color-status-blue: var(--status-blue);
+  --color-status-orange: var(--status-orange);
+  --color-status-green: var(--status-green);
+  --color-status-red: var(--status-red);
+  --radius-surface: var(--radius-surface-size);
+  --radius-card: var(--radius-card-size);
+  --radius-control: var(--radius-control-size);
+
   --font-heading: var(--font-sans);
   --font-sans: "Geist Variable", sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);

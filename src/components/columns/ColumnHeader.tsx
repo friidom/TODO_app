@@ -65,7 +65,7 @@ export default function ColumnHeader({
 
           <ArrowRight
             size={14}
-            className="animate-in fade-in slide-in-from-left-1 shrink-0 text-gray-500 duration-300"
+            className="animate-in fade-in slide-in-from-left-1 shrink-0 text-ink-2 duration-300"
           />
 
           <span
@@ -85,7 +85,7 @@ export default function ColumnHeader({
   if (isDragSource) {
     return (
       <Shell dragHandleProps={dragHandleProps}>
-        <div className="animate-in fade-in w-full truncate rounded-md border-2 border-blue-500 bg-white py-1 text-center text-sm text-gray-700 duration-200">
+        <div className="animate-in fade-in w-full truncate rounded-md border-2 border-brand bg-elevated py-1 text-center text-sm text-ink duration-200">
           Transition to...
         </div>
       </Shell>
@@ -112,13 +112,13 @@ export default function ColumnHeader({
         type="button"
         onClick={() => setRenaming(true)}
         title="Rename column"
-        className="flex min-w-0 items-center gap-2 rounded px-2 py-1 text-left hover:bg-[#dcdfe4]"
+        className="flex min-w-0 items-center gap-2 rounded px-2 py-1 text-left hover:bg-ink/10"
       >
-        <h2 className="truncate text-[15px] font-semibold text-[#172b4d]">
+        <h2 className="truncate text-[15px] font-semibold text-ink">
           {headerTitle}
         </h2>
 
-        <span className="shrink-0 rounded bg-[#dcdfe4] px-1.5 py-0.5 text-xs font-semibold text-[#44546f]">
+        <span className="shrink-0 rounded bg-ink/10 px-1.5 py-0.5 text-xs font-semibold text-ink-2">
           {count}
         </span>
       </button>
@@ -143,7 +143,7 @@ export default function ColumnHeader({
             onClick={onCollapse}
             aria-label="Collapse column"
             title="Collapse column"
-            className="rounded p-1 text-[#44546f] hover:bg-[#dcdfe4]"
+            className="rounded p-1 text-ink-2 hover:bg-ink/10"
           >
             <CollapseIcon />
           </button>
@@ -225,7 +225,7 @@ function RenameField({
 
           if (e.key === "Escape") onDone();
         }}
-        className="w-full rounded-md border-2 border-blue-500 bg-white px-2 py-1 text-lg font-semibold text-gray-700 outline-none"
+        className="w-full rounded-md border-2 border-brand bg-elevated px-2 py-1 text-lg font-semibold text-ink outline-none"
       />
 
       <div className="absolute top-full right-0 z-10 mt-1 flex gap-1">
@@ -234,7 +234,7 @@ function RenameField({
           onMouseDown={(e) => e.preventDefault()}
           onClick={save}
           aria-label="Save name"
-          className="rounded-md border border-gray-200 bg-white p-1.5 text-gray-700 shadow-sm hover:bg-gray-100"
+          className="rounded-md border border-hairline bg-elevated p-1.5 text-ink shadow-sm hover:bg-ink/10"
         >
           <Check size={16} />
         </button>
@@ -244,7 +244,7 @@ function RenameField({
           onMouseDown={(e) => e.preventDefault()}
           onClick={onDone}
           aria-label="Cancel rename"
-          className="rounded-md border border-gray-200 bg-white p-1.5 text-gray-700 shadow-sm hover:bg-gray-100"
+          className="rounded-md border border-hairline bg-elevated p-1.5 text-ink shadow-sm hover:bg-ink/10"
         >
           <X size={16} />
         </button>

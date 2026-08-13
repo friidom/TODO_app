@@ -4,12 +4,22 @@ import { applyTodoConfirmed, applyTodoInserted } from "./cache";
 import { queryKeys } from "@/services/queryClient/queryKeys";
 import type { ISupabaseTodo } from "../../types/data";
 import { useBoardId } from "@/hooks/useBoardId";
+import { DEFAULT_WORK_TYPE } from "@/constants/workTypes";
 
 interface AddTodoVars {
   title: string;
   column_id: string;
   /** Gap index to insert at. Appends to the column when omitted. */
   index?: number;
+  /**
+   * Chosen in the create form, before the row existed. Both default to null,
+   * so a card created without touching either control behaves exactly as it
+   * did before these were added.
+   */
+  assignee_id?: string | null;
+  due_date?: string | null;
+  /** Defaults to the column's own default, so untouched behaves as before. */
+  type?: string;
 }
 
 /** `AddTodoVars` once the hook has stamped the client-minted id on. */
@@ -20,14 +30,38 @@ export function useAddTodo() {
   const boardId = useBoardId();
 
   const mutation = useMutation({
-    mutationFn: ({ id, title, column_id }: AddTodoInput) => {
+    mutationFn: ({
+      id,
+      title,
+      column_id,
+      assignee_id = null,
+      due_date = null,
+      type = DEFAULT_WORK_TYPE,
+    }: AddTodoInput) => {
       if (!boardId) throw new Error("useAddTodo ran without a board");
-      return addTodo({ id, title, column_id, board_id: boardId });
+
+      return addTodo({
+        id,
+        title,
+        column_id,
+        board_id: boardId,
+        assignee_id,
+        due_date,
+        type,
+      });
     },
 
     //!? Optimistic update
 
-    onMutate: async ({ id, title, column_id, index }) => {
+    onMutate: async ({
+      id,
+      title,
+      column_id,
+      index,
+      assignee_id = null,
+      due_date = null,
+      type = DEFAULT_WORK_TYPE,
+    }) => {
       // A todo cannot exist without a board — `board_id` is NOT NULL as of
       // M2-07. Refusing here states that requirement instead of inventing a
       // value for it. onMutate runs before mutationFn, so this fails the
@@ -66,10 +100,14 @@ export function useAddTodo() {
         // The card renders without its key until the server answers.
         board_key: null,
         creator_id: null,
-        assignee_id: null,
+        // Carried from the create form rather than hard-coded null, so the
+        // optimistic card shows its assignee and due date immediately — the
+        // server row replaces both on success with the same values.
+        assignee_id,
+        type,
         description: null,
         priority: null,
-        due_date: null,
+        due_date,
         estimate: null,
         archived: false,
         updated_at: null,

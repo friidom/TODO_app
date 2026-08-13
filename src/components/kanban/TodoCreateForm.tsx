@@ -1,15 +1,29 @@
-import { Bug, Calendar, ChevronDown, CornerDownLeft, User } from "lucide-react";
+import { CornerDownLeft } from "lucide-react";
 import { useEffect, useState, type RefObject } from "react";
+
+import AssigneeControl from "@/components/todo/TodoItem/AssigneeControl";
+import DueDateControl from "@/components/todo/TodoItem/DueDateControl";
+import WorkTypeControl from "@/components/todo/TodoItem/WorkTypeControl";
+import { DEFAULT_WORK_TYPE, type WorkType } from "@/constants/workTypes";
 
 /** Card shell — shared so the skeleton and the form are the same box. */
 const CARD =
-  "mb-2 rounded-xl border-2 border-blue-500 bg-white px-3 py-2 shadow-sm";
+  "mb-2 rounded-xl border-2 border-brand bg-elevated px-3 py-2 shadow-sm";
+
+/** What the form collected besides the title. */
+export interface CreateDraft {
+  assignee_id: string | null;
+  due_date: string | null;
+  type: WorkType;
+}
 
 interface Props {
   value: string;
   onChange: (value: string) => void;
-  onSubmit: () => void;
+  onSubmit: (draft: CreateDraft) => void;
   onCancel: () => void;
+  /** The board whose roster the assignee picker offers. */
+  boardId: string;
   /** Play the loading skeleton before showing the controls. */
   skeleton?: boolean;
   ref?: RefObject<HTMLDivElement | null>;
@@ -23,16 +37,38 @@ interface Props {
  * caret does — the blocks are sized to the real controls, so nothing shifts.
  * Submitting moves the card down a slot, which remounts it; the parent drops
  * `skeleton` by then so a fast typist never loses the input mid-run.
+ *
+ * **The assignee and due-date controls are the same components the card uses.**
+ * They are controlled, so here their values live in this form's state until
+ * submit rather than being patched onto a row that does not exist yet. That
+ * remount on submit is also what clears the draft: the next card starts empty
+ * without anything having to reset it.
+ *
+ * The work-type control replaced two inert buttons that stood for a type the
+ * schema had no column for. It now writes `todos.type`, added in
+ * 20260812090000_todos_work_type.sql, and opens on Task — the same default the
+ * column carries, so submitting without touching it stores what the database
+ * would have stored anyway.
+ *
+ * There is no status control here: status is which column a card is in, and
+ * this form is already inside one.
  */
 export default function TodoCreateForm({
   value,
   onChange,
   onSubmit,
   onCancel,
+  boardId,
   skeleton = false,
   ref,
 }: Props) {
   const [ready, setReady] = useState(!skeleton);
+  const [assigneeId, setAssigneeId] = useState<string | null>(null);
+  const [dueDate, setDueDate] = useState<string | null>(null);
+  const [type, setType] = useState<WorkType>(DEFAULT_WORK_TYPE);
+
+  const submit = () =>
+    onSubmit({ assignee_id: assigneeId, due_date: dueDate, type });
 
   useEffect(() => {
     if (ready) return;
@@ -46,14 +82,14 @@ export default function TodoCreateForm({
     return (
       <div ref={ref} className={CARD}>
         <div className="animate-pulse">
-          <div className="h-10 w-full rounded-md bg-gray-200" />
+          <div className="h-10 w-full rounded-md bg-ink/10" />
 
           <div className="mt-3 flex items-center gap-1">
-            <div className="size-7 rounded-md bg-gray-200" />
-            <div className="size-7 rounded-md bg-gray-200" />
-            <div className="size-7 rounded-md bg-gray-200" />
+            <div className="size-7 rounded-md bg-ink/10" />
+            <div className="size-7 rounded-md bg-ink/10" />
+            <div className="size-7 rounded-md bg-ink/10" />
 
-            <div className="ml-auto size-7 rounded-md bg-gray-200" />
+            <div className="ml-auto size-7 rounded-md bg-ink/10" />
           </div>
         </div>
       </div>
@@ -70,48 +106,35 @@ export default function TodoCreateForm({
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             e.preventDefault();
-            onSubmit();
+            submit();
           }
 
           if (e.key === "Escape") onCancel();
         }}
-        className="w-full bg-transparent text-sm text-gray-800 outline-none placeholder:text-gray-400"
+        className="w-full bg-transparent text-sm text-ink outline-none placeholder:text-ink-3"
       />
 
       <div className="mt-8 flex items-center gap-1">
-        <button
-          type="button"
-          className="rounded-md p-1 text-red-400 hover:bg-gray-100"
-        >
-          <Bug size={19} />
-        </button>
+        <WorkTypeControl value={type} onChange={setType} showLabel />
 
-        <button
-          type="button"
-          className="rounded-md p-1 text-gray-500 hover:bg-gray-100"
-        >
-          <ChevronDown size={16} />
-        </button>
+        <DueDateControl
+          value={dueDate}
+          onChange={setDueDate}
+          alwaysVisible
+        />
 
-        <button
-          type="button"
-          className="rounded-md p-1 text-gray-500 hover:bg-gray-100"
-        >
-          <Calendar size={19} />
-        </button>
-
-        <button
-          type="button"
-          className="rounded-full bg-gray-200 p-1 text-gray-500 hover:bg-gray-300"
-        >
-          <User size={17} />
-        </button>
+        <AssigneeControl
+          boardId={boardId}
+          value={assigneeId}
+          onChange={setAssigneeId}
+          alwaysVisible
+        />
 
         <button
           type="button"
           disabled={!value.trim()}
-          onClick={onSubmit}
-          className="ml-auto flex size-7 items-center justify-center rounded-md bg-gray-100 text-gray-400 hover:bg-gray-200 disabled:opacity-40"
+          onClick={submit}
+          className="ml-auto flex size-7 items-center justify-center rounded-md bg-ink/5 text-ink-3 hover:bg-ink/15 disabled:opacity-40"
         >
           <CornerDownLeft size={17} />
         </button>

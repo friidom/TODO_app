@@ -72,7 +72,7 @@ function CreateColumnDialog({ onClose }: { onClose: () => void }) {
           autoFocus
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="border-app mb-6 w-full rounded-xl border bg-transparent px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+          className="border-app mb-6 w-full rounded-xl border bg-transparent px-4 py-3 outline-none focus:ring-2 focus:ring-brand"
           placeholder="Column name..."
         />
 
@@ -85,7 +85,7 @@ function CreateColumnDialog({ onClose }: { onClose: () => void }) {
         </div>
 
         {createColumnMutation.error && (
-          <p className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+          <p className="mb-4 rounded-xl bg-status-red/15 px-4 py-3 text-sm text-status-red">
             {createColumnMutation.error.message}
           </p>
         )}
@@ -102,7 +102,7 @@ function CreateColumnDialog({ onClose }: { onClose: () => void }) {
           <button
             type="submit"
             disabled={!title.trim() || createColumnMutation.isPending}
-            className="rounded-xl bg-blue-600 px-4 py-2 text-white disabled:opacity-50"
+            className="rounded-xl bg-brand hover:bg-brand/90 px-4 py-2 text-brand-fg disabled:opacity-50"
           >
             {createColumnMutation.isPending ? "Creating..." : "Create"}
           </button>
