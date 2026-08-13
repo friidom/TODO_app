@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 import { Loader2 } from "lucide-react";
 
 import { useRegister } from "@/services/auth/useRegister";
@@ -11,6 +11,7 @@ import {
 
 export default function RegisterForm() {
   const register = useRegister();
+  const location = useLocation();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -116,7 +117,12 @@ export default function RegisterForm() {
 
       <p className="text-center">
         Already have an account?{" "}
-        <Link to="/login" className="font-semibold text-violet-600">
+        {/* Carries `next` back the other way, so an invitee who turns out to
+            have an account already still returns to the invite. */}
+        <Link
+          to={{ pathname: "/login", search: location.search }}
+          className="font-semibold text-violet-600"
+        >
           Login
         </Link>
       </p>
