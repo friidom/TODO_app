@@ -1,8 +1,11 @@
+import { useState } from "react";
 import { ActivityIcon, FilterIcon, UsersIcon } from "lucide-react";
 
+import InvitePeopleModal from "@/components/invites/InvitePeopleModal";
 import MemberRow from "@/components/members/MemberRow";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/services/auth/useAuth";
+import { useCanInvite } from "@/services/invites/useCanInvite";
 import { useBoardMembers } from "@/services/members/useBoardMembers";
 
 /**
@@ -18,14 +21,32 @@ import { useBoardMembers } from "@/services/members/useBoardMembers";
  * needs the room more than the rail does.
  */
 export default function ContextRail({ boardId }: { boardId: string }) {
+  // "Manage" was a permanently-disabled placeholder for role management, which
+  // is still M3-08's. What exists now is inviting, so the action says that and
+  // does it — for owners and admins; everyone else keeps the disabled label.
+  const { canInvite } = useCanInvite(boardId);
+  const [inviteOpen, setInviteOpen] = useState(false);
+
   return (
     <aside className="border-hairline bg-rail/50 hidden w-72 shrink-0 overflow-y-auto border-l xl:block">
-      <Panel icon={UsersIcon} title="Members" action="Manage">
+      <Panel
+        icon={UsersIcon}
+        title="Members"
+        action={canInvite ? "Add people" : "Manage"}
+        onAction={canInvite ? () => setInviteOpen(true) : undefined}
+      >
         <MembersPanel boardId={boardId} />
       </Panel>
 
+      <InvitePeopleModal
+        open={inviteOpen}
+        onClose={() => setInviteOpen(false)}
+      />
+
       <Panel icon={ActivityIcon} title="Activity" action="View all">
-        <Placeholder>Recent changes to this board will stream here.</Placeholder>
+        <Placeholder>
+          Recent changes to this board will stream here.
+        </Placeholder>
       </Panel>
 
       <Panel icon={FilterIcon} title="Quick Filters">
@@ -69,7 +90,7 @@ function MembersPanel({ boardId }: { boardId: string }) {
   }
 
   return (
-    <ul className="divide-hairline border-hairline bg-surface/40 divide-y overflow-hidden rounded-card border">
+    <ul className="divide-hairline border-hairline bg-surface/40 rounded-card divide-y overflow-hidden border">
       {members.map((member) => (
         <MemberRow
           key={member.id}
@@ -113,11 +134,14 @@ function Panel({
   icon: Icon,
   title,
   action,
+  onAction,
   children,
 }: {
   icon: typeof UsersIcon;
   title: string;
   action?: string;
+  /** Absent means the action is still a placeholder, and it renders disabled. */
+  onAction?: () => void;
   children: React.ReactNode;
 }) {
   return (
@@ -129,9 +153,10 @@ function Panel({
         {action && (
           <button
             type="button"
-            disabled
-            title={`${action} — not built yet`}
-            className="text-brand ml-auto text-xs font-medium disabled:cursor-default disabled:opacity-60"
+            disabled={!onAction}
+            onClick={onAction}
+            title={onAction ? action : `${action} — not built yet`}
+            className="text-brand ml-auto text-xs font-medium hover:underline disabled:cursor-default disabled:no-underline disabled:opacity-60"
           >
             {action}
           </button>
