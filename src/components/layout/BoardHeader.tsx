@@ -1,10 +1,14 @@
-import { KanbanIcon, MoreHorizontalIcon } from "lucide-react";
+import { useState } from "react";
+import { KanbanIcon, MoreHorizontalIcon, UserPlusIcon } from "lucide-react";
 
 import BoardFilters from "@/components/board/BoardFilters";
 import BoardGroup from "@/components/board/BoardGroup";
 import BoardSort from "@/components/board/BoardSort";
 import ViewSwitch from "@/components/board/ViewSwitch";
 import { HEADER_CONTROL } from "@/components/board/headerControl";
+import InvitePeopleModal from "@/components/invites/InvitePeopleModal";
+import { useCanInvite } from "@/services/invites/useCanInvite";
+import { useBoardId } from "@/hooks/useBoardId";
 import { useBoardView } from "@/hooks/useBoardView";
 
 import HeaderTodoForm from "./header/HeaderTodoForm";
@@ -42,12 +46,19 @@ export default function BoardHeader({
 }) {
   const view = useBoardView();
 
+  // Owners and admins only. The rail carries the same control for anyone who
+  // has the width for it; both are affordances, and `create_invite` is what
+  // actually refuses an editor who reaches the RPC another way.
+  const boardId = useBoardId();
+  const { canInvite } = useCanInvite(boardId);
+  const [inviteOpen, setInviteOpen] = useState(false);
+
   const filtered = visibleCount !== todoCount;
 
   return (
     <div className="border-hairline flex flex-wrap items-center gap-3 border-b px-4 py-3 md:px-6">
       <div className="flex min-w-0 items-center gap-2.5">
-        <span className="bg-brand-soft text-brand grid size-9 shrink-0 place-items-center rounded-control">
+        <span className="bg-brand-soft text-brand rounded-control grid size-9 shrink-0 place-items-center">
           <KanbanIcon className="size-[18px]" />
         </span>
 
@@ -84,6 +95,18 @@ export default function BoardHeader({
           <BoardGroup view={view} />
           <BoardSort view={view} />
 
+          {canInvite && (
+            <button
+              type="button"
+              onClick={() => setInviteOpen(true)}
+              title="Invite people"
+              aria-label="Invite people"
+              className={HEADER_CONTROL}
+            >
+              <UserPlusIcon className="size-4" />
+            </button>
+          )}
+
           <button
             type="button"
             disabled
@@ -95,6 +118,11 @@ export default function BoardHeader({
           </button>
         </div>
       </div>
+
+      <InvitePeopleModal
+        open={inviteOpen}
+        onClose={() => setInviteOpen(false)}
+      />
     </div>
   );
 }
