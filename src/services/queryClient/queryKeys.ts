@@ -43,6 +43,16 @@ export const queryKeys = {
    */
   members: (boardId: string | undefined) => ["members", boardId] as const,
 
+  /**
+   * One board's pending invitations.
+   *
+   * Board-scoped like `members`, and it holds only what the list query returns
+   * — accepted and expired invites are filtered out before they reach the
+   * cache (M4-07), so this entry is "what can still be copied or revoked"
+   * rather than every invite row that exists.
+   */
+  invites: (boardId: string | undefined) => ["invites", boardId] as const,
+
   /** Prefix covering every profile entry; matches them all when invalidating. */
   profiles: () => PROFILE_ROOT,
 
