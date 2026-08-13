@@ -8,7 +8,9 @@ describe("inviteErrorMessage", () => {
     expect(inviteErrorMessage({ code: "22023" })).toMatch(/expired/i);
     expect(inviteErrorMessage({ code: "23505" })).toMatch(/already been used/i);
     expect(inviteErrorMessage({ code: "P0002" })).toMatch(/not valid/i);
-    expect(inviteErrorMessage({ code: "42501" })).toMatch(/cannot be accepted/i);
+    expect(inviteErrorMessage({ code: "42501" })).toMatch(
+      /cannot be accepted/i,
+    );
     expect(inviteErrorMessage({ code: "28000" })).toMatch(/sign in/i);
   });
 

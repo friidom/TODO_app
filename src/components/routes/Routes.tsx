@@ -7,6 +7,7 @@ import LoginPage from "@/pages/auth/LoginPage";
 import PublicRoute from "./PublicRoute";
 import BoardPage from "@/pages/board/BoardPage";
 import ProfilePage from "@/pages/profile/ProfilePage";
+import InvitePage from "@/pages/invite/InvitePage";
 import NotFoundPage from "@/pages/error/NotFoundPage";
 import RouteErrorPage from "@/pages/error/RouteErrorPage";
 
@@ -46,6 +47,16 @@ export const router = createBrowserRouter([
         element: <LoginPage />,
       },
     ],
+  },
+
+  // Outside both guards on purpose, and the only page that is: it has to work
+  // signed in AND signed out. ProtectedRoute would bounce a signed-out visitor
+  // to /login and lose the token; PublicRoute would bounce a signed-in one to
+  // /. The page gates itself and carries the token through login via `?next=`.
+  {
+    path: "/invite/:token",
+    element: <InvitePage />,
+    errorElement: <RouteErrorPage />,
   },
 
   // Outside both guards on purpose: a signed-out visitor to a bad URL should

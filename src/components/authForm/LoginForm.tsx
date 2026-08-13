@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 import { Loader2 } from "lucide-react";
 
 import { useLogin } from "@/services/auth/useLogin";
@@ -11,6 +11,7 @@ import {
 
 export default function LoginForm() {
   const login = useLogin();
+  const location = useLocation();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -116,7 +117,13 @@ export default function LoginForm() {
 
       <p className="text-center">
         Don't have an account?{" "}
-        <Link to="/register" className="font-semibold text-violet-600">
+        {/* `next` is carried across, because someone arriving from an invite
+            link almost certainly does not have an account yet — losing it on
+            the hop to Register is losing it in the common case. */}
+        <Link
+          to={{ pathname: "/register", search: location.search }}
+          className="font-semibold text-violet-600"
+        >
           Register
         </Link>
       </p>

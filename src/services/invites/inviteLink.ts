@@ -34,7 +34,10 @@ export function inviteUrl(token: string, origin: string): string {
  * so "Expired" here is the state of a row that aged out while the modal was
  * open rather than a normal one.
  */
-export function expiresLabel(expiresAt: string, now: Date = new Date()): string {
+export function expiresLabel(
+  expiresAt: string,
+  now: Date = new Date(),
+): string {
   const days = daysBetween(now, new Date(expiresAt));
 
   if (days < 0) return "Expired";
@@ -53,7 +56,11 @@ function daysBetween(from: Date, to: Date): number {
     from.getUTCMonth(),
     from.getUTCDate(),
   );
-  const toDay = Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), to.getUTCDate());
+  const toDay = Date.UTC(
+    to.getUTCFullYear(),
+    to.getUTCMonth(),
+    to.getUTCDate(),
+  );
 
   return Math.round((toDay - fromDay) / MS_PER_DAY);
 }
