@@ -5,6 +5,7 @@ import {
   offset,
   shift,
   useFloating,
+  useTransitionStyles,
 } from "@floating-ui/react";
 
 /**
@@ -43,13 +44,53 @@ export function useCardPopover({
 }: { hostsPopovers?: boolean } = {}) {
   const [open, setOpen] = useState(false);
 
-  const { refs, floatingStyles } = useFloating({
+  const { refs, floatingStyles, context } = useFloating({
     open,
     onOpenChange: setOpen,
     placement: "bottom-end",
     middleware: [offset(6), flip(), shift({ padding: 8 })],
     whileElementsMounted: autoUpdate,
   });
+
+  /**
+   * Enter and — the part that was missing — **exit**.
+   *
+   * A caller rendering on `open` unmounts its panel the moment the value flips,
+   * so a dismissal happens on one frame however it was styled. `mounted` keeps
+   * the element alive for the length of the close, which is the whole reason a
+   * closing animation can exist at all.
+   *
+   * **Additive.** Every consumer that renders on `open` behaves exactly as it
+   * did; only a caller that switches to `mounted` and spreads
+   * `transitionStyles` gets the motion.
+   *
+   * Closing is quicker than opening on purpose: an opening panel is showing you
+   * something and can afford to be seen arriving, while a dismissal should feel
+   * like it has already happened.
+   */
+  const { isMounted: mounted, styles: transitionStyles } = useTransitionStyles(
+    context,
+    {
+      duration: { open: 150, close: 120 },
+      initial: {
+        opacity: 0,
+        // 3% and 4px. Enough to read as motion, far short of a zoom.
+        transform: "scale(0.97) translateY(-4px)",
+      },
+      // The origin follows the RESOLVED placement rather than being hard-coded
+      // to the corner nearest the trigger, because `flip()` will put the panel
+      // above the trigger on a short viewport — and an origin that did not
+      // follow would make it grow away from the button it belongs to.
+      common: ({ side }) => ({
+        transformOrigin: {
+          top: "bottom right",
+          bottom: "top right",
+          left: "right center",
+          right: "left center",
+        }[side],
+      }),
+    },
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -90,6 +131,13 @@ export function useCardPopover({
 
   return {
     open,
+    /**
+     * Whether the panel should be in the DOM — `open`, plus the tail of the
+     * close animation. Render on this instead of `open` to get an exit.
+     */
+    mounted,
+    /** Merge into the panel's `style` alongside `floatingStyles`. */
+    transitionStyles,
     setOpen,
     close: () => setOpen(false),
     refs,

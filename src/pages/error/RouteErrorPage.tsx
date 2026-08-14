@@ -31,7 +31,7 @@ export default function RouteErrorPage() {
 
         <Link
           to="/"
-          className="rounded-lg bg-violet-600 px-5 py-2.5 font-semibold text-white transition hover:bg-violet-700"
+          className="bg-brand text-brand-fg hover:bg-brand/90 focus-visible:ring-brand rounded-control px-5 py-2.5 text-sm font-semibold transition-colors outline-none focus-visible:ring-2"
         >
           Back to the board
         </Link>

@@ -10,6 +10,7 @@ import { useKeyPrefix } from "@/hooks/useKeyPrefix";
 import { useOpenTask } from "@/hooks/useOpenTask";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useTodoPatch } from "@/hooks/useTodoPatch";
+import { toPriority } from "@/constants/priorities";
 import type { Todo } from "@/types/data";
 import { useDoneFlash } from "@/stores/doneFlash";
 import { cn } from "@/utils/cn";
@@ -78,36 +79,47 @@ export default function ListRow({ todo }: { todo: Todo }) {
   return (
     <tr
       className={cn(
-        "border-hairline hover:bg-elevated group border-b transition-colors",
+        // Colour only on hover — no border width, no padding, no transform, so
+        // a row cannot shift under the cursor.
+        "border-hairline group hover:bg-elevated/60 border-b transition-colors duration-150",
         celebrate && "done-flash",
       )}
     >
-      <td className={cn("hidden py-1.5 pr-2 pl-3 sm:table-cell", inert)}>
-        <WorkTypeControl
-          value={todo.type}
-          onChange={(type) => patch({ type })}
-        />
+      {/* IDENTITY — the type and the key answer "which item" together, so they
+          are one cell rather than two columns each saying half of it. */}
+      <td className="py-2 pl-3">
+        <div className="flex items-center gap-2">
+          <span className={cn("shrink-0", inert)}>
+            <WorkTypeControl
+              value={todo.type}
+              onChange={(type) => patch({ type })}
+            />
+          </span>
+
+          {/* Null while the insert is in flight — the server allocates the key,
+              and that absence is the pending state. Opening is deliberately not
+              gated: reading a task is not editing it, and the menu at the end of
+              the row is editor-only. Same affordance the card's key carries. */}
+          {key !== null ? (
+            <button
+              type="button"
+              onClick={() => openTask(todo.id)}
+              title={`Open ${key}`}
+              className="text-ink-3 hover:text-brand focus-visible:ring-brand rounded text-[11px] font-semibold whitespace-nowrap transition-colors outline-none focus-visible:ring-2"
+            >
+              {key}
+            </button>
+          ) : (
+            <span className="text-ink-3/50 text-[11px]">—</span>
+          )}
+        </div>
       </td>
 
-      <td className="hidden py-1.5 pr-2 sm:table-cell">
-        {/* Null while the insert is in flight — the server allocates the key,
-            and that absence is the pending state. */}
-        {/* Opens the detail panel, and deliberately not gated: reading a task
-            is not editing it, and the menu at the end of the row is
-            editor-only. Same affordance the card's key carries. */}
-        {key !== null && (
-          <button
-            type="button"
-            onClick={() => openTask(todo.id)}
-            title={`Open ${key}`}
-            className="text-ink-3 hover:text-brand text-xs font-semibold whitespace-nowrap transition-colors"
-          >
-            {key}
-          </button>
-        )}
-      </td>
-
-      <td className="w-full py-1.5 pr-2 pl-3 sm:pl-0">
+      {/* TITLE — the dominant column, and the only elastic one. `max-w-0` is
+          what makes truncation work: without it an auto-layout column grows to
+          fit its content, so a long title widened the table and pushed the page
+          into horizontal scroll instead of ellipsising. */}
+      <td className="max-w-0 py-2 pr-3">
         {editing ? (
           <input
             ref={inputRef}
@@ -118,39 +130,43 @@ export default function ListRow({ todo }: { todo: Todo }) {
               if (event.key === "Enter") save();
               if (event.key === "Escape") cancel();
             }}
-            className="border-brand bg-surface text-ink rounded-control w-full border-2 px-2 py-0.5 text-sm outline-none"
+            className="border-brand bg-surface text-ink rounded-control w-full border px-2 py-0.5 text-sm outline-none"
           />
         ) : canEditTodos ? (
           <button
             type="button"
             onClick={() => setEditing(true)}
-            className="text-ink hover:text-brand block w-full truncate text-left text-sm transition-colors"
+            title={todo.title ?? undefined}
+            className="text-ink hover:text-brand focus-visible:ring-brand block w-full truncate rounded text-left text-sm font-medium transition-colors outline-none focus-visible:ring-2"
           >
-            {todo.title}
+            {todo.title || <span className="text-ink-3/60">Untitled</span>}
           </button>
         ) : (
           // Plain text rather than an inert button: the summary is the one cell
           // whose control is nothing but the edit affordance, so for a viewer
           // there is no chip to preserve — only the words.
-          <span className="text-ink block w-full truncate text-sm">
-            {todo.title}
+          <span
+            title={todo.title ?? undefined}
+            className="text-ink block w-full truncate text-sm font-medium"
+          >
+            {todo.title || <span className="text-ink-3/60">Untitled</span>}
           </span>
         )}
       </td>
 
-      <td className={cn("py-1.5 pr-2", inert)}>
+      <td className={cn("py-2 pr-3", inert)}>
         <StatusControl todoId={todo.id} columnId={todo.column_id} />
       </td>
 
-      <td className={cn("hidden py-1.5 pr-2 lg:table-cell", inert)}>
+      <td className={cn("hidden py-2 pr-3 lg:table-cell", inert)}>
         <PriorityControl
           value={todo.priority}
           onChange={(priority) => patch({ priority })}
-          showLabel
+          showLabel={toPriority(todo.priority) !== null}
         />
       </td>
 
-      <td className={cn("py-1.5 pr-2", inert)}>
+      <td className={cn("py-2 pr-3", inert)}>
         <AssigneeControl
           boardId={todo.board_id}
           value={todo.assignee_id}
@@ -159,7 +175,7 @@ export default function ListRow({ todo }: { todo: Todo }) {
         />
       </td>
 
-      <td className={cn("hidden py-1.5 pr-2 lg:table-cell", inert)}>
+      <td className={cn("hidden py-2 pr-3 lg:table-cell", inert)}>
         <DueDateControl
           value={todo.due_date}
           onChange={(due_date) => patch({ due_date })}
@@ -167,11 +183,12 @@ export default function ListRow({ todo }: { todo: Todo }) {
         />
       </td>
 
-      <td className="py-1.5 pr-3">
-        {/* The cell stays so the row keeps its column count against the
-            header; only the menu inside it goes. */}
+      <td className="py-2 pr-3">
+        {/* The cell stays whether or not it holds a menu, so the row keeps its
+            column count against the header. The menu inside it fades in place —
+            it is in flow at `opacity-0`, so nothing reflows on hover. */}
         {canEditTodos && (
-          <div className="flex justify-end opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+          <div className="flex justify-end opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
             <TodoMenu todo={todo} onEdit={() => setEditing(true)} />
           </div>
         )}
