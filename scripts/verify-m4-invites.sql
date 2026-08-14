@@ -539,13 +539,18 @@ select pg_temp.expect_true('role = owner is not storable',
 
 -- The three functions are SECURITY DEFINER with a pinned search_path. Both
 -- properties are load-bearing and neither is visible from behaviour.
+-- Matched by PREFIX, not equality. Postgres stores the pinned empty path as
+-- `search_path=""` — the quoted empty string — so `proconfig @>
+-- array['search_path=']` never matched and this reported a false FAIL against
+-- three functions that were correctly configured all along.
 select pg_temp.expect_true('invite RPCs are SECURITY DEFINER with search_path pinned',
   (select count(*) = 3 from pg_proc p
    join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public'
      and p.proname in ('create_invite','accept_invite','revoke_invite')
      and p.prosecdef
-     and p.proconfig @> array['search_path=']));
+     and exists (select 1 from unnest(p.proconfig) cfg
+                 where cfg like 'search\_path=%')));
 
 
 -- ---------------------------------------------------------------------------

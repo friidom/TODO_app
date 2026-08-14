@@ -23,18 +23,15 @@ export type BoardInvite = Database["public"]["Tables"]["board_invites"]["Row"];
  * `board_roster`'s is, so `board_id`, `created_by` and `email` are absent
  * because the caller either already knows them or has no use for them.
  *
- * Hand-written rather than taken from the generated type for the reason
- * `membersApi.ts` records at length: a `TABLE` signature carries no
- * nullability, so `supabase gen types` reports every column as non-null. Here
- * all four genuinely are non-null, so the shapes agree — but writing it out
- * keeps the boundary explicit and survives the day one of them stops being.
+ * Derived from the generated type rather than hand-written. `membersApi.ts`
+ * narrows `board_roster`'s row by hand because a `TABLE` signature carries no
+ * nullability and three of its columns really are nullable in `profiles` — the
+ * generated type is wrong there. Here all four columns are non-null in
+ * `board_invites`, so the generator's answer is the correct one and restating
+ * it would be a second copy to keep in step.
  */
-export type CreatedInvite = {
-  id: string;
-  token: string;
-  role: string;
-  expires_at: string;
-};
+export type CreatedInvite =
+  Database["public"]["Functions"]["create_invite"]["Returns"][number];
 
 /**
  * Mints an invite link.
