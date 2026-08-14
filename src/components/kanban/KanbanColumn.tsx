@@ -1,7 +1,7 @@
 import { useDroppable } from "@dnd-kit/core";
 import TodoItem from "../todo/TodoItem";
 
-import type { IColumn, ISupabaseTodo } from "../../types/data";
+import type { IColumn, Todo } from "../../types/data";
 import { Plus } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
 import { useAddTodo } from "@/services/todos/useAddTodo";
@@ -11,12 +11,13 @@ import ColumnHeader, { type TransitionPill } from "../columns/ColumnHeader";
 import { categoryOf } from "@/constants/columns";
 import { cn } from "@/utils/cn";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { usePermissions } from "@/hooks/usePermissions";
 import type { TodoIndicator } from "@/hooks/useKanbanDnd";
 
 interface Props {
   headerTitle: string;
   id: string;
-  todos: ISupabaseTodo[];
+  todos: Todo[];
   column: IColumn;
   indicator: TodoIndicator;
   dragHandleProps?: Record<string, unknown>;
@@ -83,6 +84,11 @@ export default function KanbanColumn({
     disabled: dragDisabled,
   });
 
+  // Creating work is editor and above (M3-05). Gates the Create button, the
+  // hover-`+` on every gap, and the form itself — a viewer can still read the
+  // column and its cards.
+  const { canEditTodos } = usePermissions();
+
   /** Gap index the create form is open at, or `null` when it is closed. */
   const [creatingAt, setCreatingAt] = useState<number | null>(null);
   /** True only for the opening render, so the skeleton plays once. */
@@ -114,10 +120,7 @@ export default function KanbanColumn({
       // The due-date and assignee panels are portalled to document.body, so
       // they are outside the form in the DOM while being part of it in the UI.
       // Without this, choosing a date closes the form and discards the draft.
-      if (
-        target instanceof Element &&
-        target.closest("[data-card-popover]")
-      ) {
+      if (target instanceof Element && target.closest("[data-card-popover]")) {
         return;
       }
 
@@ -178,7 +181,7 @@ export default function KanbanColumn({
    * stored column has.
    */
   const addHandlerFor = (gap: number) =>
-    exactOrder && gap < todos.length && creatingAt !== gap
+    canEditTodos && exactOrder && gap < todos.length && creatingAt !== gap
       ? () => openAt(gap)
       : undefined;
 
@@ -205,7 +208,7 @@ export default function KanbanColumn({
         // its own scrollbar. The board scrolls instead.
         lane ? "max-h-none" : "max-h-[calc(100vh-220px)]",
         transition
-          ? "bg-status-blue/10 ring-2 ring-status-blue ring-inset"
+          ? "bg-status-blue/10 ring-status-blue ring-2 ring-inset"
           : "bg-surface",
       )}
     >
@@ -256,7 +259,7 @@ export default function KanbanColumn({
 
             {todos.map((todo, index) => (
               <React.Fragment key={todo.id}>
-                <TodoItem {...todo} dragDisabled={dragDisabled} />
+                <TodoItem todo={todo} dragDisabled={dragDisabled} />
 
                 {!dragDisabled && (
                   <DropZone
@@ -280,12 +283,12 @@ export default function KanbanColumn({
           A lane has none: a card created inside "Sara Kim / In progress" would
           have to inherit the lane's dimension as well as the column, and the
           ungrouped board is one click away. */}
-      {!lane && (
+      {!lane && canEditTodos && (
         <div className="shrink-0 p-2">
           <button
             type="button"
             onClick={() => openAt(todos.length)}
-            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-ink-2 hover:bg-ink/10"
+            className="text-ink-2 hover:bg-ink/10 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm"
           >
             <Plus size={20} />
             Create

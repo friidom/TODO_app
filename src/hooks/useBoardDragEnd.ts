@@ -3,13 +3,13 @@ import type { DragEndEvent } from "@dnd-kit/core";
 import { resolveDropIndex } from "@/services/todos/dropIndex";
 import { useTodoDrop } from "@/services/todos/useTodoDrop";
 import { useDoneFlash } from "@/stores/doneFlash";
-import type { IColumn, ISupabaseTodo } from "@/types/data";
+import type { IColumn, Todo } from "@/types/data";
 import { byPosition } from "@/utils/position";
 import type { TodoIndicator } from "./useKanbanDnd";
 
 interface BoardDragEndParams {
   /** Every todo on the board — the flat array the drop mutation rewrites. */
-  todos: ISupabaseTodo[];
+  todos: Todo[];
   /**
    * What each column actually rendered, keyed by column id.
    *
@@ -18,10 +18,10 @@ interface BoardDragEndParams {
    * dropped into is numbered over *this*, and `resolveDropIndex` is what turns
    * that number back into one the stored column understands.
    */
-  visibleByColumn: Record<string, ISupabaseTodo[]>;
+  visibleByColumn: Record<string, Todo[]>;
   /** Columns sorted by position: the indices `columnIndicator` counts. */
   orderedColumns: IColumn[];
-  activeTodo: ISupabaseTodo | null;
+  activeTodo: Todo | null;
   activeColumn: IColumn | null;
   indicator: TodoIndicator;
   columnIndicator: number | null;

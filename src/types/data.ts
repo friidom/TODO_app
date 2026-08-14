@@ -21,7 +21,50 @@ type Row<T extends keyof Database["public"]["Tables"]> =
  * apart from a real one. Since M2-14 the client mints the row's real uuid, so
  * the optimistic row *is* the row — there is nothing to distinguish.
  */
-export type ISupabaseTodo = Row<"todos">;
+/**
+ * A complete `todos` row.
+ *
+ * Rarely what you want. The board and the list never hold one — they hold
+ * `Todo`, the projection below. This exists for the detail view (M5-06), which
+ * is the only screen that renders `description`, and for anything that needs a
+ * column the board does not fetch.
+ */
+export type TodoRow = Row<"todos">;
+
+/**
+ * A work item as the board holds it: the twelve columns the UI actually uses.
+ *
+ * **The board query does not `select("*")` (M5-07)**, so this is not a
+ * convenience narrowing — it is what the cache genuinely contains. Typing it as
+ * the full row would be a lie the compiler enforces: `todo.description` would
+ * type-check and be `undefined` at runtime, and the first screen to read it
+ * would fail silently rather than at the query.
+ *
+ * Six columns are deliberately absent. `description` and `estimate` are the
+ * ones the plan names — fetched for every card on every board load and rendered
+ * by nothing. `archived`, `creator_id`, `status` and `previous_status` join
+ * them: `status`/`previous_status` are dead columns kept by the schema (doneness
+ * is the column's category, never a field), and neither `archived` nor
+ * `creator_id` has a reader anywhere in the app.
+ *
+ * The field list this mirrors is `TODO_LIST_FIELDS` in `todos/todoApi.ts`, and
+ * the two must change together — that file says so too.
+ */
+export type Todo = Pick<
+  TodoRow,
+  | "id"
+  | "board_id"
+  | "column_id"
+  | "position"
+  | "board_key"
+  | "title"
+  | "type"
+  | "priority"
+  | "due_date"
+  | "assignee_id"
+  | "created_at"
+  | "updated_at"
+>;
 
 export type ISupabaseProfile = Row<"profiles">;
 
@@ -29,7 +72,19 @@ export type IColumn = Row<"columns">;
 
 export type IBoard = Row<"boards">;
 
-export interface TodoItemProps extends ISupabaseTodo {
+/**
+ * Client-only state about a todo that no column of `todos` holds.
+ *
+ * Separate from `Todo` rather than optional fields on it, which is the mistake
+ * this milestone exists to undo: `isOptimistic?` used to live inside the row
+ * type, so a database row and a UI concern shared one shape and neither could
+ * be reasoned about alone. M2-14 removed that flag; this is where its
+ * successors go instead.
+ */
+export interface TodoViewState {
+  /** This card is the one under the cursor — the board dims it in place. */
+  dragging?: boolean;
+  /** This is the DragOverlay's copy, not the card in the column. */
   overlay?: boolean;
   /**
    * Whether this card may be picked up.
@@ -39,4 +94,29 @@ export interface TodoItemProps extends ISupabaseTodo {
    * is not, so the card says so by not moving. See `useBoardView.dndDisabled`.
    */
   dragDisabled?: boolean;
+}
+
+/** A stored todo together with whatever is only true on this client. */
+export type TodoView = Todo & TodoViewState;
+
+/**
+ * The stored values a card puts on screen, and nothing else.
+ *
+ * **Deliberately not `extends Todo`.** The card used to take a whole database
+ * row as its props — every consumer spread one in — so a column added to
+ * `todos` became a props change in a leaf component, and the card could not be
+ * rendered at all without a real row to hand it. This lists the four fields it
+ * actually reads, so it can be constructed by hand, and a schema change reaches
+ * it only through `toCardContent`.
+ *
+ * `id`, `boardId` and `columnId` were here in M5-01 because the card wrote
+ * through `useTodoPatch` and registered its own draggable. M5-02 moved both to
+ * `TodoItem`, so none of the three is content and none of them is here.
+ */
+export interface TodoCardContent {
+  title: string | null;
+  /** The per-board counter behind `KAN-…`. Null while the insert is in flight. */
+  boardKey: number | null;
+  workType: string | null;
+  dueDate: string | null;
 }

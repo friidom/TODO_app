@@ -1,4 +1,4 @@
-import type { ISupabaseTodo } from "@/types/data";
+import type { Todo } from "@/types/data";
 
 /**
  * The index `applyTodoMoved` needs, derived from the card the drop gap sits above.
@@ -24,9 +24,9 @@ import type { ISupabaseTodo } from "@/types/data";
  */
 export function resolveDropIndex(
   /** Every row of the destination column, in stored order. */
-  full: ISupabaseTodo[],
+  full: Todo[],
   /** What was actually rendered there — `full` filtered, or one lane's share of it. */
-  visible: ISupabaseTodo[],
+  visible: Todo[],
   /** The `DropZone`'s index, counted over `visible`. */
   gap: number,
   /** The card being dragged. `applyTodoMoved` removes it before splicing. */

@@ -1,6 +1,6 @@
 import { useColumns } from "@/services/columns/useColumnsApi";
 import React from "react";
-import type { IColumn, ISupabaseTodo } from "@/types/data";
+import type { IColumn, Todo } from "@/types/data";
 
 /**
  * One array for every empty render, rather than a fresh `[]` each time.
@@ -27,13 +27,13 @@ const EMPTY_COLUMNS: IColumn[] = [];
  * Every column gets an entry even when nothing is in it, so an empty column
  * still renders.
  */
-export default function useTodosByColumns(todos: ISupabaseTodo[]) {
+export default function useTodosByColumns(todos: Todo[]) {
   const { data: columns = EMPTY_COLUMNS } = useColumns();
 
   const todosByColumn = React.useMemo(() => {
     // Built inside the memo: it was previously allocated on every render but
     // only populated here, so the memo mutated an object it did not own.
-    const grouped: Record<string, ISupabaseTodo[]> = {};
+    const grouped: Record<string, Todo[]> = {};
 
     columns.forEach((column) => {
       grouped[column.id] = [];

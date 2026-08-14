@@ -2,7 +2,7 @@ import { useCallback } from "react";
 
 import type { TodoPatch } from "@/services/todos/todoApi";
 import { useUpdateTodo } from "@/services/todos/useUpdateTodo";
-import type { ISupabaseTodo } from "@/types/data";
+import type { Todo } from "@/types/data";
 
 /** Everything a control may write. `id` and `board_id` come from the card. */
 export type TodoFields = Omit<TodoPatch, "id" | "board_id">;
@@ -24,7 +24,7 @@ export type TodoFields = Omit<TodoPatch, "id" | "board_id">;
  *
  * One mutation, three call sites, no second write path.
  */
-export function useTodoPatch(todo: Pick<ISupabaseTodo, "id" | "board_id">) {
+export function useTodoPatch(todo: Pick<Todo, "id" | "board_id">) {
   const updateTodo = useUpdateTodo();
   const { id, board_id } = todo;
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { ISupabaseTodo } from "../../types/data";
+import type { Todo } from "../../types/data";
 import {
   applyTodoConfirmed,
   applyTodoDeleted,
@@ -12,23 +12,23 @@ import {
 // Ids are uuids in the schema (M2-14). These take a number and stringify it,
 // so the fixtures and the expectations below stay readable — what is under
 // test is identity and ordering, and neither cares about the format.
-const todo = (id: number, column_id: string, position: number): ISupabaseTodo =>
+const todo = (id: number, column_id: string, position: number): Todo =>
   ({
     id: String(id),
     column_id,
     position,
     title: `todo ${id}`,
-  }) as ISupabaseTodo;
+  }) as Todo;
 
 /** Ids of a column, in stored order, back as numbers. */
-const column = (todos: ISupabaseTodo[], columnId: string) =>
+const column = (todos: Todo[], columnId: string) =>
   todos
     .filter((it) => it.column_id === columnId)
     .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
     .map((it) => Number(it.id));
 
 /** Positions of a column, in stored order. */
-const positions = (todos: ISupabaseTodo[], columnId: string) =>
+const positions = (todos: Todo[], columnId: string) =>
   todos
     .filter((it) => it.column_id === columnId)
     .map((it) => it.position)
@@ -138,10 +138,16 @@ describe("applyTodoUpdated", () => {
   });
 
   it("replaces rather than merges, so a stale field does not survive", () => {
-    const todos = [{ ...todo(1, "a", 0), description: "stale" }];
+    // `priority` rather than `description`: M5-07 narrowed the board's rows to
+    // the twelve columns the UI reads, and `description` is no longer one of
+    // them — the field this asserts about has to be a field the cache holds.
+    const todos = [{ ...todo(1, "a", 0), priority: "high" }];
     const result = applyTodoUpdated(todos, todo(1, "a", 0));
 
-    expect(result[0].description).toBeUndefined();
+    // Undefined, not null: the `todo()` helper builds a partial row, so the
+    // replacement simply has no `priority` key — which is the point. A merge
+    // would have carried "high" across.
+    expect(result[0].priority).toBeUndefined();
   });
 
   it("leaves the board alone when nothing matches", () => {

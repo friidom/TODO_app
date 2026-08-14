@@ -1,6 +1,7 @@
 import Layout from "@/components/layout/Layout";
 import BoardHeader from "@/components/layout/BoardHeader";
 import ContextRail from "@/components/layout/ContextRail";
+import TaskDetailPanel from "@/components/todo/TaskDetailPanel";
 import KanbanBoard from "@/components/kanban/KanbanBoard";
 import ListView from "@/components/views/ListView";
 import NotFoundPage from "@/pages/error/NotFoundPage";
@@ -8,6 +9,7 @@ import Loading from "@/components/loading/LoadingPage";
 import { useBoard } from "@/services/boards/useBoard";
 import { useBoardId } from "@/hooks/useBoardId";
 import { useBoardView } from "@/hooks/useBoardView";
+import { useOpenTask } from "@/hooks/useOpenTask";
 import { useVisibleTodos } from "@/hooks/useVisibleTodos";
 import { useColumns } from "@/services/columns/useColumnsApi";
 import { isUuid } from "@/utils/uuid";
@@ -38,6 +40,10 @@ function BoardView({ boardId }: { boardId: string }) {
   // is read from the URL, so a link to a filtered list opens as one.
   const { mode } = useBoardView();
 
+  // Read here rather than inside Layout: the panel replaces the rail, which is
+  // this component's composition decision, not the shell's.
+  const { taskId } = useOpenTask();
+
   if (isPending) return <Loading />;
 
   // A genuine failure — offline, a policy error — is not a missing board.
@@ -52,7 +58,18 @@ function BoardView({ boardId }: { boardId: string }) {
   if (!board) return <NotFoundPage />;
 
   return (
-    <Layout rail={<ContextRail boardId={boardId} />}>
+    // The detail panel takes the rail's slot while it is open (M5-06). The
+    // board keeps its own width and stays mounted either way — two rails side
+    // by side would squeeze it, and the panel is the more specific context.
+    <Layout
+      rail={
+        taskId ? (
+          <TaskDetailPanel boardId={boardId} />
+        ) : (
+          <ContextRail boardId={boardId} />
+        )
+      }
+    >
       <BoardMeta title={board.title} />
 
       {/*

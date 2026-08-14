@@ -1,10 +1,16 @@
 import { type ReactNode } from "react";
 import { FloatingPortal } from "@floating-ui/react";
-import { MoreHorizontal, PencilIcon, Trash2Icon } from "lucide-react";
+import {
+  MoreHorizontal,
+  PanelRightOpenIcon,
+  PencilIcon,
+  Trash2Icon,
+} from "lucide-react";
 
+import { useOpenTask } from "@/hooks/useOpenTask";
 import { useTodoPatch } from "@/hooks/useTodoPatch";
 import { useDeleteTodo } from "@/services/todos/useDeleteTodo";
-import type { ISupabaseTodo } from "@/types/data";
+import type { Todo } from "@/types/data";
 
 import AssigneeControl from "./AssigneeControl";
 import DueDateControl from "./DueDateControl";
@@ -23,9 +29,10 @@ import { useCardPopover } from "./useCardPopover";
  * It is a property panel rather than a list of verbs, and that is what makes it
  * cheap: every row hosts the control that already exists for that field,
  * unchanged. "Change work type" is `WorkTypeControl`; "change status" is
- * `StatusControl`, which delegates to `useMoveTodo` — the same
- * `useUpdateTodoColumn` mutation a drag ends in, done-flash included. Nothing
- * here re-implements a picker and nothing here opens a second write path.
+ * `StatusControl`, which delegates to `useMoveTodo` — the same `useTodoDrop`
+ * mutation a drag ends in, position renumbering and done-flash included.
+ * Nothing here re-implements a picker and nothing here opens a second write
+ * path.
  *
  * `StatusControl` is why the old `TodoColumnMenu` is gone. That one hid the
  * card's current column (so the menu could not tell you where the card *was*)
@@ -38,7 +45,7 @@ export default function TodoMenu({
   todo,
   onEdit,
 }: {
-  todo: ISupabaseTodo;
+  todo: Todo;
   /** Puts the card into its inline title edit — the flow the pencil uses. */
   onEdit: () => void;
 }) {
@@ -51,6 +58,7 @@ export default function TodoMenu({
     hostsPopovers: true,
   });
 
+  const { openTask } = useOpenTask();
   const patch = useTodoPatch(todo);
   const deleteTodo = useDeleteTodo();
 
@@ -73,6 +81,22 @@ export default function TodoMenu({
             aria-label="Card actions"
             className="border-hairline bg-elevated rounded-card z-50 w-60 border p-1 shadow-[0_8px_24px_rgba(0,0,0,0.24)]"
           >
+            {/* First, because it is the way into everything the menu cannot
+                show — the description above all. Opens the panel over the
+                board rather than navigating (M5-06). */}
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                openTask(todo.id);
+                close();
+              }}
+              className="text-ink hover:bg-ink/10 focus-visible:bg-ink/10 rounded-control flex w-full items-center gap-2 px-2 py-1.5 text-sm transition-colors outline-none"
+            >
+              <PanelRightOpenIcon className="text-ink-3 size-4 shrink-0" />
+              Open details
+            </button>
+
             <button
               type="button"
               role="menuitem"
@@ -83,7 +107,7 @@ export default function TodoMenu({
               className="text-ink hover:bg-ink/10 focus-visible:bg-ink/10 rounded-control flex w-full items-center gap-2 px-2 py-1.5 text-sm transition-colors outline-none"
             >
               <PencilIcon className="text-ink-3 size-4 shrink-0" />
-              Edit
+              Rename
             </button>
 
             <div className="bg-hairline my-1 h-px" />

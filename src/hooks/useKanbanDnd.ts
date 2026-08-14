@@ -11,7 +11,7 @@ import {
 } from "@dnd-kit/core";
 import { useCallback, useState } from "react";
 
-import type { IColumn, ISupabaseTodo } from "@/types/data";
+import type { IColumn, Todo } from "@/types/data";
 
 export interface TodoIndicator {
   columnId: string | null;
@@ -91,7 +91,7 @@ function touchesActive(
 }
 
 export default function useKanbanDnd() {
-  const [activeTodo, setActiveTodo] = useState<ISupabaseTodo | null>(null);
+  const [activeTodo, setActiveTodo] = useState<Todo | null>(null);
   const [activeColumn, setActiveColumn] = useState<IColumn | null>(null);
 
   /** Gap the todo will be dropped into: `{ columnId, index }`. */

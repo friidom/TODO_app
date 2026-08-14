@@ -1,17 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import type { ISupabaseTodo } from "../../types/data";
+import type { Todo } from "../../types/data";
 import { applyTodoMoved } from "./cache";
 import { resolveDropIndex } from "./dropIndex";
 
-const todo = (id: string, position: number): ISupabaseTodo =>
-  ({ id, column_id: "a", position, title: `todo ${id}` }) as ISupabaseTodo;
+const todo = (id: string, position: number): Todo =>
+  ({ id, column_id: "a", position, title: `todo ${id}` }) as Todo;
 
 /** `[A, B, C, D]` in one column, stored in that order. */
 const column = () => [todo("A", 0), todo("B", 1), todo("C", 2), todo("D", 3)];
 
 /** Ids of a column after a move, in stored order. */
-const order = (todos: ISupabaseTodo[], columnId: string) =>
+const order = (todos: Todo[], columnId: string) =>
   todos
     .filter((it) => it.column_id === columnId)
     .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))

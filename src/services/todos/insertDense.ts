@@ -1,4 +1,4 @@
-import type { ISupabaseTodo } from "../../types/data";
+import type { Todo } from "../../types/data";
 import { byPosition } from "../../utils/position";
 
 /**
@@ -7,8 +7,8 @@ import { byPosition } from "../../utils/position";
  * column sort. See `insertDense.check.ts` for the checks.
  */
 export function insertDense(
-  columnTodos: ISupabaseTodo[],
-  todo: ISupabaseTodo,
+  columnTodos: Todo[],
+  todo: Todo,
   index?: number,
 ) {
   const next = [...columnTodos].sort(byPosition);
