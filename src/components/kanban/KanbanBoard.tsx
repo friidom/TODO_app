@@ -6,6 +6,7 @@ import useKanbanDnd from "@/hooks/useKanbanDnd";
 import { useBoardDragEnd } from "@/hooks/useBoardDragEnd";
 import { useBoardId } from "@/hooks/useBoardId";
 import { useBoardModals } from "@/hooks/useBoardModals";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useBoardView } from "@/hooks/useBoardView";
 import { useColumnReorder } from "@/hooks/useColumnReorder";
 import useTodosByColumns from "@/hooks/useTodosByColumns";
@@ -38,6 +39,15 @@ export default function KanbanBoard() {
   const { todos, all, isLoading, error } = useVisibleTodos();
 
   const { data: members = [] } = useBoardMembers(boardId);
+
+  // A drop rewrites `column_id` and `position`, which M3-05 gates at editor.
+  // The plan is explicit that the SENSORS have to be gated and not only the
+  // buttons: a viewer who can pick a card up gets an optimistic move that
+  // silently reverts, and that reads as a broken board rather than as a
+  // permission.
+  const { canEditTodos } = usePermissions(boardId);
+
+  const dragDisabled = view.dndDisabled || !canEditTodos;
 
   const swimlanes = isSwimlaneGroup(view.group);
 
@@ -79,7 +89,8 @@ export default function KanbanBoard() {
   );
 
   const lanes = useMemo(
-    () => (swimlanes ? groupTodos(todos, view.group, { columns, members }) : []),
+    () =>
+      swimlanes ? groupTodos(todos, view.group, { columns, members }) : [],
     [swimlanes, todos, view.group, columns, members],
   );
 
@@ -168,7 +179,7 @@ export default function KanbanBoard() {
                         todos={todosByColumn[column.id] ?? []}
                         indicator={indicator}
                         isDragSource={!!activeTodo && column.id === sourceId}
-                        dragDisabled={view.dndDisabled}
+                        dragDisabled={dragDisabled}
                         exactOrder={
                           view.filterCount === 0 && view.sort === "manual"
                         }

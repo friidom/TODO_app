@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { inviteUrl } from "@/services/invites/inviteLink";
-import { useCanInvite } from "@/services/invites/useCanInvite";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useCreateInvite } from "@/services/invites/useCreateInvite";
 import { usePendingInvites } from "@/services/invites/usePendingInvites";
 import type { CreatedInvite, InviteRole } from "@/services/invites/invitesApi";
@@ -61,7 +61,8 @@ export default function InvitePeopleModal({
 function InviteDialog({ onClose }: { onClose: () => void }) {
   const boardId = useBoardId();
 
-  const { canInvite, canInviteAdmins } = useCanInvite(boardId);
+  const { canManageMembers: canInvite, canManageAdmins: canInviteAdmins } =
+    usePermissions(boardId);
 
   const [role, setRole] = useState<InviteRole>(DEFAULT_INVITE_ROLE);
   const [days, setDays] = useState(DEFAULT_EXPIRY_DAYS);

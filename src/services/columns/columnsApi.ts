@@ -96,8 +96,26 @@ export async function updateColumn({
 }
 
 /**
- * Rehomes the column's todos before dropping it — appended to the end of the
- * destination so its existing positions stay dense.
+ * Rehomes the column's todos and drops it, in one transaction (M3-11).
+ *
+ * **One RPC, replacing four round trips.** This used to read the column's
+ * todos, read the destination's last position, upsert the moved rows and then
+ * delete the column — four requests with no transaction around them. A failure
+ * or a lost connection between any two left the board in a state nothing
+ * repaired: cards rehomed but the column still there, or worse, the column gone
+ * while its cards still pointed at it. `delete_column` does all of it or none
+ * of it.
+ *
+ * The ordering is identical, so nothing visible changes: the RPC appends after
+ * the destination's last card preserving source order, which is exactly what
+ * the client arithmetic computed. `useDeleteColumn` is untouched — same
+ * arguments, same `{ id, moveToColumnId }` back.
+ *
+ * `SECURITY INVOKER`, deliberately: the caller's own RLS still applies, so it
+ * inherits M3-05's editor-and-above gate for free rather than re-deriving it.
+ * Two refusals the client path could not make legible — a destination on
+ * another board, and a delete RLS silently matched zero rows — come back as
+ * 42501 instead of a 23503 after the fact or a false success.
  */
 export async function deleteColumn({
   id,
@@ -106,47 +124,10 @@ export async function deleteColumn({
   id: string;
   moveToColumnId: string;
 }) {
-  const { data: moving, error: movingError } = await supabase
-    .from("todos")
-    .select("id, board_id")
-    .eq("column_id", id)
-    .order("position", { ascending: true });
-
-  if (movingError) throw movingError;
-
-  if (moving?.length) {
-    const { data: last, error: lastError } = await supabase
-      .from("todos")
-      .select("position")
-      .eq("column_id", moveToColumnId)
-      .order("position", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (lastError) throw lastError;
-
-    const start = (last?.position ?? -1) + 1;
-
-    const { error: moveError } = await supabase.from("todos").upsert(
-      // board_id is required on the payload: an upsert is an INSERT for policy
-      // purposes, so a proposed row without it fails both M2-08's WITH CHECK
-      // and M2-07's NOT NULL. Read off each row rather than stamped from the
-      // viewed board — `moving` came straight from the server, so it cannot be
-      // a stale cache entry, and the card keeps the board it actually belongs
-      // to.
-      moving.map((todo, index) => ({
-        id: todo.id,
-        board_id: todo.board_id,
-        column_id: moveToColumnId,
-        position: start + index,
-      })),
-      { onConflict: "id" },
-    );
-
-    if (moveError) throw moveError;
-  }
-
-  const { error } = await supabase.from("columns").delete().eq("id", id);
+  const { error } = await supabase.rpc("delete_column", {
+    p_column_id: id,
+    p_move_to_column_id: moveToColumnId,
+  });
 
   if (error) throw error;
 
