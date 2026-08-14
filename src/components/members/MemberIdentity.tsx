@@ -14,7 +14,6 @@ import { cn } from "@/utils/cn";
  * does not return one, deliberately.
  */
 
-
 export default function MemberIdentity({
   member,
   suffix,

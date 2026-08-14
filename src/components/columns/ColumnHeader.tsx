@@ -3,6 +3,7 @@ import { ArrowRight, Check, X } from "lucide-react";
 
 import ColumnMenu from "./ColumnMenu";
 import LimitWarning from "./LimitWarning";
+import { usePermissions } from "@/hooks/usePermissions";
 import { categoryOf } from "@/constants/columns";
 import { limitBreach } from "@/services/columns/limitBreach";
 import { useUpdateColumn } from "@/services/columns/useUpdateColumn";
@@ -50,6 +51,10 @@ export default function ColumnHeader({
   const [renaming, setRenaming] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // Every item behind the menu — limits, reorder, delete — is a column write,
+  // so the trigger goes rather than each item being disabled one by one.
+  const { canManageColumns } = usePermissions();
+
   // While a card is in flight the header belongs to the transition state, so
   // the controls step aside.
   if (transition) {
@@ -65,7 +70,7 @@ export default function ColumnHeader({
 
           <ArrowRight
             size={14}
-            className="animate-in fade-in slide-in-from-left-1 shrink-0 text-ink-2 duration-300"
+            className="animate-in fade-in slide-in-from-left-1 text-ink-2 shrink-0 duration-300"
           />
 
           <span
@@ -85,7 +90,7 @@ export default function ColumnHeader({
   if (isDragSource) {
     return (
       <Shell dragHandleProps={dragHandleProps}>
-        <div className="animate-in fade-in w-full truncate rounded-md border-2 border-brand bg-elevated py-1 text-center text-sm text-ink duration-200">
+        <div className="animate-in fade-in border-brand bg-elevated text-ink w-full truncate rounded-md border-2 py-1 text-center text-sm duration-200">
           Transition to...
         </div>
       </Shell>
@@ -108,17 +113,23 @@ export default function ColumnHeader({
 
   return (
     <Shell dragHandleProps={dragHandleProps}>
+      {/* Renaming is a column write too. Left as a button either way so the
+          header keeps its shape and spacing; it simply does not open the
+          input for someone whose rename the database would refuse. */}
       <button
         type="button"
-        onClick={() => setRenaming(true)}
-        title="Rename column"
-        className="flex min-w-0 items-center gap-2 rounded px-2 py-1 text-left hover:bg-ink/10"
+        onClick={() => canManageColumns && setRenaming(true)}
+        title={canManageColumns ? "Rename column" : headerTitle}
+        className={cn(
+          "flex min-w-0 items-center gap-2 rounded px-2 py-1 text-left",
+          canManageColumns && "hover:bg-ink/10",
+        )}
       >
-        <h2 className="truncate text-[15px] font-semibold text-ink">
+        <h2 className="text-ink truncate text-[15px] font-semibold">
           {headerTitle}
         </h2>
 
-        <span className="shrink-0 rounded bg-ink/10 px-1.5 py-0.5 text-xs font-semibold text-ink-2">
+        <span className="bg-ink/10 text-ink-2 shrink-0 rounded px-1.5 py-0.5 text-xs font-semibold">
           {count}
         </span>
       </button>
@@ -143,20 +154,22 @@ export default function ColumnHeader({
             onClick={onCollapse}
             aria-label="Collapse column"
             title="Collapse column"
-            className="rounded p-1 text-ink-2 hover:bg-ink/10"
+            className="text-ink-2 hover:bg-ink/10 rounded p-1"
           >
             <CollapseIcon />
           </button>
 
-          <ColumnMenu
-            open={menuOpen}
-            onOpenChange={setMenuOpen}
-            onSetLimit={onSetLimit}
-            onDelete={onDelete}
-            onMoveLeft={onMoveLeft}
-            onMoveRight={onMoveRight}
-            canDelete={canDelete}
-          />
+          {canManageColumns && (
+            <ColumnMenu
+              open={menuOpen}
+              onOpenChange={setMenuOpen}
+              onSetLimit={onSetLimit}
+              onDelete={onDelete}
+              onMoveLeft={onMoveLeft}
+              onMoveRight={onMoveRight}
+              canDelete={canDelete}
+            />
+          )}
         </div>
       </div>
     </Shell>
@@ -225,7 +238,7 @@ function RenameField({
 
           if (e.key === "Escape") onDone();
         }}
-        className="w-full rounded-md border-2 border-brand bg-elevated px-2 py-1 text-lg font-semibold text-ink outline-none"
+        className="border-brand bg-elevated text-ink w-full rounded-md border-2 px-2 py-1 text-lg font-semibold outline-none"
       />
 
       <div className="absolute top-full right-0 z-10 mt-1 flex gap-1">
@@ -234,7 +247,7 @@ function RenameField({
           onMouseDown={(e) => e.preventDefault()}
           onClick={save}
           aria-label="Save name"
-          className="rounded-md border border-hairline bg-elevated p-1.5 text-ink shadow-sm hover:bg-ink/10"
+          className="border-hairline bg-elevated text-ink hover:bg-ink/10 rounded-md border p-1.5 shadow-sm"
         >
           <Check size={16} />
         </button>
@@ -244,7 +257,7 @@ function RenameField({
           onMouseDown={(e) => e.preventDefault()}
           onClick={onDone}
           aria-label="Cancel rename"
-          className="rounded-md border border-hairline bg-elevated p-1.5 text-ink shadow-sm hover:bg-ink/10"
+          className="border-hairline bg-elevated text-ink hover:bg-ink/10 rounded-md border p-1.5 shadow-sm"
         >
           <X size={16} />
         </button>

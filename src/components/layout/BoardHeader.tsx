@@ -7,7 +7,7 @@ import BoardSort from "@/components/board/BoardSort";
 import ViewSwitch from "@/components/board/ViewSwitch";
 import { HEADER_CONTROL } from "@/components/board/headerControl";
 import InvitePeopleModal from "@/components/invites/InvitePeopleModal";
-import { useCanInvite } from "@/services/invites/useCanInvite";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useBoardId } from "@/hooks/useBoardId";
 import { useBoardView } from "@/hooks/useBoardView";
 
@@ -50,7 +50,7 @@ export default function BoardHeader({
   // has the width for it; both are affordances, and `create_invite` is what
   // actually refuses an editor who reaches the RPC another way.
   const boardId = useBoardId();
-  const { canInvite } = useCanInvite(boardId);
+  const { canManageMembers: canInvite } = usePermissions(boardId);
   const [inviteOpen, setInviteOpen] = useState(false);
 
   const filtered = visibleCount !== todoCount;

@@ -5,7 +5,7 @@ import InvitePeopleModal from "@/components/invites/InvitePeopleModal";
 import MemberRow from "@/components/members/MemberRow";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/services/auth/useAuth";
-import { useCanInvite } from "@/services/invites/useCanInvite";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useBoardMembers } from "@/services/members/useBoardMembers";
 
 /**
@@ -24,15 +24,19 @@ export default function ContextRail({ boardId }: { boardId: string }) {
   // "Manage" was a permanently-disabled placeholder for role management, which
   // is still M3-08's. What exists now is inviting, so the action says that and
   // does it — for owners and admins; everyone else keeps the disabled label.
-  const { canInvite } = useCanInvite(boardId);
+  const { canManageMembers: canInvite } = usePermissions(boardId);
   const [inviteOpen, setInviteOpen] = useState(false);
 
   return (
     <aside className="border-hairline bg-rail/50 hidden w-72 shrink-0 overflow-y-auto border-l xl:block">
+      {/* No disabled "Manage" for anyone else. It was a placeholder for a
+          feature that did not exist; role management is real now and lives on
+          the rows themselves, so for a viewer or editor there is simply
+          nothing here to offer. */}
       <Panel
         icon={UsersIcon}
         title="Members"
-        action={canInvite ? "Add people" : "Manage"}
+        action={canInvite ? "Add people" : undefined}
         onAction={canInvite ? () => setInviteOpen(true) : undefined}
       >
         <MembersPanel boardId={boardId} />

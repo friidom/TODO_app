@@ -3,9 +3,12 @@ import TodoForm from "@/components/todo/TodoForm";
 import { useAddTodo } from "@/services/todos/useAddTodo";
 import { useColumns } from "@/services/columns/useColumnsApi";
 import { byPosition } from "@/utils/position";
+import { usePermissions } from "@/hooks/usePermissions";
 
 export default function HeaderTodoForm() {
   const [value, setValue] = useState("");
+
+  const { canEditTodos } = usePermissions();
 
   const addTodoMutation = useAddTodo();
   const { data: columns = [] } = useColumns();
@@ -37,6 +40,11 @@ export default function HeaderTodoForm() {
       handleAddTodo();
     }
   }
+
+  // Creating work is editor and above (M3-05). The quick-add is the widest
+  // control in the board header, so leaving it there inert would be the most
+  // prominent thing on the page for someone who cannot use it.
+  if (!canEditTodos) return null;
 
   return (
     <TodoForm

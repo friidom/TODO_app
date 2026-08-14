@@ -1,3 +1,4 @@
+import MemberActions from "./MemberActions";
 import MemberIdentity from "./MemberIdentity";
 import { roleLabel, roleStyle } from "./roleStyles";
 import type { BoardMember } from "@/services/members/membersApi";
@@ -43,6 +44,10 @@ export default function MemberRow({
       >
         {roleLabel(member.role)}
       </span>
+
+      {/* Renders nothing unless this caller may act on this member, so the
+          Owner's row and a viewer's view of any row carry no control at all. */}
+      <MemberActions member={member} />
     </li>
   );
 }

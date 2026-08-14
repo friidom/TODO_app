@@ -34,10 +34,17 @@ export default function ListView() {
   const { data: columns = [] } = useColumns();
   const { data: members = [] } = useBoardMembers(boardId);
 
-  const groups = useMemo(
-    () => groupTodos(todos, view.group, { columns, members }),
-    [todos, view.group, columns, members],
-  );
+  const groups = useMemo(() => {
+    const all = groupTodos(todos, view.group, { columns, members });
+
+    // `groupTodos` keeps empty groups under `status` on purpose — an empty
+    // column is part of the BOARD whether or not anything is in it, and hiding
+    // it would make the board's shape depend on its contents. A list has no
+    // such shape to preserve: an empty section here is a header, a zero and
+    // nothing else. So the rule is the same everywhere it means something, and
+    // the one caller it does not serve drops them at render.
+    return view.group === "none" ? all : all.filter((g) => g.todos.length > 0);
+  }, [todos, view.group, columns, members]);
 
   if (isLoading) return <Loading />;
 

@@ -47,3 +47,61 @@ export async function fetchBoardMembers(
 
   return data ?? [];
 }
+
+/**
+ * Change a member's role.
+ *
+ * **`set_member_role` is the deployed name** — not `update_member_role`, which
+ * does not exist. Checked against the generated `Database["public"]["Functions"]`
+ * rather than remembered.
+ *
+ * Through the RPC and never `.from("board_members").update()`. That table has
+ * RLS on with a self-read policy and **no write policy at all**, and adding one
+ * is prohibited (Permission Model, rule 4) — a direct update does not fail
+ * loudly, it matches zero rows and reports success. Every authorization rule
+ * lives inside the function: the caller must outrank both the target's current
+ * role and the role being granted, the Owner is never a valid target, and
+ * `owner` is never a grantable role.
+ */
+export async function updateMemberRole({
+  boardId,
+  userId,
+  role,
+}: {
+  boardId: string;
+  userId: string;
+  role: string;
+}): Promise<void> {
+  const { error } = await supabase.rpc("set_member_role", {
+    p_board_id: boardId,
+    p_user_id: userId,
+    p_role: role,
+  });
+
+  if (error) throw error;
+}
+
+/**
+ * Remove a member from the board.
+ *
+ * `remove_board_member` is administration and refuses the Owner outright.
+ * Self-removal is a different operation with different authorization —
+ * `leave_board`, which any non-owner member may call — and it is deliberately
+ * not wired here: the roster's controls are the administrative path, and
+ * folding consent into them is how the self-service exception gets widened by
+ * accident.
+ */
+export async function removeBoardMember({
+  boardId,
+  userId,
+}: {
+  boardId: string;
+  userId: string;
+}): Promise<void> {
+  const { error } = await supabase.rpc("remove_board_member", {
+    p_board_id: boardId,
+    p_user_id: userId,
+  });
+
+  if (error) throw error;
+}
