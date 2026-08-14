@@ -25,7 +25,7 @@ import DeleteColumnModal from "../columns/DeleteColumnModal";
 import CollapsedColumn from "../columns/CollapsedColumn";
 import ViewNotice from "../board/ViewNotice";
 import Loading from "../loading/LoadingPage";
-import { byPosition } from "@/utils/position";
+import { byRank } from "@/utils/rank";
 import { columnTitle } from "@/constants/columns";
 
 export default function KanbanBoard() {
@@ -83,10 +83,7 @@ export default function KanbanBoard() {
     closeDeleteModal,
   } = useBoardModals();
 
-  const orderedColumns = useMemo(
-    () => columns.slice().sort(byPosition),
-    [columns],
-  );
+  const orderedColumns = useMemo(() => columns.slice().sort(byRank), [columns]);
 
   const lanes = useMemo(
     () =>
@@ -149,83 +146,96 @@ export default function KanbanBoard() {
             members={members}
           />
         ) : (
-          <div className="min-h-0 flex-1 overflow-x-auto">
-            <div className="flex min-w-max px-0 pb-6">
-              <div className="flex h-full min-w-max">
-                {orderedColumns.map((column, index) => (
-                  <Fragment key={column.id}>
-                    {/* Column gaps stay: reordering columns is still meaningful
+          // The board's own scroll box. `pb-4` sits on this element rather than
+          // on the track inside it, so the columns can be `h-full` without the
+          // padding pushing them past the bottom edge (M17).
+          <div className="min-h-0 flex-1 overflow-x-auto pb-4">
+            <div className="flex h-full min-w-max">
+              {orderedColumns.map((column, index) => (
+                <Fragment key={column.id}>
+                  {/* Column gaps stay: reordering columns is still meaningful
                         while the cards inside them are sorted, because the
                         columns themselves are always in stored order. */}
-                    <ColumnDropZone
-                      index={index}
-                      active={!!activeColumn && columnIndicator === index}
-                      beforeId={orderedColumns[index - 1]?.id}
-                      afterId={column.id}
+                  <ColumnDropZone
+                    index={index}
+                    active={!!activeColumn && columnIndicator === index}
+                    beforeId={orderedColumns[index - 1]?.id}
+                    afterId={column.id}
+                  />
+
+                  {collapsed.includes(column.id) ? (
+                    <CollapsedColumn
+                      column={column}
+                      headerTitle={columnTitle(column.title)}
+                      count={todosByColumn[column.id]?.length ?? 0}
+                      onExpand={() => toggleCollapsed(column.id)}
                     />
+                  ) : (
+                    <SortableColumn
+                      id={column.id}
+                      column={column}
+                      headerTitle={columnTitle(column.title)}
+                      todos={todosByColumn[column.id] ?? []}
+                      indicator={indicator}
+                      isDragSource={!!activeTodo && column.id === sourceId}
+                      dragDisabled={dragDisabled}
+                      // A search narrows a column exactly as a filter does, so
+                      // it belongs in this test — without it a searched column
+                      // believed it was showing stored order, offered the
+                      // mid-column `+`, and handed `addTodo` an index counted
+                      // over the matches while the insert spliced into the full
+                      // column. Same class of bug `dropIndex.ts` exists for.
+                      exactOrder={
+                        view.filterCount === 0 &&
+                        !view.query.trim() &&
+                        view.sort === "manual"
+                      }
+                      onCollapse={() => toggleCollapsed(column.id)}
+                      onSetLimit={() => openLimitModal(column)}
+                      onDelete={() => openDeleteModal(column)}
+                      onMoveLeft={
+                        index > 0
+                          ? () => moveColumn(index, index - 1)
+                          : undefined
+                      }
+                      onMoveRight={
+                        index < orderedColumns.length - 1
+                          ? () => moveColumn(index, index + 1)
+                          : undefined
+                      }
+                      canDelete={orderedColumns.length > 1}
+                      transition={
+                        sourceColumn && column.id === destinationId
+                          ? {
+                              from: {
+                                title: columnTitle(sourceColumn.title),
+                                category: sourceColumn.category,
+                              },
+                              to: {
+                                title: columnTitle(column.title),
+                                category: column.category,
+                              },
+                            }
+                          : null
+                      }
+                    />
+                  )}
+                </Fragment>
+              ))}
 
-                    {collapsed.includes(column.id) ? (
-                      <CollapsedColumn
-                        column={column}
-                        headerTitle={columnTitle(column.title)}
-                        count={todosByColumn[column.id]?.length ?? 0}
-                        onExpand={() => toggleCollapsed(column.id)}
-                      />
-                    ) : (
-                      <SortableColumn
-                        id={column.id}
-                        column={column}
-                        headerTitle={columnTitle(column.title)}
-                        todos={todosByColumn[column.id] ?? []}
-                        indicator={indicator}
-                        isDragSource={!!activeTodo && column.id === sourceId}
-                        dragDisabled={dragDisabled}
-                        exactOrder={
-                          view.filterCount === 0 && view.sort === "manual"
-                        }
-                        onCollapse={() => toggleCollapsed(column.id)}
-                        onSetLimit={() => openLimitModal(column)}
-                        onDelete={() => openDeleteModal(column)}
-                        onMoveLeft={
-                          index > 0
-                            ? () => moveColumn(index, index - 1)
-                            : undefined
-                        }
-                        onMoveRight={
-                          index < orderedColumns.length - 1
-                            ? () => moveColumn(index, index + 1)
-                            : undefined
-                        }
-                        canDelete={orderedColumns.length > 1}
-                        transition={
-                          sourceColumn && column.id === destinationId
-                            ? {
-                                from: {
-                                  title: columnTitle(sourceColumn.title),
-                                  category: sourceColumn.category,
-                                },
-                                to: {
-                                  title: columnTitle(column.title),
-                                  category: column.category,
-                                },
-                              }
-                            : null
-                        }
-                      />
-                    )}
-                  </Fragment>
-                ))}
+              <ColumnDropZone
+                index={orderedColumns.length}
+                active={
+                  !!activeColumn && columnIndicator === orderedColumns.length
+                }
+                beforeId={orderedColumns[orderedColumns.length - 1]?.id}
+              />
 
-                <ColumnDropZone
-                  index={orderedColumns.length}
-                  active={
-                    !!activeColumn && columnIndicator === orderedColumns.length
-                  }
-                  beforeId={orderedColumns[orderedColumns.length - 1]?.id}
-                />
+              {/* Wrapped so the button keeps its own height inside a flex
+                    track whose items otherwise stretch to the column height. */}
+              <div className="ml-2 shrink-0 self-start">
+                <AddColumnButton setCreateColumnOpen={setCreateColumnOpen} />
               </div>
-
-              <AddColumnButton setCreateColumnOpen={setCreateColumnOpen} />
             </div>
           </div>
         )}

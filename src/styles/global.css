@@ -5,7 +5,17 @@
 @import "@fontsource-variable/geist";
 @custom-variant dark (&:where(.dark, .dark *));
 
-body {
+/* The UI renders in Geist (M17).
+   ---------------------------------------------------------------------------
+   `--font-sans` has been Geist since the tokens were written and `@layer base`
+   applies it to `html`, but this rule overrode it for the entire body — so the
+   whole product rendered in Josefin Sans, a geometric display face. At the
+   11–13px a board actually uses, its wide counters and single-storey `a` cost
+   real legibility, which is most of why dense screens read as unfinished.
+
+   Josefin survives where a display face belongs: `.font-wordmark`, used by the
+   KAN logotype and nothing else. */
+.font-wordmark {
   font-family: "Josefin Sans Variable", sans-serif;
 }
 
@@ -95,10 +105,16 @@ body,
   /* shell — dark navy. This is the reference direction, and the theme the app
      opens in (ThemeProvider defaults to dark). Hues sit around 265deg so the
      greys read navy rather than neutral charcoal. */
-  --canvas: oklch(0.17 0.021 267);
-  --rail: oklch(0.19 0.022 267);
-  --surface: oklch(0.225 0.023 267);
-  --elevated: oklch(0.262 0.025 267);
+  /* Tightened and darkened in M17's polish pass. The page was oklch(0.17) with
+     a 0.092 spread up to the card, which reads as four obviously different
+     greys stacked on each other — the "developer dashboard" look. A near-black
+     page with a 0.083 spread keeps the same four levels while making each step
+     something you notice only when you look for it, which is what lets a card
+     sit on a column without either needing a border to be found. */
+  --canvas: oklch(0.145 0.019 267);
+  --rail: oklch(0.163 0.02 267);
+  --surface: oklch(0.196 0.021 267);
+  --elevated: oklch(0.228 0.023 267);
   --hairline: oklch(1 0 0 / 8%);
   --ink: oklch(0.94 0.006 267);
   --ink-2: oklch(0.72 0.022 267);
@@ -391,5 +407,20 @@ body,
 @media (prefers-reduced-motion: reduce) {
   .done-flash {
     animation: none;
+  }
+
+  /* One blanket rule rather than a `motion-safe:` on every transition.
+     The board's motion is entirely enter-animations and hover fades — none of
+     it carries meaning that is lost when it stops, so the honest reduced-motion
+     answer is to stop all of it rather than to slow it down. Tailwind's
+     `motion-safe:` variant already guards the `animate-in` utilities; this
+     catches the plain `transition-*` classes too. */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

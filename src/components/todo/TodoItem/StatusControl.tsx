@@ -5,7 +5,7 @@ import { useCardPopover } from "./useCardPopover";
 import { categoryOf, columnTitle } from "@/constants/columns";
 import { useColumns } from "@/services/columns/useColumnsApi";
 import { useMoveTodo } from "@/services/todos/useMoveTodo";
-import { byPosition } from "@/utils/position";
+import { byRank } from "@/utils/rank";
 import { cn } from "@/utils/cn";
 
 /**
@@ -37,7 +37,7 @@ export default function StatusControl({
   const { data: columns = [] } = useColumns();
   const moveTo = useMoveTodo(todoId);
 
-  const ordered = columns.slice().sort(byPosition);
+  const ordered = columns.slice().sort(byRank);
   const current = ordered.find((column) => column.id === columnId) ?? null;
   const label = current ? columnTitle(current.title) : "No status";
 

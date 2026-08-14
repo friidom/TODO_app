@@ -133,8 +133,10 @@ export type Database = {
           description: string | null
           icon: string | null
           id: string
+          key_prefix: string
           next_key: number
           owner_id: string
+          space_id: string | null
           title: string | null
           updated_at: string
           visibility: string
@@ -145,8 +147,10 @@ export type Database = {
           description?: string | null
           icon?: string | null
           id?: string
+          key_prefix?: string
           next_key?: number
           owner_id: string
+          space_id?: string | null
           title?: string | null
           updated_at?: string
           visibility?: string
@@ -157,8 +161,10 @@ export type Database = {
           description?: string | null
           icon?: string | null
           id?: string
+          key_prefix?: string
           next_key?: number
           owner_id?: string
+          space_id?: string | null
           title?: string | null
           updated_at?: string
           visibility?: string
@@ -169,6 +175,13 @@ export type Database = {
             columns: ["owner_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "boards_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "spaces"
             referencedColumns: ["id"]
           },
         ]
@@ -182,6 +195,7 @@ export type Database = {
           max_limit: number | null
           min_limit: number | null
           position: number | null
+          rank: number | null
           title: string | null
           updated_at: string
         }
@@ -193,6 +207,7 @@ export type Database = {
           max_limit?: number | null
           min_limit?: number | null
           position?: number | null
+          rank?: number | null
           title?: string | null
           updated_at?: string
         }
@@ -204,6 +219,7 @@ export type Database = {
           max_limit?: number | null
           min_limit?: number | null
           position?: number | null
+          rank?: number | null
           title?: string | null
           updated_at?: string
         }
@@ -247,6 +263,38 @@ export type Database = {
         }
         Relationships: []
       }
+      spaces: {
+        Row: {
+          created_at: string
+          id: string
+          owner_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          owner_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          owner_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spaces_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       todos: {
         Row: {
           archived: boolean
@@ -263,6 +311,7 @@ export type Database = {
           position: number | null
           previous_status: string | null
           priority: string | null
+          rank: number | null
           status: string | null
           title: string | null
           type: string
@@ -283,6 +332,7 @@ export type Database = {
           position?: number | null
           previous_status?: string | null
           priority?: string | null
+          rank?: number | null
           status?: string | null
           title?: string | null
           type?: string
@@ -303,6 +353,7 @@ export type Database = {
           position?: number | null
           previous_status?: string | null
           priority?: string | null
+          rank?: number | null
           status?: string | null
           title?: string | null
           type?: string
@@ -388,7 +439,13 @@ export type Database = {
         Returns: boolean
       }
       leave_board: { Args: { p_board_id: string }; Returns: undefined }
+      owns_space: { Args: { p_space_id: string }; Returns: boolean }
       provision_new_user: { Args: never; Returns: string }
+      rebalance_board_column_ranks: {
+        Args: { p_board_id: string }
+        Returns: number
+      }
+      rebalance_column_ranks: { Args: { p_column_id: string }; Returns: number }
       remove_board_member: {
         Args: { p_board_id: string; p_user_id: string }
         Returns: undefined

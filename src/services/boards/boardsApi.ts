@@ -1,9 +1,21 @@
 import { supabase } from "@/services/api/supabase";
 import type { IBoard } from "@/types/data";
 
-/** The fields a board's owner may edit. `owner_id` is deliberately absent. */
+/**
+ * The fields a board's owner may edit. `owner_id` is deliberately absent.
+ *
+ * `space_id` is here as of M15 — moving a board between folders is an ordinary
+ * patch, not its own endpoint. What it is **not** is unrestricted: the
+ * `boards_space_ownership` trigger refuses a filing by anyone but the board's
+ * owner, and refuses any space the caller does not own. Neither `key_prefix`
+ * nor `next_key` is patchable, which is what makes a move incapable of
+ * renumbering or relabelling a single card.
+ */
 type BoardPatch = Partial<
-  Pick<IBoard, "title" | "description" | "icon" | "cover_color" | "visibility">
+  Pick<
+    IBoard,
+    "title" | "description" | "icon" | "cover_color" | "visibility" | "space_id"
+  >
 >;
 
 /**
@@ -66,9 +78,17 @@ export async function getBoard(id: string): Promise<IBoard | null> {
 export async function createBoard({
   id = crypto.randomUUID(),
   title,
+  spaceId = null,
 }: {
   id?: string;
   title: string;
+  /**
+   * Which space to file it into, or null for unfiled (M15). Created straight
+   * into the space it was created from, rather than created loose and moved —
+   * one write, and no window where a board the user made inside a folder is
+   * sitting outside it.
+   */
+  spaceId?: string | null;
 }): Promise<IBoard> {
   const {
     data: { user },
@@ -78,7 +98,7 @@ export async function createBoard({
 
   const { data, error } = await supabase
     .from("boards")
-    .insert({ id, title, owner_id: user.id })
+    .insert({ id, title, owner_id: user.id, space_id: spaceId })
     .select()
     .single();
 

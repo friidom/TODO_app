@@ -1,10 +1,11 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { addTodo, reorderTodos } from "./todoApi";
+import { addTodo, moveTodo, reorderTodos } from "./todoApi";
 import { applyTodoConfirmed, applyTodoInserted } from "./cache";
 import { queryKeys } from "@/services/queryClient/queryKeys";
 import type { Todo } from "../../types/data";
 import { useBoardId } from "@/hooks/useBoardId";
 import { DEFAULT_WORK_TYPE } from "@/constants/workTypes";
+import { rankForAppend, rankForDrop } from "@/utils/rank";
 
 interface AddTodoVars {
   title: string;
@@ -82,11 +83,27 @@ export function useAddTodo() {
       // Not a placeholder any more: this carries the id the row will really
       // have, so the server's answer reconciles onto the same card rather than
       // replacing it.
+      // Where the card will sit under the rank ordering (M6-A). `addTodo`
+      // always appends server-side, so a card created at a chosen gap keeps
+      // this value through `applyTodoConfirmed` and the correction below writes
+      // it back — the same slot-keeping the dense position already did.
+      const destination = previousTodos.filter(
+        (todo) => todo.column_id === column_id,
+      );
+
+      const optimisticRank =
+        rankForDrop(destination, index ?? destination.length) ??
+        // Exhausted: appending is always available and is what the server would
+        // have done anyway, so the card lands somewhere real rather than
+        // failing a create over a full gap.
+        rankForAppend(destination);
+
       const optimisticTodo: Todo = {
         id,
         title,
         created_at: new Date().toISOString(),
         position: 0, //renumbered below
+        rank: optimisticRank,
         column_id,
         board_id: boardId,
         // Allocated by the M2-21 trigger, so the client cannot know it yet.
@@ -129,16 +146,33 @@ export function useAddTodo() {
       queryClient.setQueryData<Todo[]>(queryKeys.todos(boardId), todos);
 
       //the slot we kept; the server just appended
-      const position =
-        todos.find((todo) => todo.id === serverTodo.id)?.position ??
-        serverTodo.position;
+      const kept = todos.find((todo) => todo.id === serverTodo.id);
+      const position = kept?.position ?? serverTodo.position;
+      const rank = kept?.rank ?? serverTodo.rank;
 
-      if (position === serverTodo.position) return;
+      if (position === serverTodo.position && rank === serverTodo.rank) return;
 
       // Unreachable without a board — mutationFn would have thrown before
       // this ran — but the compiler cannot see that, and a non-null assertion
       // is not allowed here.
       if (!boardId) return;
+
+      // The rank half of the correction, and it is a single-row write (M6-04):
+      // the card was created at a gap, the server appended it, so move it to
+      // the gap. `column_id` comes from the server row, which is the column the
+      // insert actually landed in.
+      if (rank !== null && rank !== serverTodo.rank && serverTodo.column_id) {
+        moveTodo({
+          id: serverTodo.id,
+          boardId,
+          columnId: serverTodo.column_id,
+          rank,
+        }).catch(() =>
+          queryClient.invalidateQueries({ queryKey: queryKeys.todos(boardId) }),
+        );
+      }
+
+      if (position === serverTodo.position) return;
 
       // Inserted mid-column, so every card below it shifted — write that back.
       // Still-pending inserts are included now: their ids are real, and

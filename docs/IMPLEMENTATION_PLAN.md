@@ -1,10 +1,10 @@
 # Implementation Plan
 
-**Status:** Active — Milestone 3 in progress
+**Status:** Active — M0 → M5 shipped. Roadmap revised 2026-08-14 for Spaces, a shared view model, the product redesign, Overview, Activity, Calendar and Timeline.
 **Owner:** Tech Lead
 **Source of truth:** the Architecture Review (2026-08-05) + `docs/ARCHITECTURE.md`, `docs/DATABASE.md`, `docs/FRONTEND.md`, `docs/API.md`, `docs/PRODUCT_SPEC.md`
 **Scope:** takes the codebase from its original state (single-user, user-owned board, broken build) to a collaborative, permissioned, realtime work-management product with Jira-level functional depth and its own product identity.
-**Last audited against the repository:** 2026-08-10.
+**Last audited against the repository:** 2026-08-14 (previous audit 2026-08-10).
 
 This document is two things at once, and both matter:
 
@@ -21,7 +21,9 @@ Part I is the **product direction** — what this application is for, what it bo
 
 Part II is the **working agreement** — branch strategy, migration rules, the authoritative permission model, review checklists, Definition of Done. It applies to every task in Part III.
 
-Part III is the **task list**, grouped into milestones. Every task is sized for a single focused session (~1–3 hours), is independently testable, and becomes exactly one commit or one Pull Request. Milestones M0–M9 are fully broken down; M10 onward (Part IV) are roadmap sketches, deliberately not yet decomposed into tasks (see *Milestone status legend*).
+Part III is the **task list**, grouped into milestones. Every task is sized for a single focused session (~1–3 hours), is independently testable, and becomes exactly one commit or one Pull Request. Milestones M0–M9 are fully broken down; M10 → M20 (Part IV) are roadmap sketches, deliberately not yet decomposed into tasks (see *Milestone status legend*).
+
+**Milestone numbers are not the build order.** They record the order milestones were *written*, across three passes: M0–M9 (original), M10–M13 (2026-08-10 audit), M14–M20 (2026-08-14 product-direction revision). The order to actually work in is the **Build order** table at the top of Part III, and it interleaves all three.
 
 Part V is **Deferred / Production Hardening** — real concerns, kept and costed, that do not block anything. Read it once so you recognise a deferred control when a task mentions one. **Security is not in Part V**; the permission model is a product requirement.
 
@@ -34,6 +36,7 @@ Part V is **Deferred / Production Hardening** — real concerns, kept and costed
 | ✅ **Done** | Shipped, and the evidence is named (migration file, commit, or code path). |
 | 🔶 **Applied, verification outstanding** | The change is live in the database or the app, but a test the task called for has not been run. The outstanding check is named. |
 | ⬜ **Not started** | Planned, decomposed, not built. |
+| ◑ **Partly shipped, or absorbed** | Some of it exists, or a later milestone took it over. The row says which, and the original task bodies stay as the specification. Added 2026-08-14, because three milestones are now in exactly this state and calling any of them "done" or "not started" would be false. |
 | 🗺 **Roadmap** | Direction agreed, scope not yet understood well enough to decompose. Not a commitment to build. |
 
 Rules that are not negotiable:
@@ -335,6 +338,7 @@ Flagged explicitly so they are visible rather than smuggled in. Changing one mea
 | Who may delete or archive a board? | **owner only** (M3-17) | Irreversible and cascades across every table. "Owner is the ultimate authority over the board." |
 | May a viewer be assigned a work item? | **Yes** — assignment requires membership, not write permission (M5-05) | Being responsible for something you cannot edit is a real state; refusing it would be a surprise, not a safeguard. |
 | May a viewer comment? | **Undecided — M7 must decide before `comments` RLS is written** | Not derivable from the role spec. Recorded as an open decision, not silently resolved. |
+| **Is a Space a permission scope?** | **No — decided M14, 2026-08-14.** A space is an organisational container. Membership and roles stay board-scoped, and the four roles keep meaning exactly what they mean above. | Appendix B deferred this *"until workspaces become real"*, and M15 makes them real, so it had to be answered before a `spaces` table existed rather than after. The alternative is a space role and a board role that can disagree, a precedence rule between them, a second set of RPCs and a second matrix in this section — a whole second authorization system, bought for *filing*. **The shape that follows:** `spaces.owner_id` with owner-only RLS; `boards.space_id` is the owner's filing decision; a member who does not own the space cannot read the space row and sees the board unfiled. **The one new rule it adds, and it is enforced in the database, not the client:** `boards.space_id` may only be set to a space the caller owns — M3-17 lets any admin update a board, so without it an admin could file a board into a space they cannot see. **Reversible without a rewrite:** if spaces later need sharing, `spaces` gains its own membership and `boards.space_id` is unchanged. |
 
 ---
 
@@ -533,26 +537,67 @@ Risk labels, applied to every task:
 | **MEDIUM RISK** | Touches shared state, the write path, or many files. Needs deliberate testing. |
 | **HIGH RISK** | Destructive, or changes the security boundary, or migrates data. Requires backup + rollback + migration strategy, documented per task below. |
 
-## Milestone status — as of 2026-08-10
+## Milestone status — as of 2026-08-14
+
+> **Milestone IDs are historical, not sequential.** M0–M9 were numbered in the order they were *planned* in during 2026-08. M10–M13 were roadmap sketches, and M14–M20 were added by the 2026-08-14 revision. The order to build in interleaves them, and it is the **Build order** table below — not this one.
 
 | Milestone | Status | Note |
 |---|---|---|
 | M0 · Stabilise | ✅ Done | Build green, `strict` on, schema and RLS in Git, CI running. |
 | M1 · Foundation | ✅ Done | Auth provider, key factory, error surfacing, Vitest. |
 | M2 · Boards | ✅ Done | Board ownership across schema, RLS, routing and queries. |
-| M3 · Members & Roles | 🔶 In progress | **Backend complete and verified.** Every M3 migration applied (29 of 29 paired local↔remote) and the role matrix passes 105/105, with M3-14 at 67/67 and M3-15 at 37/37 alongside it. Only the four UI tasks remain. |
-| M4 · Invitations | ⬜ Not started | Depends on M3's membership RPCs. |
-| M5 · Work Item Model | ⬜ Not started | Columns exist in the schema since M2-03; the UI does not. |
-| M6 · Realtime | ⬜ Not started | Ordering migration first, then channels. |
-| M7 · Comments & Activity | ⬜ Not started | Carries an undecided permission question. |
-| M8 · Boards UX | ⬜ Not started | |
+| M3 · Members & Roles | ✅ Done | Backend applied and verified (209 cases on a replica); all four UI tasks shipped (`5b9b7b9`). **Two items still owed, neither gating:** the M3-16 re-run against the linked project, and the M3-11 client swap in `columnsApi.ts`. Both are carried into M14. |
+| M4 · Invitations | ✅ Done | All seven tasks plus one fix (`a38c969` → `159869a`). Link invites only, as scoped. |
+| M5 · Work Item Model | ✅ Done | Type split, presentational card, priority / due date / assignee controls, narrowed board query, and the detail panel behind `?task=` (`8f97779`, `2aed1c8`). |
+| — · Board views | ✅ Shipped ahead of the plan | Filter, sort, group, swimlanes and the List view (`5cd7a24` and follow-ups). This is work Part IV had filed under M11 and M12; it arrived first. See *Views shipped ahead of the plan*, below. |
+| M6 · Realtime | 🔶 M6-A built 2026-08-14 | **M6-A (ordering) is in:** `rank` on todos and columns, backfilled and self-verified, read by rank, single-row writes, rebalance RPCs. **M6-05 (drop `position`) is deliberately not done** — Tier B, needs a dump, and the plan requires a soak first. **M6-B (channels) untouched.** M3-10 closed here. |
+| M7 · Comments & Activity | ◑ Split | Comments unstarted. **Activity moved to M18**, where it finally gets the reader M7-05 said it must have before it is built. |
+| M8 · Boards UX | ◑ Absorbed by M15 | Its nine task bodies remain the specification for board CRUD, settings and the cascade check; M15 builds them inside a space hierarchy rather than beside one. |
 | M9 · Quality | ⬜ Not started | Four stated core principles are unmet until this lands. |
-| M10 · Work Item Depth | 🗺 Roadmap | Types, labels, subtasks, links. |
-| M11 · Backlog & Views | 🗺 Roadmap | |
-| M12 · Search & Filtering | 🗺 Roadmap | |
-| M13 · Configurable Workflow | 🗺 Roadmap | |
+| M10 · Work Item Depth | 🗺 Roadmap | `type` shipped in M5. Labels, subtasks, links and epics remain. |
+| M11 · Backlog & Views | ◑ Partly shipped | The *views* half shipped early and is the base M16 formalises. The *backlog* half is untouched and still needs M6-A. |
+| M12 · Search & Filtering | ◑ Partly shipped | Filtering shipped, client-side, exactly as this milestone specified. Search, saved filters and the command palette did not. |
+| M13 · Configurable Workflow | 🗺 Roadmap | Unchanged. |
+| **M14 · Foundation Cleanup** | 🔶 Applied 2026-08-14 | Three Tier A migrations live (key prefix, avatar storage ownership, `handle_new_user` search_path) and both blocking decisions settled. **Outstanding: the Tier B drop of `todos.status` / `previous_status`**, blocked on the Rule 6 backup procedure — see the milestone. |
+| **M15 · Spaces & Boards** | 🔶 Applied 2026-08-14 | `spaces` + `boards.space_id` live; space and board CRUD shipped; sidebar grouped. **Deferred: `archived` (M8-03) and board appearance (M8-04).** |
+| **M16 · Shared View Model** | 🔶 Built 2026-08-14 | Scope, search, the view registry and the shared row shape. No migration. **Deferred: selection**, until a bulk action exists to select *for*. |
+| **M17 · Product Redesign** | 🔶 Built 2026-08-14 | `ViewShell` contract, rail removed, `?panel=` drawers, breadcrumb + view tabs, compact sidebar, Geist typography. No schema, no business logic. **Browser verification owed.** |
+| **M18 · Activity & Overview** | ⬜ Roadmap — **new** | `activities` + feed + dashboard. |
+| **M19 · Calendar** | ⬜ Roadmap — **new** | Date-based view. **No schema change.** |
+| **M20 · Timeline** | ⬜ Roadmap — **new** | Date-range view. **The one migration this roadmap forces.** |
 
-The original plan described ten milestones (M0–M9). M10–M13 are roadmap direction added in the 2026-08-10 audit; they are **not** decomposed into tasks and are **not** commitments. Appendix E records what is deliberately out of scope.
+M10–M13 were roadmap direction added in the 2026-08-10 audit; M14–M20 in the 2026-08-14 revision. None of them is decomposed into tasks, and none is a commitment until it is. Appendix E records what is deliberately out of scope — **and it changed on 2026-08-14**, because Calendar and Timeline were on it.
+
+### Build order — the sequence to actually work in
+
+Dependencies, not preference. Each row states what would have to be **rebuilt** if it ran earlier than this.
+
+| # | Milestone | Why it sits here |
+|---|---|---|
+| 1 | **M14 · Foundation Cleanup** | Two of its decisions are one-way doors. `boards.key_prefix` has to be settled before a user can create a second board, or two boards both hand out `KAN-1`. Whether a Space is a permission scope has to be settled before any Space exists. It also clears the dead status columns before M10 adds a third status-shaped concept, and closes the live avatar-storage hole that has had no owner since M0-06. |
+| 2 | **M15 · Spaces & Boards** | Establishes the hierarchy the redesign renders and the *scope* the view model needs a word for. Blocked by M14's key decision. |
+| 3 | **M16 · Shared View Model** | Turns the shipped board pipeline into one four views share. Needs M15, because "which tasks is this view over?" has no answer until a space exists. |
+| 4 | **M6-A · Ordering (ranks)** · ✅ built 2026-08-14 (M6-05 pending) | The last cheap moment for the ordering migration: before any second reorderable surface exists (backlog rows, timeline rows) and before the redesign touches drag affordances. Doing it after means doing the DnD work twice. |
+| 5 | **M17 · Product Redesign** · ✅ built 2026-08-14 | Renders a settled hierarchy (M15) over a settled view model (M16). Ships the **view shell contract** that M19 and M20 slot into — that contract is the reason the redesign precedes the two new views rather than following them. |
+| 6 | **M18 · Activity & Overview** | Activity's table must not exist without a reader (M7-05); the Overview's recent-activity panel is that reader, so the two are one milestone. Both need M17 to know where they live now that the rail is gone. |
+| 7 | **M19 · Calendar** | The cheap date view, and the proof that M16's model survives a second axis — built before M20 pays for the same lesson with a migration. |
+| 8 | **M20 · Timeline** | Needs `todos.start_date`, and needs Calendar to have already surfaced whatever M16 got wrong about dates. |
+| 9 | **M6-B · Realtime (channels)** | Blocks nothing above it and is blocked by none of it — it is a cache-update path, not a layout. Wants M6-A's single-row writes already in place, or every event re-applies a whole-column renumber. |
+| 10 | **M7 · Comments** | Wants M6-B for live threads and M17 for where a thread renders. |
+| 11 | **M9 · Quality** | Accessibility, keyboard, mobile and performance across the final surface rather than across two. **Exception: pull M9-01 and M9-02 into M17** if the redesign rewrites the board's DOM — retrofitting accessibility is doing it twice, which is what M9's own dependency note already says. |
+| — | M10 · Work Item Depth, M13 · Configurable Workflow | Unchanged roadmap. Neither is on the path to anything above; both are re-costed once the views exist. |
+
+**What this order buys.** Every UI milestone (M17 → M20) runs after the two decisions that would otherwise force it to be rewritten: the hierarchy (M15) and the view model (M16). Every schema decision that a later view depends on is made in M14 or named in Appendix D before the view is built. Nothing in the new wave waits on realtime, and realtime waits on nothing in it.
+
+### Views shipped ahead of the plan
+
+Recorded here rather than edited into M11 and M12, per the ledger rule at the head of this document.
+
+Between 2026-08-13 and 2026-08-14 the board gained filtering, sorting, grouping (including swimlanes), a List view, and a task detail panel — none of it in the milestone that was open at the time. It was built the way M12 had already specified (client-side over the existing `["todos", boardId]` cache, no migration, no new dependency) and it is good work, but it arrived out of sequence and that has three consequences the roadmap now has to carry:
+
+1. **A second view exists, so "one data model, many views" stopped being theoretical.** `src/services/todos/view.ts` (pure filter / sort / group), `useVisibleTodos` (the single pipeline) and `useBoardView` (URL-as-store) are the shape M16 formalises rather than invents. That is the good outcome.
+2. **The pipeline is board-scoped by construction.** `useVisibleTodos` reads `useTodos()`, which is keyed `["todos", boardId]`. Nothing about it extends to a view spanning several boards, which is exactly what the Overview needs. **That is M16's central problem, and it is stated in Appendix D rather than discovered in M18.**
+3. **A second *read* ordering exists; a second *write* ordering does not.** Sorting writes nothing and the List view has no drag, so the dense-integer hazard M6-A exists to remove has not been triggered. `resolveDropIndex` (`src/services/todos/dropIndex.ts`) resolves a drop by the identity of the card the gap sits above rather than by a rendered index, which is what keeps dragging correct on a *filtered* board. It is a client-side fix and it does not replace M6-A — a concurrent editor is still a whole-column renumber from a stale snapshot.
 
 ---
 
@@ -1323,7 +1368,13 @@ Every task landed, including the two the plan offered as deferrable (M2-14 and M
 
 ---
 
-## Milestone 3 — Members & Roles · 🔶 **In progress**
+## Milestone 3 — Members & Roles · ✅ **Done**
+
+> **Closed 2026-08-14.** The four UI tasks shipped in `5b9b7b9` (`services/members/`, `components/members/`, `usePermissions` in one module as M3-09 required).
+> **One item is still owed:** the M3-16 re-run against the linked project (the 105/105 was on a replica). It does not block a later milestone, which is why the milestone closes; it is real, which is why it is not deleted.
+> **Correction, 2026-08-14 (M14).** The revision earlier that day recorded the M3-11 client swap as outstanding. **It is not** — `deleteColumn` in `columnsApi.ts` has called `supabase.rpc("delete_column", …)` since `5b9b7b9`. The claim was copied from M3-11's task note instead of from the file. Fixed here, in M3-11 below, and in M14's item list.
+>
+> **What was recorded from the repository, not from a re-run:** the statuses below for M3-06 → M3-09 come from reading the shipped code and the commit, not from executing each task's Manual Test checklist a second time. Stated plainly, per the rule at the head of this document that nothing here claims a verification that did not happen.
 
 **Goal.** Replace row ownership with the permission model defined in Part II — `viewer → editor → admin → owner`, enforced in the database, with the Owner protected against every membership operation.
 
@@ -1525,7 +1576,8 @@ Implements the two decisions recorded in *Permission Model → Decisions this se
 - **Commit:** `feat(db): a work item's column must belong to its board`
 > Do this **before** M3-10. It removes most of M3-10's security rationale and leaves it a transactional-integrity task, which is a smaller and clearer thing to build.
 
-#### M3-06 · `services/members/` — **SAFE** — ⬜ Not started
+#### M3-06 · `services/members/` — **SAFE** — ✅ Done (`5b9b7b9`)
+> **As built.** `membersApi.ts` + `useBoardMembers` (the `board_roster` RPC, never `.from("board_members")`) and `useMemberMutations.ts` holding the three RPC-backed mutations together rather than in three files. `queryKeys.members(boardId)` is in the factory. `permissions.ts` + `permissions.test.ts` live here too — the role arithmetic is pure, so it is tested rather than clicked.
 `membersApi.ts` + `useBoardMembers`, `useAddMember`, `useUpdateMemberRole`, `useRemoveMember`. Keys `["members", boardId]` via the factory.
 **Commit:** `feat(members): members API and query hooks`
 > **Re-scoped 2026-08-10, revised 2026-08-11 for M3-13's RPC boundary.** The read hook calls `supabase.rpc("board_roster", { p_board_id: boardId })` — **never** `.from("board_members").select()`. That table is self-read only and stays that way; a direct query returns the caller's own row and nothing else, which would render a one-person member list with no error to signal it. **The three mutation hooks call the M3-14 RPCs via `supabase.rpc(...)` — never `.from("board_members").insert/update/delete()`.** There is no policy that would let those succeed, and adding one is prohibited (Permission Model, rule 4).
@@ -1533,13 +1585,15 @@ Implements the two decisions recorded in *Permission Model → Decisions this se
 > **Depends on:** M3-13 (the `board_roster` RPC), M3-14 (the mutation RPCs).
 > **Test:** the list renders every member for a member of the board; each mutation hook rolls back optimistically on a denied RPC and surfaces the error through the M1-07 toast path.
 
-#### M3-07 · Member list UI — **SAFE** — ⬜ Not started
+#### M3-07 · Member list UI — **SAFE** — ✅ Done (`5b9b7b9`)
+> **As built.** `components/members/` — `MemberRow`, `MemberIdentity`, `roleStyles.ts`, `memberLabels.ts`. It renders inside `ContextRail`, which **M17 removes**: the rail is a layout decision, the roster is not, so `MemberIdentity` and `MemberRow` are already the reusable half and M17 re-hosts them in a drawer without touching either.
 Avatars, names, role badges, joined date. Read-only.
 **Commit:** `feat(members): board member list`
 > **Depends on:** M3-13. A teammate's `profiles` row is not readable directly and will not become readable — the data comes from `board_roster`, which returns exactly `id`, `username`, `full_name`, `avatar_url`, `role`, `joined_at`. Render from those six and no others; there is no `email` or `bio` to fall back on. `username`, `full_name` and `avatar_url` are nullable in the base table, so the UI must handle a null name and a missing avatar.
 > The Owner is visually distinguished from admins: it is the one role no control can change, and the UI should say so rather than offering a disabled button with no explanation.
 
-#### M3-08 · Role management UI — **MEDIUM RISK** — ⬜ Not started
+#### M3-08 · Role management UI — **MEDIUM RISK** — ✅ Done (`5b9b7b9`)
+> **As built.** `MemberActions.tsx`. The Owner is not a target of any control, as required.
 Change role, remove member, with optimistic update and rollback. The Owner is never a target of either control.
 **Test:** promote, demote, remove; attempt to target the Owner → no control exists in the UI **and** the operation is refused by the database; a removed member loses access on their next request.
 **Commit:** `feat(members): manage roles and remove members`
@@ -1547,7 +1601,8 @@ Change role, remove member, with optimistic update and rollback. The Owner is ne
 > The role selector an **admin** sees offers `viewer` and `editor` only, and is absent on rows held by an admin or the Owner. The selector an **owner** sees offers `viewer`, `editor`, `admin` — never `owner`.
 > **Test additions:** as an admin, no control exists that targets the Owner or another admin; a role change that the database rejects rolls back visibly rather than sticking optimistically; the actor's own row cannot be escalated.
 
-#### M3-09 · Frontend permission gating — **SAFE** — ⬜ Not started
+#### M3-09 · Frontend permission gating — **SAFE** — ✅ Done (`5b9b7b9`)
+> **As built.** `src/hooks/usePermissions.ts` over `services/members/permissions.ts` — one module, derived booleans, no scattered `role === "admin"`. Every milestone after this one gates through it; **M15 and M17 must not grow a second one** for spaces or for the redesigned navigation.
 `usePermissions()` derived from the current user's role. Hide destructive affordances from viewers. UI convenience only — RLS remains the boundary.
 **Test:** as a `viewer`, the create button, drag handles, column menu and delete are absent; bypassing the UI still fails at the database.
 **Commit:** `feat(members): gate UI affordances by role`
@@ -1555,18 +1610,32 @@ Change role, remove member, with optimistic update and rollback. The Owner is ne
 > Gate the drag sensors too, not only the buttons: a viewer who can start a drag gets an optimistic move that silently reverts, which reads as a broken board rather than as a permission.
 > **This is UX. It is never the enforcement.** Every gated action must already be denied by M3-05, M3-14, M3-15 or M3-17 with the UI bypassed entirely.
 
-#### M3-10 · `reorder_todos` RPC — **MEDIUM RISK** — ⬜ **Deferred to M6** (decided 2026-08-10)
+#### M3-10 · `reorder_todos` RPC — **CLOSED as unnecessary, 2026-08-14 (M6-04)**
+
+> **Re-evaluated at M6-04 exactly as the commit order instructed — *"if no bulk renumber path survives M6-04, close it as unnecessary"* — and the answer is that one path survives and it already has the property M3-10 wanted.**
+>
+> M6-04 removed the per-drag bulk upsert: a move is now `moveTodo`, one row, `{ column_id, rank }`. The client no longer sends an array of row ids and positions anywhere on the drag path, which was the whole of M3-10's security concern — *"an unbounded client-controlled write of `column_id` and `position` across arbitrary row ids"*.
+>
+> The one bulk renumber left is M6-06's rebalance, and it is built the way M3-10 required: `rebalance_column_ranks(p_column_id)` and `rebalance_board_column_ranks(p_board_id)` **take an id and derive every new value server-side**. Nothing about the resulting order comes from the client.
+>
+> **One bulk client write remains and it is not this task's**: `reorderTodos`, used by the insert path to keep dense `position` values while `position` still exists. It disappears with M6-05, along with the column itself, so building an RPC to guard a column that is being dropped would be building something M6-05 deletes — the same argument that deferred M3-10 in the first place.
+>
+> The original task body is kept below as the historical record.
 Replaces the client-supplied bulk `upsert`, which is an unbounded client-controlled write of `column_id` and `position` across arbitrary row ids. The RPC validates membership and renumbers server-side in one transaction.
 **Test:** drag within and across columns; attempt to reorder a board you are not a member of → rejected; attempt to inject a foreign todo id into the payload → rejected.
 **Commit:** `feat(db): transactional reorder_todos RPC`
 > **Deferred, with the reason, per Definition of Done.** It keeps its ID and stays documented here; it is **not** part of M3's Definition of Done and does not block the milestone. It is re-evaluated at M6-04 and appears in M6's commit order.
 > **Why.** Most of the security case is already covered: M3-05's `USING` clause is evaluated against each *existing* row, so a foreign work item id in the payload is rejected by the policy, and M3-18 closes the cross-board `column_id` gap. What remains is transactional integrity — a partial bulk upsert leaves a column with duplicate or gapped positions — and payload size. **M6-04 replaces whole-column renumbering with a single-row rank write, which removes both.** Building this now means building something M6 deletes.
 > **The trigger to reopen it:** M6-04 ships and a bulk renumber path still exists (rebalancing, or an import). If it is built at any point, it must take the board id and derive everything else server-side.
+>
+> **Re-evaluated 2026-08-14 against the new roadmap. Still deferred — and the reasoning survived a real test.** The question asked was whether M15 → M20 introduce a second surface that writes order, because that would reopen this immediately. They do not: Calendar and Timeline write **dates**, Spaces and the Overview write nothing ordered, and the List view sorts without persisting. `todos.position` still has exactly one writer, the board's drag path, which is what made deferring it correct in the first place.
+> **Two new triggers, both cheap to watch for:**
+> - **Timeline row order must be derived, not stored.** A Gantt whose rows can be dragged into an arbitrary order is a second ranked surface, and it would reopen both this task *and* M6-A on the day it ships. Order timeline rows by `start_date` — that is the decision M20 records, and it is the reason M20 does not drag this task back into scope.
+> - **If M6-A slips past M17**, the unbounded client-supplied bulk `upsert` outlives the redesign. That is tolerable (M3-05's per-row `USING` and M3-18's composite FK cover the authorization half; what is missing is transactional integrity) but it stops being tolerable the moment two people edit one board — which is M6-B.
 
-#### M3-11 · `delete_column` RPC — **MEDIUM RISK** — ✅ Backend applied and verified 2026-08-12; frontend not started
+#### M3-11 · `delete_column` RPC — **MEDIUM RISK** — ✅ Done, both halves
 
-> **State.** `supabase/migrations/20260811140000_delete_column_rpc.sql` applied 2026-08-12; `delete_column` is present in the regenerated types. Behaviour is `scripts/verify-m3-16-role-matrix.sql` §10 and has not been run.
-> **The half that is not done is the frontend half, and it belongs to the Lead:** `deleteColumn` in `src/services/columns/columnsApi.ts` still performs the four round-trips. Swapping it to `supabase.rpc('delete_column', { p_column_id, p_move_to_column_id })` is what makes the RPC live. Nothing was removed, so the old path keeps working until then.
+> **State.** `supabase/migrations/20260811140000_delete_column_rpc.sql` applied 2026-08-12, verified by `scripts/verify-m3-16-role-matrix.sql` §10 (on the replica). **The client swap landed in `5b9b7b9`:** `deleteColumn` in `src/services/columns/columnsApi.ts` calls `supabase.rpc("delete_column", { p_column_id, p_move_to_column_id })` and `useDeleteColumn` is untouched — same arguments, same return. The four round-trip path is gone.
 > **Why the row count is checked inside the function.** An RLS denial on UPDATE or DELETE is zero rows, not an error. Without the check a viewer would call this, change nothing, and be told it worked — the exact silent failure the task exists to remove, one layer up. The zero-row `DELETE` raises 42501, and that *is* the authorization check: not "what role is the caller" but "did the write actually happen".
 The current path is four sequential round-trips; a failure between the rehoming upsert and the delete leaves an empty column the user believes is gone.
 **Test:** delete a column with cards → all cards arrive at the destination in order, column gone; simulate a mid-operation failure → nothing is half-applied.
@@ -1607,6 +1676,9 @@ Seed a board with 500 cards, 12 columns and 10 members. `explain analyze` the bo
 > **Deferred, and it does not gate the milestone.** Seeding 500 cards and 10 members to measure a fixture-scale application is production-readiness work, not product work. The structural mitigation — indexes on `board_members(board_id)` and `(user_id)`, plus the M2-05 indexes — is already in place, and the set-returning `accessible_board_ids()` design deliberately plans as an InitPlan.
 > **What stays in M3, for free:** if the board becomes visibly slower to load or drag on the fixture after M3-13 → M3-18, that is a finding and it gets its own task. No instrumentation needed to notice it.
 > **Reopen (PH-03) when:** a real board passes a few hundred work items, or someone reports slowness. Two plans to look at then, and they are not the same shape: reads go through `accessible_board_ids()` (row-independent, once per statement), writes through `board_role(board_id)` (row-dependent, potentially once per row on a bulk upsert). Profile the bulk reorder path specifically. This also absorbs the `explain analyze` check M3-02 did not run.
+>
+> **Re-evaluated 2026-08-14. Still deferred, but the trigger is no longer hypothetical and it now has a named milestone.** Every query in the product to date is scoped to one board, so its cost is bounded by one board's size. **M18's Overview is the first query whose cost is proportional to everything the caller can see** — every board in every space, through `accessible_board_ids()` at its widest, and a client-side filter pipeline (M12's recorded decision, now M16's) running over the union rather than over one board. Two accounts with three boards will not show it; the shape is nevertheless new.
+> **The trigger is now: before M18's cross-board query ships**, not "when someone reports slowness". Profiling a query shape *before* the dashboard that depends on it is a morning's work; discovering it after is a rewrite of the Overview's data access. The measurement is still deferred — nothing before M18 needs it.
 
 ### Expected commit order — Milestone 3
 
@@ -1668,7 +1740,10 @@ deferred out of this milestone:
 
 ---
 
-## Milestone 4 — Invitations · ⬜ **Not started**
+## Milestone 4 — Invitations · ✅ **Done**
+
+> **Closed 2026-08-14.** All seven tasks shipped, `a38c969` → `159869a`: `board_invites`, the `create_invite` and `accept_invite` RPCs with `scripts/verify-m4-*.sql` beside them, `services/invites/`, `components/invites/`, the public `/invite/:token` route, and expiry filtering in the list query rather than a scheduler. Link invites only, as the scope decision below required; the `email` column exists and is unused.
+> **One defect found after the fact and fixed forward** (`159869a`): `accept_invite` raised `42702` — an ambiguous column reference between a PL/pgSQL variable and a table column — on *every* call. It never granted a wrong membership; it granted none. Recorded because "the RPC was reviewed line by line" and "the RPC was executed once" are different claims, and only the second one catches this class of bug.
 
 **Goal.** Let an admin or owner add members without a manual database insert.
 
@@ -1747,7 +1822,13 @@ Public route. Unauthenticated visitors are sent to login/register and returned t
 
 ---
 
-## Milestone 5 — Work Item Model · ⬜ **Not started**
+## Milestone 5 — Work Item Model · ✅ **Done**
+
+> **Closed 2026-08-14** (`8f97779`, `2aed1c8`, with priority and due date arriving early in `5cd7a24`). All eight tasks: the type split (`Todo` is a narrowed `Pick` of the row, `TodoViewState` and `TodoCardContent` are separate — M5-01 and M5-07 solved together, since the props type *is* the select list), edit state lifted out of the card, `constants/priorities.ts` and `constants/workTypes.ts` with their test siblings, `<input type="date">` and no date library, an assignee picker over `board_roster`, and the detail panel.
+>
+> **M5-06's architecture decision, which the milestone body below said would outlive it — recorded here because it does.** The task detail view is a **panel addressed by a `?task=<id>` search param**, not a nested route. `src/hooks/useOpenTask.ts` carries the full reasoning; the part that binds later milestones is this: the board stays mounted behind it, and the view state (filter, sort, group, mode) is already in search params, so one link carries the task *and* the view it was found under. **M16, M18, M19 and M20 inherit this contract** — a view is a search param, a panel is a search param, and neither costs a remount. M7's comment deep links and M18's activity entries point at `?task=`.
+>
+> **What shipped beyond the milestone**, and it is the reason the roadmap below exists: filter, sort, group, swimlanes and the List view. See *Views shipped ahead of the plan* in Part III's status section.
 
 **Goal.** Make the four remaining MVP work-item features real: assignment, due dates, priorities, descriptions.
 
@@ -1824,7 +1905,49 @@ The bug, chevron, calendar and user buttons in `TodoCreateForm` currently do not
 
 ---
 
-## Milestone 6 — Realtime · ⬜ **Not started**
+## Milestone 6 — Realtime · 🔶 **M6-A built 2026-08-14; M6-05 and M6-B outstanding**
+
+> ### M6-A as built — ordering by rank
+>
+> Three migrations, 41 of 41 paired local↔remote, plus the client half.
+>
+> | Task | State |
+> |---|---|
+> | M6-01 add `rank` | ✅ `20260814120000_add_rank_columns.sql` — `double precision`, nullable, on `todos` **and** `columns`, with `(column_id, rank)` and `(board_id, rank)` indexes. Tier A. |
+> | M6-02 backfill | ✅ `20260814121000_backfill_ranks.sql` — **and it verifies itself**, see below. |
+> | M6-03 read by rank | ✅ `byRank` replaces `byPosition` at all twelve call sites; `utils/position.ts` deleted; both queries `.order("rank")`. |
+> | M6-04 single-row writes | ✅ `moveTodo` / `moveColumnRank`; `applyTodoMoved` changes **one row**. |
+> | M6-06 rebalancing | ✅ `20260814122000_rebalance_ranks.sql` — two `SECURITY INVOKER` RPCs, plus the client detection and retry. |
+> | **M6-05 drop `position`** | ⬜ **Not done, deliberately.** See *What is deliberately not done*. |
+>
+> **`double precision`, not `numeric` or a lexicographic string.** The operation is "a value strictly between these two", a float gives it in one step, and the failure mode is bounded and known — about 50 midpoints into the same gap before the mantissa runs out. That is exactly what M6-06 absorbs, and `rankBetween` returns `null` **before writing** rather than discovering a collision afterwards. `rank.test.ts` pins the boundary: more than 50 insertions, fewer than 200.
+>
+> **The backfill was reclassified from Tier B to Tier A, and the argument is in the migration rather than assumed.** Rule 6's letter — "any UPDATE against rows that already exist" — puts it in Tier B; Rule 6's stated purpose is "recovery effort scales with **what a migration can destroy**", and this one cannot destroy anything: `rank` was created one migration earlier and was NULL on every row, so there is no prior value to overwrite, and the rollback (`set rank = null`) restores the exact prior state *with SQL*, which is Rule 6's own definition of Tier A. **No dump was taken** — `supabase db dump` needs Docker, which was unavailable. The judgement is reversible for the cost of one UPDATE.
+> What a dump would not have protected against is the failure that actually mattered here: a rank order that silently disagrees with the position order. The migration asserts, **inside the transaction**, that every row has a rank, that ranks are unique within each column, and that ordering by rank produces the identical sequence to ordering by `(position, created_at, id)` — on every column of every board, for todos and columns both. It passed, which is the strongest statement available that no board moved.
+>
+> **One correction to M6-04's rollback note.** The task says "revert the deploy; `position` is still being written". It cannot be: a single-row dense position does not exist, because the value between 1 and 2 is not an integer. So the drag path writes `rank` only and `position` is no longer authoritative. It does **not** go stale immediately — the insert path still renumbers a column densely, and it now does so in *rank* order, so positions remain a lazily-updated mirror. Reverting the deploy needs one statement to re-derive them, recorded in the backfill migration.
+>
+> **What is deliberately not done, and why each is a decision rather than an omission:**
+> - **M6-05 (drop `position`) — no.** It is genuinely Tier B (it destroys values that exist), it needs a dump that Docker currently blocks, and the plan's own commit order requires **M6-04 to soak for several days first**. Applying it in the same session that introduced single-row rank writes would discard the rollback before anything has exercised it. It also reopens PH-01/PH-02, which is a decision for the owner. `insertDense.ts` therefore stays.
+> - **M6-B (M6-07 → M6-12) — untouched.** No publication, no channel, no handler.
+>
+> **What was removed as a consequence of M6-04**, because it had no callers left: `useReorderColumns.ts`, `reorderColumns`, and `applyColumnMoved` with its tests. A column move is a rank write now, so a from/to splice over a renumbered array has nothing left to express — including for M6-B, whose remote-move handler applies `applyTodoMoved` with the rank the sender chose.
+>
+> **Verification run:** `npm test` 26 files / 271 tests, `npm run build`, `npm run lint`, `git diff --check` — all green. The two-browser concurrency checks (M6-12) belong to M6-B and have not been run.
+
+---
+
+> ### The M6 boundary, re-evaluated for the new roadmap
+>
+> M6 was written as one milestone doing two things: replacing dense integer `position` with fractional ranks (M6-01 → M6-06), then opening realtime channels (M6-07 → M6-12). The 2026-08-14 revision **keeps both, keeps every task ID and every task body, and stops treating them as one unit** — because they have different dependents, and bundling them meant the whole roadmap inherited the strictest of the two.
+>
+> **M6-A · Ordering — M6-01 → M6-06.** Blocks any *second surface that writes order*. That is a backlog (M11), and it would be a timeline whose rows can be dragged — which is exactly why M20 orders rows by `start_date` instead. Build order position: **4**, before M17. The reason is not urgency, it is cost: it rewrites `useTodoDrop`, `reorderTodos`, `insertDense`, `applyTodoMoved` and `byPosition`, and the redesign touches the same drag affordances. Doing them in the other order means doing the drag work twice.
+>
+> **M6-B · Channels — M6-07 → M6-12.** Blocks **nothing** in the new roadmap. It is a cache-update path, not a layout and not a schema: the pure `applyTodo*` functions from M2-16 are already the seam it plugs into, and no view built between here and M20 has to know it exists. Build order position: **9**. It wants M6-A finished first, or every remote event re-applies a whole-column renumber from the sender's snapshot — which is the same silent-data-loss failure M6-A exists to remove, arriving over a socket instead of from a second tab.
+>
+> **What this changes for M11.** The old text said "M6 before M11 is not negotiable". That is still true of **M6-A** and was never true of M6-B, and the distinction matters now that the views half of M11 has already shipped without either. Sorting and the List view are *read* orderings and write nothing; they were safe. A backlog is not.
+>
+> **What this does not change.** Fractional ranks still come before any channel is subscribed. The ordering decision below is unmodified.
 
 **Goal.** Two people on one board see each other's changes without refreshing, and concurrent edits merge instead of overwriting.
 
@@ -1946,9 +2069,13 @@ Execute the full Concurrency section of the Testing Checklist and record results
 
 ---
 
-## Milestone 7 — Comments & Activity · ⬜ **Not started**
+## Milestone 7 — Comments & Activity · ◑ **Split 2026-08-14**
 
-**Goal.** Ship the last MVP item (comments). Add activity history only if it is genuinely being built.
+> **Activity left this milestone.** M7-05 was conditional on the feed UI genuinely being designed — *"an unbounded audit table with no reader grows forever and is silently wrong the day you finally build the UI."* The new roadmap gives it a reader, so the condition is met and the work moves to **M18**, which builds the table, the triggers and the feed together. **M7-05's schema and its two rules move with it unchanged** — they were right when written and M18 does not get to re-decide them.
+>
+> **Comments stay here**, at build-order position 10: after M6-B (a comment thread that does not update live is a page-refresh feature) and after M17 (which decides where a thread renders now that the rail is gone). The open viewer-comment permission question below is **still open and still must be answered before M7-01's RLS is written.**
+
+**Goal.** Ship the last MVP item (comments). Activity history moved to M18.
 
 **Why this milestone exists.** Comments complete the MVP list in `docs/PRODUCT_SPEC.md`.
 
@@ -2011,7 +2138,13 @@ If built: write via trigger, never from the client. Plan retention from day one.
 
 ---
 
-## Milestone 8 — Boards UX · ⬜ **Not started**
+## Milestone 8 — Boards UX · ◑ **Absorbed by M15, 2026-08-14**
+
+> **This milestone is not cancelled and its tasks are not rewritten — they are built inside a hierarchy instead of beside one.** M8 assumed boards are a flat list belonging to a user. The new direction puts boards inside spaces, and every screen M8 describes (the board list, create, rename, archive, delete, the sidebar wiring) is a screen whose shape changes when there is a level above it. Building them flat and then adding spaces means building them twice.
+>
+> **M15 inherits all nine task bodies as its specification**, including the two that are pure decisions and must still be made: the `archived` semantics M8-03 asks for, and the cascade verification M8-08 owns. **M8-06 (`/settings`) and M8-07 (`/forgot-password`) do not depend on spaces at all** — they are account screens, not board screens, and may ship at any point.
+>
+> **Already built ahead of it:** `services/boards/` has `useBoards`, `useBoard`, `useCreateBoard`, `useUpdateBoard` and `useDeleteBoard`, and the sidebar lists real boards (M8-05's substance). **The three mutation hooks have no UI consumer at all** — the service layer for board CRUD exists and nothing calls it. That is M15's cheapest starting point and the reason M15 is smaller than it looks.
 
 **Goal.** Make multiple boards usable, not merely possible.
 
@@ -2177,11 +2310,13 @@ Eight strings are translated. Everything else — "Create", "Transition to...", 
 
 ---
 
-# PART IV — ROADMAP (M10 → M13)
+# PART IV — ROADMAP (M10 → M20)
 
 **These are directions, not commitments, and they are deliberately not decomposed into tasks.** A milestone leaves this part and enters Part III when its architecture is understood well enough to write task IDs, dependencies, risk labels and acceptance criteria for it — the same standard M0–M9 meet. Writing forty speculative task IDs now would produce a plan that is wrong in forty places.
 
-One exception, and it is deliberate: **M10-00** is named below because it is a cleanup whose scope is already fully known and which must happen before the rest of M10 is designed. It is the only pre-assigned ID in this part.
+One exception, and it is deliberate: **M10-00** is named below because it is a cleanup whose scope is already fully known and which must happen before the rest of M10 is designed. It is the only pre-assigned ID in this part. *(It is now scheduled inside **M14** rather than M10 — the dead status columns have to go before the redesign, not merely before work item types.)*
+
+**Two waves live in this part.** M10 → M13 came from the 2026-08-10 audit. **M14 → M20 came from the 2026-08-14 product-direction revision** and are the ones on the critical path; they are written to the same four-part shape, and each says explicitly *what schema decision it forces*, because that is the whole reason a roadmap section exists this early. Build order for both waves is the table in Part III — **not** the order they appear here.
 
 Each section below records the same four things: what the milestone is for, what it depends on, **the schema decisions it forces** (the reason it is written down this early), and what it is explicitly *not*.
 
@@ -2210,7 +2345,66 @@ Everything here inherits the *Permission Model* unchanged. None of it introduces
 
 ---
 
-## Milestone 11 — Backlog & Views · 🗺 Roadmap
+### The Task Detail surface — designed once, filled in over several milestones
+
+**Added 2026-08-14.** M5-06 shipped the panel and the milestones after it each want to put
+something in it: labels and subtasks and links here in M10, comments in M7, activity in M18,
+`start_date` in M20, attachments after M10. The failure mode is obvious and it is the one
+worth writing down: **five milestones each appending a section, and the panel rewritten
+four times on the way.**
+
+So the layout is decided now, before any of it is built.
+
+#### The shape
+
+Three regions, and adding a capability fills one of them rather than re-laying out the
+panel:
+
+1. **Header** — the key, the title, the close control. Already built.
+2. **Fields** — the two-column definition list of properties. Already built, and every new
+   *property* (labels, start date, parent) is a row added to it, not a new section.
+3. **A tabbed lower region** — Activity · Comments · Attachments · Subtasks · Links. Empty
+   today, so it does not exist today; the first capability to land creates it with its one
+   tab. **Adding the second tab must not be a re-layout**, which is the whole point of
+   naming the region before the first one arrives.
+
+**It stays a search param.** `?task=<id>` is the M5-06 contract — the board never unmounts,
+the view state comes along, Back closes it — and every capability below is addressable
+*within* the open panel rather than by a route of its own. It keeps `usePanel`'s single
+drawer slot: a task and a board drawer never claim the space at once.
+
+**A tab is not a query.** Comments and activity for a task are fetched when their tab is
+first opened, keyed per task, never joined into the board query — `docs/API.md` is explicit
+that comments must not ride along with the board fetch, and M5-07 narrowed that query for
+exactly this reason.
+
+#### What each capability needs
+
+| Capability | Schema? | When | Reuses |
+|---|---|---|---|
+| Title, description, status, priority, work type, assignee, due date | **No** — all shipped | ✅ M5-06 | `useTodoPatch`, the card's own controls |
+| **Start date** | **Yes** — one nullable `todos.start_date`, Tier A | **M20**, and already in Appendix D | `DueDateControl`'s shape; the `date`-not-timestamptz rule |
+| **Labels** | **Yes** — `labels` + `todo_labels`, board-scoped, `board_id` on both per M7-01's precedent | **M10** | The chip idiom in `constants/`; a filter category in `FILTER_CATEGORIES` |
+| **Subtasks / parent** | **Yes** — `todos.parent_id`, plus Appendix D's unanswered *does a subtask render as a board card?* | **M10**, and the decision **before** the column | `todos` itself — one table, one self-reference |
+| **Linked work items** | **Yes** — `work_item_links(from_id, to_id, type)`, plus the directionality decision in Appendix D | **M10** | The same board-scoped policy shape |
+| **Attachments** | **Yes** — a table *and* a storage bucket with owner-scoped policies | **Post-M10** | **M14's avatar-storage shape exactly**: `<uid>/…` paths and `(storage.foldername(name))[1] = auth.uid()::text`. That migration is the template |
+| **Comments** | **Yes** — `comments`, and M7's open question *may a viewer comment?* must be answered first | **M7** | `board_roster` for author identity; M6-B for live threads |
+| **Activity history** | **Yes** — `activities`, trigger-written, never client-written | **M18** | M7-05's recorded schema, carried forward unchanged |
+
+#### The rule this table exists to enforce
+
+**No column or table is added because the panel's design has a space for it.** Every row
+above is a schema change that belongs to a milestone with its own reason to exist, and the
+panel is a *consumer* of those tables rather than a justification for them. A tab with
+nothing behind it is the placeholder M17 spent a pass deleting.
+
+
+---
+
+## Milestone 11 — Backlog & Views · ◑ Partly shipped
+
+> **The views half shipped early** (2026-08-13/14) — the List view, grouping and swimlanes, all over one pipeline, no second query and no second model. **M16 takes that work over** and generalises it to four views; this section is no longer where view architecture is decided.
+> **The backlog half is untouched and stays here.** It is the one part of this milestone that still needs **M6-A**, for exactly the reason below, and it is not on the path to anything in the new roadmap. Its three schema questions are unanswered and remain worth answering before anyone starts it.
 
 **For.** UX principle 2 — one data model, many views. A backlog, a list/table view, and the Kanban board as three renderings of the same rows.
 
@@ -2226,7 +2420,11 @@ Everything here inherits the *Permission Model* unchanged. None of it introduces
 
 ---
 
-## Milestone 12 — Search & Filtering · 🗺 Roadmap
+## Milestone 12 — Search & Filtering · ◑ Partly shipped
+
+> **Filtering shipped, and it shipped the way this milestone specified** — client-side over the existing `["todos", boardId]` cache, no migration, no dependency. Five dimensions (assignee, work type, priority, due date, status), AND across categories and OR within one, held in the URL. The recorded decision below turned out to be the right one and is now load-bearing for M16.
+> **Search, saved filters and the command palette did not ship.** Search moves to **M16**, because a view model without it would have to grow one later and every view would need retrofitting. Saved filters and the palette stay here.
+> **One thing the shipped work proved and this section should say:** the pipeline is board-scoped by construction, so *cross-board* search is not merely "not built" — the query key shape forbids it. See Appendix D.
 
 **For.** Finding work across a board — by text, assignee, label, type, priority, status — and reusing a filter without rebuilding it.
 
@@ -2260,6 +2458,321 @@ Everything here inherits the *Permission Model* unchanged. None of it introduces
 
 ---
 
+# PART IV-B — THE 2026-08-14 DIRECTION (M14 → M20)
+
+The product direction this wave serves, in the order it was given: foundation cleanup → spaces and boards → a shared view architecture → a product redesign → overview/dashboard → activity → calendar → timeline.
+
+**The build order below is not that order, and the two differences are deliberate:**
+
+1. **Activity moves ahead of the Overview.** The Overview's "recent activity" panel is a *reader* of the activity log, and M7-05's standing rule is that the log must not exist without one. Building the Overview first means either shipping it with a dead panel or shipping an unbounded audit table with nobody reading it. They are one milestone (M18), and the log is built with its reader.
+2. **The redesign stays ahead of Calendar and Timeline**, as given — and the reason is now written down as a deliverable rather than assumed: M17 must ship a **view shell contract** (a header slot, a toolbar slot, a content area and a drawer) that M19 and M20 fill without inventing a second layout system. A redesign that only redesigns the board leaves the two new views to be re-hosted afterwards.
+
+Everything else follows the direction as given. Spaces before views before redesign is the right order for the reason the direction implies: each one settles a structure the next one renders.
+
+---
+
+## Milestone 14 — Foundation Cleanup · 🔶 **Applied 2026-08-14, one item outstanding**
+
+> ### As built
+>
+> Three migrations applied through `supabase db push`; **37 of 37 versions paired local↔remote** and `src/types/database.ts` regenerated from the live schema.
+>
+> | # | Migration | Tier | State |
+> |---|---|---|---|
+> | 1 | `20260814100000_board_key_prefix.sql` | A | ✅ applied |
+> | 2 | `20260814101000_avatar_storage_ownership.sql` | A | ✅ applied |
+> | 3 | `20260814102000_handle_new_user_search_path.sql` | A | ✅ applied |
+>
+> **`boards.key_prefix`** — `text not null default 'KAN'` plus a `^[A-Z][A-Z0-9]{1,9}$` format check. The default *is* the backfill (the `todos.type` precedent: a Postgres 11+ fast default populates every row without a rewrite), so there is no separate data migration and nothing was destroyed. Client side, the hardcoded `KAN` is gone from all three render sites: `utils/taskKey.ts` assembles the key, `hooks/useKeyPrefix.ts` reads the board's, and `TodoCardContent.boardKey: number` became `taskKey: string` — the presentational card now renders one value instead of holding a fact about a board it is never given.
+>
+> **Avatar storage hole — closed.** The last live authorization bug from the M0-06 audit, unowned since 2026-08-05. INSERT and UPDATE on `storage.objects` are now scoped to `(storage.foldername(name))[1] = auth.uid()::text`; the client writes `<uid>/avatar.<ext>` instead of `<uid>.<ext>`; the bucket gained a 2 MB limit and a png/jpeg/webp allow-list, and the file picker was narrowed to match it. **SELECT stays public deliberately** — avatars are public by product design, `profiles.avatar_url` holds an unsigned public URL, and objects already at the old flat path keep resolving until their owner uploads again. **Not verified from here**: the CLI exposes no arbitrary-SQL path, so the six REST-level checks are listed at the foot of the migration and are owed the same way M3-16's re-run is.
+>
+> **`handle_new_user()`** — `set search_path = ''`, body unchanged and already schema-qualified, `create or replace` so the trigger on `auth.users` keeps its binding.
+>
+> **`todos.status` / `previous_status` — NOT dropped. This is the one M14 item outstanding, and it is blocked on a rule this plan sets for itself.** A `DROP COLUMN` is Tier B under Rule 6, which requires the Backup procedure; `supabase db dump` needs Docker Desktop, which is not running. The migration was **not written**, deliberately: `supabase db push` applies every pending file, so a file parked in `supabase/migrations/` would be swept into the next push without its dump. Every file in that directory is applied, and that invariant is worth more than a head start. **What it needs:** Docker running → `supabase db dump --linked -f backups/pre-m14-status-drop-<ts>.sql` → row counts recorded → then the migration, with a preflight that raises if any row holds a non-null value in either column (the M3-18 shape). *Ask before the alternative:* accepting that preflight **instead of** a dump is a reclassification of Rule 6, and it is the owner's call, not the implementer's.
+>
+> **Two items were already done and the 2026-08-14 revision was wrong about them:** the M3-11 client swap (shipped in `5b9b7b9` — see M3-11) and, by extension, nothing about `columnsApi.ts` needed touching here.
+>
+> **Two decisions settled, no code:** the space permission scope (recorded in *Permission Model → Decisions*, Part II) and what a board key means when a board moves between spaces (nothing — see the head of migration 1). The **cross-board query-key shape** was correctly left to M16; it is not an M14 deliverable.
+>
+> **Verification run:** `npm test` 20 files / 223 tests, `npm run build`, `npm run lint`, `git diff --check` — all green. Six new tests (`utils/taskKey.test.ts`, plus one added to `toCardContent.test.ts`) pin the prefix behaviour, including the regression the milestone exists to prevent: two boards rendering the same key.
+
+**For.** Clearing the debt and settling the decisions that later milestones would otherwise have to un-make. Nothing here is a feature. Everything here is cheap now and expensive after the thing that depends on it exists.
+
+**Depends on.** Nothing. That is the point — it is first because it blocks and is blocked by nothing.
+
+**What is in it** (each already exists somewhere in this document as an unowned item; this milestone is where they finally get an owner):
+
+| Item | Where it came from | Why it is here and not later |
+|---|---|---|
+| **`boards.key_prefix`** | Appendix D | Today `KAN-` is hardcoded in the card. The moment M15 lets a user create a second board, both boards hand out `KAN-1`, `KAN-2` — and a key that is already in a URL, a comment or someone's notes is an identifier people rely on. One nullable column defaulting to `'KAN'`, one interpolation. **This is the reason M14 precedes M15 and not the other way round.** |
+| **Space permission scope** | Appendix B ("board-level roles vs. workspace roles", deferred *until workspaces become real* — they are about to) | A decision, not code, and it must be made before a `spaces` table exists. See M15. |
+| **Drop `todos.status` / `previous_status`** | M10-00, RLS_AUDIT finding D | Two dead columns that look like status. M13 adds a real status concept and M10 adds `type`; three status-shaped things in one table is a trap for whoever reads the schema next. **Tier B** — a `DROP COLUMN` is not reversible by forward-fix, so it takes a dump (Rule 6) and it is the first Tier B migration since M2. |
+| **Avatar storage path hole** | Appendix B — *"unowned — needs a task"* | Any authenticated user can overwrite any other user's avatar. A live authorization bug, homeless since M0-06, explicitly **not** production hardening. Path change to `<uid>/avatar.png`, three storage policies, a bucket size limit. |
+| **`handle_new_user()` missing `search_path`** | RLS_AUDIT item 6 | Cheap hardening on a `SECURITY DEFINER` function. Fold in while the file is open. |
+| **M3-11 client swap** | M3 | `deleteColumn` still does four round-trips against an RPC that is applied, verified and unused. |
+| **M3-16 re-run against the linked project** | M3-16 | 105/105 was measured on a replica with a hand-written auth shim. Re-running against production is one paste, and the claim is weaker until it happens. |
+| **Cross-board query-key shape** | Appendix D — new | A decision, not code. See M16. |
+
+**Schema decisions it forces.**
+
+- **`key_prefix` shape.** A column on `boards` (`text not null default 'KAN'`, with a length and character constraint) rather than a per-space or per-workspace setting. Keys are already per-board — `boards.next_key` allocates them — so the prefix belongs on the same row as the counter it labels. Expand and backfill; there is no contract phase because nothing is being removed.
+- **What a key means when a board moves between spaces.** Nothing. The key is the board's, not the space's, and moving a board must never renumber a card. Say so now, because the opposite is a tempting "tidy-up" later and it would break every existing reference.
+
+**Explicitly not.** The M9-09 naming sweep, renaming `todos`, any part of M9. This milestone is bounded by "things that block M15 → M20", and a naming cleanup blocks nothing.
+
+---
+
+## Milestone 15 — Spaces & Boards · 🔶 **Applied 2026-08-14, two items deferred**
+
+> ### As built
+>
+> One migration, `20260814110000_create_spaces.sql`, **Tier A** — a new table, a nullable column, two functions, one trigger, and **not one existing row written**. 38 of 38 paired local↔remote.
+>
+> | Decision the milestone forced | What shipped |
+> |---|---|
+> | Is a space a permission scope? | **No.** `spaces` is owner-only RLS with no membership, no roster, no invite. `board_role()`, `accessible_board_ids()` and every policy on `boards`/`columns`/`todos`/`board_members`/`board_invites` are **unchanged**. |
+> | `boards.space_id` NOT NULL? | **No, and there is no backfill.** Unfiled is a real state — it is what a board someone shared with you *is* — so the column stays nullable and existing boards render under "Unfiled" until filed. This also kept the migration Tier A; a backfill would have been an UPDATE against existing rows, needing the dump procedure that Docker currently blocks. |
+> | Board order inside a space | **No stored order.** Sorted by title. A stored order would be a third ranked surface and it would want M6-A's rank type, not a dense integer added ahead of it. |
+> | Space deletion | `on delete set null`. Boards survive as unfiled, with members and work items untouched. |
+>
+> **The spec had a flaw and it was corrected rather than implemented.** M15 said the rule was *"`space_id` may only be set to a space the caller owns"*. That is necessary and not sufficient: `space_id` is one column on a **shared** row, so an admin could file a colleague's board into their own space — legal under that rule — and the board would silently leave the owner's sidebar. The shipped rule is **only a board's owner may file it, and only into a space they own**.
+> It is a **BEFORE INSERT OR UPDATE trigger**, not a `WITH CHECK`, and that is not a style choice: a policy sees only the new row, so it cannot ask whether `space_id` changed, and a conjunct on M3-17's UPDATE policy would have refused an **admin renaming a filed board** — a column they never touched. Comparing OLD to NEW is what the trigger is for, and the consequence is that **no policy on `boards` was modified at all**; M2-01's and M3-17's keep their definitions byte for byte.
+> **The limitation this accepts:** filing is per-board, not per-user, so two people on one board cannot each file it in their own folder. Per-user filing is a `space_boards` join table — strictly larger, on no milestone's path, and not built.
+>
+> **Client.** `services/spaces/` (api + four hooks + the pure `groupBoardsBySpace`), `queryKeys.spaces()`, `BoardPatch` widened by `space_id`, `createBoard` takes a `spaceId`. UI: `BoardsSection` replaces the flat sidebar list, plus `BoardFormModal` (create/edit), `DeleteBoardModal` (typed confirmation), `SpaceFormModal`, `DeleteSpaceModal`, and one shared `ui/Modal` shell — the four pre-existing column modals hand-roll their own and were left alone.
+> **`/boards/:boardId` is untouched**, per the M17 routing decision: a board is a uuid, and moving it between spaces must not break a link. The space appears in navigation only.
+> **Task keys cannot change on a move.** `key_prefix` and `next_key` are not in `BoardPatch` and nothing in this milestone reads either.
+> **Sidebar menus gate on ownership, not roles**, because `board.owner_id` is already on the row and `usePermissions` would cost one `board_roster` RPC *per board listed*. The consequence, stated: an admin sees no board menu in the sidebar though M3-17 does let them rename. A board-level surface for that is M17's.
+>
+> **Two things deferred, both with a reason rather than an omission:**
+> - **`archived` (M8-03)** — the semantics question is still open (*does an archived board disappear for its members too?*), and an open question is not a column. Nothing else in the milestone depends on it.
+> - **Board appearance (M8-04)** — `icon`, `cover_color`, `visibility`. Each needs a palette or a permission story of its own; the settings modal covers title, description and space.
+> - **M8-08's cascade verification** is still owed, and M15 adds two cases to it: deleting a space leaves its boards intact and unfiled, and deleting a board inside a space leaves the space intact.
+>
+> **Verification run:** `npm test` 22 files / 236 tests (+13: `groupBoards.test.ts`, `deleteConfirm.test.ts`), `npm run build`, `npm run lint`, `git diff --check` — all green. The REST-level checks for the filing trigger need two accounts and are listed at the foot of the migration; they have **not** been run, the same gap M3-16 and M14's avatar policies carry.
+
+**For.** Spaces containing boards; creating, renaming and deleting both; and navigation that makes a multi-board account legible.
+
+**Depends on.** M14 (the key prefix, and the permission-scope decision). M3 for roles. **Absorbs M8** — its nine task bodies are this milestone's specification, and `services/boards/`'s three unused mutation hooks are its starting point.
+
+**Schema decisions it forces — and one of them is the most consequential decision in this revision.**
+
+- **Is a Space a permission scope?** Appendix B deferred this *"until workspaces become real"*, and this is that moment. **The answer this plan recommends is no: a space is an organisational container, not an authorization boundary.** Membership and roles stay board-scoped exactly as M3 defines them, and the four roles keep meaning what they mean.
+  - **Why.** The alternative is a second permission system layered on the first, which Appendix B already names as *"the hardest kind of authorization change to get right"*. It would mean a space role and a board role that can disagree, a precedence rule between them, a second set of RPCs, and a second matrix in Part II — for filing.
+  - **The shape that follows:** `spaces` has an `owner_id` and RLS that returns a space only to its owner. `boards.space_id` is a filing decision made by the person who organises the boards; a member who is not the space's owner cannot read the space row and sees the board unfiled ("Shared with me"). **M3 is untouched.**
+  - **The one new rule this does add, and it needs enforcing in the database:** `boards.space_id` may only be set to a space the caller owns. M3-17 lets any admin update a board, so without this an admin could file a board into a space they cannot see. It is a `WITH CHECK` or a trigger, and it is the only permission work in this milestone.
+  - **The upgrade path, stated so the decision is honestly reversible:** if spaces later need to be shared, `spaces` gains its own membership and `boards.space_id` keeps working unchanged. That is what makes "no" the cheap answer rather than the limiting one.
+- **`boards.space_id` — expand → backfill → contract, three migrations** (Rule 3). Nullable, then a default space per owner backfilled from existing boards, then `NOT NULL` if every board must be filed. **Decide whether it should be `NOT NULL` at all**: an unfiled board is a real state for a board someone else shared with you, and if it is, the column stays nullable and there is no contract phase.
+- **Board ordering inside a space.** **Recommend: no stored order — sort by title.** A stored order is a third ranked surface, and this document has spent a whole milestone (M6-A) on the cost of ranked surfaces. If drag-to-reorder boards is wanted later, it wants M6-A's rank type, not a dense integer.
+- **`archived` semantics** — M8-03's open question, still open and still owed a recorded answer: does an archived board disappear for its members too, and can a member still read it? The recommendation there (board-wide, read-only for everyone including the owner, until restored) stands.
+- **Space deletion.** What happens to the boards inside it. **Never cascade a board away with its space** — a space is filing and a board is content, and the blast radius of the alternative is every member of every board in it. `on delete set null`, and the boards become unfiled.
+
+**Explicitly not.** Space-level roles or membership. A board in two spaces at once. Board templates. Cross-space moves of anything other than a board.
+
+---
+
+## Milestone 16 — Shared View Model · 🔶 **Built 2026-08-14, one deliverable deferred**
+
+> ### As built
+>
+> **No migration.** M16 is an architecture milestone and it turned out to need no schema at all — which is itself the useful finding: the pipeline was extendable without one.
+>
+> | Deliverable | What shipped |
+> |---|---|
+> | **Scope** | `services/views/scope.ts` — `ViewScope` = board \| space \| all, and the pure `boardIdsInScope`. `hooks/useScopedTodos.ts` runs `useQueries` over `["todos", boardId]`, **option (a) as recommended**. |
+> | **Search** | `searchTodos` in `view.ts`, the `q` search param, `BoardSearch` in the header. Both views get it from `useVisibleTodos`; neither implements it. |
+> | **View registry** | `services/views/registry.ts` — `VIEWS` with `canReorder` / `canGroup` / `canSort`. `useBoardView` derives `dndDisabled` from it instead of hardcoding the board's answer. |
+> | **Shared row shape** | `TODO_FIELDS` in `types/data.ts`; `Todo` is a `Pick` over it. |
+> | **Selection** | **Deferred — see below.** |
+>
+> **The scope decision, and why it cost nothing.** Per-board queries unioned client-side means `["todos", boardId]` keeps its exact meaning, so **not one mutation was touched**: `applyTodoInserted`/`Updated`/`Deleted`/`Moved` still take one board's array, the optimistic patches are seen by any scope reading that board, and M6-B's realtime handlers will land on the same entries. A scope-keyed query would have needed every mutation to patch a second cache shape. Today the only caller passes a board scope, so this runs one query and behaves exactly as `useTodos()` did.
+>
+> **One thing the plan expected that the compiler refused.** M16 called for the row shape to be one constant serving both the type and the PostgREST `select`. It cannot be: `supabase-js` infers the returned row from the select's **literal type**, so a derived string (`TODO_FIELDS.join(", ")`) collapses every query result to `GenericStringError[]` — it was tried, and it broke eight call sites. They stay two constants, and `todoApi.test.ts` asserts they agree. Drift is now a failing test rather than a comment asking you to remember, which was the actual goal.
+>
+> **`registry.test.ts` carries the M6-A tripwire.** It asserts `reorderingViews()` is exactly `["board"]`. A second view that writes `todos.position` turns that test red, which is the earliest possible warning that dense integers are no longer safe — the plan's *"M6-A's necessity is read straight off this table"*, made executable.
+>
+> **Search matches titles and keys, not descriptions**, and that is M5-07's decision showing through: `description` is not in the fetched row, so there is nothing in the cache to search. A key query (`KAN-12`, `ops-7`, or bare `12`) matches `board_key` **exactly** and discards the prefix — a view may span boards with different prefixes (M14), so the number is the part that works in every scope. A phrase containing digits stays a title search, so `fix 12 things` does not drag in card 12.
+>
+> **Selection was deferred, deliberately, and it is the one deliverable not built.** The decision M16 asked for is recorded — *selection is ephemeral React state, never a URL param, because a list of uuids in every shared link is a cost with no reader*. Building the store itself was declined on the milestone's own terms: **no bulk action exists**, so a selection API would have had zero callers, and Part I's *"a feature is in scope if it adds capability"* is the test it fails. It returns with the first bulk action, which is M18's territory at the earliest.
+>
+> **Behaviour preserved.** Board and List render exactly as before for every existing URL; `q` absent means no search, and every other param is untouched. The pipeline order is now **scope → filter → search → sort**, with grouping deliberately left at the view — it is the same `groupTodos` for both, but a swimlane and a section header need it at different points in their markup.
+>
+> **Verification run:** `npm test` 25 files / 258 tests (+22: `scope.test.ts`, `registry.test.ts`, `todoApi.test.ts`, and seven for `searchTodos`), `npm run build`, `npm run lint`, `git diff --check` — all green.
+
+**For.** One model that Board, List, Calendar and Timeline are four renderings of — so that adding the fifth view is a renderer, not a pipeline. This is UX principle 2 turned into an actual seam.
+
+**Depends on.** M15 (a view needs a *scope*, and "space" does not exist until then). Built on the shipped `services/todos/view.ts` + `useVisibleTodos` + `useBoardView`, which are already the right shape for one board.
+
+**The pipeline it formalises**, with the two stages that do not exist yet marked:
+
+```
+scope → fetch → filter → search → sort → group → select → render
+ NEW                      NEW                      NEW      per view
+```
+
+**Schema and architecture decisions it forces.**
+
+- **How a view spanning several boards gets its data — and this is the decision the shipped code cannot express.** `useVisibleTodos` reads `useTodos()`, keyed `["todos", boardId]`. There is no key shape for "every board in this space". Two options:
+  - **(a) Per-board queries, unioned client-side.** The board array stays the one source, `["todos", boardId]` keeps its meaning, and **every optimistic cache function keeps working** — `applyTodoInserted`/`Updated`/`Deleted`/`Moved` all take *one board's* array, and M6-B's realtime handlers will call the same ones. Costs N requests for N boards.
+  - **(b) A scope-keyed query**, `["todos", { scope }]`. One request, and a second cache shape holding the same rows twice — which means every mutation has to patch both, or the Overview and the board disagree about a card the user just moved.
+  - **Recommend (a).** The decisive argument is not the request count, it is that (b) forks the write path that M2-16 deliberately unified and M6-B depends on.
+- **Search is part of this milestone, not M12.** One more search param (`q`), client-side over the cached rows, matching M12's recorded decision for filtering. **One caveat to record when it is built:** M5-07 narrowed the board query, so `description` is not in the cached rows — a board-level search matches title and key, and searching descriptions is a server-side query or a widened select, not a free extension.
+- **Selection is ephemeral, not URL state.** Every other piece of view state is in search params because it is worth sharing; a multi-select for a bulk action is not, and putting it there makes every link carry a list of uuids.
+- **What a view *is*, as a value.** A registry entry — key, label, icon, and its **capabilities**: can it reorder, can it group, can it drag, what does it need from a row. This is what stops each new view from re-deriving `dndDisabled` by hand, and it is what makes "does this view write order?" a question with an answer rather than a code review. **M6-A's necessity is read straight off this table:** if exactly one view can reorder, dense positions survive; if two can, they do not.
+- **Which fields a shared row must carry.** All four views read one row shape. Adding `start_date` for M20 widens it once, here, rather than per view.
+
+**Explicitly not.** Server-side filtering or search (M12's trigger is unchanged). Saved views. A query language. A second render architecture for any view — a view that cannot express itself over this pipeline is a finding about the pipeline, not a licence to fork it.
+
+---
+
+## Milestone 17 — Product Redesign · 🔶 **Built 2026-08-14**
+
+> ### As built
+>
+> **No migration, no query, no mutation, no permission rule.** M17 is a shell milestone and it changed none of them — `npm test` is unmoved at 271 because the pure logic it guards was never in scope.
+>
+> | Deliverable | What shipped |
+> |---|---|
+> | **View shell contract** | `layout/ViewShell.tsx` — `identity` / `toolbar` / children / `drawer`. M19 and M20 add a registry entry and a renderer; they add no layout. |
+> | **Rail removed** | `ContextRail` deleted. Members → `MembersDrawer` behind the identity row's avatar stack; Activity → M18; Quick Filters → gone (it was a placeholder for M12's saved filters). |
+> | **Drawer contract** | `hooks/usePanel.ts` (`?panel=`), the `?task=` sibling. `DrawerFrame` pushes at `xl`, overlays with a scrim below — so the task panel finally works on a phone, where the rail simply vanished. |
+> | **Navigation** | Breadcrumb `Space / Board` merged into the identity block; `ViewTabs` driven by M16's `VIEW_MODES`, with Calendar and Timeline listed and inert. |
+> | **Sidebar** | Overview, Dashboard (soon), Spaces → Boards, Settings. Six inert entries and the redundant Views group removed. |
+>
+> **The global header is gone, and that is the density win.** It held a permanently `disabled` search box and a permanently `disabled` Create button — both duplicating controls that *work* in the board's toolbar — above a breadcrumb the app did not have, for a 56px band on every screen. Its live occupants (theme, language, the profile link) moved to the sidebar footer, where account controls belong. Two bars above the board now, not three.
+>
+> **Typography was the single largest visual change and it was one CSS rule.** `--font-sans` has been Geist since the tokens were written, but `body { font-family: Josefin Sans }` overrode it for the whole product — a geometric display face rendering 11–13px board text. Body is Geist; `.font-wordmark` keeps Josefin for the KAN logotype and nothing else. **No token value changed**: `canvas`/`rail`/`surface`/`elevated`, `ink`/`-2`/`-3`, `brand`, `brand-soft` and the status colours are exactly as they were, which is why every component picked the change up without being touched.
+>
+> **Two regressions were introduced by the redesign and caught before they shipped**, both worth recording because each is a class of mistake this shell invites:
+> 1. The sidebar is `collapsible="offcanvas"`, so a collapse trigger placed *inside* it disappears with it and there is no way back. The trigger lives in `BoardIdentity`.
+> 2. `DrawerFrame`'s Escape would have routed around `TaskDetailPanel`'s unsaved-changes guard and silently discarded an in-progress edit. The frame takes `dismissible={false}` for that panel, so its own header button — which asks — is the way out.
+>
+> **Column height stopped being a pixel sum.** `max-h-[calc(100vh-220px)]` on `KanbanColumn` and `CollapsedColumn` hard-coded the height of every bar above the board — precisely the thing this milestone changed. Both are `h-full` inside a `min-h-0` parent now, so the layout that knows the height supplies it.
+>
+> **DnD untouched.** No sensor, collision-detection, drop-index or rank path was modified; `useKanbanDnd`, `useBoardDragEnd`, `dropIndex.ts` and `utils/rank.ts` show no diff. The board's own scroll box keeps the horizontal scroll inside itself.
+>
+> **Verification run:** `npm test` 26 files / 271 tests, `npm run build`, `npm run lint`, `git diff --check` — all green. **Browser checks are owed** and are listed in the plan file: the drag matrix (within / across / empty column / filtered / searched), the view-state round trip between Board and List, the drawer contract, the viewer's read-only view, four viewports and both themes.
+>
+>
+> ### Pass 2 — visual, 2026-08-14
+>
+> The architecture above was right and the surface was not. Four changes account for the gap that remained against the reference:
+>
+> - **Columns stopped painting empty rectangles.** `h-full` → `h-fit max-h-full` on `KanbanColumn` and `CollapsedColumn`: a three-card column now ends after its cards, with canvas below it, and a long one still scrolls inside itself. This was the single largest visual complaint and it is one class.
+> - **Column headers carry a tinted band.** `COLUMN_CATEGORIES` gained a `band` class — neutral for `todo`, `bg-status-blue/12`, `bg-status-green/12` — **token-derived, unlike the hard-coded hexes `pill` and `swatch` carry**, which is why it works in both themes. The count moved into a badge and a `+` joined the hover cluster, threaded to the `openAt(todos.length)` the column's own dashed button already calls.
+> - **The card leads with chips.** `TodoCardContent` gained `priority`: it has been on the row since M2-04 and had a control since M5, yet the field that says *how urgent* a card is was the one field you had to open the card to see. Row 1 is priority + work type with the key pushed right, row 2 the title at 14px, row 3 due date and assignee. Priority is labelled only when set — unset, `PriorityControl` renders "No priority", which would print those two words on every card of an unprioritised board.
+> - **Chrome composes.** View tabs became a contained segmented group rather than loose underlines; the sidebar's spaces gained an initial-square avatar and a collapse chevron over client-only state, the same idiom `KanbanBoard` uses for columns.
+>
+> **What the reference has and we deliberately do not: a description line on the card.** M5-07 narrowed the board query to twelve columns and `description` is not among them; showing it is a query change. The card earns its hierarchy from type, priority and scale instead.
+>
+> **Still no schema, query, mutation, permission or DnD change.** The only file under `services/` that moved is `toCardContent.ts`, by one field — and `toCardContent.test.ts` moved `"priority"` out of its dropped-columns list, because that test is the record of what the card reads.
+>
+>
+> ### Pass 3 — matched against a mockup of KAN itself, 2026-08-14
+>
+> The third reference was different in kind: **a mockup of this app**, with our board, our `KAN-nn` keys and our user row. That turned "get closer to a direction" into a short list of specific deltas.
+>
+> - **Column headers wash rather than band.** `bg-gradient-to-b from-<token>/12 to-transparent` in place of a flat tint, and the bottom rule removed — a hard line under a fade puts back the coloured bar the gradient exists to avoid. `todo` became **purple**, the one place the brand accent is spent on something that is not an action.
+> - **Card row 3 reversed** — assignee left, due date right. A face is fixed-width and a date is not, so anchoring faces left keeps a column of cards aligned down both edges.
+> - **The due-date icon takes the chip's tone** instead of a fixed red. A red calendar on a muted "upcoming" chip said *urgent* about a date that is not — the one thing that control exists to communicate.
+> - **Header metadata became four bordered chips** — columns, tasks, last updated, viewers — with the member stack inside the last one.
+> - **View tabs went back to underlines.** Pass 2's contained pill group competed with the four bordered controls beside it; the mockup is explicit, and it is right.
+> - **The active board gained a purple left bar** in the sidebar, drawn as a pseudo-element so the row does not shift a pixel between states.
+>
+> **"Last updated" is derived from the work items, not `boards.updated_at`.** That column moves when the board *row* changes — a rename, a re-filing — so a board someone uses daily would report the last time it was renamed. `BoardMeta` folds the newest `updated_at` over the cards it already holds: no query. `src/utils/relativeTime.ts` (+7 tests) formats it, and is deliberately not `Intl.RelativeTimeFormat` — that formats a number and a unit you have already chosen, and picking the unit is the whole job.
+>
+> **Three things the mockup shows that we deliberately did not build:** its Share / Automations / Integrate cluster (backed by nothing — deleting exactly that kind of placeholder was pass 1's thesis), its favourite star (no column), and its two-avatar cards (`todos.assignee_id` is a single reference; a stack needs a join table). Its orange column is also unreachable — we have three categories, and a fourth is a CHECK-constraint migration.
+>
+> **Deliberately not done:** Dashboard, Activity, Calendar and Timeline — a disabled tab and a disabled sidebar entry are the whole of the preparation. M9-01/M9-02 (keyboard DnD, ARIA) were not folded in: the board's DOM was restyled, not rewritten, so the retrofit argument does not apply and they stay M9's.
+
+**For.** Redesigning the UI and navigation around the workspace → space → board → view hierarchy; removing the permanently visible right-side context rail and re-homing what it held; keeping the dark visual language and the purple brand accent.
+
+**Depends on.** M15 (the hierarchy it renders) and M16 (the view model it renders *through*). Running it earlier means redesigning around a structure that then changes.
+
+**What it must ship besides the visuals — the architectural decisions.**
+
+- **The view shell contract.** A header slot, a toolbar slot, a content area and a drawer, defined once. **M19 and M20 fill it without inventing a second layout system**, and this is the reason the redesign precedes them. A redesign that only redesigns the board would leave both new views to be re-hosted afterwards.
+- **Routing shape. Recommend: `/boards/:boardId` stays canonical** and the space appears in navigation, not in the path. A board is a uuid; moving it between spaces must not break links people already have, and `?task=` and `?view=` already ride on that URL. A `/spaces/:spaceId/boards/:boardId` path makes the space part of a board's identity, which it is not.
+- **Where the rail's three panels go.** Members → a drawer over the board (the components are already separable: `MemberIdentity`, `MemberRow`, `MemberActions` do not know about the rail). Activity → M18's surface, plus a board-scoped drawer. Quick Filters → it was a placeholder for saved filters, which are still M12; it goes away rather than moving.
+- **Panel or route, decided once.** M5-06 already answered this for the task detail panel — a search param, so the board never unmounts and the view state comes along. **Every drawer this milestone adds follows that contract**; a drawer that is a route is a second answer to a question already answered.
+- **Token continuity.** The existing tokens are the visual language and they survive: `canvas`, `rail`, `surface`, `elevated`, `hairline`, `ink`/`-2`/`-3`, `brand`, `brand-soft`, the status colours. `rail` is a *surface* token and stays useful after the rail component is gone. A redesign that introduces a parallel palette makes every existing component wrong.
+- **Mobile.** M9-07 either folds in here or is done twice; the same is true of M9-01 and M9-02 if the board's DOM is rewritten.
+
+**Explicitly not.** A new design system or a component-library swap — the vendored Base UI primitives stay. A change to the drag-and-drop *interaction model* (Part I principle 4: the hand-rolled DnD exists because library defaults were not good enough). Any new colour outside the token set.
+
+---
+
+## Milestone 18 — Activity & Overview · 🗺 Roadmap
+
+**For.** Board and project activity history, and a project-level overview: task statistics, progress, workload, upcoming deadlines, recent activity.
+
+**Depends on.** M16 (the Overview is the first cross-board reader), M17 (where both live). **Carries M7-05's schema forward unchanged** — the table shape and its two rules were decided when the plan was written and are not re-opened here.
+
+**Why the two are one milestone.** M7-05 made the activity table conditional on a reader existing: *"an unbounded audit table with no reader grows forever and is silently wrong the day you finally build the UI."* The Overview's recent-activity panel is that reader. Building the Overview first would ship a dead panel; building the log first would ship the exact thing M7-05 warned against.
+
+**Schema decisions it forces.**
+
+- **`activities`, as M7-05 already specified it:** `board_id` (the policy key — every board-scoped child table carries one, decided at M7-01), `actor_id`, `entity_type`, `entity_id`, `action`, a `jsonb` change payload, `created_at`. Read policy: any member of the board. **No client write policy at all** — triggers are the only writer, which is what makes the log trustworthy. Record the **actor**, never infer it at read time; and an activity row must still explain itself after the row it points at is deleted.
+- **Indexes are the whole of "architecture that can later support filtering."** `(board_id, created_at desc)` is the feed. `(board_id, entity_id)` is a work item's own history — which is what the M5-06 detail panel will want. Add both with the table; adding them later is a migration against a table that only grows.
+- **Which events are recorded.** Work item created / moved / assigned / retitled / deleted, column created / renamed / deleted, and **membership changes** — the last are the entries most worth having and the ones a client-written log would never capture honestly.
+- **Retention, from day one.** An append-only table on a board that lives for years is the one table here with no natural bound.
+- **Overview statistics are derived from the same task queries — no `board_stats` table, no materialised view, no second task system.** If deriving them is slow, that is PH-03's trigger, not a licence for a second source of truth that can disagree with the board.
+- **"Overdue" must mean one thing.** The Overview's deadline panel uses the same `dueStatus()` / due-bucket logic in `services/todos/view.ts` that the cards and the filter already use. A dashboard that disagrees with the board about which task is late is worse than no dashboard.
+
+**Explicitly not.** Notifications or email digests. Per-user productivity analytics. Any metrics store. Cross-board *activity* in v1 — the log is board-scoped by its policy key, and a cross-board feed is a union of readable boards, exactly like the Overview's tasks.
+
+---
+
+## Milestone 19 — Calendar · 🗺 Roadmap
+
+**For.** Work items placed on dates.
+
+**Depends on.** M16. Nothing else.
+
+**Schema decisions it forces — none, and that is worth stating.** `todos.due_date` already exists (`date`, nullable) and has a control, a filter, a sort key and a card chip. A due-date calendar is the same rows grouped by day: a renderer over M16's pipeline.
+
+**Decisions it does force.**
+
+- **Dragging a task to a day writes `due_date` through the existing `useTodoPatch` → `updateTodo` path.** Not a new mutation, not a new optimistic layer. The calendar is a view; views do not get their own write paths.
+- **`due_date` is a `date`, not a `timestamptz`, and the calendar must not "fix" that.** No timezone conversion anywhere — that is what makes a task due the 14th appear on the 14th for everyone, and it is the reason M5-04's test list included a timezone boundary.
+- **Where undated tasks go.** A side strip you can drag from, or off the calendar entirely. Decide it; a calendar that silently hides a third of the board is the same lie the filtered task count was fixed to avoid.
+- **What a day cell shows past three or four items.** Overflow rule, decided once, because it recurs in the week and month layouts.
+
+**Explicitly not.** Recurring tasks. Multi-day bars — a task spanning days is a *range*, which is M20 and needs the column M20 adds. External calendar sync (`docs/PRODUCT_SPEC.md` has it long-term).
+
+---
+
+## Milestone 20 — Timeline · 🗺 Roadmap
+
+**For.** Work items as ranges over time.
+
+**Depends on.** M16, and M19 for whatever the calendar learns about dates in this model. **This is the only milestone in the 2026-08-14 direction that requires a schema change**, which is why the direction asked for it to be identified explicitly.
+
+**The schema decision, stated plainly: `todos.start_date date null` is required.**
+
+Today the row has `due_date` (a date), and `estimate` (a number). There is no start, so there is no range, so there is no bar to draw. Three shapes were considered:
+
+| Option | Shape | Verdict |
+|---|---|---|
+| **(a) `start_date` + existing `due_date`** | Two dates, `[start, end]` | **Recommended.** Additive, nullable, no backfill, no data written — **Tier A**, reversible by forward-fix. Reuses the type, the control idiom and the timezone rule `due_date` already established. |
+| (b) `start_date` + a duration | One date and a length | The end date becomes derived, and every reader — calendar, filter, sort, list — recomputes it. Two sources for one answer. |
+| (c) A `work_item_schedule` child table | A second table | A second set of policies, cache functions, realtime handlers and views, permanently, to hold two dates. This is the shape Appendix D warns about for epics. |
+
+**Everything else this milestone must decide.**
+
+- **A `check (start_date is null or due_date is null or start_date <= due_date)` constraint.** Cheap here; the alternative is every reader defending against inverted ranges forever.
+- **A task with only a due date is a point, not a zero-width bar.** A task with neither is not on the timeline.
+- **Row order is derived from `start_date` — never stored.** This is load-bearing: a timeline whose rows can be dragged into an arbitrary order is a *second ranked surface*, which would reopen M3-10 and pull M6-A forward the day it ships. Deriving it costs nothing and avoids all of that. See M3-10's 2026-08-14 re-evaluation.
+- **`estimate` is not a duration.** It exists, it is numeric, and it means points or hours depending on who filled it in. Do not silently make it the bar's length.
+- **Widen the shared row shape once, in M16**, not per view (M16 already says so).
+
+**Explicitly not.** Dependency arrows and critical path — those need M10's `work_item_links`, and committing to them here would drag M10 forward for a line between two bars. Resource levelling. Baselines. Zoom levels beyond what the shell contract supports.
+
+> **Appendix E note.** Timeline/Gantt and calendar views were on the *out of scope* list, whose reopening condition was *"dependencies and date ranges exist and are maintained"*. The 2026-08-14 direction commits to both views, so the list is updated rather than quietly contradicted — and the condition is met the honest way, by M20 adding the date range rather than by declaring it already there.
+
+---
+
 # PART V — DEFERRED / PRODUCTION HARDENING
 
 **Nothing in this part blocks any task in Part III or Part IV.**
@@ -2279,9 +2792,9 @@ Each carries the trigger that reopens it. **The single trigger that reopens most
 
 | ID | Deferred item | Why it is deferred | Reopen when |
 |---|---|---|---|
-| **PH-01** | **Enable PITR** (was M3-00) | ~$125/month recurring, uncapped by the spend cap, requiring Pro + a Small compute add-on and ~2 min of downtime — to insure two test accounts and 21 work items. Its window starts at enablement, so it protects nothing already stored, and a PITR restore is a whole-project rollback that is the wrong tool for reverting a policy. | Real user data exists, **or** before the next Tier B migration (M6-05 drops `position`). |
-| **PH-02** | **Verified dump-restore rehearsal** ("an untested backup is not a backup") | Restoring a dump into a scratch database to prove it works is the right standard for data that matters. For Tier A migrations there is nothing to restore, and Tier B is currently one future task. | The first Tier B migration is scheduled (M6-05), or real user data exists. |
-| **PH-03** | **RLS membership performance verification** (was M3-12) | Seeding 500 cards, 12 columns and 10 members to `explain analyze` a fixture-scale app measures a problem that does not exist yet. The structural mitigation — both `board_members` indexes plus the M2-05 set — is already in place. | A real board passes a few hundred work items, or the board is visibly slow. Absorbs the `explain analyze` M3-02 skipped. |
+| **PH-01** | **Enable PITR** (was M3-00) — *now gating M6-05* | ~$125/month recurring, uncapped by the spend cap, requiring Pro + a Small compute add-on and ~2 min of downtime — to insure two test accounts and 21 work items. Its window starts at enablement, so it protects nothing already stored, and a PITR restore is a whole-project rollback that is the wrong tool for reverting a policy. | Real user data exists, **or** before the next Tier B migration — which as of 2026-08-14 is **M14's drop of `todos.status` / `previous_status`**, ahead of M6-05's drop of `position`. |
+| **PH-02** | **Verified dump-restore rehearsal** ("an untested backup is not a backup") | Restoring a dump into a scratch database to prove it works is the right standard for data that matters. For Tier A migrations there is nothing to restore, and Tier B is currently one future task. | The first Tier B migration is scheduled — **M14, not M6-05, as of 2026-08-14** — or real user data exists. |
+| **PH-03** | **RLS membership performance verification** (was M3-12) | Seeding 500 cards, 12 columns and 10 members to `explain analyze` a fixture-scale app measures a problem that does not exist yet. The structural mitigation — both `board_members` indexes plus the M2-05 set — is already in place. | **Re-anchored 2026-08-14: before M18's cross-board query ships.** That query is the first whose cost scales with everything the caller can see rather than with one board — `accessible_board_ids()` at its widest, with a client-side pipeline over the union. Also still: a real board passing a few hundred work items, or visible slowness. Absorbs the `explain analyze` M3-02 skipped. |
 | **PH-04** | **Branch-database rehearsals** (Rule 5, for Tier B) | `supabase branches create` per destructive migration is a paid feature and a day of setup. Tier A migrations reverse with SQL. | Same as PH-02. |
 | **PH-05** | **Deployment ritual**: apply off-peak, watch 403s for fifteen minutes, maintenance windows, stop-writes procedures | There is no peak, no traffic and nobody to inconvenience. Applying a migration and then using the app is the honest equivalent today. | The app is deployed somewhere users reach it. |
 | **PH-06** | **Observability**: error tracking, uptime monitoring, query performance dashboards, billing alerts | Nothing to observe and nobody paged. The `MutationCache` toasts from M1-07 already surface failures to the one person using the app. | Real users, or a deploy that is not a laptop. |
@@ -2315,12 +2828,14 @@ Each carries a documented backup, rollback and migration strategy in its task en
 | M2-14 | ✅ | Primary key type change in one transaction |
 | M3-03 | ✅ | Must precede M3-04/05 or every owner is locked out. **Applied without a dump** |
 | M3-04 | ✅ | Authorization boundary. **Applied without a dump** |
-| M3-05 | 🔶 | Authorization boundary. Applied without a dump (Tier A, correct); committed `3c3eec8`. Role matrix still unverified — M3-16 |
-| M3-14 | ⬜ | Privilege-granting functions; a flaw hands over a board. **Tier A** — the mitigation is review and M3-16, not backups |
-| M3-15 | ⬜ | Changes what the database will accept from every writer, including `service_role`. **Tier A** |
-| M4-03 | ⬜ | Privilege-granting function |
-| M6-01 → M6-05 | ⬜ | Ordering migration (five tasks, expand→contract) |
-| M8-08 | ⬜ | Cascade verification; never run against production |
+| M3-05 | ✅ | Authorization boundary. Applied without a dump (Tier A, correct); committed `3c3eec8`. Role matrix verified 105/105 — **on a replica**, see M3-16 |
+| M3-14 | ✅ | Privilege-granting functions; a flaw hands over a board. **Tier A** — the mitigation is review and M3-16, not backups. 67/67 |
+| M3-15 | ✅ | Changes what the database will accept from every writer, including `service_role`. **Tier A**. 37/37 |
+| M4-03 | ✅ | Privilege-granting function. Shipped, then fixed forward for a `42702` ambiguity that made every call fail — see M4 |
+| M6-01 → M6-05 | ⬜ | Ordering migration (five tasks, expand→contract). **M6-A**; build-order position 4 |
+| M8-08 | ⬜ | Cascade verification; never run against production. **Inherited by M15**, and it grows two cases there: what a space deletion does to its boards, and what a board deletion does inside a space |
+| M14 · drop `todos.status` / `previous_status` | ⬜ | **Tier B — the first since M2.** A `DROP COLUMN` is not reversible by forward-fix, so it takes the Backup procedure and it reopens PH-01/PH-02 alongside M6-05 |
+| M15 · `boards.space_id` contract | ⬜ | Only if the column is made `NOT NULL`; expand→backfill→contract, three migrations, per Rule 3 |
 
 Medium-risk tasks that touch the authorization boundary: **M3-13** (widens read access), **M3-17** (replaces a policy), **M3-18** (adds a constraint that can fail on existing rows). All three are Tier A.
 
@@ -2354,8 +2869,8 @@ Decisions deliberately postponed, with the trigger that should reopen them. **A 
 | Decision | Deferred to | Reopen when |
 |---|---|---|
 | **PITR** | **Part V, PH-01** | Real users, or the next Tier B migration (M6-05). Costed and decided 2026-08-10 — see M3-00 |
-| **Avatar storage path hole** (RLS_AUDIT item 3) | **Unowned — needs a task. NOT production hardening** | Now-ish. Any authenticated user can overwrite any other user's avatar: a live, exploitable authorization bug. It is security correctness, so it does **not** belong in Part V. One task: path change (`<uid>/avatar.png`), three storage policies, a bucket size limit. Cheap. Fold it into M3 or M8 rather than leaving it homeless |
-| `handle_new_user()` missing `search_path` (RLS_AUDIT item 6) | Next migration that touches auth provisioning | Cheap hardening; fold it into whichever task is next in that file |
+| ~~**Avatar storage path hole** (RLS_AUDIT item 3)~~ | ~~Unowned~~ → **✅ closed by M14, 2026-08-14** | `20260814101000_avatar_storage_ownership.sql` scopes INSERT and UPDATE to the caller's own folder; the client writes `<uid>/avatar.<ext>`; the bucket has a size limit and a mime allow-list. SELECT stays public by design. The six REST-level checks are listed in the migration and have **not** been run — that part is still owed |
+| ~~`handle_new_user()` missing `search_path`~~ (RLS_AUDIT item 6) | ~~Next migration touching auth provisioning~~ → **✅ closed by M14, 2026-08-14** | `20260814102000_handle_new_user_search_path.sql`. Body unchanged and already schema-qualified, so behaviour is identical |
 | Dead `todos.status` / `previous_status` columns | M10-00 | Before work item types are added — three status-shaped concepts in one table is a trap |
 | **Board ownership transfer** | Post-M4 | A user asks to hand over a board, or an owner leaves the organisation. **Until it exists, the Owner of a board never changes** (invariant I6). It is not a membership operation and must not be smuggled into one |
 | Board-level roles vs. workspace/organisation roles | Post-M8 | Workspaces become real (`docs/ARCHITECTURE.md` names them as future scope). The four roles are **board**-scoped; an organisation role is a second, orthogonal system and a deliberate architecture decision, not an extension of this one |
@@ -2364,6 +2879,24 @@ Decisions deliberately postponed, with the trigger that should reopen them. **A 
 | Server-side filtering and full-text search | M12 | A board outgrows what the client cache can filter — same trigger as cursor pagination |
 | Splitting `statuses` from `columns` | M13 | A board genuinely needs two columns showing one status |
 | Viewer comment permission | **M7 — must be decided, not deferred again** | Before `comments` RLS is written |
+
+**Revised in the 2026-08-14 roadmap revision.** Three of the rows above had triggers that have now fired, and two new deferrals were created by the new direction.
+
+| Decision | Was | Now |
+|---|---|---|
+| **Board-level roles vs. workspace / space roles** | Deferred *"post-M8, when workspaces become real"* | **Reopened — M14 must decide it, M15 depends on it.** Workspaces are becoming real. The recommendation is recorded in M15: a space is an organisational container, not a permission scope; roles stay board-scoped and M3 is untouched. The alternative is a second authorization system, which this appendix already calls the hardest kind to get right. |
+| **`boards.key_prefix`** (Appendix D) | *"Before keys appear anywhere outside the card"* | **Now scheduled: M14, before M15 ships board creation.** The trigger fires the moment a user can make a second board, because both would hand out `KAN-1`. |
+| **`activities` table** | *"M7-05 — when an activity feed UI is actually being designed"* | **Trigger fired. Scheduled: M18**, built together with the Overview panel that reads it. |
+| **RLS membership performance (PH-03)** | *"When a real board passes a few hundred work items"* | **Re-anchored: before M18's cross-board query ships.** That query's cost is proportional to everything the caller can see, not to one board — a shape nothing in the product has had before. |
+| ~~**`reorder_todos` RPC (M3-10)**~~ | ~~Deferred to M6-04~~ → **✅ CLOSED as unnecessary, 2026-08-14** | M6-04 made a move a single-row write, so no client-supplied array of ids and positions reaches the database on the drag path. The one surviving bulk renumber — M6-06's rebalance — takes an id and derives every value server-side, which is the property M3-10 asked for. See M3-10. |
+| **Cross-board query shape** — new | — | **M16 decides it.** Per-board queries unioned client-side, or a scope-keyed query. The recommendation and the reason are in M16; the deciding factor is that a second cache shape forks the write path M2-16 unified and M6-B depends on. |
+| **`todos.start_date`** — new | — | **M20 adds it.** Additive, nullable, Tier A, no backfill. Named now so that M16 widens the shared row shape once rather than per view. |
+| **Space membership (shared spaces)** — new | — | **Deferred, with an upgrade path rather than a rewrite:** if spaces ever need sharing, `spaces` gains membership and `boards.space_id` keeps working. Reopen when two people need to organise the same set of boards. |
+| **Per-user filing of a shared board** — found while building M15 | **Deferred** | `boards.space_id` is one column on a shared row, so a board can sit in at most one person's folder. M15 resolves the conflict by letting only the board's **owner** file it; per-user filing needs a `space_boards(space_id, board_id)` join table. **Reopen when** someone asks to organise a board that was shared with them. |
+| **Board `archived`** (M8-03) | **M15 left it open** | The semantics were never decided: does an archived board disappear for its members too, and can they still read it? Recommendation unchanged — board-wide and read-only for everyone until restored. **Reopen when** a board needs retiring without being deleted. |
+| **View selection / bulk actions** | **M16 decided it, did not build it** | The decision is made and stands: selection is **ephemeral React state, never a URL param** — a list of uuids in every shared link is a cost with no reader. Not built because no bulk action exists to select *for*, so the store would have had zero callers. **Reopen with** the first bulk action (M18 at the earliest). |
+| **Description search** | **M16 left it out** | `description` is not in the fetched row (M5-07), so `searchTodos` matches titles and keys only. Widening the select for every card on every board load to serve a search box is the wrong trade; the right one is server-side search, whose trigger is unchanged in M12. **Reopen when** a board outgrows client-side search. |
+| **Board appearance** — `icon`, `cover_color`, `visibility` (M8-04) | **M15 left it out** | The columns exist and are unread. Each needs a palette (in `src/constants/`, per `docs/DATABASE.md`) or, for `visibility`, a permission story of its own — Appendix E already refuses a fifth role for public boards. **Reopen with** M17, which is where board identity gets designed. |
 
 ---
 
@@ -2427,8 +2960,18 @@ A decision is on this list only if deferring it makes the eventual change *struc
 | Second ordering surface (backlog rank vs. column rank) | **M11, after M6** | Two views renumbering one column from stale snapshots is silent data loss, not a merge conflict |
 | Columns as statuses vs. a separate `statuses` table | **M13** | The only remaining migration that would touch every work item row, every policy and every DnD path at once |
 | Where transition rules are enforced | **M13** | A rule enforced in `onDragEnd` is not a rule, and retrofitting it into the database after M6's single-row rank writes means redesigning both |
-| Per-board task key prefix (`boards.key_prefix`, replacing the hardcoded `KAN-`) | **Before keys appear anywhere outside the card** | Once a key is in a URL, a comment, a notification or an external reference, it is an identifier people rely on. Cheap now: one nullable column plus one string interpolation in `TodoItem.tsx` |
-| Board-scoped roles vs. workspace/organisation roles | **Before workspaces** | A second permission system layered on a first is the hardest kind of authorization change to get right. Decide the relationship before either exists |
+| Per-board task key prefix (`boards.key_prefix`, replacing the hardcoded `KAN-`) | **M14 — before M15 ships board creation** | Once a key is in a URL, a comment, a notification or an external reference, it is an identifier people rely on. Cheap now: one nullable column plus one string interpolation. **The trigger has effectively fired**: the day a user can create a second board, two boards both hand out `KAN-1` |
+| Board-scoped roles vs. workspace/space roles | **M14 — before `spaces` exists** | A second permission system layered on a first is the hardest kind of authorization change to get right. Decide the relationship before either exists. **Recommended answer in M15: a space is filing, not authorization** |
+
+**Added in the 2026-08-14 revision.** Each is here on the same terms as the rows above — deferring it makes the eventual change *structurally* harder, not merely later.
+
+| Decision | Must be made by | Cost of deciding late |
+|---|---|---|
+| ~~**How a view spanning several boards gets its data**~~ | ~~M16, before M18~~ → **✅ decided and built 2026-08-14** | Per-board queries unioned client-side (`useScopedTodos`). `["todos", boardId]` keeps its meaning and **no mutation was touched**. M18 passes a space or `all` scope to the same hook |
+| **`todos.start_date` for date ranges** | **M20, and named in M16** | Additive and cheap *as a column*; expensive as a surprise. Every view built between M16 and M20 reads one shared row shape, so a field discovered at M20 widens four renderers instead of one. The alternative shapes — a duration, or a schedule child table — are the expensive ones, and the reasoning is recorded in M20 rather than rediscovered |
+| **Whether more than one view may write order** | **M16, from the view capability table** | This is the trigger for M6-A stated as something a table can answer. One reorderable view: dense integers survive. Two: they do not, silently, and the loser's ordering is gone |
+| **Whether a board's key changes when it moves between spaces** | **M14** | It must not. A renumber after a key is in a URL or a comment breaks references people already rely on, and "tidying it up later" is the tempting version of that mistake |
+| **Space deletion vs. the boards inside it** | **M15** | A cascade here removes every member's access to every board in the space. `on delete set null` — a space is filing, a board is content |
 
 ---
 
@@ -2442,7 +2985,7 @@ None of these are refused permanently. Each has a condition that would reopen it
 |---|---|
 | Sprints and sprint planning | The product has real users running iterations, and the backlog (M11) is in daily use. Sprints without a used backlog are ceremony |
 | Releases and versions | Something is actually being released against these boards |
-| Advanced roadmaps, timeline/Gantt | Dependencies and date ranges exist and are maintained — neither is true today |
+| ~~Advanced roadmaps, timeline/Gantt~~ → **now M20** | **Reopened 2026-08-14 by product direction.** The stated condition was *"dependencies and date ranges exist and are maintained"*. Date ranges are being added by M20 (`todos.start_date`), so half the condition is met the honest way. **Dependencies are not**, which is why M20's timeline has no dependency arrows and no critical path — those still need M10's `work_item_links` and stay out of scope. *Advanced roadmaps* — cross-project rollups, scenario planning — remain out of scope on the original terms |
 | Automation rules ("when X then Y") | Workflows (M13) exist and users are hand-repeating a transition often enough to name it |
 | Custom fields | Users hit a genuine limit of the fixed field set. Custom fields tax every query, every view, every filter and every form, permanently |
 | User-defined work item types | Same trigger as custom fields, and it converts the type constraint into a lookup table |
@@ -2452,7 +2995,8 @@ None of these are refused permanently. Each has a condition that would reopen it
 | A query language (JQL-equivalent) | Filtering (M12) is good and users are still hitting its ceiling |
 | Cross-board search and cross-board links | Multi-board usage is real and the single-board case is already good |
 | Guest users / public boards | `boards.visibility` already has the column; it needs a permission story of its own, not a fifth role |
-| Notifications, AI assistant, templates, calendar view | `docs/PRODUCT_SPEC.md` lists these as long-term. They stay long-term until a milestone can state their dependencies |
+| Notifications, AI assistant, templates, ~~calendar view~~ | `docs/PRODUCT_SPEC.md` lists these as long-term. They stay long-term until a milestone can state their dependencies — **which is exactly what happened to the calendar on 2026-08-14: M19 states them (M16, and `due_date`, which already exists), so it left this list.** Notifications, the AI assistant and templates have not, and none of them has a milestone that can state a dependency yet |
+| External calendar sync (iCal / Google) | Distinct from M19's calendar *view*, and it stays out: it is an integration, with an auth story and a two-way-sync story of its own |
 
 The two questions that decide anything on this list:
 

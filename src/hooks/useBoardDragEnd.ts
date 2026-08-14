@@ -4,7 +4,7 @@ import { resolveDropIndex } from "@/services/todos/dropIndex";
 import { useTodoDrop } from "@/services/todos/useTodoDrop";
 import { useDoneFlash } from "@/stores/doneFlash";
 import type { IColumn, Todo } from "@/types/data";
-import { byPosition } from "@/utils/position";
+import { byRank } from "@/utils/rank";
 import type { TodoIndicator } from "./useKanbanDnd";
 
 interface BoardDragEndParams {
@@ -98,7 +98,7 @@ export function useBoardDragEnd({
       const index = resolveDropIndex(
         todos
           .filter((todo) => todo.column_id === indicator.columnId)
-          .sort(byPosition),
+          .sort(byRank),
         visibleByColumn[indicator.columnId] ?? [],
         indicator.index,
         activeTodo.id,

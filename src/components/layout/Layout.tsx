@@ -1,56 +1,43 @@
 import type { ReactNode } from "react";
 
-import Header from "./header/Header";
 import { AppSidebar } from "../sideBar/app-sidebar";
 import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/SideBarUI/sidebar";
 
-interface LayoutProps {
-  children: ReactNode;
-  /**
-   * The contextual right rail. Optional because it is board-specific — the
-   * profile page has no rail, and forcing an empty one there would be chrome
-   * for its own sake.
-   */
-  rail?: ReactNode;
-}
-
 /**
- * The application shell: a full-height sidebar, then a column holding the
- * global header above the workspace, with the workspace split into content and
- * an optional rail.
+ * The application shell: a full-height sidebar and the workspace beside it.
  *
- * **Two things changed from the previous shell and both were bugs.** The header
- * used to sit above the sidebar rather than beside it, so the sidebar could not
- * be full height. And the main region carried
- * `style={{ maxWidth: calc(100vw - 256px) }}`, hard-coding the sidebar's width
- * in a second place and reading `useSidebar()` purely to compute it — the flex
- * layout below derives the same result from the sidebar's actual width, so
- * collapsing it no longer depends on a number staying in sync.
+ * **Two things left in M17 and both were paying rent for nothing.**
+ *
+ * The *global header* held a permanently `disabled` search box and a
+ * permanently `disabled` Create button — both duplicating controls that work in
+ * the board's own toolbar — above a breadcrumb the app did not have. It cost a
+ * 56px band on every screen to render two dead controls, so it is gone and its
+ * live occupants (theme, language, the profile link) moved to the sidebar
+ * footer, where account controls belong.
+ *
+ * The *`rail` prop* is gone with it. `ContextRail` was 288px of permanent width
+ * holding one live panel (Members) and two placeholders (Activity, Quick
+ * Filters). Members is now a drawer opened from the board's member stack,
+ * Activity belongs to M18, and Quick Filters was a placeholder for saved
+ * filters, which are still M12's. What replaces the prop is `ViewShell`'s
+ * `drawer` slot: present only when a `?task=` or `?panel=` says so.
  *
  * `min-h-0` / `min-w-0` on the scrolling ancestors is load-bearing, not
  * decoration: a flex child defaults to `min-height: auto`, which refuses to
  * shrink below its content and would push the board's horizontal scroll onto
  * the page instead of keeping it inside the board.
  */
-export default function Layout({ children, rail }: LayoutProps) {
+export default function Layout({ children }: { children: ReactNode }) {
   return (
     <SidebarProvider>
       <div className="bg-canvas flex h-svh w-full overflow-hidden">
         <AppSidebar />
 
         <SidebarInset className="bg-canvas flex min-w-0 flex-1 flex-col overflow-hidden">
-          <Header />
-
-          <div className="flex min-h-0 flex-1">
-            <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-              {children}
-            </main>
-
-            {rail}
-          </div>
+          {children}
         </SidebarInset>
       </div>
     </SidebarProvider>

@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createBoard } from "./boardsApi";
 import type { IBoard } from "@/types/data";
 import { queryKeys } from "@/services/queryClient/queryKeys";
+import { DEFAULT_KEY_PREFIX } from "@/utils/taskKey";
 
 export function useCreateBoard() {
   const queryClient = useQueryClient();
@@ -10,10 +11,17 @@ export function useCreateBoard() {
     // The id is minted here rather than inside createBoard so that onMutate
     // and the request agree on it. Generating it in the API function would put
     // the optimistic row under an id the server never returns.
-    mutationFn: ({ id, title }: { id?: string; title: string }) =>
-      createBoard({ id, title }),
+    mutationFn: ({
+      id,
+      title,
+      spaceId,
+    }: {
+      id?: string;
+      title: string;
+      spaceId?: string | null;
+    }) => createBoard({ id, title, spaceId }),
 
-    onMutate: async ({ id, title }) => {
+    onMutate: async ({ id, title, spaceId = null }) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.boards() });
 
       const previousBoards =
@@ -38,6 +46,12 @@ export function useCreateBoard() {
         // A board with no cards yet, so its first task key will be KAN-1 —
         // the same value the column defaults to server-side (M2-21).
         next_key: 1,
+        // Mirrors the column default from M14. A board created here has not
+        // chosen a prefix, and the server will echo back this same value.
+        key_prefix: DEFAULT_KEY_PREFIX,
+        // The folder it was created in, so the optimistic row appears under
+        // that heading rather than jumping from Unfiled a moment later (M15).
+        space_id: spaceId,
         created_at: now,
         updated_at: now,
       };

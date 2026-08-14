@@ -87,11 +87,17 @@ export default function ProfilePage() {
               <span className="text-sm font-semibold text-white">Change</span>
             </div>
 
+            {/* Narrowed from `image/*` to exactly what the bucket accepts
+                (M14): the `avatars` bucket now carries an allow-list, so a
+                picker offering svg, gif or heic would let someone choose a
+                file that is rejected after they wait for the upload. SVG is
+                excluded deliberately rather than forgotten — it can carry
+                script, and these are served from our own origin. */}
             <input
               hidden
               disabled={uploadAvatar.isPending}
               type="file"
-              accept="image/*"
+              accept="image/png,image/jpeg,image/webp"
               onChange={handleAvatarChange}
             />
           </label>

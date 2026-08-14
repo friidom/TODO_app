@@ -7,6 +7,7 @@ import PriorityControl from "./TodoItem/PriorityControl";
 import StatusControl from "./TodoItem/StatusControl";
 import WorkTypeControl from "./TodoItem/WorkTypeControl";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useKeyPrefix } from "@/hooks/useKeyPrefix";
 import { useOpenTask } from "@/hooks/useOpenTask";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useTodoPatch } from "@/hooks/useTodoPatch";
@@ -18,6 +19,7 @@ import {
 import { useTodo } from "@/services/todos/useTodo";
 import type { TodoRow } from "@/types/data";
 import { cn } from "@/utils/cn";
+import { taskKey } from "@/utils/taskKey";
 
 /**
  * One work item, in a right-side panel over the board (M5-06).
@@ -55,11 +57,11 @@ function Panel({
   const { data: todo, isPending, error } = useTodo(taskId, boardId);
 
   return (
-    <aside
-      role="complementary"
-      aria-label="Task details"
-      className="border-hairline bg-card flex w-full shrink-0 flex-col overflow-hidden border-l sm:w-[420px]"
-    >
+    // Positioning, width, the scrim and Escape all come from `DrawerFrame`
+    // (M17), so this panel and the members drawer cannot drift apart. What is
+    // left here is the panel's own content — including its header, which is why
+    // it uses the frame directly rather than `Drawer`.
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
       {isPending ? (
         <div className="space-y-3 p-5" aria-busy>
           <Skeleton className="h-5 w-24" />
@@ -84,13 +86,14 @@ function Panel({
       ) : (
         <Body todo={todo} onClose={onClose} />
       )}
-    </aside>
+    </div>
   );
 }
 
 function Body({ todo, onClose }: { todo: TodoRow; onClose: () => void }) {
   const patch = useTodoPatch(todo);
   const { canEditTodos } = usePermissions();
+  const key = taskKey(useKeyPrefix(), todo.board_key);
 
   const [title, setTitle] = useState(todo.title ?? "");
   const [description, setDescription] = useState(todo.description ?? "");
@@ -141,9 +144,9 @@ function Body({ todo, onClose }: { todo: TodoRow; onClose: () => void }) {
   return (
     <>
       <header className="border-hairline flex items-center gap-2 border-b px-4 py-3">
-        {todo.board_key !== null && (
+        {key !== null && (
           <span className="bg-ink/10 text-ink-2 shrink-0 rounded px-1.5 py-0.5 text-[11px] font-semibold">
-            KAN-{todo.board_key}
+            {key}
           </span>
         )}
 

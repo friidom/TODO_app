@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Navigate } from "react-router";
 import Loading from "../loading/LoadingPage";
+import BoardFormModal from "@/components/boards/BoardFormModal";
 import { useBoards } from "@/services/boards/useBoards";
 
 /**
@@ -34,17 +36,31 @@ export default function BoardIndexRoute() {
  * is not a reason to render a blank page, and during the migration window it
  * is exactly what a half-migrated account would hit.
  *
- * No create button: board creation is UI, and this milestone has none yet.
+ * **It is also reachable deliberately now:** M15 lets the last board be
+ * deleted, and `DeleteBoardModal` sends you here when the board you deleted was
+ * the one on screen. So the dead end got the create button this comment used to
+ * say did not exist yet.
  */
 function NoBoards() {
+  const [creating, setCreating] = useState(false);
+
   return (
     <div className="bg-background text-foreground flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
       <p className="text-2xl font-bold">No boards yet</p>
 
       <p className="text-muted-foreground">
-        This account does not have a board. If you expected one, it may not have
-        finished being set up.
+        Create one to get started — it arrives with the four default columns.
       </p>
+
+      <button
+        type="button"
+        onClick={() => setCreating(true)}
+        className="bg-brand hover:bg-brand/90 text-brand-fg rounded-xl px-4 py-2"
+      >
+        Create board
+      </button>
+
+      {creating && <BoardFormModal onClose={() => setCreating(false)} />}
     </div>
   );
 }

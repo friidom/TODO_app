@@ -37,7 +37,10 @@ export default function CollapsedColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        "group/rail flex h-fit max-h-[calc(100vh-220px)] w-11 shrink-0 flex-col items-center gap-3 rounded-xl bg-surface py-3",
+        // Height from the flex row, matching the expanded column (M17). The
+        // `max-h-[calc(100vh-220px)]` this replaced hard-coded the height of
+        // every bar above the board, which the redesign changed.
+        "group/rail rounded-surface border-hairline bg-surface flex h-fit max-h-full w-11 shrink-0 flex-col items-center gap-3 border py-3",
         isDragging && "opacity-40",
       )}
     >
@@ -49,13 +52,13 @@ export default function CollapsedColumn({
         className="flex min-h-0 cursor-grab touch-none flex-col items-center gap-3 select-none active:cursor-grabbing"
       >
         <h2
-          className="truncate text-[15px] font-semibold text-ink"
+          className="text-ink truncate text-[15px] font-semibold"
           style={{ writingMode: "vertical-rl" }}
         >
           {headerTitle}
         </h2>
 
-        <span className="shrink-0 rounded bg-ink/10 px-1.5 py-0.5 text-xs font-semibold text-ink-2">
+        <span className="bg-ink/10 text-ink-2 shrink-0 rounded px-1.5 py-0.5 text-xs font-semibold">
           {count}
         </span>
       </div>
@@ -68,7 +71,7 @@ export default function CollapsedColumn({
         onClick={onExpand}
         aria-label="Expand column"
         title="Expand column"
-        className="hidden rounded p-1 text-ink-2 group-focus-within/rail:block group-hover/rail:block hover:bg-ink/10"
+        className="text-ink-2 hover:bg-ink/10 hidden rounded p-1 group-focus-within/rail:block group-hover/rail:block"
       >
         <svg
           width="18"

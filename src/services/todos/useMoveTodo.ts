@@ -17,12 +17,11 @@ import { useTodoDrop } from "./useTodoDrop";
  * **It goes through the drop rather than a bare column update, and that is the
  * fix rather than a detail.** It used to call `useUpdateTodoColumn`, which
  * wrote `{ id, board_id, column_id }` and nothing else — so the card arrived in
- * its new column still carrying the `position` it held in the old one. Two
- * cards could then share a position, the source column was left with a gap, and
- * `orderByBoard` (which sorts by exactly that number) put the card in an
- * arbitrary slot. Positions are dense by invariant, and `applyTodoMoved` is
- * what keeps them that way: it renumbers both the source and the destination
- * and `reorderTodos` writes the whole array.
+ * its new column still carrying the order value it held in the old one, landing
+ * in an arbitrary slot and sometimes tying with a card already there.
+ * `useTodoDrop` is what computes a value that means something in the
+ * destination: since M6-04 that is a rank between the two cards either side of
+ * where it lands, written to that one row.
  *
  * The card lands at the END of the destination column. A menu has no gap to
  * aim at the way a drag does, and appending is the only answer that does not

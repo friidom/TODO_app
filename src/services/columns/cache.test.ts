@@ -4,7 +4,6 @@ import type { IColumn } from "../../types/data";
 import {
   applyColumnDeleted,
   applyColumnInserted,
-  applyColumnMoved,
   applyColumnUpdated,
 } from "./cache";
 
@@ -116,67 +115,6 @@ describe("applyColumnDeleted", () => {
     const before = columns.map((it) => ({ ...it }));
 
     applyColumnDeleted(columns, "b");
-
-    expect(columns).toEqual(before);
-  });
-});
-
-describe("applyColumnMoved", () => {
-  it("moves a column left and renumbers", () => {
-    const result = applyColumnMoved(board(), 2, 1);
-
-    expect(order(result)).toEqual(["a", "c", "b", "d"]);
-    expect(positions(result)).toEqual([0, 1, 2, 3]);
-  });
-
-  it("moves a column right and renumbers", () => {
-    const result = applyColumnMoved(board(), 1, 2);
-
-    expect(order(result)).toEqual(["a", "c", "b", "d"]);
-    expect(positions(result)).toEqual([0, 1, 2, 3]);
-  });
-
-  it("moves the first column to the end", () => {
-    const result = applyColumnMoved(board(), 0, 3);
-
-    expect(order(result)).toEqual(["b", "c", "d", "a"]);
-    expect(positions(result)).toEqual([0, 1, 2, 3]);
-  });
-
-  it("moves the last column to the front", () => {
-    const result = applyColumnMoved(board(), 3, 0);
-
-    expect(order(result)).toEqual(["d", "a", "b", "c"]);
-    expect(positions(result)).toEqual([0, 1, 2, 3]);
-  });
-
-  it("indexes the sorted order, not the array order", () => {
-    // The drag paths pass an already-sorted list; a realtime handler reading
-    // straight from the cache does not.
-    const result = applyColumnMoved(board().reverse(), 0, 3);
-
-    expect(order(result)).toEqual(["b", "c", "d", "a"]);
-  });
-
-  it("is a no-op when the column is put back where it was", () => {
-    const result = applyColumnMoved(board(), 1, 1);
-
-    expect(order(result)).toEqual(["a", "b", "c", "d"]);
-    expect(positions(result)).toEqual([0, 1, 2, 3]);
-  });
-
-  it("returns the input untouched when `from` is out of range", () => {
-    const columns = board();
-
-    // The alternative is splicing `undefined` into the board.
-    expect(applyColumnMoved(columns, 9, 0)).toBe(columns);
-  });
-
-  it("never mutates the input", () => {
-    const columns = board();
-    const before = columns.map((it) => ({ ...it }));
-
-    applyColumnMoved(columns, 0, 3);
 
     expect(columns).toEqual(before);
   });

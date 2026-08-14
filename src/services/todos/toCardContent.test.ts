@@ -18,32 +18,45 @@ const row: Todo = {
   created_at: "2026-08-01T00:00:00.000Z",
   updated_at: null,
   position: 3,
+  rank: 4096,
 };
 
 describe("toCardContent", () => {
   it("maps the row onto the card's own field names", () => {
-    expect(toCardContent(row)).toEqual({
+    expect(toCardContent(row, "KAN")).toEqual({
       title: "Ship the thing",
-      boardKey: 7,
+      // Assembled here, not in the card: M14 made the prefix a board setting,
+      // so `KAN-7` is the two halves meeting rather than a literal in the JSX.
+      taskKey: "KAN-7",
       workType: "task",
+      priority: "high",
       dueDate: "2026-08-20T00:00:00.000Z",
     });
   });
 
-  it("drops every column the card does not render", () => {
-    const content = toCardContent(row) as unknown as Record<string, unknown>;
+  it("uses the board's own prefix rather than a hardcoded one", () => {
+    // The regression M14 exists to prevent: two boards both rendering KAN-1.
+    expect(toCardContent(row, "OPS").taskKey).toBe("OPS-7");
+  });
 
-    // The board fetches twelve columns (M5-07); the card renders four. These
-    // are the other eight — `id`/`board_id`/`column_id` because M5-02 left
-    // identity with the container, the rest because they drive filtering,
-    // sorting, ordering and the controls rather than the card's own markup.
+  it("drops every column the card does not render", () => {
+    const content = toCardContent(row, "KAN") as unknown as Record<
+      string,
+      unknown
+    >;
+
+    // The board fetches thirteen columns (M5-07, widened by M6-A's `rank`);
+    // the card renders five since M17 gave it `priority`. These are the other
+    // eight — `id`/`board_id`/`column_id` because M5-02 left identity with the
+    // container, the rest because they drive filtering, sorting and ordering
+    // rather than the card's own markup.
     for (const column of [
       "id",
       "board_id",
       "column_id",
       "position",
+      "rank",
       "assignee_id",
-      "priority",
       "created_at",
       "updated_at",
     ]) {
@@ -55,17 +68,21 @@ describe("toCardContent", () => {
     // `type` is not among them: `todos.type` is NOT NULL with a default, which
     // is why the compiler refuses a null here and why the card's chip always
     // has a value to render.
-    const bare = toCardContent({
-      ...row,
-      title: null,
-      board_key: null,
-      due_date: null,
-    });
+    const bare = toCardContent(
+      {
+        ...row,
+        title: null,
+        board_key: null,
+        due_date: null,
+      },
+      "KAN",
+    );
 
     expect(bare.title).toBeNull();
     // board_key is null for the moment a freshly created card is in flight —
-    // that absence is the pending state, so it must survive the mapping.
-    expect(bare.boardKey).toBeNull();
+    // that absence is the pending state, so it must survive the mapping as a
+    // null key rather than as the string "KAN-null".
+    expect(bare.taskKey).toBeNull();
     expect(bare.dueDate).toBeNull();
   });
 });
@@ -79,8 +96,9 @@ describe("TodoCardProps", () => {
 
     const props: TodoCardProps = {
       title: "A card with no row behind it",
-      boardKey: 1,
+      taskKey: "KAN-1",
       workType: "bug",
+      priority: null,
       dueDate: null,
       draft: "A card with no row behind it",
       editing: false,
@@ -90,6 +108,7 @@ describe("TodoCardProps", () => {
       onCancel: noop,
       onStartEdit: noop,
       onWorkTypeChange: noop,
+      onPriorityChange: noop,
       onDueDateChange: noop,
     };
 

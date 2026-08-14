@@ -3,7 +3,9 @@ import { Pencil, User } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 import DueDateControl from "./TodoItem/DueDateControl";
+import PriorityControl from "./TodoItem/PriorityControl";
 import WorkTypeControl from "./TodoItem/WorkTypeControl";
+import { PRIORITIES, toPriority, type Priority } from "@/constants/priorities";
 import { workTypeOf, type WorkType } from "@/constants/workTypes";
 import { cn } from "@/utils/cn";
 import type { TodoCardContent, TodoViewState } from "@/types/data";
@@ -22,6 +24,7 @@ export interface TodoCardProps extends TodoCardContent, TodoViewState {
   onCancel: () => void;
   onStartEdit: () => void;
   onWorkTypeChange: (value: WorkType) => void;
+  onPriorityChange: (value: Priority | null) => void;
   onDueDateChange: (value: string | null) => void;
 
   /** Opens the detail panel. Absent on the drag overlay, which has no chrome. */
@@ -59,8 +62,9 @@ export interface TodoCardProps extends TodoCardContent, TodoViewState {
  */
 export default function TodoCard({
   title,
-  boardKey,
+  taskKey,
   workType,
+  priority,
   dueDate,
   draft,
   editing,
@@ -74,6 +78,7 @@ export default function TodoCard({
   onCancel,
   onStartEdit,
   onWorkTypeChange,
+  onPriorityChange,
   onDueDateChange,
   onOpen,
   assignee,
@@ -97,57 +102,94 @@ export default function TodoCard({
       ref={setNodeRef}
       {...handleProps}
       className={cn(
-        "group border-hairline bg-elevated hover:border-ink/25 rounded-card relative flex touch-none flex-col gap-2 border px-2.5 py-2 shadow-sm transition-colors duration-200 select-none",
+        // No resting shadow and a border at half the hairline's contrast: the
+        // card is found by its surface being one step above the column, which
+        // is what the tightened token ladder is for. A border and a shadow on
+        // top of that is the "developer dashboard" look.
+        "group border-ink/[0.06] bg-elevated hover:border-ink/15 hover:bg-ink/[0.02] rounded-card relative flex touch-none flex-col gap-2 border p-3 transition-[background-color,border-color,opacity] duration-150 select-none",
         overlay
-          ? "cursor-grabbing opacity-60 shadow-lg"
+          ? "cursor-grabbing opacity-70 shadow-lg"
           : dragDisabled
-            ? "hover:shadow-md"
-            : "cursor-grab hover:shadow-md",
-        dragging && "hover:border-hairline opacity-40 shadow-none",
+            ? ""
+            : "cursor-grab",
+        dragging && "hover:border-ink/[0.06] opacity-40",
         // Mounting in a done column means the card just got there — the
         // animation is one-shot, so mounting is the whole trigger.
         celebrate && "done-flash",
       )}
     >
-      {/* TITLE */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          {editing ? (
-            <input
-              ref={inputRef}
-              value={draft}
-              onChange={(e) => onDraftChange(e.target.value)}
-              onBlur={onSave}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") onSave();
-                if (e.key === "Escape") onCancel();
-              }}
-              onPointerDown={(e) => e.stopPropagation()}
-              className="border-brand bg-surface text-ink rounded-control w-full border-2 px-2 py-1 text-sm outline-none"
+      {/* ROW 1 — what kind of work this is, and how urgent.
+          Leads the card (M17) because those two answer "should I read this?"
+          faster than the title does, and the reference proves the pattern: a
+          scannable column is chips first, prose second.
+
+          Both are live controls, not badges — the same popovers the detail
+          panel uses, so a priority is set from the board without opening
+          anything. Each renders nothing until hover when its value is unset,
+          which is what keeps a bare card free of chrome. */}
+      <div className="flex items-center gap-1.5">
+        {overlay ? (
+          <>
+            <PriorityBadge value={priority} />
+            <WorkTypeBadge type={workType} />
+          </>
+        ) : (
+          <>
+            {/* Labelled only when there is a priority to name. Unset, the
+                control renders "No priority", which would put those two words
+                on every card of a board nobody has prioritised — so it stays a
+                small muted icon there, discoverable without shouting. */}
+            <PriorityControl
+              value={priority}
+              onChange={onPriorityChange}
+              showLabel={toPriority(priority) !== null}
             />
-          ) : (
-            <p className="text-ink text-[13px] leading-snug break-words">
-              {title}
-            </p>
-          )}
-        </div>
+            <WorkTypeControl
+              value={workType}
+              onChange={onWorkTypeChange}
+              showLabel
+            />
+          </>
+        )}
 
-        {/* actions — no pending state to hide behind since M2-14: the card
-            already holds its real id, so its menu and its key are valid the
-            moment it appears.
+        {/* The key opens the detail panel, and it is the affordance a VIEWER
+            has. The action cluster is editor-only, and the menu inside it was
+            the only way in — so reading a description required permission to
+            write one. Reading is not editing. Null only while a freshly created
+            card is in flight. */}
+        {taskKey !== null && (
+          <span className="ml-auto shrink-0">
+            {onOpen ? (
+              <button
+                type="button"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={onOpen}
+                title={`Open ${taskKey}`}
+                className="text-ink-3 hover:text-brand text-[11px] font-semibold tracking-wide transition-colors"
+              >
+                {taskKey}
+              </button>
+            ) : (
+              <span className="text-ink-3 text-[11px] font-semibold tracking-wide">
+                {taskKey}
+              </span>
+            )}
+          </span>
+        )}
 
-            Hidden entirely below editor: every action behind them writes, and
-            the whole cluster is hover-revealed anyway, so a viewer simply
-            never sees one appear. */}
+        {/* Hidden entirely below editor: every action behind them writes, and
+            the cluster is hover-revealed anyway, so a viewer never sees one
+            appear. */}
         {!editing && canEdit && (
-          <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+          <div className="-mr-1 flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
             <button
               type="button"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={onStartEdit}
-              className="text-ink-3 hover:bg-ink/10 hover:text-ink rounded-md p-1"
+              aria-label="Rename"
+              className="text-ink-3 hover:bg-ink/10 hover:text-ink rounded p-1 transition-colors"
             >
-              <Pencil size={15} />
+              <Pencil size={13} />
             </button>
 
             {!overlay && menu}
@@ -155,56 +197,42 @@ export default function TodoCard({
         )}
       </div>
 
-      {/* META — work type, key, due date, then the assignee pushed right.
-          Secondary to the title by design: everything here is 11px on a muted
-          chip, and a control with nothing set stays invisible until the card is
-          hovered, so a bare card carries no chrome.
+      {/* ROW 2 — the title, and the loudest thing on the card. */}
+      {editing ? (
+        <input
+          ref={inputRef}
+          value={draft}
+          onChange={(e) => onDraftChange(e.target.value)}
+          onBlur={onSave}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") onSave();
+            if (e.key === "Escape") onCancel();
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="border-brand bg-surface text-ink rounded-control w-full border-2 px-2 py-1 text-sm outline-none"
+        />
+      ) : (
+        <p className="text-ink line-clamp-3 text-[14px] leading-[1.35] font-medium break-words">
+          {title}
+        </p>
+      )}
 
-          There is no status chip. Status is which column the card is in, and
-          the column already says so above every card in it — a chip repeating
-          it spent the widest part of the densest row on the board saying
-          nothing. Changing status still works, through the card menu.
+      {/* ROW 3 — whose it is, then when it is due.
+          Assignee first (M17 pass 3): a face is a fixed-width object and a date
+          is not, so anchoring the faces left and letting the date sit against
+          the right edge keeps a column of cards aligned down both sides.
 
-          Wraps rather than overflowing: on a narrow column a card with a long
-          due date and an avatar runs out of room, and a second line reads
-          better than a clipped one. */}
-      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-        {overlay ? (
-          <WorkTypeBadge type={workType} />
-        ) : (
-          <WorkTypeControl value={workType} onChange={onWorkTypeChange} />
-        )}
-
-        {/* The key opens the detail panel, and it is the affordance a VIEWER
-            has. The action cluster above is editor-only, and the menu inside
-            it was the only way in — so reading a description required
-            permission to write one. Reading is not editing. Null only while a
-            freshly created card is in flight. */}
-        {boardKey !== null &&
-          (onOpen ? (
-            <button
-              type="button"
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={onOpen}
-              title={`Open KAN-${boardKey}`}
-              className="bg-ink/10 text-ink-2 hover:bg-ink/20 hover:text-ink shrink-0 rounded px-1.5 py-0.5 text-[11px] font-semibold transition-colors"
-            >
-              KAN-{boardKey}
-            </button>
-          ) : (
-            <span className="bg-ink/10 text-ink-2 shrink-0 rounded px-1.5 py-0.5 text-[11px] font-semibold">
-              KAN-{boardKey}
-            </span>
-          ))}
-
-        {/* Controlled and writing nothing: the card reports a change and the
-            container decides what it costs. The create form holds the same
-            values in local state instead. One implementation, two modes. */}
-        {!overlay && (
-          <DueDateControl value={dueDate} onChange={onDueDateChange} />
-        )}
-
-        <div className="ml-auto flex shrink-0 items-center">
+          Both are invisible until hover when unset, so a bare card carries no
+          chrome. There is still no status chip — status is which column the
+          card is in, and the column says so above every card in it. */}
+      {/* Always in flow, never toggled. A previous pass collapsed this row on
+          cards with no assignee and no date and brought it back on hover — which
+          changed the card's height under the cursor and shoved every card below
+          it down the column. Reserving the row is the rule: a control that
+          appears on hover keeps its space when it is invisible. Both controls
+          fade in place, so a bare card still carries no chrome. */}
+      <div className="flex min-h-6 items-center gap-1.5">
+        <div className="flex shrink-0 items-center">
           {overlay ? (
             <span className="border-hairline text-ink-3 grid size-6 place-items-center rounded-full border border-dashed">
               <User size={12} />
@@ -213,8 +241,36 @@ export default function TodoCard({
             assignee
           )}
         </div>
+
+        {!overlay && (
+          <span className="ml-auto shrink-0">
+            <DueDateControl value={dueDate} onChange={onDueDateChange} />
+          </span>
+        )}
       </div>
     </div>
+  );
+}
+
+/** The overlay's copy of the priority chip: the same look, no popover. */
+function PriorityBadge({ value }: { value: string | null }) {
+  const priority = toPriority(value);
+
+  if (!priority) return null;
+
+  const meta = PRIORITIES[priority];
+  const Icon = meta.icon;
+
+  return (
+    <span
+      className={cn(
+        "flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-semibold",
+        meta.chip,
+      )}
+    >
+      <Icon className="size-3" />
+      {meta.label}
+    </span>
   );
 }
 
