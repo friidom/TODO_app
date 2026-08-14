@@ -1,5 +1,6 @@
 import { DEFAULT_WORK_TYPE } from "@/constants/workTypes";
 import type { Todo, TodoRow } from "../../types/data";
+import { rankForAppend } from "../../utils/rank";
 // import axios from "axios";
 import { supabase } from "../api/supabase";
 
@@ -14,10 +15,16 @@ import { supabase } from "../api/supabase";
  * `creator_id`, `status` and `previous_status`. On a 200-card board that is
  * 1,200 values fetched, parsed and held in the cache to be ignored.
  *
- * This list and the `Todo` projection in `types/data.ts` are one decision in
- * two places and must change together. The compiler enforces one direction —
- * adding a field here without adding it there makes it unreadable — but not
- * the other, so removing one from `Todo` means removing it here too.
+ * **Still a string literal, and it has to be** — `supabase-js` infers the shape
+ * of the returned row from this exact literal type, so a value of type `string`
+ * (a `.join()`, a variable) collapses the result to `GenericStringError[]` and
+ * every caller loses its typing. That is why M16 could not simply derive it.
+ *
+ * What M16 did instead: `TODO_FIELDS` in `types/data.ts` is the field list the
+ * `Todo` type is a `Pick` over, and **`todoApi.test.ts` asserts this string is
+ * that list joined**. The two are still written twice; they can no longer drift
+ * twice, because disagreeing is a failing test rather than a comment nobody
+ * re-reads. Widening the row for a new view is one edit there and one here.
  *
  * Used by the write paths as well, so the row a mutation returns has the same
  * shape as the rows already in the cache. A wide row landing in a narrow array
@@ -25,7 +32,7 @@ import { supabase } from "../api/supabase";
  * make the cache heterogeneous.
  */
 export const TODO_LIST_FIELDS =
-  "id, board_id, column_id, position, board_key, title, type, priority, due_date, assignee_id, created_at, updated_at";
+  "id, board_id, column_id, position, rank, board_key, title, type, priority, due_date, assignee_id, created_at, updated_at";
 
 //!get
 /**
@@ -41,7 +48,10 @@ export async function fetchTodos(boardId: string) {
     .from("todos")
     .select(TODO_LIST_FIELDS)
     .eq("board_id", boardId)
-    .order("position", { ascending: true });
+    // By rank as of M6-03. The client re-sorts with `byRank` anyway, so this is
+    // a hint rather than the authority — but a query that hands back rows in
+    // one order while the app renders another is a trap for the next reader.
+    .order("rank", { ascending: true, nullsFirst: false });
 
   if (error) throw error;
 
@@ -119,16 +129,20 @@ export async function addTodo({
   //get count of todos
   const { data: lastTodo, error: lastTodoError } = await supabase
     .from("todos")
-    .select("position")
+    .select("position, rank")
     .eq("column_id", column_id)
     .eq("board_id", board_id)
-    .order("position", { ascending: false })
+    .order("rank", { ascending: false, nullsFirst: false })
     .limit(1)
     .maybeSingle();
 
   if (lastTodoError) throw lastTodoError;
 
   const position = (lastTodo?.position ?? -1) + 1;
+
+  // Appended, so the bottom gap: one constant step below the last card. The
+  // ordering above is by rank now (M6-03), so "last" means last on screen.
+  const rank = rankForAppend(lastTodo ? [lastTodo] : []);
 
   //insert it in database
   const { data, error } = await supabase
@@ -144,6 +158,7 @@ export async function addTodo({
         // from now on would have no recorded author at all.
         creator_id: user.id,
         position,
+        rank,
         assignee_id,
         due_date,
         type,
@@ -169,12 +184,75 @@ export async function deleteTodo(id: string) {
 
 //!reorder
 /**
- * `board_id` is in the payload deliberately, and this is not optional.
+ * A move: **one row, two columns of it** (M6-04).
  *
+ * Replaces the whole-column renumbering `reorderTodos` does. A drag used to
+ * write every card in the source column and every card in the destination —
+ * with two editors, each client renumbered from its own snapshot and the array
+ * was last-write-wins, so B's drag silently overwrote A's, including cards B
+ * never touched. Writing only the card that moved makes that a conflict only
+ * when two people move the same card.
+ *
+ * `position` is deliberately **not** written here, and that is the one place
+ * M6-04 diverges from the plan's rollback note. A single-row dense position
+ * does not exist: the value between 1 and 2 is not an integer. Positions
+ * therefore stop being maintained by the drag path and are re-derived from
+ * ranks if the deploy is ever rolled back — one statement, recorded in
+ * `20260814121000_backfill_ranks.sql`. The insert path still renumbers them,
+ * so they stay a lazily-updated mirror of rank order rather than going stale
+ * immediately.
+ */
+export async function moveTodo({
+  id,
+  boardId,
+  columnId,
+  rank,
+}: {
+  id: string;
+  boardId: string;
+  columnId: string;
+  rank: number;
+}) {
+  const { error } = await supabase
+    .from("todos")
+    .update({ column_id: columnId, rank })
+    .eq("id", id)
+    // Defense in depth beside RLS, and the same scoping every other write uses.
+    .eq("board_id", boardId);
+
+  if (error) throw error;
+}
+
+/**
+ * Respace one column's ranks so a midpoint exists again (M6-06).
+ *
+ * Called only when `rankBetween` reports exhaustion — roughly fifty consecutive
+ * drops into the same gap. The server derives every new value from the order
+ * the rows are already in; nothing about the new order is sent from here, which
+ * is the property M3-10 asked for and the reason it closes.
+ */
+export async function rebalanceColumnRanks(columnId: string) {
+  const { error } = await supabase.rpc("rebalance_column_ranks", {
+    p_column_id: columnId,
+  });
+
+  if (error) throw error;
+}
+
+/**
+ * Renumber a column's dense `position` values.
+ *
+ * **No longer the drag path** — M6-04 replaced that with `moveTodo`, one row per
+ * move. What is left is the insert path: creating a card at a chosen gap shifts
+ * every card below it, and `position` is still maintained (it is the rollback
+ * for M6-A until M6-05 drops it). Because the array handed here is already in
+ * rank order, the positions it writes stay a faithful mirror of that order.
+ *
+ * `board_id` is in the payload deliberately, and this is not optional.
  * PostgREST turns an upsert into INSERT ... ON CONFLICT DO UPDATE, and the
  * INSERT policy's WITH CHECK is evaluated against the *proposed* row. Omit
  * board_id and that row carries NULL, which fails M2-08's policy and M2-07's
- * NOT NULL — surfacing as a drag that silently reverts on refresh.
+ * NOT NULL — surfacing as a write that silently reverts on refresh.
  *
  * Stamped from the board being viewed rather than read off each row, so the
  * value cannot be null even if a row in the cache is stale.

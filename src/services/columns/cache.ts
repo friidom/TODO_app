@@ -1,5 +1,5 @@
 import type { IColumn } from "@/types/data";
-import { byPosition } from "@/utils/position";
+import { byRank } from "@/utils/rank";
 
 /**
  * Every way the `["columns", boardId]` cache entry changes, as pure functions.
@@ -46,31 +46,6 @@ export function applyColumnDeleted(
 ): IColumn[] {
   return columns
     .filter((column) => column.id !== id)
-    .sort(byPosition)
+    .sort(byRank)
     .map((column, position) => ({ ...column, position }));
-}
-
-/**
- * The columns with the one at `from` moved to `to`, renumbered.
- *
- * Sorts first so the indices mean the same thing whatever order the cache
- * happens to hold — the two drag paths in `KanbanBoard` pass an already-sorted
- * list, but a realtime handler reading straight from the cache does not.
- *
- * An out-of-range `from` returns the input untouched. The callers guard
- * against it already; the alternative is splicing `undefined` into the board.
- */
-export function applyColumnMoved(
-  columns: IColumn[],
-  from: number,
-  to: number,
-): IColumn[] {
-  const next = [...columns].sort(byPosition);
-  const [moved] = next.splice(from, 1);
-
-  if (!moved) return columns;
-
-  next.splice(to, 0, moved);
-
-  return next.map((column, position) => ({ ...column, position }));
 }

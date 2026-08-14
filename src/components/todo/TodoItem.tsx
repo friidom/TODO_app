@@ -4,6 +4,7 @@ import { useDraggable } from "@dnd-kit/core";
 import TodoCard from "./TodoCard";
 import AssigneeControl from "./TodoItem/AssigneeControl";
 import TodoMenu from "./TodoItem/TodoMenu";
+import { useKeyPrefix } from "@/hooks/useKeyPrefix";
 import { useOpenTask } from "@/hooks/useOpenTask";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useTodoPatch } from "@/hooks/useTodoPatch";
@@ -93,6 +94,7 @@ function TodoContainer({
 
   const { canEditTodos } = usePermissions();
   const { openTask } = useOpenTask();
+  const keyPrefix = useKeyPrefix();
 
   // Only the real card rings — never the drag overlay's copy of it.
   const celebrate = useDoneFlash(
@@ -118,7 +120,7 @@ function TodoContainer({
 
   return (
     <TodoCard
-      {...toCardContent(todo)}
+      {...toCardContent(todo, keyPrefix)}
       draft={draft}
       editing={editing}
       canEdit={canEditTodos}
@@ -131,6 +133,7 @@ function TodoContainer({
       onCancel={cancel}
       onStartEdit={() => setEditing(true)}
       onWorkTypeChange={(type) => patch({ type })}
+      onPriorityChange={(priority) => patch({ priority })}
       onDueDateChange={(due_date) => patch({ due_date })}
       // Not gated on canEditTodos: opening the panel is a read, and the menu
       // that used to be the only way in is editor-only. Withheld on the drag

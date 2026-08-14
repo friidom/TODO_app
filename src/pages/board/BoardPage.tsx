@@ -1,6 +1,11 @@
+import { useMemo } from "react";
+
+import BoardIdentity from "@/components/layout/BoardIdentity";
+import Drawer, { DrawerFrame } from "@/components/layout/Drawer";
 import Layout from "@/components/layout/Layout";
-import BoardHeader from "@/components/layout/BoardHeader";
-import ContextRail from "@/components/layout/ContextRail";
+import ViewShell from "@/components/layout/ViewShell";
+import ViewToolbar from "@/components/board/ViewToolbar";
+import MembersDrawer from "@/components/members/MembersDrawer";
 import TaskDetailPanel from "@/components/todo/TaskDetailPanel";
 import KanbanBoard from "@/components/kanban/KanbanBoard";
 import ListView from "@/components/views/ListView";
@@ -10,15 +15,23 @@ import { useBoard } from "@/services/boards/useBoard";
 import { useBoardId } from "@/hooks/useBoardId";
 import { useBoardView } from "@/hooks/useBoardView";
 import { useOpenTask } from "@/hooks/useOpenTask";
+import { usePanel } from "@/hooks/usePanel";
 import { useVisibleTodos } from "@/hooks/useVisibleTodos";
 import { useColumns } from "@/services/columns/useColumnsApi";
+import { relativeTime } from "@/utils/relativeTime";
 import { isUuid } from "@/utils/uuid";
 
 /**
  * One board, addressed by `/boards/:boardId`.
  *
- * Split in two so the hooks below run unconditionally. Validating the param
- * and then calling `useBoard` in the same component would mean an early return
+ * **The route stayed `/boards/:boardId` through M17**, deliberately: a board is
+ * a uuid, moving it between spaces must not break a link somebody already has,
+ * and `?view=`, `?task=` and `?panel=` all ride on this URL. Putting the space
+ * in the path would make it part of the board's identity, which M15 decided it
+ * is not.
+ *
+ * Split in two so the hooks below run unconditionally. Validating the param and
+ * then calling `useBoard` in the same component would mean an early return
  * ahead of a hook, which changes the hook order between renders.
  */
 export default function BoardPage() {
@@ -38,11 +51,10 @@ function BoardView({ boardId }: { boardId: string }) {
 
   // Above the early returns, like everything else here: which view is on screen
   // is read from the URL, so a link to a filtered list opens as one.
-  const { mode } = useBoardView();
+  const view = useBoardView();
 
-  // Read here rather than inside Layout: the panel replaces the rail, which is
-  // this component's composition decision, not the shell's.
-  const { taskId } = useOpenTask();
+  const { taskId, closeTask } = useOpenTask();
+  const { panel, closePanel } = usePanel();
 
   if (isPending) return <Loading />;
 
@@ -58,57 +70,87 @@ function BoardView({ boardId }: { boardId: string }) {
   if (!board) return <NotFoundPage />;
 
   return (
-    // The detail panel takes the rail's slot while it is open (M5-06). The
-    // board keeps its own width and stays mounted either way — two rails side
-    // by side would squeeze it, and the panel is the more specific context.
-    <Layout
-      rail={
-        taskId ? (
-          <TaskDetailPanel boardId={boardId} />
-        ) : (
-          <ContextRail boardId={boardId} />
-        )
-      }
-    >
-      <BoardMeta title={board.title} />
-
-      {/*
-        The board's scroll container. KanbanBoard's own root is
-        `h-full overflow-x-auto`, so it needs an ancestor with a bounded height
-        to scroll inside — `min-h-0` is what bounds it, since a flex child
-        otherwise refuses to shrink below its content.
-      */}
-      <div className="min-h-0 flex-1 px-4 pt-4 md:px-6">
-        {/*
-          Neither view takes a boardId prop: the hooks beneath them read the
-          route param themselves, so the board they render and the board in the
-          URL cannot disagree. They are two layouts over one query — the filter,
-          the sort and the grouping are the same values for both.
-        */}
-        {mode === "list" ? <ListView /> : <KanbanBoard />}
-      </div>
+    <Layout>
+      <ViewShell
+        identity={<BoardMeta board={board} />}
+        toolbar={<ViewToolbar view={view} />}
+        // One slot, and the task panel wins it: a work item is the more
+        // specific context than a board-level drawer, and `usePanel` closes
+        // `?task=` when it opens rather than letting both claim the space.
+        drawer={
+          taskId ? (
+            // The frame rather than `Drawer`: the task panel draws its own
+            // header, including the unsaved-changes confirmation on close.
+            <DrawerFrame
+              label="Task details"
+              onClose={closeTask}
+              dismissible={false}
+            >
+              <TaskDetailPanel boardId={boardId} />
+            </DrawerFrame>
+          ) : panel === "members" ? (
+            <Drawer title="Members" onClose={closePanel}>
+              <MembersDrawer boardId={boardId} />
+            </Drawer>
+          ) : undefined
+        }
+      >
+        {/* Neither view takes a boardId prop: the hooks beneath them read the
+            route param themselves, so the board they render and the board in
+            the URL cannot disagree. They are two layouts over one query — the
+            filter, the search, the sort and the grouping are the same values
+            for both. */}
+        {view.mode === "list" ? <ListView /> : <KanbanBoard />}
+      </ViewShell>
     </Layout>
   );
 }
 
 /**
- * Split out so the board header's counts do not add hooks to `BoardView`, which
+ * Split out so the identity row's counts do not add hooks to `BoardView`, which
  * has early returns above this point.
  *
  * Both hooks read cache entries the board already populates — TanStack Query
  * dedupes them against `KanbanBoard`'s own calls, so this is not a second round
  * trip.
  */
-function BoardMeta({ title }: { title: string | null }) {
+function BoardMeta({
+  board,
+}: {
+  board: NonNullable<ReturnType<typeof useBoard>["data"]>;
+}) {
   const { data: columns = [] } = useColumns();
-  const { todos, total } = useVisibleTodos();
+  const { todos, all, total } = useVisibleTodos();
+
+  /**
+   * When the board was last worked on.
+   *
+   * **The newest `updated_at` among the cards, not `boards.updated_at`.** That
+   * column moves when the board *row* changes — a rename, a re-filing — so a
+   * board somebody uses daily would report the last time it was renamed. The
+   * cards are already in memory, so this is a fold over an array and costs no
+   * query.
+   *
+   * `created_at` is the fallback: a card that has never been edited has a null
+   * `updated_at`, and a board of brand-new cards has activity all the same.
+   */
+  const lastActivity = useMemo(() => {
+    const newest = all.reduce<number>((latest, todo) => {
+      const stamp = Date.parse(todo.updated_at ?? todo.created_at);
+
+      return Number.isNaN(stamp) ? latest : Math.max(latest, stamp);
+    }, 0);
+
+    return newest ? relativeTime(new Date(newest).toISOString()) : null;
+  }, [all]);
 
   return (
-    <BoardHeader
-      title={title}
+    <BoardIdentity
+      board={board}
       columnCount={columns.length}
       todoCount={total}
       visibleCount={todos.length}
+      lastActivity={lastActivity}
     />
   );
 }

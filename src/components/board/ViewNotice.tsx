@@ -26,7 +26,12 @@ export default function ViewNotice({
   /** The list has no drag to lose, so only the board asks for this. */
   showDragHint?: boolean;
 }) {
-  const empty = visibleCount === 0 && view.filterCount > 0;
+  // A search that matches nothing empties the board exactly as a filter does,
+  // and leaves the same question behind. Named separately because the undo is
+  // a different button: telling someone to clear a filter they never set sends
+  // them to the wrong control.
+  const query = view.query.trim();
+  const empty = visibleCount === 0 && (view.filterCount > 0 || query !== "");
   const drag = showDragHint && view.dndDisabled;
 
   if (!empty && !drag) return null;
@@ -53,13 +58,17 @@ export default function ViewNotice({
       {empty && (
         <p className="text-ink-3 flex items-center gap-1.5 text-xs">
           <InboxIcon className="size-3.5 shrink-0" />
-          <span>No cards match the current filter.</span>
+          <span>
+            {query
+              ? `Nothing matches “${query}”.`
+              : "No cards match the current filter."}
+          </span>
           <button
             type="button"
-            onClick={view.clearFilters}
+            onClick={query ? () => view.setQuery("") : view.clearFilters}
             className="text-brand hover:bg-brand-soft focus-visible:ring-brand rounded px-1.5 py-0.5 font-medium transition-colors outline-none focus-visible:ring-2"
           >
-            Clear filters
+            {query ? "Clear search" : "Clear filters"}
           </button>
         </p>
       )}

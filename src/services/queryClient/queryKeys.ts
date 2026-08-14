@@ -28,6 +28,16 @@ export const queryKeys = {
   boards: () => ["boards"] as const,
 
   /**
+   * The caller's own spaces (M15).
+   *
+   * Takes no argument for the same reason `boards()` does not: a space belongs
+   * to a person, and RLS returns only theirs. It is deliberately not a child of
+   * `boards()` — the sidebar reads both, and invalidating the board list must
+   * not throw away the folders it groups them under.
+   */
+  spaces: () => ["spaces"] as const,
+
+  /**
    * One board's own row. Deliberately `["board", id]` rather than a child of
    * `boards()`, per docs/API.md — invalidating the list must not throw away
    * each board's detail entry, and the two are fetched independently.

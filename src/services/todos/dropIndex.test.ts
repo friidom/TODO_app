@@ -3,18 +3,25 @@ import { describe, expect, it } from "vitest";
 import type { Todo } from "../../types/data";
 import { applyTodoMoved } from "./cache";
 import { resolveDropIndex } from "./dropIndex";
+import { byRank, rankForDrop } from "../../utils/rank";
 
 const todo = (id: string, position: number): Todo =>
-  ({ id, column_id: "a", position, title: `todo ${id}` }) as Todo;
+  ({
+    id,
+    column_id: "a",
+    position,
+    rank: (position + 1) * 1024,
+    title: `todo ${id}`,
+  }) as Todo;
 
 /** `[A, B, C, D]` in one column, stored in that order. */
 const column = () => [todo("A", 0), todo("B", 1), todo("C", 2), todo("D", 3)];
 
-/** Ids of a column after a move, in stored order. */
+/** Ids of a column after a move, in display order — by rank, as of M6-A. */
 const order = (todos: Todo[], columnId: string) =>
   todos
     .filter((it) => it.column_id === columnId)
-    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+    .sort(byRank)
     .map((it) => it.id);
 
 describe("resolveDropIndex", () => {
@@ -35,14 +42,18 @@ describe("resolveDropIndex", () => {
 
       expect(resolveDropIndex(full, full, 3, "A")).toBe(2);
 
-      // End to end: A between C and D is [B, C, A, D], not [B, C, D, A].
-      const moved = applyTodoMoved(
-        full,
-        full[0],
-        "a",
-        resolveDropIndex(full, full, 3, "A"),
-      );
+      // End to end, through the two steps `useTodoDrop` actually runs: resolve
+      // the gap the user saw into an index over the column *without* the
+      // dragged card, then turn that index into a rank between its neighbours.
+      const index = resolveDropIndex(full, full, 3, "A");
+      const destination = full.filter((it) => it.id !== "A");
+      const rank = rankForDrop(destination, index);
 
+      expect(rank).not.toBeNull();
+
+      const moved = applyTodoMoved(full, full[0], "a", rank!);
+
+      // A between C and D is [B, C, A, D], not [B, C, D, A].
       expect(order(moved, "a")).toEqual(["B", "C", "A", "D"]);
     });
 

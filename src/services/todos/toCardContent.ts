@@ -1,3 +1,4 @@
+import { taskKey } from "@/utils/taskKey";
 import type { Todo, TodoCardContent } from "@/types/data";
 
 /**
@@ -21,11 +22,20 @@ import type { Todo, TodoCardContent } from "@/types/data";
  * here because M5-02 left it with `TodoItem`, which is what drags the card and
  * writes its changes — the presentational card needs none of the three.
  */
-export function toCardContent(todo: Todo): TodoCardContent {
+export function toCardContent(
+  todo: Todo,
+  /**
+   * The board's `key_prefix` (M14). A second argument rather than a field on
+   * the row, because it is not on the row: the prefix belongs to the board and
+   * the counter belongs to the work item, and this is where the two meet.
+   */
+  keyPrefix: string,
+): TodoCardContent {
   return {
     title: todo.title,
-    boardKey: todo.board_key,
+    taskKey: taskKey(keyPrefix, todo.board_key),
     workType: todo.type,
+    priority: todo.priority,
     dueDate: todo.due_date,
   };
 }

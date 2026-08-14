@@ -47,30 +47,58 @@ export type TodoRow = Row<"todos">;
  * is the column's category, never a field), and neither `archived` nor
  * `creator_id` has a reader anywhere in the app.
  *
- * The field list this mirrors is `TODO_LIST_FIELDS` in `todos/todoApi.ts`, and
- * the two must change together — that file says so too.
+ * **This is the row shape every view reads** (M16) — the board, the list, and
+ * the date-based views when they arrive. Widening it for a new view happens
+ * here, once, rather than per view.
+ *
+ * `TODO_FIELDS` is the field list and `Todo` is a `Pick` over it, so the two
+ * cannot disagree. `satisfies readonly (keyof TodoRow)[]` makes a typo a
+ * compile error rather than a column PostgREST rejects at runtime.
+ *
+ * It could not be merged with `TODO_LIST_FIELDS` in `todos/todoApi.ts`, which
+ * would have been the tidier answer: `supabase-js` infers the returned row from
+ * the select's *literal* type, and a derived string collapses every query
+ * result to `GenericStringError[]`. They stay two constants, and
+ * `todoApi.test.ts` asserts they agree — which is the part that used to be a
+ * comment asking you to remember.
  */
-export type Todo = Pick<
-  TodoRow,
-  | "id"
-  | "board_id"
-  | "column_id"
-  | "position"
-  | "board_key"
-  | "title"
-  | "type"
-  | "priority"
-  | "due_date"
-  | "assignee_id"
-  | "created_at"
-  | "updated_at"
->;
+export const TODO_FIELDS = [
+  "id",
+  "board_id",
+  "column_id",
+  "position",
+  // Both orderings, deliberately, for the length of M6-A. `rank` is what the
+  // app orders by (M6-03); `position` is still written by the insert path and
+  // is the rollback, which is exactly why M6-05 — dropping it — is a separate
+  // migration after a soak rather than part of this one.
+  "rank",
+  "board_key",
+  "title",
+  "type",
+  "priority",
+  "due_date",
+  "assignee_id",
+  "created_at",
+  "updated_at",
+] as const satisfies readonly (keyof TodoRow)[];
+
+export type Todo = Pick<TodoRow, (typeof TODO_FIELDS)[number]>;
 
 export type ISupabaseProfile = Row<"profiles">;
 
 export type IColumn = Row<"columns">;
 
 export type IBoard = Row<"boards">;
+
+/**
+ * A folder for boards (M15).
+ *
+ * Owner-only by RLS and **not a permission scope** — filing a board into a
+ * space grants nobody access to it. A board you are a member of but whose space
+ * belongs to someone else reads as unfiled, because that space row is not
+ * returned to you at all.
+ */
+export type ISpace = Row<"spaces">;
 
 /**
  * Client-only state about a todo that no column of `todos` holds.
@@ -112,8 +140,26 @@ export interface TodoViewState {
  */
 export interface TodoCardContent {
   title: string | null;
-  /** The per-board counter behind `KAN-…`. Null while the insert is in flight. */
-  boardKey: number | null;
+  /**
+   * The rendered key — `KAN-12` — not its two halves.
+   *
+   * It was `boardKey: number` until M14 made the prefix a board setting. The
+   * card composed `KAN-{boardKey}` from a literal back then, which is a
+   * presentational component holding a fact about the board it is not given.
+   * Assembling it in `toCardContent` keeps the card rendering one value and
+   * keeps the prefix's only reader on the board side of the boundary.
+   *
+   * Null while the insert is in flight, as `boardKey` was: `board_key` is
+   * assigned by a trigger, so an optimistic row has no key yet.
+   */
+  taskKey: string | null;
   workType: string | null;
+  /**
+   * Added by M17's second pass. `todos.priority` has been on the row since
+   * M2-04 and had a control since M5, but the card never showed it — so the
+   * one field that says *how urgent* a card is was the one field you had to
+   * open the card to see.
+   */
+  priority: string | null;
   dueDate: string | null;
 }

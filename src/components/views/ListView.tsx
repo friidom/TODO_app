@@ -58,10 +58,10 @@ export default function ListView() {
 
       {/* The table scrolls inside its own box on a narrow screen. The page never
           does — that is the rule the board already follows. */}
-      <div className="border-hairline bg-surface rounded-card mb-4 min-h-0 flex-1 overflow-auto border">
+      <div className="border-hairline bg-surface rounded-surface mb-4 min-h-0 flex-1 overflow-auto border">
         <table className="w-full border-collapse text-left">
           <thead className="bg-surface sticky top-0 z-10">
-            <tr className="border-hairline text-ink-3 border-b text-[11px] font-semibold tracking-wide uppercase">
+            <tr className="border-hairline text-ink-3 border-b text-[10px] font-semibold tracking-[0.08em] uppercase">
               <th
                 scope="col"
                 className="hidden py-2 pr-2 pl-3 font-semibold sm:table-cell"
@@ -127,9 +127,15 @@ export default function ListView() {
 
         {todos.length === 0 && (
           <p className="text-ink-3 py-10 text-center text-sm">
-            {view.filterCount > 0
-              ? "No work items match the current filter."
-              : "No work items on this board yet."}
+            {/* Search is named separately from the filter: an empty result
+                with a search box full of text has an obvious cause, and
+                blaming "the current filter" when none is set sends the user
+                to the wrong control. */}
+            {view.query.trim()
+              ? `Nothing matches “${view.query.trim()}”.`
+              : view.filterCount > 0
+                ? "No work items match the current filter."
+                : "No work items on this board yet."}
           </p>
         )}
       </div>

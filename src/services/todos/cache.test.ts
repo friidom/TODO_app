@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Todo } from "../../types/data";
+import { RANK_GAP, byRank } from "../../utils/rank";
 import {
   applyTodoConfirmed,
   applyTodoDeleted,
@@ -17,6 +18,10 @@ const todo = (id: number, column_id: string, position: number): Todo =>
     id: String(id),
     column_id,
     position,
+    // Derived from the position exactly as `20260814121000_backfill_ranks.sql`
+    // derives it, so a fixture built by index is the board the backfill would
+    // have produced.
+    rank: (position + 1) * RANK_GAP,
     title: `todo ${id}`,
   }) as Todo;
 
@@ -202,64 +207,70 @@ describe("applyTodoDeleted", () => {
 });
 
 describe("applyTodoMoved", () => {
-  describe("within one column", () => {
-    it("moves the card to the requested index and renumbers", () => {
-      const todos = board();
-      const result = applyTodoMoved(todos, todos[2], "a", 0);
+  /** Ids of a column in display order — by rank, which is what M6-A orders by. */
+  const ranked = (todos: Todo[], columnId: string) =>
+    todos
+      .filter((it) => it.column_id === columnId)
+      .sort(byRank)
+      .map((it) => Number(it.id));
 
-      expect(column(result, "a")).toEqual([3, 1, 2]);
-      expect(positions(result, "a")).toEqual([0, 1, 2]);
+  it("writes the column and the rank onto exactly one row", () => {
+    // The heart of M6-04. A move used to renumber both affected columns and
+    // write every card in them; now the card carries its own place, so one
+    // field on one row is the entire change.
+    const todos = board();
+    const result = applyTodoMoved(todos, todos[0], "b", 1536);
 
-      // The other columns are carried through untouched.
-      expect(column(result, "b")).toEqual([4, 5]);
-      expect(column(result, "c")).toEqual([6]);
-    });
+    const moved = result.find((it) => it.id === "1");
 
-    it("is a no-op in effect when dropped on its own slot", () => {
-      const todos = board();
-      const result = applyTodoMoved(todos, todos[1], "a", 1);
-
-      expect(column(result, "a")).toEqual([1, 2, 3]);
-      expect(positions(result, "a")).toEqual([0, 1, 2]);
-    });
-
-    it("handles the last gap, whose index is the length without the card", () => {
-      const todos = board();
-      const result = applyTodoMoved(todos, todos[0], "a", 2);
-
-      expect(column(result, "a")).toEqual([2, 3, 1]);
-      expect(positions(result, "a")).toEqual([0, 1, 2]);
-    });
+    expect(moved?.column_id).toBe("b");
+    expect(moved?.rank).toBe(1536);
   });
 
-  describe("across columns", () => {
-    it("lands at the index, carries the new column, and closes the gap left behind", () => {
-      const todos = board();
-      const result = applyTodoMoved(todos, todos[0], "b", 1);
+  it("puts the card where the rank says, within one column", () => {
+    const todos = board();
+    // Between 2 (2048) and 3 (3072).
+    const result = applyTodoMoved(todos, todos[0], "a", 2560);
 
-      expect(column(result, "b")).toEqual([4, 1, 5]);
-      expect(result.find((it) => it.id === "1")?.column_id).toBe("b");
+    expect(ranked(result, "a")).toEqual([2, 1, 3]);
+  });
 
-      expect(column(result, "a")).toEqual([2, 3]);
-      expect(positions(result, "a")).toEqual([0, 1]);
-      expect(positions(result, "b")).toEqual([0, 1, 2]);
+  it("carries the card into another column at the rank given", () => {
+    const todos = board();
+    // Column b holds 4 (rank 1024) and 5 (rank 2048); land between them.
+    const result = applyTodoMoved(todos, todos[0], "b", 1536);
 
-      expect(column(result, "c")).toEqual([6]);
-    });
+    expect(ranked(result, "b")).toEqual([4, 1, 5]);
+    expect(ranked(result, "a")).toEqual([2, 3]);
+  });
 
-    it("handles an empty destination column", () => {
-      const todos = board().filter((it) => it.column_id !== "c");
-      const result = applyTodoMoved(todos, todos[0], "c", 0);
+  it("handles an empty destination column", () => {
+    const todos = board().filter((it) => it.column_id !== "c");
+    const result = applyTodoMoved(todos, todos[0], "c", RANK_GAP);
 
-      expect(column(result, "c")).toEqual([1]);
-      expect(positions(result, "c")).toEqual([0]);
-      expect(column(result, "a")).toEqual([2, 3]);
-    });
+    expect(ranked(result, "c")).toEqual([1]);
+    expect(ranked(result, "a")).toEqual([2, 3]);
+  });
+
+  it("LEAVES THE SOURCE COLUMN'S RANKS ALONE", () => {
+    // The property the whole milestone exists for. The cards left behind are
+    // not rewritten, so a second editor's concurrent drag cannot be reverted
+    // by this one — under dense positions every one of them was written from a
+    // possibly-stale snapshot, and last write won.
+    const todos = board();
+    const result = applyTodoMoved(todos, todos[0], "b", 1536);
+
+    for (const id of ["2", "3"]) {
+      const before = todos.find((it) => it.id === id);
+      const after = result.find((it) => it.id === id);
+
+      expect(after).toBe(before);
+    }
   });
 
   it("loses and duplicates nothing", () => {
     const todos = board();
-    const result = applyTodoMoved(todos, todos[3], "a", 1);
+    const result = applyTodoMoved(todos, todos[3], "a", 512);
 
     expect(result.length).toBe(todos.length);
     expect(new Set(result.map((it) => it.id)).size).toBe(todos.length);
@@ -267,38 +278,32 @@ describe("applyTodoMoved", () => {
 
   describe("immutability", () => {
     // This is what makes rollback possible: onMutate snapshots the cached
-    // array, and the cache holds these very objects. Renumbering in place
-    // would corrupt the snapshot, leaving onError nothing to restore.
+    // array, and the cache holds these very objects. Writing in place would
+    // corrupt the snapshot, leaving onError nothing to restore.
     it("never mutates the input", () => {
       const todos = board();
       const before = todos.map((it) => ({ ...it }));
 
-      applyTodoMoved(todos, todos[0], "b", 0);
+      applyTodoMoved(todos, todos[0], "b", 1536);
 
       expect(todos).toEqual(before);
     });
 
-    it("returns fresh objects for every renumbered row", () => {
+    it("returns a fresh object for the moved row only", () => {
       const todos = board();
-      const result = applyTodoMoved(todos, todos[0], "b", 0);
+      const result = applyTodoMoved(todos, todos[0], "b", 1536);
 
-      const touched = result.filter(
-        (row) => row.column_id === "a" || row.column_id === "b",
-      );
+      const moved = result.find((row) => row.id === "1");
 
-      expect(touched.length).toBe(5);
+      expect(todos.some((original) => original === moved)).toBe(false);
 
-      for (const row of touched) {
-        expect(todos.some((original) => original === row)).toBe(false);
+      // Everything else is shared by reference, so React re-renders exactly
+      // the card that moved.
+      const others = result.filter((row) => row.id !== "1");
+
+      for (const row of others) {
+        expect(todos.some((original) => original === row)).toBe(true);
       }
-    });
-
-    it("shares untouched columns by reference, so React can skip them", () => {
-      const todos = board();
-      const result = applyTodoMoved(todos, todos[0], "b", 0);
-      const untouched = result.find((row) => row.id === "6");
-
-      expect(todos.some((original) => original === untouched)).toBe(true);
     });
   });
 });

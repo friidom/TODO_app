@@ -15,9 +15,20 @@ import {
   type SortKey,
   type TodoFilters,
 } from "@/services/todos/view";
+import {
+  VIEW_MODES,
+  capabilitiesOf,
+  type ViewMode,
+} from "@/services/views/registry";
 
-/** Which of the two renderings of one board's data is on screen. */
-export type BoardViewMode = "board" | "list";
+/**
+ * Which rendering of the scope's data is on screen.
+ *
+ * Re-exported from the M16 view registry rather than declared here: the
+ * registry is where a view's *capabilities* live, and having the mode union in
+ * one file and the capability table in another is how the two drift.
+ */
+export type BoardViewMode = ViewMode;
 
 /**
  * How the board is being looked at, held in the URL.
@@ -38,6 +49,16 @@ export type BoardViewMode = "board" | "list";
 export interface BoardView {
   mode: BoardViewMode;
   filters: TodoFilters;
+  /**
+   * The free-text query, held in the URL as `q` (M16).
+   *
+   * A search param like everything else here, and for the same reason: a
+   * narrowed view is worth sending to someone. It is a *view* concern, not a
+   * board one — `searchTodos` runs over the rows already in the cache and
+   * queries nothing, which is the decision M12 recorded for filtering and this
+   * inherits.
+   */
+  query: string;
   sort: SortKey;
   dir: SortDir;
   group: GroupKey;
@@ -62,6 +83,9 @@ export interface BoardView {
   setMode: (mode: BoardViewMode) => void;
   toggleFilter: (category: FilterCategory, value: string) => void;
   clearFilters: () => void;
+  /** Untick every value in one category, leaving the others alone. */
+  clearCategory: (category: FilterCategory) => void;
+  setQuery: (query: string) => void;
   setSort: (sort: SortKey) => void;
   setDir: (dir: SortDir) => void;
   setGroup: (group: GroupKey) => void;
@@ -120,8 +144,9 @@ export function useBoardView(): BoardView {
     const group = readOne(params, "group", GROUP_KEYS, "none");
 
     return {
-      mode: readOne(params, "view", ["board", "list"] as const, "board"),
+      mode: readOne(params, "view", VIEW_MODES, "board"),
       filters,
+      query: params.get("q") ?? "",
       sort,
       // Direction is meaningless without a key to apply it to.
       dir:
@@ -172,6 +197,15 @@ export function useBoardView(): BoardView {
     [write, set],
   );
 
+  const setQuery = useCallback(
+    (query: string) =>
+      // Stored raw rather than trimmed: a trailing space is a word the user is
+      // still typing, and eating it as they type is the input fighting back.
+      // `searchTodos` trims when it matches, which is where it matters.
+      write((params) => set(params, "q", query, "")),
+    [write, set],
+  );
+
   const toggleFilter = useCallback(
     (category: FilterCategory, value: string) =>
       write((params) => {
@@ -185,6 +219,12 @@ export function useBoardView(): BoardView {
         if (next.length) params.set(param, next.join(","));
         else params.delete(param);
       }),
+    [write],
+  );
+
+  const clearCategory = useCallback(
+    (category: FilterCategory) =>
+      write((params) => params.delete(FILTER_PARAMS[category])),
     [write],
   );
 
@@ -233,23 +273,36 @@ export function useBoardView(): BoardView {
     [write],
   );
 
-  const { sort, group } = state;
+  const { mode, sort, group } = state;
 
-  const dndDisabled = sort !== "manual" || isSwimlaneGroup(group);
+  // **Read off the registry first (M16).** A view that does not reorder cannot
+  // have dragging "disabled by the sort" — it never had it. Asking the
+  // capability table rather than assuming the board is what stops the next view
+  // from re-deriving this expression with its own subtly different answer.
+  const canReorder = capabilitiesOf(mode).canReorder;
+
+  const dndDisabled =
+    !canReorder || sort !== "manual" || isSwimlaneGroup(group);
 
   return {
     ...state,
     dndDisabled,
     // The sort is named first: it is the one a user is most likely to have set
     // without expecting it to cost them dragging.
-    dndReason: !dndDisabled
-      ? null
-      : sort !== "manual"
-        ? `Sorted by ${SORT_LABELS[sort]}`
-        : `Grouped by ${GROUP_LABELS[group]}`,
+    // Null when the view simply does not reorder: the hint strip explains why
+    // dragging *stopped* working, and there is nothing to explain on a view
+    // that never offered it.
+    dndReason:
+      !dndDisabled || !canReorder
+        ? null
+        : sort !== "manual"
+          ? `Sorted by ${SORT_LABELS[sort]}`
+          : `Grouped by ${GROUP_LABELS[group]}`,
     setMode,
     toggleFilter,
     clearFilters,
+    clearCategory,
+    setQuery,
     setSort,
     setDir,
     setGroup,

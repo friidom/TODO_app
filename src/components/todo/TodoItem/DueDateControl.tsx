@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CalendarIcon, ChevronLeftIcon, ChevronRightIcon, XIcon } from "lucide-react";
+import {
+  CalendarIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  XIcon,
+} from "lucide-react";
 import { FloatingPortal } from "@floating-ui/react";
 
 import { useCardPopover } from "./useCardPopover";
@@ -90,12 +95,10 @@ export default function DueDateControl({
             "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
         )}
       >
-        {/* Red whenever a deadline exists, whatever the chip's tone — the icon
-            is the at-a-glance signal that this card has one at all. */}
-        <CalendarIcon
-          className={cn("size-3", dueDate && "text-status-red")}
-          strokeWidth={dueDate ? 2.5 : 2}
-        />
+        {/* The icon takes the chip's own colour rather than a fixed red. A red
+            calendar on a muted "upcoming" chip said "urgent" about a date that
+            is not, which is the one thing this control exists to communicate. */}
+        <CalendarIcon className="size-3" strokeWidth={dueDate ? 2.5 : 2} />
         {dueDate && formatDue(dueDate, todayISO(), i18n.language)}
       </button>
 
@@ -105,7 +108,7 @@ export default function DueDateControl({
             {...panelProps}
             role="dialog"
             aria-label="Due date"
-            className="border-hairline bg-elevated z-50 w-[268px] rounded-surface border p-3 shadow-[0_12px_32px_rgba(0,0,0,0.28)]"
+            className="border-hairline bg-elevated rounded-surface z-50 w-[268px] border p-3 shadow-[0_12px_32px_rgba(0,0,0,0.28)]"
           >
             <DatePanel
               selected={selected}
@@ -144,10 +147,13 @@ function DatePanel({
   const weekStartsOn = locale.startsWith("en") ? 0 : 1;
   const grid = monthGrid(view.year, view.month, weekStartsOn);
 
-  const heading = new Date(Date.UTC(view.year, view.month, 1)).toLocaleDateString(
-    locale,
-    { month: "long", year: "numeric", timeZone: "UTC" },
-  );
+  const heading = new Date(
+    Date.UTC(view.year, view.month, 1),
+  ).toLocaleDateString(locale, {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 
   // Derived from the grid's own first week, so the labels can never fall out of
   // step with the columns beneath them.
@@ -183,7 +189,7 @@ function DatePanel({
         value={selected ?? ""}
         onChange={(event) => event.target.value && onSelect(event.target.value)}
         aria-label="Due date"
-        className="border-hairline bg-surface text-ink focus-visible:ring-brand/40 mb-3 h-9 w-full rounded-control border px-2 text-sm outline-none focus-visible:ring-2"
+        className="border-hairline bg-surface text-ink focus-visible:ring-brand/40 rounded-control mb-3 h-9 w-full border px-2 text-sm outline-none focus-visible:ring-2"
       />
 
       <div className="mb-1 flex items-center justify-between">
@@ -191,7 +197,7 @@ function DatePanel({
           type="button"
           aria-label="Previous month"
           onClick={() => setView((v) => shiftMonth(v.year, v.month, -1))}
-          className="text-ink-2 hover:bg-ink/10 hover:text-ink grid size-7 place-items-center rounded-control transition-colors"
+          className="text-ink-2 hover:bg-ink/10 hover:text-ink rounded-control grid size-7 place-items-center transition-colors"
         >
           <ChevronLeftIcon className="size-4" />
         </button>
@@ -204,7 +210,7 @@ function DatePanel({
           type="button"
           aria-label="Next month"
           onClick={() => setView((v) => shiftMonth(v.year, v.month, 1))}
-          className="text-ink-2 hover:bg-ink/10 hover:text-ink grid size-7 place-items-center rounded-control transition-colors"
+          className="text-ink-2 hover:bg-ink/10 hover:text-ink rounded-control grid size-7 place-items-center transition-colors"
         >
           <ChevronRightIcon className="size-4" />
         </button>
@@ -232,7 +238,7 @@ function DatePanel({
               aria-current={isToday ? "date" : undefined}
               aria-pressed={isSelected}
               className={cn(
-                "grid h-8 place-items-center rounded-control text-[13px] transition-colors",
+                "rounded-control grid h-8 place-items-center text-[13px] transition-colors",
                 isSelected
                   ? "bg-brand text-brand-fg font-semibold"
                   : inMonth

@@ -82,14 +82,14 @@ export default function TodoCreateForm({
     return (
       <div ref={ref} className={CARD}>
         <div className="animate-pulse">
-          <div className="h-10 w-full rounded-md bg-ink/10" />
+          <div className="bg-ink/10 h-10 w-full rounded-md" />
 
           <div className="mt-3 flex items-center gap-1">
-            <div className="size-7 rounded-md bg-ink/10" />
-            <div className="size-7 rounded-md bg-ink/10" />
-            <div className="size-7 rounded-md bg-ink/10" />
+            <div className="bg-ink/10 size-7 rounded-md" />
+            <div className="bg-ink/10 size-7 rounded-md" />
+            <div className="bg-ink/10 size-7 rounded-md" />
 
-            <div className="ml-auto size-7 rounded-md bg-ink/10" />
+            <div className="bg-ink/10 ml-auto size-7 rounded-md" />
           </div>
         </div>
       </div>
@@ -111,17 +111,13 @@ export default function TodoCreateForm({
 
           if (e.key === "Escape") onCancel();
         }}
-        className="w-full bg-transparent text-sm text-ink outline-none placeholder:text-ink-3"
+        className="text-ink placeholder:text-ink-3 w-full bg-transparent text-sm outline-none"
       />
 
       <div className="mt-8 flex items-center gap-1">
         <WorkTypeControl value={type} onChange={setType} showLabel />
 
-        <DueDateControl
-          value={dueDate}
-          onChange={setDueDate}
-          alwaysVisible
-        />
+        <DueDateControl value={dueDate} onChange={setDueDate} alwaysVisible />
 
         <AssigneeControl
           boardId={boardId}
@@ -134,7 +130,7 @@ export default function TodoCreateForm({
           type="button"
           disabled={!value.trim()}
           onClick={submit}
-          className="ml-auto flex size-7 items-center justify-center rounded-md bg-ink/5 text-ink-3 hover:bg-ink/15 disabled:opacity-40"
+          className="bg-ink/5 text-ink-3 hover:bg-ink/15 ml-auto flex size-7 items-center justify-center rounded-md disabled:opacity-40"
         >
           <CornerDownLeft size={17} />
         </button>

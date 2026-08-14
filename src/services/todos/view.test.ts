@@ -8,6 +8,7 @@ import {
   filterTodos,
   groupTodos,
   orderByBoard,
+  searchTodos,
   sortTodos,
   type TodoFilters,
 } from "./view";
@@ -189,6 +190,91 @@ describe("filterTodos", () => {
     expect(
       countFilters(filters({ type: ["Bug", "Task"], due: ["overdue"] })),
     ).toBe(3);
+  });
+});
+
+describe("searchTodos", () => {
+  const rows = [
+    card("a", { title: "Fix the login redirect", board_key: 12 }),
+    card("b", { title: "Add a LOGIN rate limit", board_key: 7 }),
+    card("c", { title: "Rename the column", board_key: 112 }),
+    card("d", { title: null, board_key: null }),
+  ];
+
+  it("returns the same array when the query is empty", () => {
+    // Identity, not a copy: an unsearched board must hand the same reference
+    // downstream so the memos below it do nothing.
+    expect(searchTodos(rows, "")).toBe(rows);
+    expect(searchTodos(rows, "   ")).toBe(rows);
+  });
+
+  it("matches titles case-insensitively, anywhere in the string", () => {
+    expect(ids(searchTodos(rows, "login"))).toEqual(["a", "b"]);
+    expect(ids(searchTodos(rows, "LOGIN"))).toEqual(["a", "b"]);
+    expect(ids(searchTodos(rows, "redirect"))).toEqual(["a"]);
+  });
+
+  it("survives a card with no title", () => {
+    // `todos.title` is nullable and a card in flight has none.
+    expect(ids(searchTodos(rows, "z"))).toEqual([]);
+  });
+
+  it("matches a bare number against the key AND the title", () => {
+    // The bug this pass fixed. A bare number used to mean key-only, so on a
+    // board whose cards are titled "123" and "3231" — this project's own board
+    // — typing 123 returned nothing while matching cards sat on screen.
+    const numeric = [
+      card("a", { title: "Fix the login redirect", board_key: 12 }),
+      card("b", { title: "123", board_key: 40 }),
+      card("c", { title: "123123", board_key: 41 }),
+      card("d", { title: "no digits here", board_key: 123 }),
+    ];
+
+    // 123 finds both titles containing it and the card whose key is 123.
+    expect(ids(searchTodos(numeric, "123"))).toEqual(["b", "c", "d"]);
+  });
+
+  it("still matches a key exactly, not as a substring of a key", () => {
+    // `12` must not return the card keyed 112, or searching by key is useless
+    // on any board past a hundred cards. The title arm is a substring match;
+    // the key arm is equality.
+    expect(ids(searchTodos(rows, "12"))).toEqual(["a"]);
+    expect(ids(searchTodos(rows, "112"))).toEqual(["c"]);
+  });
+
+  it("narrows to the key alone once a prefix is written", () => {
+    // Writing the prefix is an explicit statement that you mean the key, so a
+    // card *titled* 123 is no longer what was asked for.
+    const numeric = [
+      card("b", { title: "123", board_key: 40 }),
+      card("d", { title: "no digits here", board_key: 123 }),
+    ];
+
+    expect(ids(searchTodos(numeric, "KAN-123"))).toEqual(["d"]);
+  });
+
+  it("collapses runs of whitespace in a title query", () => {
+    const spaced = [card("a", { title: "fix login", board_key: 1 })];
+
+    expect(ids(searchTodos(spaced, "fix  login"))).toEqual(["a"]);
+  });
+
+  it("matches a full key and ignores the prefix", () => {
+    // The prefix belongs to the board (M14) and a view may span boards with
+    // different ones, so the number is what is matched. Generous, never wrong.
+    expect(ids(searchTodos(rows, "KAN-12"))).toEqual(["a"]);
+    expect(ids(searchTodos(rows, "kan-12"))).toEqual(["a"]);
+    expect(ids(searchTodos(rows, "OPS-12"))).toEqual(["a"]);
+  });
+
+  it("treats a phrase containing digits as a title search", () => {
+    // The trap a looser "digits anywhere" rule falls into: this must not drag
+    // in card 12 alongside whatever the words match.
+    expect(ids(searchTodos(rows, "fix 12 things"))).toEqual([]);
+  });
+
+  it("ignores surrounding whitespace in a key query", () => {
+    expect(ids(searchTodos(rows, "  KAN-7  "))).toEqual(["b"]);
   });
 });
 

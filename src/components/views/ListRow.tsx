@@ -6,12 +6,14 @@ import PriorityControl from "@/components/todo/TodoItem/PriorityControl";
 import StatusControl from "@/components/todo/TodoItem/StatusControl";
 import TodoMenu from "@/components/todo/TodoItem/TodoMenu";
 import WorkTypeControl from "@/components/todo/TodoItem/WorkTypeControl";
+import { useKeyPrefix } from "@/hooks/useKeyPrefix";
 import { useOpenTask } from "@/hooks/useOpenTask";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useTodoPatch } from "@/hooks/useTodoPatch";
 import type { Todo } from "@/types/data";
 import { useDoneFlash } from "@/stores/doneFlash";
 import { cn } from "@/utils/cn";
+import { taskKey } from "@/utils/taskKey";
 
 /**
  * One work item as a table row.
@@ -36,6 +38,7 @@ export default function ListRow({ todo }: { todo: Todo }) {
 
   const { canEditTodos } = usePermissions();
   const { openTask } = useOpenTask();
+  const key = taskKey(useKeyPrefix(), todo.board_key);
 
   const celebrate = useDoneFlash((state) => state.todoId === todo.id);
 
@@ -92,14 +95,14 @@ export default function ListRow({ todo }: { todo: Todo }) {
         {/* Opens the detail panel, and deliberately not gated: reading a task
             is not editing it, and the menu at the end of the row is
             editor-only. Same affordance the card's key carries. */}
-        {todo.board_key !== null && (
+        {key !== null && (
           <button
             type="button"
             onClick={() => openTask(todo.id)}
-            title={`Open KAN-${todo.board_key}`}
+            title={`Open ${key}`}
             className="text-ink-3 hover:text-brand text-xs font-semibold whitespace-nowrap transition-colors"
           >
-            KAN-{todo.board_key}
+            {key}
           </button>
         )}
       </td>

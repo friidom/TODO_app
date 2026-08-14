@@ -1,5 +1,4 @@
 import type { Todo } from "@/types/data";
-import { byPosition } from "@/utils/position";
 import { insertDense } from "./insertDense";
 
 /**
@@ -22,11 +21,6 @@ import { insertDense } from "./insertDense";
  * - Rows nothing touched are passed through by reference, so React can skip
  *   re-rendering them.
  */
-
-/** Renumber a column from 0, as new objects. */
-function renumber(columnTodos: Todo[]): Todo[] {
-  return columnTodos.map((todo, position) => ({ ...todo, position }));
-}
 
 /**
  * The board with `todo` added to its own column at `index`, appended when the
@@ -59,16 +53,20 @@ export function applyTodoInserted(
  * An id matching nothing returns the board unchanged, which is what the old
  * inline `map` did.
  */
-export function applyTodoConfirmed(
-  todos: Todo[],
-  serverTodo: Todo,
-): Todo[] {
-  const position =
-    todos.find((todo) => todo.id === serverTodo.id)?.position ??
-    serverTodo.position;
+export function applyTodoConfirmed(todos: Todo[], serverTodo: Todo): Todo[] {
+  const pending = todos.find((todo) => todo.id === serverTodo.id);
+
+  const position = pending?.position ?? serverTodo.position;
+
+  // The rank is kept for the same reason the position is (M6-A): `addTodo`
+  // always appends, but the user may have created the card at a chosen gap, so
+  // the slot the client picked wins and `useAddTodo` writes it back. Without
+  // this the card would visibly jump to the bottom the instant the server
+  // answered.
+  const rank = pending?.rank ?? serverTodo.rank;
 
   return todos.map((todo) =>
-    todo.id === serverTodo.id ? { ...serverTodo, position } : todo,
+    todo.id === serverTodo.id ? { ...serverTodo, position, rank } : todo,
   );
 }
 
@@ -79,10 +77,7 @@ export function applyTodoConfirmed(
  * response and an M6 `UPDATE` payload — carry the complete row, so the server's
  * answer is the whole answer and a merge could only keep something staler.
  */
-export function applyTodoUpdated(
-  todos: Todo[],
-  row: Todo,
-): Todo[] {
+export function applyTodoUpdated(todos: Todo[], row: Todo): Todo[] {
   return todos.map((todo) => (todo.id === row.id ? row : todo));
 }
 
@@ -94,45 +89,34 @@ export function applyTodoUpdated(
  * arrives moments later, and renumbering here would only be a second answer
  * that has to agree with it.
  */
-export function applyTodoDeleted(
-  todos: Todo[],
-  id: Todo["id"],
-): Todo[] {
+export function applyTodoDeleted(todos: Todo[], id: Todo["id"]): Todo[] {
   return todos.filter((todo) => todo.id !== id);
 }
 
 /**
- * The board after `activeTodo` lands at `index` of `columnId`.
+ * The board after `activeTodo` lands in `columnId` at `rank`.
  *
- * Both the destination and the column the card came from are renumbered,
- * because positions have to stay dense — a gap or a duplicate breaks the
- * column sort. Columns neither side of the move touched are passed through.
+ * **One row changes** (M6-04). It used to renumber the destination column and
+ * the source column, because dense positions had to stay dense — which is the
+ * behaviour that made two editors overwrite each other: each client renumbered
+ * from its own snapshot, the whole array was written, and last write won,
+ * including for cards the second editor never touched.
+ *
+ * A rank is a value the card carries, not a place in a sequence, so a move is a
+ * single field on a single row and every other card is passed through **by
+ * reference** — which also means React re-renders exactly the card that moved.
+ *
+ * This is the function M6-B's realtime handler applies for a remote move, which
+ * is why it takes the rank rather than computing one: the sender already chose
+ * it, and recomputing here would put the card somewhere else on every receiver.
  */
 export function applyTodoMoved(
   todos: Todo[],
   activeTodo: Todo,
   columnId: string,
-  index: number,
+  rank: number,
 ): Todo[] {
-  const remaining = todos.filter((todo) => todo.id !== activeTodo.id);
-
-  const destination = remaining
-    .filter((todo) => todo.column_id === columnId)
-    .sort(byPosition);
-
-  destination.splice(index, 0, { ...activeTodo, column_id: columnId });
-
-  const others = remaining.filter((todo) => todo.column_id !== columnId);
-
-  // Empty on a same-column drag: that column is the destination, so it was
-  // already excluded above and the splice alone did the reordering.
-  const source = others
-    .filter((todo) => todo.column_id === activeTodo.column_id)
-    .sort(byPosition);
-
-  const untouched = others.filter(
-    (todo) => todo.column_id !== activeTodo.column_id,
+  return todos.map((todo) =>
+    todo.id === activeTodo.id ? { ...todo, column_id: columnId, rank } : todo,
   );
-
-  return [...untouched, ...renumber(source), ...renumber(destination)];
 }

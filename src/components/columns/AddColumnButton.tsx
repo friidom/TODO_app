@@ -16,7 +16,12 @@ export default function AddColumnButton({
   return (
     <button
       onClick={() => setCreateColumnOpen(true)}
-      className="border-app hover:bg-card flex h-10 w-10 items-center justify-center rounded-md border"
+      title="Add a column"
+      aria-label="Add a column"
+      // A narrow stub at the end of the column row, matching the mockup — wide
+      // enough to read as a column-shaped affordance, narrow enough not to look
+      // like an empty column.
+      className="border-hairline text-ink-3 hover:border-brand/40 hover:bg-brand-soft hover:text-brand rounded-surface flex h-11 w-11 shrink-0 items-center justify-center border border-dashed transition-colors"
     >
       {/* + Add Column */}
       <Plus size={20} />

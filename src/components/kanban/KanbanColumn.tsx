@@ -203,15 +203,34 @@ export default function KanbanColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        "flex h-fit w-[280px] shrink-0 flex-col overflow-hidden rounded-xl transition-colors duration-150",
+        "rounded-surface border-hairline relative flex w-[288px] shrink-0 flex-col overflow-hidden border transition-colors duration-150",
+        // **Height comes from the flex row, not from a pixel sum** (M17). It
+        // used to be `max-h-[calc(100vh-220px)]`, which hard-coded the height
+        // of every bar above the board — so the redesign that changed those
+        // bars would have left every column silently mis-sized. `h-full` inside
+        // a `min-h-0` parent gets the same cap from the layout that actually
+        // knows it.
+        //
         // Lanes stack down the page, so a per-column cap would give every lane
         // its own scrollbar. The board scrolls instead.
-        lane ? "max-h-none" : "max-h-[calc(100vh-220px)]",
+        lane ? "h-fit" : "h-fit max-h-full",
         transition
           ? "bg-status-blue/10 ring-status-blue ring-2 ring-inset"
           : "bg-surface",
       )}
     >
+      {/* The category wash (M17). Absolutely positioned so it spans the header
+          AND the first card's airspace — a gradient stopped at the header's
+          bottom edge reads as a coloured rectangle no matter how soft its fade
+          is. `pointer-events-none` keeps it out of the drag path entirely. */}
+      <div
+        aria-hidden
+        className={cn(
+          "pointer-events-none absolute inset-x-0 top-0 h-32",
+          categoryOf(column.category).band,
+        )}
+      />
+
       {lane ? (
         <LaneColumnHeader
           headerTitle={headerTitle}
@@ -226,6 +245,7 @@ export default function KanbanColumn({
           isDragSource={isDragSource}
           transition={transition}
           onCollapse={onCollapse}
+          onAdd={canEditTodos ? () => openAt(todos.length) : undefined}
           onSetLimit={onSetLimit}
           onDelete={onDelete}
           onMoveLeft={onMoveLeft}
@@ -236,7 +256,10 @@ export default function KanbanColumn({
       )}
 
       {/* TODO LIST */}
-      <div ref={listRef} className="min-h-0 overflow-y-auto px-3 pb-2">
+      <div
+        ref={listRef}
+        className="min-h-0 flex-1 overflow-y-auto px-2 pt-2 pb-1"
+      >
         {/* Scoped to the cards: a card that throws costs this column its list,
             not the header, the Create button, or the rest of the board. */}
         <ErrorBoundary>
@@ -284,13 +307,13 @@ export default function KanbanColumn({
           have to inherit the lane's dimension as well as the column, and the
           ungrouped board is one click away. */}
       {!lane && canEditTodos && (
-        <div className="shrink-0 p-2">
+        <div className="relative shrink-0 px-2.5 pt-1 pb-2.5">
           <button
             type="button"
             onClick={() => openAt(todos.length)}
-            className="text-ink-2 hover:bg-ink/10 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm"
+            className="text-ink-3 border-ink/[0.09] hover:border-brand/40 hover:bg-brand-soft hover:text-brand rounded-card flex h-10 w-full items-center justify-center gap-1.5 border border-dashed text-[13px] font-medium transition-colors"
           >
-            <Plus size={20} />
+            <Plus size={15} />
             Create
           </button>
         </div>

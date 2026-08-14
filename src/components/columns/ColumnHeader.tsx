@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowRight, Check, X } from "lucide-react";
+import { ArrowRight, Check, Plus, X } from "lucide-react";
 
 import ColumnMenu from "./ColumnMenu";
 import LimitWarning from "./LimitWarning";
@@ -26,6 +26,8 @@ interface Props {
   isDragSource: boolean;
   transition: { from: TransitionPill; to: TransitionPill } | null;
   onCollapse: () => void;
+  /** Opens the create form at the end of the column. Absent for a viewer. */
+  onAdd?: () => void;
   onSetLimit: () => void;
   onDelete: () => void;
   onMoveLeft?: () => void;
@@ -41,6 +43,7 @@ export default function ColumnHeader({
   isDragSource,
   transition,
   onCollapse,
+  onAdd,
   onSetLimit,
   onDelete,
   onMoveLeft,
@@ -110,6 +113,7 @@ export default function ColumnHeader({
   }
 
   const breach = limitBreach(column, count);
+  const category = categoryOf(column.category);
 
   return (
     <Shell dragHandleProps={dragHandleProps}>
@@ -121,15 +125,22 @@ export default function ColumnHeader({
         onClick={() => canManageColumns && setRenaming(true)}
         title={canManageColumns ? "Rename column" : headerTitle}
         className={cn(
-          "flex min-w-0 items-center gap-2 rounded px-2 py-1 text-left",
+          "flex min-w-0 items-center gap-2 rounded px-1.5 py-1 text-left",
           canManageColumns && "hover:bg-ink/10",
         )}
       >
-        <h2 className="text-ink truncate text-[15px] font-semibold">
+        {/* The category, as a dot rather than a pill (M17). The pill's filled
+            block competed with the cards below it for the eye; a dot says the
+            same thing — todo / in progress / done — and lets the title be the
+            loudest thing in the header. The pill treatment survives where it
+            still earns the weight: the transition state above. */}
+        <span className={cn("size-2 shrink-0 rounded-full", category.dot)} />
+
+        <h2 className="text-ink truncate text-[12.5px] font-semibold tracking-[0.06em] uppercase">
           {headerTitle}
         </h2>
 
-        <span className="bg-ink/10 text-ink-2 shrink-0 rounded px-1.5 py-0.5 text-xs font-semibold">
+        <span className="bg-ink/[0.08] text-ink-3 grid h-5 min-w-5 shrink-0 place-items-center rounded-full px-1.5 text-[11px] font-semibold">
           {count}
         </span>
       </button>
@@ -137,24 +148,44 @@ export default function ColumnHeader({
       <div className="flex shrink-0 items-center gap-1">
         {breach && <LimitWarning message={breach} />}
 
-        {/* Hidden rather than transparent, so they claim no width and the
-            warning slides out to the edge in their place. The menu stays put
-            while its popup is open, or moving onto the popup would pull the
-            trigger out from under the cursor. */}
+        {/* Transparent rather than hidden. These used to be `display: none`
+            until hover, so the header's contents re-flowed under the cursor —
+            the cluster appeared, claimed ~70px, and the title and count shifted
+            left. Fading keeps the width reserved and nothing moves.
+            `pointer-events` follows the opacity so an invisible button is not
+            clickable, and the menu holds itself open, or moving onto its popup
+            would pull the trigger out from under the cursor. */}
         <div
           className={cn(
-            "items-center gap-1",
+            "flex items-center gap-1 transition-opacity duration-150",
             menuOpen
-              ? "flex"
-              : "hidden group-focus-within/header:flex group-hover/header:flex",
+              ? "opacity-100"
+              : "pointer-events-none opacity-0 group-focus-within/header:pointer-events-auto group-focus-within/header:opacity-100 group-hover/header:pointer-events-auto group-hover/header:opacity-100",
           )}
         >
+          {/* The same `openAt(todos.length)` the dashed button at the foot of
+              the column calls — threaded up so the header carries the create
+              affordance the reference puts there, without a second code path
+              to the form. Editor and above; a viewer gets no `+` at either
+              end. */}
+          {onAdd && (
+            <button
+              type="button"
+              onClick={onAdd}
+              aria-label={`Add a card to ${headerTitle}`}
+              title="Add a card"
+              className="text-ink-2 hover:bg-ink/10 hover:text-ink rounded p-1 transition-colors"
+            >
+              <Plus size={15} />
+            </button>
+          )}
+
           <button
             type="button"
             onClick={onCollapse}
             aria-label="Collapse column"
             title="Collapse column"
-            className="text-ink-2 hover:bg-ink/10 rounded p-1"
+            className="text-ink-2 hover:bg-ink/10 hover:text-ink rounded p-1 transition-colors"
           >
             <CollapseIcon />
           </button>
@@ -188,7 +219,10 @@ function Shell({
     <div
       {...dragHandleProps}
       className={cn(
-        "group/header flex shrink-0 items-center justify-between gap-2 px-3 py-3",
+        // Transparent, and no bottom rule: the category wash is painted by the
+        // column behind this row (M17), so anything opaque here would cut it
+        // back into the coloured bar the gradient exists to avoid.
+        "group/header relative flex h-12 shrink-0 items-center justify-between gap-2 px-3",
         // Only the draggable variants opt out of selection — the rename input
         // needs its text selectable.
         dragHandleProps &&

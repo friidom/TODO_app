@@ -10,7 +10,7 @@ import { WORK_TYPE_OPTIONS, toWorkType } from "@/constants/workTypes";
 import type { BoardMember } from "@/services/members/membersApi";
 import type { IColumn, Todo } from "@/types/data";
 import { dueStatus, todayISO } from "@/utils/dueDate";
-import { byPosition } from "@/utils/position";
+import { byRank } from "@/utils/rank";
 
 /**
  * Filtering, sorting and grouping, as pure functions over the board array.
@@ -46,6 +46,22 @@ export const FILTER_CATEGORIES = [
 ] as const;
 
 export type FilterCategory = (typeof FILTER_CATEGORIES)[number];
+
+/**
+ * What each category is called on screen.
+ *
+ * Here rather than in the panel, beside `SORT_LABELS` and `GROUP_LABELS`, for
+ * the reason those two are: a control's vocabulary belongs with the values it
+ * names, so a category added to `FILTER_CATEGORIES` is a compile error until it
+ * has a label.
+ */
+export const FILTER_LABELS: Record<FilterCategory, string> = {
+  assignee: "Assignee",
+  status: "Status",
+  type: "Work type",
+  priority: "Priority",
+  due: "Due date",
+};
 
 /**
  * The selected values per category.
@@ -170,6 +186,92 @@ export function filterTodos(
 }
 
 // ---------------------------------------------------------------------------
+// Search
+// ---------------------------------------------------------------------------
+
+/**
+ * A query that names a work item by its key: `KAN-12`, `ops-7`, or just `12`.
+ *
+ * The prefix is captured and **thrown away**. It belongs to the board
+ * (`boards.key_prefix`, M14) and a view may span several boards with different
+ * prefixes, so matching on the number is the answer that works in every scope.
+ * Typing `KAN-12` on a board whose prefix is `OPS` finding `OPS-12` is a little
+ * generous and never wrong — the alternative is a search box that silently
+ * fails because the user remembered the number but not the prefix.
+ */
+/**
+ * A query that names a work item by its key: `KAN-12`, `ops-7`, or just `12`.
+ *
+ * The prefix is captured and **thrown away**. It belongs to the board
+ * (`boards.key_prefix`, M14) and a view may span several boards with different
+ * prefixes, so matching on the number is the answer that works in every scope.
+ * Typing `KAN-12` on a board whose prefix is `OPS` finding `OPS-12` is a little
+ * generous and never wrong — the alternative is a search box that silently
+ * fails because the user remembered the number but not the prefix.
+ *
+ * The prefix group is optional, so this also matches a bare number — see
+ * `searchTodos` for why the two are then treated differently.
+ */
+const KEY_QUERY = /^\s*(?:([a-z][a-z0-9]*)-)?(\d+)\s*$/i;
+
+/** Runs of whitespace collapse, so `fix  login` matches `fix login`. */
+function normalise(value: string): string {
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+/**
+ * The cards matching a free-text query.
+ *
+ * **Three shapes, chosen by the query rather than by a toggle.**
+ *
+ * - `KAN-12`, `ops-7` — a *prefixed* key. Key only: writing the prefix is an
+ *   explicit statement that you mean the key, so a card titled "12" is not what
+ *   was asked for.
+ * - `12` — a bare number. **Key OR title**, unioned. This is the case that was
+ *   wrong: it used to mean key-only, so on a board whose cards are titled `123`,
+ *   `3231` and `123123` — which is exactly what this project's own board holds —
+ *   typing `123` returned nothing at all while three matching cards sat on
+ *   screen. A number is the most ambiguous thing a user can type and the
+ *   cheapest to answer generously.
+ * - anything else — a case-insensitive substring of the title.
+ *
+ * **Titles only, and the reason is a decision recorded in M5-07.** The board
+ * query fetches thirteen columns and `description` is not among them, so there
+ * is nothing here to search — a description search is a server-side query or a
+ * widened select, not a free extension of this function.
+ *
+ * Returns the input array when the query is empty, so an unsearched board hands
+ * the same reference downstream and re-renders nothing — the rule `filterTodos`
+ * already follows.
+ */
+export function searchTodos(todos: Todo[], query: string): Todo[] {
+  const needle = normalise(query);
+
+  if (!needle) return todos;
+
+  const key = KEY_QUERY.exec(needle);
+
+  if (key) {
+    const [, prefix, digits] = key;
+    const number = Number(digits);
+
+    // A prefixed key is unambiguous: the user named a card.
+    if (prefix) return todos.filter((todo) => todo.board_key === number);
+
+    // A bare number is not. One pass, so the result stays in the order it
+    // arrived — the pipeline sorts afterwards and a concatenation of two
+    // filtered arrays would not.
+    return todos.filter(
+      (todo) =>
+        todo.board_key === number ||
+        normalise(todo.title ?? "").includes(needle),
+    );
+  }
+
+  return todos.filter((todo) => normalise(todo.title ?? "").includes(needle));
+}
+
+// ---------------------------------------------------------------------------
 // Sorting
 // ---------------------------------------------------------------------------
 
@@ -230,7 +332,7 @@ function sortValue(todo: Todo, key: SortKey): string | number | null {
  *
  * `manual` returns the input untouched — not a copy, not a re-sort — so the
  * board's stored `position` order survives a round trip through the sort control
- * unchanged, and `byPosition` remains the only thing that decides it.
+ * unchanged, and `byRank` remains the only thing that decides it.
  *
  * **Cards with no value sort last in both directions.** A card with no due date
  * is not the most overdue one, and flipping to descending should not promote
@@ -278,14 +380,11 @@ export function sortTodos(
  * Applied in `useVisibleTodos`, so the array both views render is already in
  * display order and neither of them sorts again.
  */
-export function orderByBoard(
-  todos: Todo[],
-  columns: IColumn[],
-): Todo[] {
+export function orderByBoard(todos: Todo[], columns: IColumn[]): Todo[] {
   const rank = new Map(
     columns
       .slice()
-      .sort(byPosition)
+      .sort(byRank)
       .map((column, index) => [column.id, index]),
   );
 
@@ -294,7 +393,7 @@ export function orderByBoard(
   const of = (todo: Todo) =>
     rank.get(todo.column_id ?? "") ?? Number.MAX_SAFE_INTEGER;
 
-  return todos.slice().sort((a, b) => of(a) - of(b) || byPosition(a, b));
+  return todos.slice().sort((a, b) => of(a) - of(b) || byRank(a, b));
 }
 
 // ---------------------------------------------------------------------------
@@ -393,7 +492,7 @@ export function groupTodos(
 
     const groups: TodoGroup[] = columns
       .slice()
-      .sort(byPosition)
+      .sort(byRank)
       .map((column) => ({
         key: column.id,
         label: columnTitle(column.title),

@@ -31,10 +31,14 @@ export function useDeleteBoard() {
       // that no longer exists.
       queryClient.removeQueries({ queryKey: queryKeys.board(id) });
 
-      // The board's columns and todos are gone server-side by cascade, but
-      // this cannot yet evict them: those keys are still global. M2-11 makes
-      // them board-scoped, at which point this should also remove
-      // queryKeys.columns(id) and queryKeys.todos(id).
+      // The board's columns and todos are gone server-side by cascade, and as
+      // of M2-11 both keys are board-scoped, so they can finally be evicted
+      // here — the note that used to stand in for this said to do it "at which
+      // point", and this is that point. Without it a board id that is reused by
+      // the router (Back, or a stale link) would render from a cache entry
+      // describing a board that no longer exists.
+      queryClient.removeQueries({ queryKey: queryKeys.columns(id) });
+      queryClient.removeQueries({ queryKey: queryKeys.todos(id) });
     },
   });
 }

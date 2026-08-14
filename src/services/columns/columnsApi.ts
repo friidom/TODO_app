@@ -1,6 +1,7 @@
 import { supabase } from "@/services/api/supabase";
 import type { IColumn } from "@/types/data";
 import type { ColumnCategory } from "@/constants/columns";
+import { rankForAppend } from "@/utils/rank";
 
 /**
  * Every column on one board.
@@ -14,7 +15,7 @@ export async function getColumns(boardId: string): Promise<IColumn[]> {
     .from("columns")
     .select("*")
     .eq("board_id", boardId)
-    .order("position");
+    .order("rank", { nullsFirst: false });
 
   if (error) throw error;
 
@@ -34,13 +35,16 @@ export async function createColumn({
   // position of "everything this user owns" is the wrong number entirely.
   const { data: lastColumn } = await supabase
     .from("columns")
-    .select("position")
+    .select("position, rank")
     .eq("board_id", board_id)
-    .order("position", { ascending: false })
+    .order("rank", { ascending: false, nullsFirst: false })
     .limit(1)
     .maybeSingle();
 
   const position = (lastColumn?.position ?? -1) + 1;
+
+  // Appended to the right of the last column (M6-A).
+  const rank = rankForAppend(lastColumn ? [lastColumn] : []);
 
   const { data, error } = await supabase
     .from("columns")
@@ -49,6 +53,7 @@ export async function createColumn({
       category,
       board_id,
       position,
+      rank,
     })
     .select()
     .single();
@@ -57,21 +62,42 @@ export async function createColumn({
 
   return data;
 }
-//reorder columns
 /**
- * `board_id` is in the payload for the same reason as reorderTodos: an upsert
- * is an INSERT for policy purposes, and a proposed row without board_id fails
- * both M2-08's WITH CHECK and M2-07's NOT NULL.
+ * A column move: one row (M6-04, the columns half).
+ *
+ * Same reasoning as `moveTodo` — a whole-board renumber from a client snapshot
+ * is last-write-wins across every column, so two people reordering a board
+ * overwrite each other. `position` is not written for the same reason it is not
+ * there: a single-row dense position does not exist.
  */
-export async function reorderColumns(columns: IColumn[], boardId: string) {
-  const updates = columns.map((column) => ({
-    id: column.id,
-    position: column.position,
-    board_id: boardId,
-  }));
+export async function moveColumnRank({
+  id,
+  boardId,
+  rank,
+}: {
+  id: string;
+  boardId: string;
+  rank: number;
+}) {
+  const { error } = await supabase
+    .from("columns")
+    .update({ rank })
+    .eq("id", id)
+    .eq("board_id", boardId);
 
-  const { error } = await supabase.from("columns").upsert(updates, {
-    onConflict: "id",
+  if (error) throw error;
+}
+
+/**
+ * Respace a board's column ranks when a midpoint runs out (M6-06).
+ *
+ * Far rarer than the todo equivalent — a board has a handful of columns — but
+ * the same arithmetic means the same exhaustion, and a path that can fail with
+ * no way back is worse than one function.
+ */
+export async function rebalanceBoardColumnRanks(boardId: string) {
+  const { error } = await supabase.rpc("rebalance_board_column_ranks", {
+    p_board_id: boardId,
   });
 
   if (error) throw error;
