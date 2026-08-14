@@ -1,9 +1,9 @@
 import { useState, type ReactNode } from "react";
-import { CameraIcon, Loader2, LogOut } from "lucide-react";
+import { useNavigate } from "react-router";
+import { ArrowLeftIcon, CameraIcon, Loader2, LogOut } from "lucide-react";
 
-import Layout from "@/components/layout/Layout";
 import Loading from "@/components/loading/LoadingPage";
-import { SidebarTrigger } from "@/components/ui/SideBarUI/sidebar";
+import { FIELD_INPUT } from "@/components/ui/fieldInput";
 import LanguageSwitcher from "@/components/layout/header/LanguageSwitcher";
 import ThemeToggle from "@/components/layout/header/ThemeToggle";
 import { useLogout } from "@/services/auth/useLogout";
@@ -22,16 +22,18 @@ import { cn } from "@/utils/cn";
  * white card, which read as a different application the moment the board went
  * dark.
  *
- * It renders inside `Layout` now, so the sidebar comes with it. That is what
- * makes it part of the product rather than a page you fall out of the app into,
- * and it is why the "Back" button is gone: the sidebar is a better way back
- * than a single button that only knows how to reach `/`.
+ * **Deliberately outside the app shell.** Settings are a place you go, finish
+ * with, and leave — not a view of the workspace — so the sidebar would only be
+ * offering navigation nobody wants mid-edit. Back returns you to where you came
+ * from, which is better than a rail full of boards.
  *
- * Theme and language appear here **and** in the sidebar footer, deliberately.
- * One is the quick toggle you reach for mid-task; this is the place you look
- * when you are looking for settings. The control is the same component in both.
+ * It is also the only home for theme and language now. They spent a while in
+ * the sidebar footer, where two rarely-touched preferences crowded the busiest
+ * corner of the rail; the profile row that used to sit beside them is the way
+ * here.
  */
 export default function ProfilePage() {
+  const navigate = useNavigate();
   const logout = useLogout();
 
   const { data: profile, isLoading } = useProfile();
@@ -78,15 +80,26 @@ export default function ProfilePage() {
   const displayName = form.full_name || form.username || "Your account";
 
   return (
-    <Layout>
-      <header className="border-hairline flex items-center gap-2 border-b px-5 py-3 md:px-6">
-        <SidebarTrigger className="text-ink-3 hover:text-ink shrink-0" />
-        <h1 className="text-ink text-lg font-semibold tracking-tight">
+    <div className="bg-canvas flex h-svh flex-col overflow-hidden">
+      <header className="border-hairline flex shrink-0 items-center gap-3 border-b px-5 py-3 md:px-6">
+        {/* `navigate(-1)` rather than a link to `/`: you arrive here from a
+            board, and going back to that board is what "back" means. The
+            fallback matters only for someone who opened /profile directly. */}
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="border-hairline text-ink-2 hover:bg-elevated hover:text-ink focus-visible:ring-brand rounded-control flex h-8 items-center gap-1.5 border px-2.5 text-[13px] transition-colors outline-none focus-visible:ring-2"
+        >
+          <ArrowLeftIcon className="size-4" />
+          Back
+        </button>
+
+        <h1 className="text-ink text-[15px] font-semibold tracking-tight">
           Profile
         </h1>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6 md:px-6">
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-8 md:px-6">
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
           {/* IDENTITY — who this account is, before anything editable. */}
           <section className="border-hairline bg-surface rounded-surface flex items-center gap-4 border p-5">
@@ -141,7 +154,7 @@ export default function ProfilePage() {
                 value={form.full_name ?? ""}
                 onChange={(e) => patch({ full_name: e.target.value })}
                 placeholder="Your full name"
-                className={INPUT}
+                className={FIELD_INPUT}
               />
             </Field>
 
@@ -150,7 +163,7 @@ export default function ProfilePage() {
                 value={form.username ?? ""}
                 onChange={(e) => patch({ username: e.target.value })}
                 placeholder="Your username"
-                className={INPUT}
+                className={FIELD_INPUT}
               />
             </Field>
 
@@ -161,7 +174,7 @@ export default function ProfilePage() {
               <input
                 value={form.email ?? ""}
                 disabled
-                className={cn(INPUT, "text-ink-3 cursor-not-allowed")}
+                className={cn(FIELD_INPUT, "text-ink-3 cursor-not-allowed")}
               />
             </Field>
 
@@ -171,7 +184,7 @@ export default function ProfilePage() {
                 value={form.bio ?? ""}
                 onChange={(e) => patch({ bio: e.target.value })}
                 placeholder="Tell people what you work on"
-                className={cn(INPUT, "resize-none")}
+                className={cn(FIELD_INPUT, "resize-none")}
               />
             </Field>
 
@@ -225,12 +238,9 @@ export default function ProfilePage() {
           </Section>
         </div>
       </div>
-    </Layout>
+    </div>
   );
 }
-
-const INPUT =
-  "border-hairline bg-canvas text-ink placeholder:text-ink-3 focus:border-brand/50 focus:ring-brand/30 rounded-control w-full border px-3 py-2 text-sm transition-colors outline-none focus:ring-2";
 
 /** One titled card. Sections are how a settings page stays scannable. */
 function Section({ title, children }: { title: string; children: ReactNode }) {

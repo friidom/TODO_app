@@ -18,8 +18,6 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/SideBarUI/sidebar";
 import BoardsSection from "./BoardsSection";
-import LanguageSwitcher from "@/components/layout/header/LanguageSwitcher";
-import ThemeToggle from "@/components/layout/header/ThemeToggle";
 import { useProfile } from "@/services/profile/useProfile";
 import { cn } from "@/utils/cn";
 
@@ -37,9 +35,11 @@ import { cn } from "@/utils/cn";
  * Views moved to the board's own toolbar, where switching one does not mean
  * travelling to the sidebar and back.
  *
- * **The footer is where the deleted global header's live controls went.** Theme,
- * language and the profile link are account-level, not board-level; they spent
- * the previous design sitting above a board they had nothing to do with.
+ * **The footer holds the account, and only the account.** Theme and language
+ * lived here briefly and moved on to the profile page: a preference is
+ * something you set once and then want out of the way, and two of them wedged
+ * beside an avatar made the busiest corner of the sidebar the one carrying the
+ * least-used controls. The profile row is the way to them.
  *
  * A *live* entry navigates because a route exists for it in
  * `components/routes/Routes.tsx`. A *placeholder* renders at lower contrast and
@@ -151,10 +151,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <NavItem item={{ label: "Settings", icon: SettingsIcon }} />
         </SidebarMenu>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center">
           <NavLink
             to="/profile"
-            className="hover:bg-elevated rounded-control flex min-w-0 flex-1 items-center gap-2 p-1 transition-colors"
+            title="Profile and preferences"
+            className="hover:bg-elevated rounded-control flex min-w-0 flex-1 items-center gap-2.5 p-1.5 transition-colors duration-150"
           >
             {profile?.avatar_url ? (
               <img
@@ -177,11 +178,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               </span>
             </span>
           </NavLink>
-
-          <div className="flex shrink-0 items-center">
-            <ThemeToggle />
-            <LanguageSwitcher />
-          </div>
         </div>
       </SidebarFooter>
     </Sidebar>

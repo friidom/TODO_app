@@ -112,119 +112,122 @@ export default function BoardFilters({ view }: { view: BoardView }) {
           frame the click lands. */}
       {mounted && (
         <FloatingPortal>
-          <div
-            {...panelProps}
-            role="dialog"
-            aria-label="Filter"
-            // The positioning styles and the transition are merged rather than
-            // fighting: `floatingStyles` owns where the panel is,
-            // `transitionStyles` owns its opacity and transform, and the origin
-            // inside them points back at the Filter button.
-            style={{ ...panelProps.style, ...transitionStyles }}
-            className="border-hairline bg-elevated rounded-card z-50 flex w-[min(30rem,calc(100vw-2rem))] flex-col overflow-hidden border shadow-[0_8px_24px_rgba(0,0,0,0.28)]"
-          >
-            {/* Stacks below `sm`, so the panel is still usable at 375px where
+          {/* Two elements, and it is not decoration. `floatingStyles` positions
+              with `transform: translate(x, y)`; the transition carries a
+              transform too. Spreading both onto one element drops one of them —
+              which put the panel in the top-left corner of the page instead of
+              under its button. The outer element is placed, the inner one
+              moves. */}
+          <div {...panelProps} className="z-50">
+            <div
+              role="dialog"
+              aria-label="Filter"
+              style={transitionStyles}
+              className="border-hairline bg-elevated rounded-card flex w-[min(30rem,calc(100vw-2rem))] flex-col overflow-hidden border shadow-[0_16px_40px_-12px_rgba(0,0,0,0.5)]"
+            >
+              {/* Stacks below `sm`, so the panel is still usable at 375px where
                 two 15rem columns would each be too narrow to read. */}
-            <div className="flex flex-col sm:flex-row">
-              {/* LEFT — the fields, with what each one is holding. */}
-              <div className="border-hairline shrink-0 border-b p-1.5 sm:w-44 sm:border-r sm:border-b-0">
-                {FILTER_CATEGORIES.map((category) => {
-                  const count = filters[category].length;
-                  const selected = category === field;
+              <div className="flex flex-col sm:flex-row">
+                {/* LEFT — the fields, with what each one is holding. */}
+                <div className="border-hairline shrink-0 border-b p-1.5 sm:w-44 sm:border-r sm:border-b-0">
+                  {FILTER_CATEGORIES.map((category) => {
+                    const count = filters[category].length;
+                    const selected = category === field;
 
-                  return (
-                    <button
-                      key={category}
-                      type="button"
-                      onClick={() => pickField(category)}
-                      className={cn(
-                        "flex w-full items-center gap-2 rounded-[6px] px-2 py-1.5 text-left text-[13px] transition-colors",
-                        selected
-                          ? "bg-ink/[0.07] text-ink font-medium"
-                          : "text-ink-2 hover:bg-ink/[0.04] hover:text-ink",
-                      )}
-                    >
-                      <span className="min-w-0 flex-1 truncate">
-                        {FILTER_LABELS[category]}
-                      </span>
-
-                      {count > 0 && (
-                        <span className="bg-brand text-brand-fg grid h-4 min-w-4 shrink-0 place-items-center rounded-full px-1 text-[10px] font-semibold">
-                          {count}
+                    return (
+                      <button
+                        key={category}
+                        type="button"
+                        onClick={() => pickField(category)}
+                        className={cn(
+                          "flex w-full items-center gap-2 rounded-[6px] px-2 py-1.5 text-left text-[13px] transition-colors",
+                          selected
+                            ? "bg-ink/[0.07] text-ink font-medium"
+                            : "text-ink-2 hover:bg-ink/[0.04] hover:text-ink",
+                        )}
+                      >
+                        <span className="min-w-0 flex-1 truncate">
+                          {FILTER_LABELS[category]}
                         </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
 
-              {/* RIGHT — the values of the field on the left. */}
-              <div className="flex min-w-0 flex-1 flex-col">
-                {searchable && (
-                  <div className="border-hairline flex items-center gap-2 border-b px-3 py-2">
-                    <SearchIcon className="text-ink-3 size-3.5 shrink-0" />
-                    <input
-                      autoFocus
-                      value={needle}
-                      onChange={(e) => setNeedle(e.target.value)}
-                      placeholder={`Search ${FILTER_LABELS[field].toLowerCase()}…`}
-                      aria-label={`Search ${FILTER_LABELS[field]}`}
-                      className="text-ink placeholder:text-ink-3 min-w-0 flex-1 bg-transparent text-[13px] outline-none"
-                    />
-                  </div>
-                )}
+                        {count > 0 && (
+                          <span className="bg-brand text-brand-fg grid h-4 min-w-4 shrink-0 place-items-center rounded-full px-1 text-[10px] font-semibold">
+                            {count}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
 
-                <div className="max-h-64 min-h-[8rem] overflow-y-auto p-1.5">
-                  {shown.length === 0 ? (
-                    <p className="text-ink-3 px-2 py-6 text-center text-xs">
-                      Nothing matches “{needle.trim()}”.
-                    </p>
-                  ) : (
-                    shown.map((option) => (
-                      <OptionRow
-                        key={option.value}
-                        option={option}
-                        field={field}
-                        members={members}
-                        columns={columns}
-                        checked={filters[field].includes(option.value)}
-                        onToggle={() => toggleFilter(field, option.value)}
+                {/* RIGHT — the values of the field on the left. */}
+                <div className="flex min-w-0 flex-1 flex-col">
+                  {searchable && (
+                    <div className="border-hairline flex items-center gap-2 border-b px-3 py-2">
+                      <SearchIcon className="text-ink-3 size-3.5 shrink-0" />
+                      <input
+                        autoFocus
+                        value={needle}
+                        onChange={(e) => setNeedle(e.target.value)}
+                        placeholder={`Search ${FILTER_LABELS[field].toLowerCase()}…`}
+                        aria-label={`Search ${FILTER_LABELS[field]}`}
+                        className="text-ink placeholder:text-ink-3 min-w-0 flex-1 bg-transparent text-[13px] outline-none"
                       />
-                    ))
+                    </div>
                   )}
+
+                  <div className="max-h-64 min-h-[8rem] overflow-y-auto p-1.5">
+                    {shown.length === 0 ? (
+                      <p className="text-ink-3 px-2 py-6 text-center text-xs">
+                        Nothing matches “{needle.trim()}”.
+                      </p>
+                    ) : (
+                      shown.map((option) => (
+                        <OptionRow
+                          key={option.value}
+                          option={option}
+                          field={field}
+                          members={members}
+                          columns={columns}
+                          checked={filters[field].includes(option.value)}
+                          onToggle={() => toggleFilter(field, option.value)}
+                        />
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Two clears, and the difference matters: one empties the field you
+              {/* Two clears, and the difference matters: one empties the field you
                 are looking at, the other empties every field. Each is offered
                 only when it would do something. */}
-            <div className="border-hairline flex items-center gap-2 border-t px-3 py-2">
-              <button
-                type="button"
-                onClick={clearFilters}
-                disabled={filterCount === 0}
-                className="text-ink-3 enabled:hover:text-ink text-xs transition-colors disabled:opacity-40"
-              >
-                Clear all
-              </button>
+              <div className="border-hairline flex items-center gap-2 border-t px-3 py-2">
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  disabled={filterCount === 0}
+                  className="text-ink-3 enabled:hover:text-ink text-xs transition-colors disabled:opacity-40"
+                >
+                  Clear all
+                </button>
 
-              <button
-                type="button"
-                onClick={() => clearCategory(field)}
-                disabled={filters[field].length === 0}
-                className="text-ink-3 enabled:hover:text-ink ml-auto text-xs transition-colors disabled:opacity-40"
-              >
-                Clear {FILTER_LABELS[field].toLowerCase()}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => clearCategory(field)}
+                  disabled={filters[field].length === 0}
+                  className="text-ink-3 enabled:hover:text-ink ml-auto text-xs transition-colors disabled:opacity-40"
+                >
+                  Clear {FILTER_LABELS[field].toLowerCase()}
+                </button>
 
-              <button
-                type="button"
-                onClick={close}
-                className="bg-brand text-brand-fg hover:bg-brand/90 rounded-control px-2.5 py-1 text-xs font-medium transition-colors"
-              >
-                Done
-              </button>
+                <button
+                  type="button"
+                  onClick={close}
+                  className="bg-brand text-brand-fg hover:bg-brand/90 rounded-control px-2.5 py-1 text-xs font-medium transition-colors"
+                >
+                  Done
+                </button>
+              </div>
             </div>
           </div>
         </FloatingPortal>
