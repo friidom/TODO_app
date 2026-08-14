@@ -69,7 +69,8 @@ export default function BoardFilters({ view }: { view: BoardView }) {
   const { filters, filterCount, toggleFilter, clearFilters, clearCategory } =
     view;
 
-  const { open, close, triggerProps, panelProps } = useCardPopover();
+  const { open, mounted, transitionStyles, close, triggerProps, panelProps } =
+    useCardPopover();
 
   const [field, setField] = useState<FilterCategory>("assignee");
   const [needle, setNeedle] = useState("");
@@ -106,13 +107,21 @@ export default function BoardFilters({ view }: { view: BoardView }) {
         )}
       </button>
 
-      {open && (
+      {/* `mounted` rather than `open`: it stays true for the length of the close,
+          which is what lets the panel animate out instead of vanishing on the
+          frame the click lands. */}
+      {mounted && (
         <FloatingPortal>
           <div
             {...panelProps}
             role="dialog"
             aria-label="Filter"
-            className="border-hairline bg-elevated rounded-card motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 z-50 flex w-[min(30rem,calc(100vw-2rem))] flex-col overflow-hidden border shadow-[0_8px_24px_rgba(0,0,0,0.28)] motion-safe:duration-150"
+            // The positioning styles and the transition are merged rather than
+            // fighting: `floatingStyles` owns where the panel is,
+            // `transitionStyles` owns its opacity and transform, and the origin
+            // inside them points back at the Filter button.
+            style={{ ...panelProps.style, ...transitionStyles }}
+            className="border-hairline bg-elevated rounded-card z-50 flex w-[min(30rem,calc(100vw-2rem))] flex-col overflow-hidden border shadow-[0_8px_24px_rgba(0,0,0,0.28)]"
           >
             {/* Stacks below `sm`, so the panel is still usable at 375px where
                 two 15rem columns would each be too narrow to read. */}

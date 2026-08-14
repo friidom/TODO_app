@@ -58,40 +58,45 @@ export default function ListView() {
 
       {/* The table scrolls inside its own box on a narrow screen. The page never
           does — that is the rule the board already follows. */}
-      <div className="border-hairline bg-surface rounded-surface mb-4 min-h-0 flex-1 overflow-auto border">
+      <div className="border-hairline rounded-surface mb-4 min-h-0 flex-1 overflow-auto border">
         <table className="w-full border-collapse text-left">
-          <thead className="bg-surface sticky top-0 z-10">
+          {/* Explicit widths, because an auto-layout table gives every column
+              whatever its content asks for — which is how eight columns end up
+              at eight similar widths and how a long title pushes the page into
+              horizontal scroll. Title is the only elastic one. */}
+          <colgroup>
+            <col className="w-[7.5rem]" />
+            <col />
+            <col className="w-[9rem]" />
+            <col className="hidden w-[7.5rem] lg:table-column" />
+            <col className="w-[4.5rem]" />
+            <col className="hidden w-[6.5rem] lg:table-column" />
+            <col className="w-10" />
+          </colgroup>
+
+          <thead className="bg-canvas sticky top-0 z-10">
             <tr className="border-hairline text-ink-3 border-b text-[10px] font-semibold tracking-[0.08em] uppercase">
-              <th
-                scope="col"
-                className="hidden py-2 pr-2 pl-3 font-semibold sm:table-cell"
-              >
-                Type
+              <th scope="col" className="py-2 pl-3 font-semibold">
+                Item
               </th>
-              <th
-                scope="col"
-                className="hidden py-2 pr-2 font-semibold sm:table-cell"
-              >
-                Key
+              <th scope="col" className="py-2 pr-3 font-semibold">
+                Title
               </th>
-              <th scope="col" className="py-2 pr-2 pl-3 font-semibold sm:pl-0">
-                Summary
-              </th>
-              <th scope="col" className="py-2 pr-2 font-semibold">
+              <th scope="col" className="py-2 pr-3 font-semibold">
                 Status
               </th>
               <th
                 scope="col"
-                className="hidden py-2 pr-2 font-semibold lg:table-cell"
+                className="hidden py-2 pr-3 font-semibold lg:table-cell"
               >
                 Priority
               </th>
-              <th scope="col" className="py-2 pr-2 font-semibold">
+              <th scope="col" className="py-2 pr-3 font-semibold">
                 Assignee
               </th>
               <th
                 scope="col"
-                className="hidden py-2 pr-2 font-semibold lg:table-cell"
+                className="hidden py-2 pr-3 font-semibold lg:table-cell"
               >
                 Due
               </th>
@@ -104,11 +109,11 @@ export default function ListView() {
           {groups.map((group) => (
             <tbody key={group.key}>
               {grouped && (
-                <tr className="border-hairline bg-elevated border-b">
+                <tr className="border-hairline bg-surface border-b">
                   <th
                     scope="colgroup"
-                    colSpan={8}
-                    className="text-ink-2 px-3 py-1.5 text-left text-xs font-semibold"
+                    colSpan={7}
+                    className="text-ink-2 px-3 py-1.5 text-left text-[11px] font-semibold tracking-wide"
                   >
                     {group.label}
                     <span className="text-ink-3 ml-2 font-normal">
