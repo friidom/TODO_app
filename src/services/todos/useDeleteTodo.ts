@@ -22,13 +22,11 @@ export function useDeleteTodo() {
       });
 
       const previousTodos =
-        queryClient.getQueryData<Todo[]>(queryKeys.todos(boardId)) ??
-        [];
+        queryClient.getQueryData<Todo[]>(queryKeys.todos(boardId)) ?? [];
 
       //filtered todos
-      queryClient.setQueryData<Todo[]>(
-        queryKeys.todos(boardId),
-        (old = []) => applyTodoDeleted(old, id),
+      queryClient.setQueryData<Todo[]>(queryKeys.todos(boardId), (old = []) =>
+        applyTodoDeleted(old, id),
       );
 
       return { previousTodos };
@@ -40,6 +38,15 @@ export function useDeleteTodo() {
           context.previousTodos,
         );
       }
+    },
+
+    onSuccess: (id) => {
+      // Drop the detail entry too (M5-06). Without this a task deleted from
+      // the board behind an open panel leaves the panel rendering a ghost —
+      // the row is gone from the board cache but its own entry still holds it,
+      // and nothing refetches. Removing the entry makes the panel resolve to
+      // null and show its not-found state.
+      queryClient.removeQueries({ queryKey: queryKeys.todo(id), exact: true });
     },
 
     onSettled: () => {

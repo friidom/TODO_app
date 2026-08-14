@@ -96,9 +96,6 @@ export interface TodoViewState {
   dragDisabled?: boolean;
 }
 
-/** A stored todo together with whatever is only true on this client. */
-export type TodoView = Todo & TodoViewState;
-
 /**
  * The stored values a card puts on screen, and nothing else.
  *

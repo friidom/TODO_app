@@ -24,6 +24,9 @@ export interface TodoCardProps extends TodoCardContent, TodoViewState {
   onWorkTypeChange: (value: WorkType) => void;
   onDueDateChange: (value: string | null) => void;
 
+  /** Opens the detail panel. Absent on the drag overlay, which has no chrome. */
+  onOpen?: () => void;
+
   /**
    * The assignee control and the action menu, as rendered nodes.
    *
@@ -72,6 +75,7 @@ export default function TodoCard({
   onStartEdit,
   onWorkTypeChange,
   onDueDateChange,
+  onOpen,
   assignee,
   menu,
   setNodeRef,
@@ -171,11 +175,27 @@ export default function TodoCard({
           <WorkTypeControl value={workType} onChange={onWorkTypeChange} />
         )}
 
-        {boardKey !== null && (
-          <span className="bg-ink/10 text-ink-2 shrink-0 rounded px-1.5 py-0.5 text-[11px] font-semibold">
-            KAN-{boardKey}
-          </span>
-        )}
+        {/* The key opens the detail panel, and it is the affordance a VIEWER
+            has. The action cluster above is editor-only, and the menu inside
+            it was the only way in — so reading a description required
+            permission to write one. Reading is not editing. Null only while a
+            freshly created card is in flight. */}
+        {boardKey !== null &&
+          (onOpen ? (
+            <button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={onOpen}
+              title={`Open KAN-${boardKey}`}
+              className="bg-ink/10 text-ink-2 hover:bg-ink/20 hover:text-ink shrink-0 rounded px-1.5 py-0.5 text-[11px] font-semibold transition-colors"
+            >
+              KAN-{boardKey}
+            </button>
+          ) : (
+            <span className="bg-ink/10 text-ink-2 shrink-0 rounded px-1.5 py-0.5 text-[11px] font-semibold">
+              KAN-{boardKey}
+            </span>
+          ))}
 
         {/* Controlled and writing nothing: the card reports a change and the
             container decides what it costs. The create form holds the same
