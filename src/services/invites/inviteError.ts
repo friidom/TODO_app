@@ -45,5 +45,11 @@ export function inviteErrorMessage(error: unknown): string {
     if (typeof code === "string" && code in MESSAGES) return MESSAGES[code];
   }
 
+  // An unmapped code is a bug in the RPC, not a bad invitation, and the user is
+  // about to be told something reassuringly generic about it. Log the real one
+  // — `accept_invite` shipped raising 42702 on EVERY call, and the only symptom
+  // anywhere was this sentence, with the SQLSTATE discarded here.
+  console.error("[invite] unmapped acceptance failure:", error);
+
   return FALLBACK;
 }
