@@ -6,6 +6,7 @@ import PriorityControl from "@/components/todo/TodoItem/PriorityControl";
 import StatusControl from "@/components/todo/TodoItem/StatusControl";
 import TodoMenu from "@/components/todo/TodoItem/TodoMenu";
 import WorkTypeControl from "@/components/todo/TodoItem/WorkTypeControl";
+import { useOpenTask } from "@/hooks/useOpenTask";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useTodoPatch } from "@/hooks/useTodoPatch";
 import type { Todo } from "@/types/data";
@@ -34,6 +35,7 @@ export default function ListRow({ todo }: { todo: Todo }) {
   const patch = useTodoPatch(todo);
 
   const { canEditTodos } = usePermissions();
+  const { openTask } = useOpenTask();
 
   const celebrate = useDoneFlash((state) => state.todoId === todo.id);
 
@@ -87,10 +89,18 @@ export default function ListRow({ todo }: { todo: Todo }) {
       <td className="hidden py-1.5 pr-2 sm:table-cell">
         {/* Null while the insert is in flight — the server allocates the key,
             and that absence is the pending state. */}
+        {/* Opens the detail panel, and deliberately not gated: reading a task
+            is not editing it, and the menu at the end of the row is
+            editor-only. Same affordance the card's key carries. */}
         {todo.board_key !== null && (
-          <span className="text-ink-3 text-xs font-semibold whitespace-nowrap">
+          <button
+            type="button"
+            onClick={() => openTask(todo.id)}
+            title={`Open KAN-${todo.board_key}`}
+            className="text-ink-3 hover:text-brand text-xs font-semibold whitespace-nowrap transition-colors"
+          >
             KAN-{todo.board_key}
-          </span>
+          </button>
         )}
       </td>
 

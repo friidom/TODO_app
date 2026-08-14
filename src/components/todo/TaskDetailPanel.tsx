@@ -173,7 +173,17 @@ function Body({ todo, onClose }: { todo: TodoRow; onClose: () => void }) {
           )}
         />
 
-        <dl className="mb-6 grid grid-cols-[88px_1fr] items-center gap-x-3 gap-y-2.5">
+        {/* Inert for a viewer, exactly as the list row's cells are. The two
+            textareas are `readOnly`, but these five are popover triggers —
+            without this a viewer could open the status menu, pick a column and
+            watch the write silently fail. Panel and list must agree about what
+            read-only looks like. */}
+        <dl
+          className={cn(
+            "mb-6 grid grid-cols-[88px_1fr] items-center gap-x-3 gap-y-2.5",
+            !canEditTodos && "pointer-events-none",
+          )}
+        >
           <Field label="Status">
             <StatusControl todoId={todo.id} columnId={todo.column_id} />
           </Field>
