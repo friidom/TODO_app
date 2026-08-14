@@ -6,8 +6,9 @@ import PriorityControl from "@/components/todo/TodoItem/PriorityControl";
 import StatusControl from "@/components/todo/TodoItem/StatusControl";
 import TodoMenu from "@/components/todo/TodoItem/TodoMenu";
 import WorkTypeControl from "@/components/todo/TodoItem/WorkTypeControl";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useTodoPatch } from "@/hooks/useTodoPatch";
-import type { ISupabaseTodo } from "@/types/data";
+import type { Todo } from "@/types/data";
 import { useDoneFlash } from "@/stores/doneFlash";
 import { cn } from "@/utils/cn";
 
@@ -25,14 +26,27 @@ import { cn } from "@/utils/cn";
  * the same `useTodoPatch`. There is no detail view to open yet (M5-06), so this
  * is the whole edit flow rather than a stand-in for one.
  */
-export default function ListRow({ todo }: { todo: ISupabaseTodo }) {
+export default function ListRow({ todo }: { todo: Todo }) {
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(todo.title ?? "");
   const inputRef = useRef<HTMLInputElement>(null);
 
   const patch = useTodoPatch(todo);
 
+  const { canEditTodos } = usePermissions();
+
   const celebrate = useDoneFlash((state) => state.todoId === todo.id);
+
+  /**
+   * Read-only cells for a viewer.
+   *
+   * `pointer-events-none` rather than five presentational twins of controls
+   * that already exist: it keeps the row looking exactly as it does for
+   * everyone else — same chips, same spacing, same colours — while making them
+   * inert. A viewer clicking a status chip that opens a menu and then silently
+   * fails is the case the plan warns reads as a broken board.
+   */
+  const inert = canEditTodos ? undefined : "pointer-events-none";
 
   useEffect(() => {
     if (editing) {
@@ -63,7 +77,7 @@ export default function ListRow({ todo }: { todo: ISupabaseTodo }) {
         celebrate && "done-flash",
       )}
     >
-      <td className="hidden py-1.5 pr-2 pl-3 sm:table-cell">
+      <td className={cn("hidden py-1.5 pr-2 pl-3 sm:table-cell", inert)}>
         <WorkTypeControl
           value={todo.type}
           onChange={(type) => patch({ type })}
@@ -93,7 +107,7 @@ export default function ListRow({ todo }: { todo: ISupabaseTodo }) {
             }}
             className="border-brand bg-surface text-ink rounded-control w-full border-2 px-2 py-0.5 text-sm outline-none"
           />
-        ) : (
+        ) : canEditTodos ? (
           <button
             type="button"
             onClick={() => setEditing(true)}
@@ -101,14 +115,21 @@ export default function ListRow({ todo }: { todo: ISupabaseTodo }) {
           >
             {todo.title}
           </button>
+        ) : (
+          // Plain text rather than an inert button: the summary is the one cell
+          // whose control is nothing but the edit affordance, so for a viewer
+          // there is no chip to preserve — only the words.
+          <span className="text-ink block w-full truncate text-sm">
+            {todo.title}
+          </span>
         )}
       </td>
 
-      <td className="py-1.5 pr-2">
+      <td className={cn("py-1.5 pr-2", inert)}>
         <StatusControl todoId={todo.id} columnId={todo.column_id} />
       </td>
 
-      <td className="hidden py-1.5 pr-2 lg:table-cell">
+      <td className={cn("hidden py-1.5 pr-2 lg:table-cell", inert)}>
         <PriorityControl
           value={todo.priority}
           onChange={(priority) => patch({ priority })}
@@ -116,7 +137,7 @@ export default function ListRow({ todo }: { todo: ISupabaseTodo }) {
         />
       </td>
 
-      <td className="py-1.5 pr-2">
+      <td className={cn("py-1.5 pr-2", inert)}>
         <AssigneeControl
           boardId={todo.board_id}
           value={todo.assignee_id}
@@ -125,7 +146,7 @@ export default function ListRow({ todo }: { todo: ISupabaseTodo }) {
         />
       </td>
 
-      <td className="hidden py-1.5 pr-2 lg:table-cell">
+      <td className={cn("hidden py-1.5 pr-2 lg:table-cell", inert)}>
         <DueDateControl
           value={todo.due_date}
           onChange={(due_date) => patch({ due_date })}
@@ -134,9 +155,13 @@ export default function ListRow({ todo }: { todo: ISupabaseTodo }) {
       </td>
 
       <td className="py-1.5 pr-3">
-        <div className="flex justify-end opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-          <TodoMenu todo={todo} onEdit={() => setEditing(true)} />
-        </div>
+        {/* The cell stays so the row keeps its column count against the
+            header; only the menu inside it goes. */}
+        {canEditTodos && (
+          <div className="flex justify-end opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+            <TodoMenu todo={todo} onEdit={() => setEditing(true)} />
+          </div>
+        )}
       </td>
     </tr>
   );

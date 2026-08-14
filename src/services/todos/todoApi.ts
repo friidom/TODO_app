@@ -1,9 +1,31 @@
 import { DEFAULT_WORK_TYPE } from "@/constants/workTypes";
-import type { ISupabaseTodo } from "../../types/data";
+import type { Todo, TodoRow } from "../../types/data";
 // import axios from "axios";
 import { supabase } from "../api/supabase";
 
 //!SUPABASE//
+
+/**
+ * The columns the board and the list actually read (M5-07).
+ *
+ * **Replaces `select("*")`.** Every card on every board load used to carry
+ * `description` and `estimate` — a free-text column and a number rendered by
+ * nothing on either view — plus four more with no reader at all: `archived`,
+ * `creator_id`, `status` and `previous_status`. On a 200-card board that is
+ * 1,200 values fetched, parsed and held in the cache to be ignored.
+ *
+ * This list and the `Todo` projection in `types/data.ts` are one decision in
+ * two places and must change together. The compiler enforces one direction —
+ * adding a field here without adding it there makes it unreadable — but not
+ * the other, so removing one from `Todo` means removing it here too.
+ *
+ * Used by the write paths as well, so the row a mutation returns has the same
+ * shape as the rows already in the cache. A wide row landing in a narrow array
+ * would type-check (the extra fields are invisible through `Todo`) and quietly
+ * make the cache heterogeneous.
+ */
+export const TODO_LIST_FIELDS =
+  "id, board_id, column_id, position, board_key, title, type, priority, due_date, assignee_id, created_at, updated_at";
 
 //!get
 /**
@@ -17,9 +39,39 @@ import { supabase } from "../api/supabase";
 export async function fetchTodos(boardId: string) {
   const { data, error } = await supabase
     .from("todos")
-    .select("*")
+    .select(TODO_LIST_FIELDS)
     .eq("board_id", boardId)
     .order("position", { ascending: true });
+
+  if (error) throw error;
+
+  return data;
+}
+
+/**
+ * One work item's complete row, for the detail panel (M5-06).
+ *
+ * `select("*")` here is correct where it was wrong on the board: this fetches
+ * one row, on demand, for the only screen that renders `description`.
+ *
+ * **Scoped by `board_id` as well as `id`, and that is the 404.** A todo the
+ * caller can genuinely reach but which belongs to a different board must not
+ * open in this board's panel — the deep link `?task=<id>` is user input, and
+ * without the board filter a pasted id from another board would render inside
+ * the wrong context. `maybeSingle` returns null rather than raising, so a
+ * missing row and a foreign row are the same clean not-found, and neither
+ * confirms whether the id exists.
+ */
+export async function fetchTodo(
+  todoId: string,
+  boardId: string,
+): Promise<TodoRow | null> {
+  const { data, error } = await supabase
+    .from("todos")
+    .select("*")
+    .eq("id", todoId)
+    .eq("board_id", boardId)
+    .maybeSingle();
 
   if (error) throw error;
 
@@ -81,21 +133,24 @@ export async function addTodo({
   //insert it in database
   const { data, error } = await supabase
     .from("todos")
-    .upsert({
-      id,
-      title,
-      column_id,
-      board_id,
-      // Authorship moved here when M2-13 dropped user_id. Unlike user_id,
-      // creator_id has no auth.uid() default — left unset, every card created
-      // from now on would have no recorded author at all.
-      creator_id: user.id,
-      position,
-      assignee_id,
-      due_date,
-      type,
-    }, { onConflict: "id" })
-    .select()
+    .upsert(
+      {
+        id,
+        title,
+        column_id,
+        board_id,
+        // Authorship moved here when M2-13 dropped user_id. Unlike user_id,
+        // creator_id has no auth.uid() default — left unset, every card created
+        // from now on would have no recorded author at all.
+        creator_id: user.id,
+        position,
+        assignee_id,
+        due_date,
+        type,
+      },
+      { onConflict: "id" },
+    )
+    .select(TODO_LIST_FIELDS)
     .single();
 
   if (error) throw error;
@@ -103,13 +158,12 @@ export async function addTodo({
   return data;
 }
 
-
 //!delete
 export async function deleteTodo(id: string) {
   const { error } = await supabase.from("todos").delete().eq("id", id);
-  
+
   if (error) throw error;
-  
+
   return id;
 }
 
@@ -125,7 +179,7 @@ export async function deleteTodo(id: string) {
  * Stamped from the board being viewed rather than read off each row, so the
  * value cannot be null even if a row in the cache is stale.
  */
-export async function reorderTodos(todos: ISupabaseTodo[], boardId: string) {
+export async function reorderTodos(todos: Todo[], boardId: string) {
   //update newest info
   const updates = todos.map((todo) => ({
     id: todo.id,
@@ -133,11 +187,11 @@ export async function reorderTodos(todos: ISupabaseTodo[], boardId: string) {
     column_id: todo.column_id,
     board_id: boardId,
   }));
-  
+
   const { error } = await supabase.from("todos").upsert(updates, {
     onConflict: "id",
   });
-  
+
   if (error) throw error;
 }
 
@@ -147,7 +201,7 @@ export async function reorderTodos(todos: ISupabaseTodo[], boardId: string) {
 /**
  * The fields a card's own controls may write.
  *
- * Deliberately a narrow allow-list rather than `Partial<ISupabaseTodo>`:
+ * Deliberately a narrow allow-list rather than `Partial<Todo>`:
  * `creator_id` and `board_key` are the server's, and `position` belongs to the
  * drag path. `column_id` stays because `updateTodo` was already writing it.
  *
@@ -159,19 +213,29 @@ export async function reorderTodos(todos: ISupabaseTodo[], boardId: string) {
  * `priority` joined the list when the priority control was built. The column and
  * its CHECK constraint have existed since M2-04 — this allow-list was the only
  * thing standing between them and the UI, which is why that feature needed no
- * migration.
+ * migration. `description` joined it for the same reason at M5-06.
+ *
+ * Picked from `TodoRow`, not `Todo`: `description` is not one of the twelve
+ * columns the board fetches (M5-07), so the narrowed type cannot name it. What
+ * may be *written* and what the board *reads* are different questions.
  */
 export type TodoPatch = { id: string; board_id: string } & Partial<
   Pick<
-    ISupabaseTodo,
-    "title" | "column_id" | "due_date" | "assignee_id" | "type" | "priority"
+    TodoRow,
+    | "title"
+    | "column_id"
+    | "due_date"
+    | "assignee_id"
+    | "type"
+    | "priority"
+    | "description"
   >
 >;
 
 /**
  * Patch one card.
  *
- * **Takes a patch, not a whole row.** It used to accept an `ISupabaseTodo` and
+ * **Takes a patch, not a whole row.** It used to accept an `Todo` and
  * write `title` and `column_id` off it, so every caller had to spread a cached
  * row it did not intend to change — and a title edit would write back whatever
  * else that row happened to be holding. Sending only the changed keys removes
@@ -199,7 +263,7 @@ export async function updateTodo({ id, board_id, ...patch }: TodoPatch) {
   const { data, error } = await supabase
     .from("todos")
     .upsert({ id, board_id, ...patch }, { onConflict: "id" })
-    .select()
+    .select(TODO_LIST_FIELDS)
     .single();
 
   if (error) throw error;

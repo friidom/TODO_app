@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { addTodo, reorderTodos } from "./todoApi";
 import { applyTodoConfirmed, applyTodoInserted } from "./cache";
 import { queryKeys } from "@/services/queryClient/queryKeys";
-import type { ISupabaseTodo } from "../../types/data";
+import type { Todo } from "../../types/data";
 import { useBoardId } from "@/hooks/useBoardId";
 import { DEFAULT_WORK_TYPE } from "@/constants/workTypes";
 
@@ -77,43 +77,32 @@ export function useAddTodo() {
 
       //previous Todos
       const previousTodos =
-        queryClient.getQueryData<ISupabaseTodo[]>(queryKeys.todos(boardId)) ??
-        [];
+        queryClient.getQueryData<Todo[]>(queryKeys.todos(boardId)) ?? [];
 
       // Not a placeholder any more: this carries the id the row will really
       // have, so the server's answer reconciles onto the same card rather than
       // replacing it.
-      const optimisticTodo: ISupabaseTodo = {
+      const optimisticTodo: Todo = {
         id,
         title,
         created_at: new Date().toISOString(),
         position: 0, //renumbered below
         column_id,
-        // Dead columns kept by the schema; the server row replaces this
-        // placeholder on success, so null is never persisted from here.
-        status: null,
-        previous_status: null,
-        // Added by M2-02 and M2-03. Mirrors what the server produces for a
-        // fresh insert: `archived` has a false default, the rest have none.
         board_id: boardId,
         // Allocated by the M2-21 trigger, so the client cannot know it yet.
         // The card renders without its key until the server answers.
         board_key: null,
-        creator_id: null,
         // Carried from the create form rather than hard-coded null, so the
         // optimistic card shows its assignee and due date immediately — the
         // server row replaces both on success with the same values.
         assignee_id,
         type,
-        description: null,
         priority: null,
         due_date,
-        estimate: null,
-        archived: false,
         updated_at: null,
       };
 
-      queryClient.setQueryData<ISupabaseTodo[]>(
+      queryClient.setQueryData<Todo[]>(
         queryKeys.todos(boardId),
         applyTodoInserted(previousTodos, optimisticTodo, index),
       );
@@ -124,18 +113,20 @@ export function useAddTodo() {
 
     //error
     onError: (_err, _variables, context) => {
-      queryClient.setQueryData(queryKeys.todos(boardId), context?.previousTodos);
+      queryClient.setQueryData(
+        queryKeys.todos(boardId),
+        context?.previousTodos,
+      );
     },
 
     //success
     onSuccess: (serverTodo) => {
       const current =
-        queryClient.getQueryData<ISupabaseTodo[]>(queryKeys.todos(boardId)) ??
-        [];
+        queryClient.getQueryData<Todo[]>(queryKeys.todos(boardId)) ?? [];
 
       const todos = applyTodoConfirmed(current, serverTodo);
 
-      queryClient.setQueryData<ISupabaseTodo[]>(queryKeys.todos(boardId), todos);
+      queryClient.setQueryData<Todo[]>(queryKeys.todos(boardId), todos);
 
       //the slot we kept; the server just appended
       const position =

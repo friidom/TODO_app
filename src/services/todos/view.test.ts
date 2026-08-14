@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { BoardMember } from "../members/membersApi";
-import type { IColumn, ISupabaseTodo } from "../../types/data";
+import type { IColumn, Todo } from "../../types/data";
 import {
   EMPTY_FILTERS,
   countFilters,
@@ -15,7 +15,7 @@ import {
 /** Today, pinned. Every due-date expectation below is relative to this day. */
 const TODAY = "2026-08-13";
 
-const card = (id: string, fields: Partial<ISupabaseTodo> = {}): ISupabaseTodo =>
+const card = (id: string, fields: Partial<Todo> = {}): Todo =>
   ({
     id,
     title: `card ${id}`,
@@ -28,14 +28,14 @@ const card = (id: string, fields: Partial<ISupabaseTodo> = {}): ISupabaseTodo =>
     created_at: "2026-01-01T00:00:00Z",
     updated_at: null,
     ...fields,
-  }) as ISupabaseTodo;
+  }) as Todo;
 
 const filters = (overrides: Partial<TodoFilters> = {}): TodoFilters => ({
   ...EMPTY_FILTERS,
   ...overrides,
 });
 
-const ids = (todos: ISupabaseTodo[]) => todos.map((todo) => todo.id);
+const ids = (todos: Todo[]) => todos.map((todo) => todo.id);
 
 describe("filterTodos", () => {
   // The rule the whole panel rests on: unchecking your last work type shows

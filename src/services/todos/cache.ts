@@ -1,4 +1,4 @@
-import type { ISupabaseTodo } from "@/types/data";
+import type { Todo } from "@/types/data";
 import { byPosition } from "@/utils/position";
 import { insertDense } from "./insertDense";
 
@@ -24,7 +24,7 @@ import { insertDense } from "./insertDense";
  */
 
 /** Renumber a column from 0, as new objects. */
-function renumber(columnTodos: ISupabaseTodo[]): ISupabaseTodo[] {
+function renumber(columnTodos: Todo[]): Todo[] {
   return columnTodos.map((todo, position) => ({ ...todo, position }));
 }
 
@@ -33,10 +33,10 @@ function renumber(columnTodos: ISupabaseTodo[]): ISupabaseTodo[] {
  * index is omitted. The destination is renumbered so positions stay dense.
  */
 export function applyTodoInserted(
-  todos: ISupabaseTodo[],
-  todo: ISupabaseTodo,
+  todos: Todo[],
+  todo: Todo,
   index?: number,
-): ISupabaseTodo[] {
+): Todo[] {
   const destination = todos.filter((it) => it.column_id === todo.column_id);
   const untouched = todos.filter((it) => it.column_id !== todo.column_id);
 
@@ -60,9 +60,9 @@ export function applyTodoInserted(
  * inline `map` did.
  */
 export function applyTodoConfirmed(
-  todos: ISupabaseTodo[],
-  serverTodo: ISupabaseTodo,
-): ISupabaseTodo[] {
+  todos: Todo[],
+  serverTodo: Todo,
+): Todo[] {
   const position =
     todos.find((todo) => todo.id === serverTodo.id)?.position ??
     serverTodo.position;
@@ -80,9 +80,9 @@ export function applyTodoConfirmed(
  * answer is the whole answer and a merge could only keep something staler.
  */
 export function applyTodoUpdated(
-  todos: ISupabaseTodo[],
-  row: ISupabaseTodo,
-): ISupabaseTodo[] {
+  todos: Todo[],
+  row: Todo,
+): Todo[] {
   return todos.map((todo) => (todo.id === row.id ? row : todo));
 }
 
@@ -95,9 +95,9 @@ export function applyTodoUpdated(
  * that has to agree with it.
  */
 export function applyTodoDeleted(
-  todos: ISupabaseTodo[],
-  id: ISupabaseTodo["id"],
-): ISupabaseTodo[] {
+  todos: Todo[],
+  id: Todo["id"],
+): Todo[] {
   return todos.filter((todo) => todo.id !== id);
 }
 
@@ -109,11 +109,11 @@ export function applyTodoDeleted(
  * column sort. Columns neither side of the move touched are passed through.
  */
 export function applyTodoMoved(
-  todos: ISupabaseTodo[],
-  activeTodo: ISupabaseTodo,
+  todos: Todo[],
+  activeTodo: Todo,
   columnId: string,
   index: number,
-): ISupabaseTodo[] {
+): Todo[] {
   const remaining = todos.filter((todo) => todo.id !== activeTodo.id);
 
   const destination = remaining

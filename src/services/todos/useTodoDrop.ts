@@ -2,14 +2,14 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { reorderTodos } from "@/services/todos/todoApi";
 import { queryKeys } from "@/services/queryClient/queryKeys";
-import type { ISupabaseTodo } from "@/types/data";
+import type { Todo } from "@/types/data";
 import { applyTodoMoved } from "./cache";
 import { useBoardId } from "@/hooks/useBoardId";
 
 export interface TodoDropVars {
   /** The board as it stands before the drop. */
-  todos: ISupabaseTodo[];
-  activeTodo: ISupabaseTodo;
+  todos: Todo[];
+  activeTodo: Todo;
   /** Destination column. A drop without one is not a drop, so the caller narrows it. */
   columnId: string;
   /** Gap index within the destination column. */
@@ -41,11 +41,11 @@ export function useTodoDrop() {
     onMutate: async ({ todos, activeTodo, columnId, index }) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.todos(boardId) });
 
-      const previousTodos = queryClient.getQueryData<ISupabaseTodo[]>(
+      const previousTodos = queryClient.getQueryData<Todo[]>(
         queryKeys.todos(boardId),
       );
 
-      queryClient.setQueryData<ISupabaseTodo[]>(
+      queryClient.setQueryData<Todo[]>(
         queryKeys.todos(boardId),
         applyTodoMoved(todos, activeTodo, columnId, index),
       );

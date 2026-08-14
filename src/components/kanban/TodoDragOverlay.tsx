@@ -3,11 +3,11 @@ import { DragOverlay } from "@dnd-kit/core";
 import TodoItem from "../todo/TodoItem";
 import { cn } from "@/utils/cn";
 
-import type { IColumn, ISupabaseTodo } from "@/types/data";
+import type { IColumn, Todo } from "@/types/data";
 import { columnTitle } from "@/constants/columns";
 
 interface Props {
-  activeTodo: ISupabaseTodo | null;
+  activeTodo: Todo | null;
   activeColumn?: IColumn | null;
   todosCount?: number;
   /** Mirrors the rail the user actually grabbed. */
@@ -22,17 +22,12 @@ export default function TodoDragOverlay({
 }: Props) {
   return (
     <DragOverlay dropAnimation={null} adjustScale={false}>
-      {activeTodo && (
-        <TodoItem
-          {...activeTodo}
-          overlay
-        />
-      )}
+      {activeTodo && <TodoItem todo={activeTodo} overlay />}
 
       {activeColumn && (
         <div
           className={cn(
-            "rounded-xl bg-surface shadow-xl",
+            "bg-surface rounded-xl shadow-xl",
             columnCollapsed
               ? "flex w-14 flex-col items-center gap-3 py-3"
               : "w-[280px] px-3 py-3",
@@ -45,7 +40,7 @@ export default function TodoDragOverlay({
             )}
           >
             <h2
-              className="text-[15px] font-semibold text-ink"
+              className="text-ink text-[15px] font-semibold"
               style={
                 columnCollapsed ? { writingMode: "vertical-rl" } : undefined
               }
@@ -53,7 +48,7 @@ export default function TodoDragOverlay({
               {columnTitle(activeColumn.title)}
             </h2>
 
-            <span className="shrink-0 rounded bg-ink/10 px-1.5 py-0.5 text-xs font-semibold text-ink-2">
+            <span className="bg-ink/10 text-ink-2 shrink-0 rounded px-1.5 py-0.5 text-xs font-semibold">
               {todosCount}
             </span>
           </div>

@@ -8,7 +8,7 @@ import {
 import { columnTitle } from "@/constants/columns";
 import { WORK_TYPE_OPTIONS, toWorkType } from "@/constants/workTypes";
 import type { BoardMember } from "@/services/members/membersApi";
-import type { IColumn, ISupabaseTodo } from "@/types/data";
+import type { IColumn, Todo } from "@/types/data";
 import { dueStatus, todayISO } from "@/utils/dueDate";
 import { byPosition } from "@/utils/position";
 
@@ -91,7 +91,7 @@ export function countFilters(filters: TodoFilters): number {
 }
 
 function matchesAssignee(
-  todo: ISupabaseTodo,
+  todo: Todo,
   selected: string[],
   currentUserId: string | undefined,
 ) {
@@ -109,7 +109,7 @@ function matchesAssignee(
   });
 }
 
-function matchesType(todo: ISupabaseTodo, selected: string[]) {
+function matchesType(todo: Todo, selected: string[]) {
   if (!selected.length) return true;
 
   // Normalised through `toWorkType`, so a row holding a value the CHECK
@@ -118,7 +118,7 @@ function matchesType(todo: ISupabaseTodo, selected: string[]) {
   return selected.includes(toWorkType(todo.type));
 }
 
-function matchesPriority(todo: ISupabaseTodo, selected: string[]) {
+function matchesPriority(todo: Todo, selected: string[]) {
   if (!selected.length) return true;
 
   const priority = toPriority(todo.priority);
@@ -126,7 +126,7 @@ function matchesPriority(todo: ISupabaseTodo, selected: string[]) {
   return selected.includes(priority ?? UNSET);
 }
 
-function matchesDue(todo: ISupabaseTodo, selected: string[], today: string) {
+function matchesDue(todo: Todo, selected: string[], today: string) {
   if (!selected.length) return true;
 
   if (todo.due_date === null) return selected.includes(UNSET);
@@ -136,7 +136,7 @@ function matchesDue(todo: ISupabaseTodo, selected: string[], today: string) {
   return selected.includes(dueStatus(todo.due_date, today));
 }
 
-function matchesStatus(todo: ISupabaseTodo, selected: string[]) {
+function matchesStatus(todo: Todo, selected: string[]) {
   if (!selected.length) return true;
 
   return todo.column_id !== null && selected.includes(todo.column_id);
@@ -152,11 +152,11 @@ function matchesStatus(todo: ISupabaseTodo, selected: string[]) {
  * board hands the same reference to `useMemo` downstream and re-renders nothing.
  */
 export function filterTodos(
-  todos: ISupabaseTodo[],
+  todos: Todo[],
   filters: TodoFilters,
   currentUserId?: string,
   today: string = todayISO(),
-): ISupabaseTodo[] {
+): Todo[] {
   if (countFilters(filters) === 0) return todos;
 
   return todos.filter(
@@ -206,7 +206,7 @@ export const SORT_LABELS: Record<SortKey, string> = {
  * is fixed-width and big-endian — the reason `dueDate.ts` slices rather than
  * parses. Priority compares by rank, never by spelling.
  */
-function sortValue(todo: ISupabaseTodo, key: SortKey): string | number | null {
+function sortValue(todo: Todo, key: SortKey): string | number | null {
   switch (key) {
     case "due":
       return todo.due_date;
@@ -239,10 +239,10 @@ function sortValue(todo: ISupabaseTodo, key: SortKey): string | number | null {
  * their board order.
  */
 export function sortTodos(
-  todos: ISupabaseTodo[],
+  todos: Todo[],
   key: SortKey,
   dir: SortDir = "asc",
-): ISupabaseTodo[] {
+): Todo[] {
   if (key === "manual") return todos;
 
   const sign = dir === "desc" ? -1 : 1;
@@ -279,9 +279,9 @@ export function sortTodos(
  * display order and neither of them sorts again.
  */
 export function orderByBoard(
-  todos: ISupabaseTodo[],
+  todos: Todo[],
   columns: IColumn[],
-): ISupabaseTodo[] {
+): Todo[] {
   const rank = new Map(
     columns
       .slice()
@@ -291,7 +291,7 @@ export function orderByBoard(
 
   // A card whose column is missing sorts to the end rather than to the front,
   // where a `-1` would have put it.
-  const of = (todo: ISupabaseTodo) =>
+  const of = (todo: Todo) =>
     rank.get(todo.column_id ?? "") ?? Number.MAX_SAFE_INTEGER;
 
   return todos.slice().sort((a, b) => of(a) - of(b) || byPosition(a, b));
@@ -341,7 +341,7 @@ export interface TodoGroup {
    */
   key: string;
   label: string;
-  todos: ISupabaseTodo[];
+  todos: Todo[];
 }
 
 export interface GroupContext {
@@ -353,10 +353,10 @@ export interface GroupContext {
 const ALL = "all";
 
 function bucketBy(
-  todos: ISupabaseTodo[],
-  keyOf: (todo: ISupabaseTodo) => string,
-): Map<string, ISupabaseTodo[]> {
-  const buckets = new Map<string, ISupabaseTodo[]>();
+  todos: Todo[],
+  keyOf: (todo: Todo) => string,
+): Map<string, Todo[]> {
+  const buckets = new Map<string, Todo[]>();
 
   for (const todo of todos) {
     const key = keyOf(todo);
@@ -382,7 +382,7 @@ function bucketBy(
  * board's shape depend on its contents.
  */
 export function groupTodos(
-  todos: ISupabaseTodo[],
+  todos: Todo[],
   group: GroupKey,
   { columns, members }: GroupContext,
 ): TodoGroup[] {

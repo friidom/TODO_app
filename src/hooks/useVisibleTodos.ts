@@ -4,7 +4,7 @@ import { useAuth } from "@/services/auth/useAuth";
 import { useColumns } from "@/services/columns/useColumnsApi";
 import { useTodos } from "@/services/todos/useTodos";
 import { filterTodos, orderByBoard, sortTodos } from "@/services/todos/view";
-import type { IColumn, ISupabaseTodo } from "@/types/data";
+import type { IColumn, Todo } from "@/types/data";
 import { useBoardView } from "./useBoardView";
 
 /**
@@ -14,7 +14,7 @@ import { useBoardView } from "./useBoardView";
  * has no data, which changes the memo's dependency and re-runs the whole
  * pipeline each time — the same trap `useTodosByColumns` documents.
  */
-const EMPTY: ISupabaseTodo[] = [];
+const EMPTY: Todo[] = [];
 const EMPTY_COLUMNS: IColumn[] = [];
 
 /**

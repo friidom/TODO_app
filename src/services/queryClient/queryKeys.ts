@@ -53,6 +53,17 @@ export const queryKeys = {
    */
   invites: (boardId: string | undefined) => ["invites", boardId] as const,
 
+  /**
+   * One work item's complete row, for the detail panel (M5-06).
+   *
+   * Deliberately its own entry rather than a slice of `todos(boardId)`: that
+   * one holds the twelve columns the board reads (M5-07), and the panel is the
+   * only screen that needs `description`. Keying it separately is what lets the
+   * full row be fetched when the panel opens and dropped when it closes,
+   * instead of widening every card on the board to serve one of them.
+   */
+  todo: (todoId: string | undefined) => ["todo", todoId] as const,
+
   /** Prefix covering every profile entry; matches them all when invalidating. */
   profiles: () => PROFILE_ROOT,
 

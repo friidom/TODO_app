@@ -1,4 +1,4 @@
-import { type ISupabaseTodo } from "../../types/data";
+import { type Todo } from "../../types/data";
 import { deleteTodo } from "./todoApi";
 import { applyTodoDeleted } from "./cache";
 import { queryKeys } from "@/services/queryClient/queryKeys";
@@ -22,11 +22,11 @@ export function useDeleteTodo() {
       });
 
       const previousTodos =
-        queryClient.getQueryData<ISupabaseTodo[]>(queryKeys.todos(boardId)) ??
+        queryClient.getQueryData<Todo[]>(queryKeys.todos(boardId)) ??
         [];
 
       //filtered todos
-      queryClient.setQueryData<ISupabaseTodo[]>(
+      queryClient.setQueryData<Todo[]>(
         queryKeys.todos(boardId),
         (old = []) => applyTodoDeleted(old, id),
       );
