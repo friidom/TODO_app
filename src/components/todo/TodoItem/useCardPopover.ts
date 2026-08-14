@@ -136,7 +136,16 @@ export function useCardPopover({
      * close animation. Render on this instead of `open` to get an exit.
      */
     mounted,
-    /** Merge into the panel's `style` alongside `floatingStyles`. */
+    /**
+     * The enter/exit styles. **Put them on a child of the positioned panel, not
+     * on the panel itself.**
+     *
+     * `floatingStyles` positions with `transform: translate(x, y)` and these
+     * carry a `transform` of their own, so merging the two objects silently
+     * drops whichever comes first — spread them together and the panel loses
+     * its position and renders against the top-left of the viewport. Two
+     * elements: the outer one is placed, the inner one moves.
+     */
     transitionStyles,
     setOpen,
     close: () => setOpen(false),

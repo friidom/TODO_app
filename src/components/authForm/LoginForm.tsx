@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router";
 import { Loader2 } from "lucide-react";
 
+import AuthField from "@/components/authForm/AuthField";
+import { FORM_SUBMIT } from "@/components/ui/fieldInput";
 import { useLogin } from "@/services/auth/useLogin";
 import {
   hasErrors,
@@ -11,7 +12,6 @@ import {
 
 export default function LoginForm() {
   const login = useLogin();
-  const location = useLocation();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -40,93 +40,57 @@ export default function LoginForm() {
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      noValidate
-      className="flex w-full max-w-md flex-col gap-4 rounded-xl bg-white p-8"
-    >
-      <h1 className="text-3xl font-bold">Login</h1>
+    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+      <AuthField
+        id="login-email"
+        label="Email"
+        type="email"
+        placeholder="you@company.com"
+        autoComplete="email"
+        value={email}
+        error={errors.email}
+        disabled={login.isPending}
+        onChange={(value) => {
+          setEmail(value);
+          clearFeedback("email");
+        }}
+      />
 
-      <div className="flex flex-col gap-1">
-        <input
-          type="email"
-          placeholder="Email"
-          className="rounded border p-3"
-          value={email}
-          disabled={login.isPending}
-          aria-invalid={Boolean(errors.email)}
-          aria-describedby={errors.email ? "login-email-error" : undefined}
-          onChange={(e) => {
-            setEmail(e.target.value);
-            clearFeedback("email");
-          }}
-        />
-
-        {errors.email && (
-          <p id="login-email-error" className="text-sm text-red-600">
-            {errors.email}
-          </p>
-        )}
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <input
-          type="password"
-          placeholder="Password"
-          className="rounded border p-3"
-          value={password}
-          disabled={login.isPending}
-          aria-invalid={Boolean(errors.password)}
-          aria-describedby={
-            errors.password ? "login-password-error" : undefined
-          }
-          onChange={(e) => {
-            setPassword(e.target.value);
-            clearFeedback("password");
-          }}
-        />
-
-        {errors.password && (
-          <p id="login-password-error" className="text-sm text-red-600">
-            {errors.password}
-          </p>
-        )}
-      </div>
+      <AuthField
+        id="login-password"
+        label="Password"
+        type="password"
+        placeholder="••••••••"
+        autoComplete="current-password"
+        value={password}
+        error={errors.password}
+        disabled={login.isPending}
+        onChange={(value) => {
+          setPassword(value);
+          clearFeedback("password");
+        }}
+      />
 
       {/* Whatever the server said — wrong password, unconfirmed address. */}
       {login.isError && (
-        <p role="alert" className="text-sm text-red-600">
+        <p
+          role="alert"
+          className="border-status-red/30 bg-status-red/10 text-status-red rounded-control border px-3 py-2 text-xs"
+        >
           {login.error.message}
         </p>
       )}
 
-      <button
-        className="flex cursor-pointer items-center justify-center rounded bg-violet-600 p-3 text-white disabled:cursor-not-allowed disabled:opacity-70"
-        type="submit"
-        disabled={login.isPending}
-      >
+      <button type="submit" disabled={login.isPending} className={FORM_SUBMIT}>
         {login.isPending ? (
           <>
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-            Logging in...
+            <Loader2 className="size-4 animate-spin" />
+            Signing in…
           </>
         ) : (
-          "Login"
+          "Sign in"
         )}
       </button>
-
-      <p className="text-center">
-        Don't have an account?{" "}
-        {/* `next` is carried across, because someone arriving from an invite
-            link almost certainly does not have an account yet — losing it on
-            the hop to Register is losing it in the common case. */}
-        <Link
-          to={{ pathname: "/register", search: location.search }}
-          className="font-semibold text-violet-600"
-        >
-          Register
-        </Link>
-      </p>
     </form>
   );
 }

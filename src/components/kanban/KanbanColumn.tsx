@@ -263,7 +263,18 @@ export default function KanbanColumn({
         {/* Scoped to the cards: a card that throws costs this column its list,
             not the header, the Create button, or the rest of the board. */}
         <ErrorBoundary>
-          <div className="flex min-h-10 flex-col">
+          <div
+            className={cn(
+              "flex min-h-10 flex-col",
+              // The `DropZone`s below are `h-2.5`, and they were carrying the
+              // spacing between cards as a side effect of being drop targets —
+              // so switching off dragging (a view sort, or swimlanes) took the
+              // gaps with them and left the cards flush, borders touching. The
+              // rhythm is the list's to own, not the drop targets': `gap-2.5`
+              // is the same 10px, applied only when nothing else supplies it.
+              dragDisabled && "gap-2.5",
+            )}
+          >
             {/* The gaps are both the drop targets and the hover-`+` create
                 affordance. With dragging off they would draw lines for a drop
                 that cannot happen, so they are not rendered at all — the Create
