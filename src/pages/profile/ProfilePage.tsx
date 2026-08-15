@@ -81,22 +81,27 @@ export default function ProfilePage() {
 
   return (
     <div className="bg-canvas flex h-svh flex-col overflow-hidden">
-      <header className="border-hairline flex shrink-0 items-center gap-3 border-b px-5 py-3 md:px-6">
-        {/* `navigate(-1)` rather than a link to `/`: you arrive here from a
-            board, and going back to that board is what "back" means. The
-            fallback matters only for someone who opened /profile directly. */}
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="border-hairline text-ink-2 hover:bg-elevated hover:text-ink focus-visible:ring-brand rounded-control flex h-8 items-center gap-1.5 border px-2.5 text-[13px] transition-colors outline-none focus-visible:ring-2"
-        >
-          <ArrowLeftIcon className="size-4" />
-          Back
-        </button>
+      {/* The bar is full-bleed, its contents are not: they sit in the same
+          `max-w-2xl` column the cards below do, so "Back" lines up with the left
+          edge of the page's content instead of with the window. */}
+      <header className="border-hairline flex min-h-12 shrink-0 items-center border-b px-5 md:px-6">
+        <div className="mx-auto flex w-full max-w-2xl items-center gap-3">
+          {/* `navigate(-1)` rather than a link to `/`: you arrive here from a
+              board, and going back to that board is what "back" means. The
+              fallback matters only for someone who opened /profile directly. */}
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="border-hairline text-ink-2 hover:bg-elevated hover:text-ink focus-visible:ring-brand rounded-control flex h-8 items-center gap-1.5 border px-2.5 text-[13px] transition-colors outline-none focus-visible:ring-2"
+          >
+            <ArrowLeftIcon className="size-4" />
+            Back
+          </button>
 
-        <h1 className="text-ink text-[15px] font-semibold tracking-tight">
-          Profile
-        </h1>
+          <h1 className="text-ink text-[15px] font-semibold tracking-tight">
+            Profile
+          </h1>
+        </div>
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-8 md:px-6">

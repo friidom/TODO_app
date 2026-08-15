@@ -50,6 +50,17 @@ export function useCardPopover({
     placement: "bottom-end",
     middleware: [offset(6), flip(), shift({ padding: 8 })],
     whileElementsMounted: autoUpdate,
+    /**
+     * Position with `top`/`left` instead of a `transform`.
+     *
+     * The panel's *motion* is a transform, and a single element cannot carry
+     * two of them — so this used to mean every animated panel needed an outer
+     * element to be placed and an inner one to move, and only one caller ever
+     * paid that price. Giving up the transform-based positioning gives the
+     * transform back to the animation, which is what lets `panelProps` carry
+     * both and lets a control opt into the motion by rendering on `mounted`.
+     */
+    transform: false,
   });
 
   /**
@@ -60,9 +71,20 @@ export function useCardPopover({
    * the element alive for the length of the close, which is the whole reason a
    * closing animation can exist at all.
    *
-   * **Additive.** Every consumer that renders on `open` behaves exactly as it
-   * did; only a caller that switches to `mounted` and spreads
-   * `transitionStyles` gets the motion.
+   * **Additive.** A consumer that still renders on `open` behaves exactly as it
+   * did; rendering on `mounted` is the whole opt-in, because `panelProps`
+   * already carries these styles.
+   *
+   * **Opacity and four pixels, and nothing else.** It used to scale as well,
+   * which on a 30rem filter panel reads as a zoom rather than as an arrival —
+   * and a scaling panel resamples its own text for the length of the
+   * transition, which is most of why the motion looked cheap. A fade over a
+   * translate short enough that you register the direction and not the travel
+   * is the effect that survives being watched twice.
+   *
+   * The direction follows the RESOLVED side, because `flip()` puts the panel
+   * above its trigger on a short viewport — a panel that always entered from
+   * above would then be moving away from the button it belongs to.
    *
    * Closing is quicker than opening on purpose: an opening panel is showing you
    * something and can afford to be seen arriving, while a dismissal should feel
@@ -71,24 +93,19 @@ export function useCardPopover({
   const { isMounted: mounted, styles: transitionStyles } = useTransitionStyles(
     context,
     {
-      duration: { open: 150, close: 120 },
-      initial: {
+      duration: { open: 160, close: 120 },
+      // Serves the exit too — `close` falls back to `initial`, so the panel
+      // leaves the way it came in rather than needing a second description.
+      initial: ({ side }) => ({
         opacity: 0,
-        // 3% and 4px. Enough to read as motion, far short of a zoom.
-        transform: "scale(0.97) translateY(-4px)",
-      },
-      // The origin follows the RESOLVED placement rather than being hard-coded
-      // to the corner nearest the trigger, because `flip()` will put the panel
-      // above the trigger on a short viewport — and an origin that did not
-      // follow would make it grow away from the button it belongs to.
-      common: ({ side }) => ({
-        transformOrigin: {
-          top: "bottom right",
-          bottom: "top right",
-          left: "right center",
-          right: "left center",
-        }[side],
+        transform: `translateY(${side === "top" ? "4px" : "-4px"})`,
       }),
+      // One curve for both directions. At 120–160ms over four pixels the
+      // difference between decelerating in and accelerating out is not
+      // perceptible, and one curve is one thing to keep consistent.
+      common: {
+        transitionTimingFunction: "cubic-bezier(0.2, 0, 0, 1)",
+      },
     },
   );
 
@@ -117,7 +134,21 @@ export function useCardPopover({
     }
 
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key !== "Escape") return;
+
+      setOpen(false);
+
+      /**
+       * Marks the press as handled, so only the innermost thing closes.
+       *
+       * `Modal`, `Drawer`, `TaskDetailModal` and the column dialogs all test
+       * `!event.defaultPrevented` before treating Escape as a dismissal — the
+       * convention was written for exactly this case and this hook was the one
+       * place not holding up its end. It costs nothing while a popover is the
+       * only thing open, and it is what stops Escape inside the task modal's
+       * status picker from closing the picker *and* the task with it.
+       */
+      event.preventDefault();
     }
 
     document.addEventListener("mousedown", handlePointerDown);
@@ -136,21 +167,8 @@ export function useCardPopover({
      * close animation. Render on this instead of `open` to get an exit.
      */
     mounted,
-    /**
-     * The enter/exit styles. **Put them on a child of the positioned panel, not
-     * on the panel itself.**
-     *
-     * `floatingStyles` positions with `transform: translate(x, y)` and these
-     * carry a `transform` of their own, so merging the two objects silently
-     * drops whichever comes first — spread them together and the panel loses
-     * its position and renders against the top-left of the viewport. Two
-     * elements: the outer one is placed, the inner one moves.
-     */
-    transitionStyles,
     setOpen,
     close: () => setOpen(false),
-    refs,
-    floatingStyles,
 
     triggerProps: {
       ref: refs.setReference,
@@ -163,7 +181,11 @@ export function useCardPopover({
 
     panelProps: {
       ref: refs.setFloating,
-      style: floatingStyles,
+      // Placement and motion on one element, which `transform: false` above is
+      // what makes possible. Order matters only in that neither object writes a
+      // key the other does: placement is `top`/`left`, motion is
+      // `opacity`/`transform`.
+      style: { ...floatingStyles, ...transitionStyles },
       onPointerDown: (event: React.PointerEvent) => event.stopPropagation(),
       /**
        * Marks the panel for outside-click handlers that are not this one.

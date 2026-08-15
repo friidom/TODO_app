@@ -45,15 +45,18 @@ export default function DropZone({
     <div ref={setNodeRef} className="group relative h-2.5 w-full shrink-0">
       <div
         className={cn(
-          "overlay-indicator absolute inset-x-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full bg-blue-500 transition-opacity duration-100",
+          "overlay-indicator bg-brand absolute inset-x-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full transition-opacity duration-100",
           active ? "opacity-100" : "opacity-0",
         )}
       />
 
       {showAdd && (
         <>
-          {/* Decoration only — the badge is the sole click target. */}
-          <span className="pointer-events-none absolute inset-x-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full bg-blue-500 opacity-0 transition-opacity duration-100 group-hover:opacity-100" />
+          {/* Decoration only — the badge is the sole click target. Held at 40%
+              so the two purple lines this gap can draw are told apart: full
+              strength means "the card lands here", faint means "you could make
+              one here". */}
+          <span className="bg-brand/40 pointer-events-none absolute inset-x-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full opacity-0 transition-opacity duration-100 group-hover:opacity-100" />
 
           <button
             type="button"

@@ -49,10 +49,25 @@ const CHIP_TONE = {
   upcoming: "bg-ink/10 text-ink-2",
 } as const;
 
+/**
+ * The same three states without the fill — a date the row can carry quietly.
+ *
+ * Overdue keeps its red and today keeps its orange, because those are the two
+ * this control exists to shout about. An upcoming date drops to `--ink-3`: it is
+ * a fact about the item, not a warning, and in a list of thirty rows thirty
+ * tinted chips are what make a date impossible to notice when it does matter.
+ */
+const BARE_TONE = {
+  overdue: "text-status-red",
+  today: "text-status-orange",
+  upcoming: "text-ink-3",
+} as const;
+
 export default function DueDateControl({
   value: dueDate,
   onChange,
   alwaysVisible = false,
+  bare = false,
 }: {
   /** The stored instant, or null. */
   value: string | null;
@@ -63,8 +78,10 @@ export default function DueDateControl({
    * form has no card to hover, so its controls are always shown.
    */
   alwaysVisible?: boolean;
+  /** Text rather than a chip — see `BARE_TONE`. */
+  bare?: boolean;
 }) {
-  const { open, close, triggerProps, panelProps } = useCardPopover();
+  const { mounted, close, triggerProps, panelProps } = useCardPopover();
   const { i18n } = useTranslation();
 
   const selected = dueDate ? toCalendarDay(dueDate) : null;
@@ -86,10 +103,16 @@ export default function DueDateControl({
         title={label}
         aria-label={label}
         className={cn(
-          "flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium transition-colors",
+          "flex shrink-0 items-center gap-1 rounded text-[11px] font-medium transition-colors",
+          bare ? "hover:bg-ink/10 px-1 py-0.5" : "px-1.5 py-0.5",
           dueDate
-            ? CHIP_TONE[status!]
-            : "text-ink-3 hover:bg-ink/10 hover:text-ink-2",
+            ? bare
+              ? BARE_TONE[status!]
+              : CHIP_TONE[status!]
+            : cn(
+                "hover:bg-ink/10 hover:text-ink-2",
+                bare ? "text-ink-3/40" : "text-ink-3",
+              ),
           !dueDate &&
             !alwaysVisible &&
             "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
@@ -97,12 +120,19 @@ export default function DueDateControl({
       >
         {/* The icon takes the chip's own colour rather than a fixed red. A red
             calendar on a muted "upcoming" chip said "urgent" about a date that
-            is not, which is the one thing this control exists to communicate. */}
-        <CalendarIcon className="size-3" strokeWidth={dueDate ? 2.5 : 2} />
+            is not, which is the one thing this control exists to communicate.
+
+            It disappears entirely once a date is set and the control is bare:
+            in a column of dates the word "Aug 12" is already unmistakably a
+            date, and the glyph beside it is the difference between a row that
+            scans and a row of small objects. */}
+        {(!dueDate || !bare) && (
+          <CalendarIcon className="size-3" strokeWidth={dueDate ? 2.5 : 2} />
+        )}
         {dueDate && formatDue(dueDate, todayISO(), i18n.language)}
       </button>
 
-      {open && (
+      {mounted && (
         <FloatingPortal>
           <div
             {...panelProps}

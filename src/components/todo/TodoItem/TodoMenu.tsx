@@ -54,7 +54,7 @@ export default function TodoMenu({
   // a date or a member reads as an outside click, closes this menu, and unmounts
   // the control before its own click handler can run — the choice looked
   // registered and saved nothing.
-  const { open, close, triggerProps, panelProps } = useCardPopover({
+  const { mounted, close, triggerProps, panelProps } = useCardPopover({
     hostsPopovers: true,
   });
 
@@ -73,7 +73,7 @@ export default function TodoMenu({
         <MoreHorizontal size={15} />
       </button>
 
-      {open && (
+      {mounted && (
         <FloatingPortal>
           <div
             {...panelProps}

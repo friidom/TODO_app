@@ -10,25 +10,34 @@ import { useKeyPrefix } from "@/hooks/useKeyPrefix";
 import { useOpenTask } from "@/hooks/useOpenTask";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useTodoPatch } from "@/hooks/useTodoPatch";
-import { toPriority } from "@/constants/priorities";
 import type { Todo } from "@/types/data";
 import { useDoneFlash } from "@/stores/doneFlash";
 import { cn } from "@/utils/cn";
 import { taskKey } from "@/utils/taskKey";
+import { LIST_GRID } from "./listGrid";
 
 /**
- * One work item as a table row.
+ * One work item as a line in an issue list.
  *
- * Every cell is the control the card already uses, in its own chip form — the
- * list is a second *layout*, not a second implementation. `StatusControl` is the
- * clearest case: it was written for a card, never imported, and turns out to be
- * exactly what a status column wants, still writing through `useMoveTodo` and so
- * still ringing a card that lands in a done column.
+ * Every cell is the control the card already uses — the list is a second
+ * *layout*, not a second implementation. `StatusControl` is the clearest case:
+ * it was written for a card, never imported, and turns out to be exactly what a
+ * status column wants, still writing through `useMoveTodo` and so still ringing
+ * a card that lands in a done column.
  *
- * Editing the summary is the card's inline rename, cell-shaped: the same
+ * **Three things are visible from across the room, and four are not.** The row
+ * used to give every field the same treatment: seven bordered, filled, labelled
+ * objects in a line, each looking like a control in its own right, so nothing in
+ * it was louder than anything else and the summary — the only part anyone reads
+ * to find an item — was the fourth thing the eye landed on. Now the type is a
+ * bare coloured glyph, the key is muted 11px, the summary is the only 14px text
+ * on the line, and status/priority/assignee/due sit to the right at a weight
+ * meant to be *checked* rather than read. `bare` on three of those controls is
+ * what took the badges off; nothing about what they do changed.
+ *
+ * Editing the summary is the card's inline rename, in place: the same
  * Enter-saves / Escape-cancels / blur-saves / empty-reverts behaviour, through
- * the same `useTodoPatch`. There is no detail view to open yet (M5-06), so this
- * is the whole edit flow rather than a stand-in for one.
+ * the same `useTodoPatch`.
  */
 export default function ListRow({ todo }: { todo: Todo }) {
   const [editing, setEditing] = useState(false);
@@ -77,49 +86,60 @@ export default function ListRow({ todo }: { todo: Todo }) {
   }
 
   return (
-    <tr
+    <div
+      role="row"
       className={cn(
-        // Colour only on hover — no border width, no padding, no transform, so
-        // a row cannot shift under the cursor.
-        "border-hairline group hover:bg-elevated/60 border-b transition-colors duration-150",
+        LIST_GRID,
+        // 44px, fixed rather than a minimum: the row is a line in a list and
+        // every one of them should be the same line. Colour is the only thing
+        // hover changes — no border width, no padding, no transform — so a row
+        // cannot shift or nudge its neighbours under the cursor.
+        //
+        // `bg-ink/[0.035]` rather than a surface token because it is the same
+        // gesture in both themes: ink lifts a dark row and settles a light one,
+        // where a fixed colour would have to be chosen twice.
+        "border-hairline group hover:bg-ink/[0.035] h-11 border-b transition-colors duration-150",
         celebrate && "done-flash",
       )}
     >
-      {/* IDENTITY — the type and the key answer "which item" together, so they
-          are one cell rather than two columns each saying half of it. */}
-      <td className="py-2 pl-3">
-        <div className="flex items-center gap-2">
-          <span className={cn("shrink-0", inert)}>
-            <WorkTypeControl
-              value={todo.type}
-              onChange={(type) => patch({ type })}
-            />
-          </span>
+      {/* TYPE — a coloured glyph and nothing else. It is the first thing in the
+          row and the least of it: the colour says Bug or Story at a glance, and
+          anyone who needs the word has the tooltip and the aria-label. */}
+      <div role="cell" className={cn("flex", inert)}>
+        <WorkTypeControl
+          bare
+          value={todo.type}
+          onChange={(type) => patch({ type })}
+        />
+      </div>
 
-          {/* Null while the insert is in flight — the server allocates the key,
-              and that absence is the pending state. Opening is deliberately not
-              gated: reading a task is not editing it, and the menu at the end of
-              the row is editor-only. Same affordance the card's key carries. */}
-          {key !== null ? (
-            <button
-              type="button"
-              onClick={() => openTask(todo.id)}
-              title={`Open ${key}`}
-              className="text-ink-3 hover:text-brand focus-visible:ring-brand rounded text-[11px] font-semibold whitespace-nowrap transition-colors outline-none focus-visible:ring-2"
-            >
-              {key}
-            </button>
-          ) : (
-            <span className="text-ink-3/50 text-[11px]">—</span>
-          )}
-        </div>
-      </td>
+      {/* KEY — null while the insert is in flight, because the server allocates
+          it and that absence is the pending state. Opening is deliberately not
+          gated: reading a task is not editing it, and the menu at the end of the
+          row is editor-only. Same affordance the card's key carries.
 
-      {/* TITLE — the dominant column, and the only elastic one. `max-w-0` is
-          what makes truncation work: without it an auto-layout column grows to
-          fit its content, so a long title widened the table and pushed the page
-          into horizontal scroll instead of ellipsising. */}
-      <td className="max-w-0 py-2 pr-3">
+          `tabular-nums` so KAN-9 and KAN-12 line up down the column rather than
+          wandering with the width of each digit. */}
+      <div role="cell" className="min-w-0">
+        {key !== null ? (
+          <button
+            type="button"
+            onClick={() => openTask(todo.id)}
+            title={`Open ${key}`}
+            className="text-ink-3 hover:text-brand focus-visible:ring-brand block truncate rounded text-[11px] font-medium tabular-nums transition-colors outline-none focus-visible:ring-2"
+          >
+            {key}
+          </button>
+        ) : (
+          <span className="text-ink-3/40 text-[11px]">—</span>
+        )}
+      </div>
+
+      {/* TITLE — the one thing in the row at reading weight, and the only track
+          that grows. `min-w-0` is what lets it truncate: a grid item defaults to
+          `min-width: auto` and would refuse to shrink below its own text, so a
+          long summary would push the metadata off the end of the row. */}
+      <div role="cell" className="min-w-0">
         {editing ? (
           <input
             ref={inputRef}
@@ -137,7 +157,7 @@ export default function ListRow({ todo }: { todo: Todo }) {
             type="button"
             onClick={() => setEditing(true)}
             title={todo.title ?? undefined}
-            className="text-ink hover:text-brand focus-visible:ring-brand block w-full truncate rounded text-left text-sm font-medium transition-colors outline-none focus-visible:ring-2"
+            className="text-ink hover:text-brand focus-visible:ring-brand block w-full truncate rounded text-left text-sm transition-colors outline-none focus-visible:ring-2"
           >
             {todo.title || <span className="text-ink-3/60">Untitled</span>}
           </button>
@@ -147,52 +167,59 @@ export default function ListRow({ todo }: { todo: Todo }) {
           // there is no chip to preserve — only the words.
           <span
             title={todo.title ?? undefined}
-            className="text-ink block w-full truncate text-sm font-medium"
+            className="text-ink block w-full truncate text-sm"
           >
             {todo.title || <span className="text-ink-3/60">Untitled</span>}
           </span>
         )}
-      </td>
+      </div>
 
-      <td className={cn("py-2 pr-3", inert)}>
+      {/* METADATA — four fixed tracks, so the four of them line up down the list
+          whatever any one row happens to hold, and the eye can check a column
+          without reading it. */}
+      <div role="cell" className={cn("flex min-w-0", inert)}>
         <StatusControl todoId={todo.id} columnId={todo.column_id} />
-      </td>
+      </div>
 
-      <td className={cn("hidden py-2 pr-3 lg:table-cell", inert)}>
+      <div role="cell" className={cn("hidden lg:flex", inert)}>
         <PriorityControl
+          bare
           value={todo.priority}
           onChange={(priority) => patch({ priority })}
-          showLabel={toPriority(todo.priority) !== null}
         />
-      </td>
+      </div>
 
-      <td className={cn("py-2 pr-3", inert)}>
+      <div role="cell" className={cn("flex", inert)}>
         <AssigneeControl
           boardId={todo.board_id}
           value={todo.assignee_id}
           onChange={(assignee_id) => patch({ assignee_id })}
           alwaysVisible
         />
-      </td>
+      </div>
 
-      <td className={cn("hidden py-2 pr-3 lg:table-cell", inert)}>
+      <div
+        role="cell"
+        className={cn("hidden justify-end whitespace-nowrap lg:flex", inert)}
+      >
         <DueDateControl
+          bare
           value={todo.due_date}
           onChange={(due_date) => patch({ due_date })}
           alwaysVisible
         />
-      </td>
+      </div>
 
-      <td className="py-2 pr-3">
-        {/* The cell stays whether or not it holds a menu, so the row keeps its
-            column count against the header. The menu inside it fades in place —
-            it is in flow at `opacity-0`, so nothing reflows on hover. */}
+      {/* The track is declared whether or not a menu goes in it, so the row
+          keeps its columns against the header for a viewer too. The menu fades
+          in place — it is in flow at `opacity-0`, so nothing reflows on hover. */}
+      <div role="cell" className="flex justify-end">
         {canEditTodos && (
-          <div className="flex justify-end opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
+          <div className="opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
             <TodoMenu todo={todo} onEdit={() => setEditing(true)} />
           </div>
         )}
-      </td>
-    </tr>
+      </div>
+    </div>
   );
 }

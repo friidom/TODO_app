@@ -1,12 +1,12 @@
 import { useMemo } from "react";
 
 import BoardIdentity from "@/components/layout/BoardIdentity";
-import Drawer, { DrawerFrame } from "@/components/layout/Drawer";
+import Drawer from "@/components/layout/Drawer";
 import Layout from "@/components/layout/Layout";
 import ViewShell from "@/components/layout/ViewShell";
 import ViewToolbar from "@/components/board/ViewToolbar";
 import MembersDrawer from "@/components/members/MembersDrawer";
-import TaskDetailPanel from "@/components/todo/TaskDetailPanel";
+import TaskDetailModal from "@/components/todo/TaskDetailModal";
 import KanbanBoard from "@/components/kanban/KanbanBoard";
 import ListView from "@/components/views/ListView";
 import NotFoundPage from "@/pages/error/NotFoundPage";
@@ -14,7 +14,6 @@ import Loading from "@/components/loading/LoadingPage";
 import { useBoard } from "@/services/boards/useBoard";
 import { useBoardId } from "@/hooks/useBoardId";
 import { useBoardView } from "@/hooks/useBoardView";
-import { useOpenTask } from "@/hooks/useOpenTask";
 import { usePanel } from "@/hooks/usePanel";
 import { useVisibleTodos } from "@/hooks/useVisibleTodos";
 import { useColumns } from "@/services/columns/useColumnsApi";
@@ -53,7 +52,6 @@ function BoardView({ boardId }: { boardId: string }) {
   // is read from the URL, so a link to a filtered list opens as one.
   const view = useBoardView();
 
-  const { taskId, closeTask } = useOpenTask();
   const { panel, closePanel } = usePanel();
 
   if (isPending) return <Loading />;
@@ -74,21 +72,12 @@ function BoardView({ boardId }: { boardId: string }) {
       <ViewShell
         identity={<BoardMeta board={board} />}
         toolbar={<ViewToolbar view={view} />}
-        // One slot, and the task panel wins it: a work item is the more
-        // specific context than a board-level drawer, and `usePanel` closes
-        // `?task=` when it opens rather than letting both claim the space.
+        // Board-level drawers only. The task detail used to win this slot and
+        // reserve 22rem of every wide screen for a surface that is open a
+        // fraction of the time; it is a modal now, so nothing but an open
+        // Members drawer ever takes width from the board.
         drawer={
-          taskId ? (
-            // The frame rather than `Drawer`: the task panel draws its own
-            // header, including the unsaved-changes confirmation on close.
-            <DrawerFrame
-              label="Task details"
-              onClose={closeTask}
-              dismissible={false}
-            >
-              <TaskDetailPanel boardId={boardId} />
-            </DrawerFrame>
-          ) : panel === "members" ? (
+          panel === "members" ? (
             <Drawer title="Members" onClose={closePanel}>
               <MembersDrawer boardId={boardId} />
             </Drawer>
@@ -102,6 +91,11 @@ function BoardView({ boardId }: { boardId: string }) {
             for both. */}
         {view.mode === "list" ? <ListView /> : <KanbanBoard />}
       </ViewShell>
+
+      {/* Outside the shell, and `fixed`, so it costs the board no layout at all
+          — open or closed. It reads `?task=` itself and renders nothing when
+          there is none. */}
+      <TaskDetailModal boardId={boardId} />
     </Layout>
   );
 }

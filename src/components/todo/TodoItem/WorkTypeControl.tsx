@@ -27,13 +27,24 @@ export default function WorkTypeControl({
   value,
   onChange,
   showLabel = false,
+  bare = false,
 }: {
   value: string | null;
   onChange: (value: WorkType) => void;
   /** The create form has room for the word; the card does not. */
   showLabel?: boolean;
+  /**
+   * The tinted background off, leaving a coloured icon.
+   *
+   * **For the list, where the type is the quietest thing in the row.** A card is
+   * a surface with room for a chip; a list row is a line of text, and a filled
+   * badge at the start of it competes with the summary it is supposed to be
+   * labelling. The colour still carries the type — it is the box around it that
+   * the row does not need.
+   */
+  bare?: boolean;
 }) {
-  const { open, close, triggerProps, panelProps } = useCardPopover();
+  const { mounted, close, triggerProps, panelProps } = useCardPopover();
 
   const current = toWorkType(value);
   const meta = workTypeOf(current);
@@ -47,21 +58,23 @@ export default function WorkTypeControl({
         title={`Work type: ${current}`}
         aria-label={`Work type: ${current}`}
         className={cn(
-          "flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-semibold transition-colors",
-          meta.chip,
+          "flex shrink-0 items-center gap-1 rounded transition-colors",
+          bare
+            ? cn("hover:bg-ink/10 p-0.5", meta.tone)
+            : cn("px-1.5 py-0.5 text-[11px] font-semibold", meta.chip),
         )}
       >
-        <Icon className="size-3" />
+        <Icon className={bare ? "size-4" : "size-3"} />
         {showLabel && current}
       </button>
 
-      {open && (
+      {mounted && (
         <FloatingPortal>
           <div
             {...panelProps}
             role="menu"
             aria-label="Work type"
-            className="border-hairline bg-elevated z-50 w-44 overflow-hidden rounded-card border p-1 shadow-[0_8px_24px_rgba(0,0,0,0.24)]"
+            className="border-hairline bg-elevated rounded-card z-50 w-44 overflow-hidden border p-1 shadow-[0_8px_24px_rgba(0,0,0,0.24)]"
           >
             <p className="text-ink-3 px-2 py-1.5 text-[11px] font-semibold tracking-wide uppercase">
               Work type
@@ -82,11 +95,15 @@ export default function WorkTypeControl({
                     onChange(option);
                     close();
                   }}
-                  className="text-ink hover:bg-ink/10 focus-visible:bg-ink/10 flex w-full items-center gap-2 rounded-control px-2 py-1.5 text-sm transition-colors outline-none"
+                  className="text-ink hover:bg-ink/10 focus-visible:bg-ink/10 rounded-control flex w-full items-center gap-2 px-2 py-1.5 text-sm transition-colors outline-none"
                 >
-                  <OptionIcon className={cn("size-4 shrink-0", optionMeta.tone)} />
+                  <OptionIcon
+                    className={cn("size-4 shrink-0", optionMeta.tone)}
+                  />
                   <span className="flex-1 text-left">{option}</span>
-                  {selected && <CheckIcon className="text-brand size-4 shrink-0" />}
+                  {selected && (
+                    <CheckIcon className="text-brand size-4 shrink-0" />
+                  )}
                 </button>
               );
             })}

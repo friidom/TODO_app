@@ -33,7 +33,7 @@ export default function StatusControl({
   todoId: string;
   columnId: string | null;
 }) {
-  const { open, close, triggerProps, panelProps } = useCardPopover();
+  const { mounted, close, triggerProps, panelProps } = useCardPopover();
   const { data: columns = [] } = useColumns();
   const moveTo = useMoveTodo(todoId);
 
@@ -59,13 +59,13 @@ export default function StatusControl({
         <span className="truncate">{label}</span>
       </button>
 
-      {open && (
+      {mounted && (
         <FloatingPortal>
           <div
             {...panelProps}
             role="menu"
             aria-label="Status"
-            className="border-hairline bg-elevated z-50 max-h-64 w-48 overflow-y-auto rounded-card border p-1 shadow-[0_8px_24px_rgba(0,0,0,0.24)]"
+            className="border-hairline bg-elevated rounded-card z-50 max-h-64 w-48 overflow-y-auto border p-1 shadow-[0_8px_24px_rgba(0,0,0,0.24)]"
           >
             <p className="text-ink-3 px-2 py-1.5 text-[11px] font-semibold tracking-wide uppercase">
               Status
@@ -86,7 +86,7 @@ export default function StatusControl({
                     if (!selected) moveTo(column);
                     close();
                   }}
-                  className="text-ink hover:bg-ink/10 focus-visible:bg-ink/10 flex w-full items-center gap-2 rounded-control px-2 py-1.5 text-sm transition-colors outline-none"
+                  className="text-ink hover:bg-ink/10 focus-visible:bg-ink/10 rounded-control flex w-full items-center gap-2 px-2 py-1.5 text-sm transition-colors outline-none"
                 >
                   <span
                     className={cn(

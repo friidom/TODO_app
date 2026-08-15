@@ -43,12 +43,31 @@ const SOON: { label: string; icon: LucideIcon }[] = [
   { label: "Timeline", icon: WaypointsIcon },
 ];
 
+/**
+ * The tab shell, worn by the live tabs and the placeholders alike.
+ *
+ * The two had drifted into different heights, paddings, type sizes and gaps
+ * while sitting in the same row, which is the sort of thing that reads as
+ * "unfinished" without anyone being able to point at what is wrong.
+ *
+ * `h-full min-h-12` is what brings the underline down **to** the toolbar's
+ * bottom border rather than leaving it floating in the middle of the row. The
+ * tabs used to be `h-9` in a centred track, so the accent under the selected
+ * view had no relationship to the line beneath it.
+ *
+ * It stops at touching rather than overlapping: a `-mb-px` would be clipped by
+ * the row's own `overflow-x-auto`, which the tab strip needs so it can scroll
+ * sideways on a phone instead of squeezing the controls beside it.
+ */
+const TAB =
+  "flex h-full min-h-12 shrink-0 items-center gap-1.5 border-b-2 px-2.5 text-[13px] transition-colors";
+
 export default function ViewTabs({ view }: { view: BoardView }) {
   return (
     <div
       role="tablist"
       aria-label="View"
-      className="flex shrink-0 items-center gap-1 self-stretch overflow-x-auto"
+      className="flex shrink-0 items-stretch gap-1 self-stretch overflow-x-auto"
     >
       {VIEW_MODES.map((mode) => {
         const Icon = ICONS[mode];
@@ -62,10 +81,11 @@ export default function ViewTabs({ view }: { view: BoardView }) {
             aria-selected={selected}
             onClick={() => view.setMode(mode)}
             className={cn(
-              "focus-visible:ring-brand flex h-9 shrink-0 items-center gap-1.5 border-b-2 px-2.5 text-[13px] transition-colors outline-none focus-visible:ring-2",
+              TAB,
+              "focus-visible:ring-brand rounded-t-[6px] outline-none focus-visible:ring-2",
               selected
                 ? "border-brand text-ink font-medium"
-                : "hover:text-ink text-ink-3 border-transparent",
+                : "hover:text-ink hover:border-hairline text-ink-3 border-transparent",
             )}
           >
             <Icon className={cn("size-[17px]", selected && "text-brand")} />
@@ -81,7 +101,7 @@ export default function ViewTabs({ view }: { view: BoardView }) {
           aria-selected={false}
           aria-disabled
           title={`${label} — not built yet`}
-          className="text-ink-3/45 -mb-px flex h-full min-h-12 shrink-0 cursor-default items-center gap-2 border-b-2 border-transparent px-1 text-sm"
+          className={cn(TAB, "text-ink-3/45 cursor-default border-transparent")}
         >
           <Icon className="size-[17px]" />
           {label}
