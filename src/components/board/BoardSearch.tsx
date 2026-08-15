@@ -69,7 +69,10 @@ export default function BoardSearch({ view }: { view: BoardView }) {
     <div
       className={cn(
         HEADER_CONTROL_QUIET,
-        "w-44 md:w-56",
+        // The widest control in the row, and it earns it: search is the one
+        // thing here used on every visit, and a field that shows six characters
+        // of a query makes you re-read what you typed.
+        "w-44 md:w-56 lg:w-72",
         // Once it is holding a query it is a decision like the others, so it
         // takes the same active treatment they do.
         active && HEADER_CONTROL_ACTIVE,

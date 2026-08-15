@@ -26,8 +26,15 @@ export const HEADER_CONTROL =
  * glance without competing with the board it is describing. Purple is the
  * product's action colour, and a control holding state is the closest thing the
  * header has to one.
+ *
+ * **It restates the hover.** `HEADER_CONTROL` carries `hover:bg-elevated`, and
+ * a variant utility beats a plain one whatever order the two strings are
+ * concatenated in — so an active Filter turned grey under the cursor and looked
+ * like it had switched itself off. Hovering a control that is already on should
+ * deepen it, not undo it.
  */
-export const HEADER_CONTROL_ACTIVE = "border-brand/40 bg-brand-soft text-brand";
+export const HEADER_CONTROL_ACTIVE =
+  "border-brand/40 bg-brand-soft text-brand hover:bg-brand/20 hover:text-brand";
 
 /**
  * The quiet end of the toolbar: no border until you reach for it.
@@ -39,7 +46,7 @@ export const HEADER_CONTROL_ACTIVE = "border-brand/40 bg-brand-soft text-brand";
  * Filter/Group/Sort, which sit a level below the one filled purple button.
  */
 export const HEADER_CONTROL_QUIET =
-  "text-ink-3 hover:text-ink-2 hover:bg-surface focus-within:bg-surface focus-within:border-hairline flex h-9 items-center gap-1.5 rounded-control border border-transparent px-2.5 text-[13px] transition-colors duration-150 outline-none";
+  "text-ink-3 hover:text-ink-2 hover:bg-surface focus-within:bg-surface focus-within:border-hairline focus-within:ring-brand/40 flex h-9 items-center gap-1.5 rounded-control border border-transparent px-2.5 text-[13px] transition-colors duration-150 outline-none focus-within:ring-2";
 
 /** The count pill on the Filter button — `Filter (3)` without the parentheses. */
 export const HEADER_CONTROL_BADGE =

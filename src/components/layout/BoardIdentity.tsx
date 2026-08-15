@@ -147,7 +147,7 @@ export default function BoardIdentity({
           <DropdownMenu>
             <DropdownMenuTrigger
               aria-label="Board actions"
-              className="text-ink-3 hover:bg-elevated hover:text-ink rounded-control grid size-8 place-items-center transition-colors"
+              className="text-ink-3 hover:bg-elevated hover:text-ink focus-visible:ring-brand rounded-control grid size-8 place-items-center transition-colors outline-none focus-visible:ring-2"
             >
               <MoreHorizontalIcon className="size-4" />
             </DropdownMenuTrigger>

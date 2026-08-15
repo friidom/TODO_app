@@ -161,9 +161,19 @@ body,
   --sidebar-border: var(--hairline);
   --sidebar-ring: var(--brand);
 }
-/* Chrome, Edge, Safari */
+/* Scrollbars, once and in the theme's own colours.
+   ---------------------------------------------------------------------------
+   There were two `::-webkit-scrollbar` blocks in this file, and the second
+   silently won: a hard-coded #5a5a5a thumb that is a light grey bar on the dark
+   board and a dark grey one on the light theme, in neither case a colour from
+   the palette. Derived from `--ink-3` it is the same ink as the quiet text it
+   sits beside, in whichever theme is on.
+
+   `height` matters as much as `width` here — the board scrolls sideways, and
+   only the vertical bar had ever been styled. */
 ::-webkit-scrollbar {
   width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -171,21 +181,20 @@ body,
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #5a5a5a;
   border-radius: 9999px;
+  background: color-mix(in oklab, var(--ink-3) 35%, transparent);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #7a7a7a;
+  background: color-mix(in oklab, var(--ink-3) 60%, transparent);
 }
 
-.todo-scrollbar {
+/* Firefox. Both properties are inherited, so the root is the only place they
+   need saying. */
+html {
   scrollbar-width: thin;
-  scrollbar-color: transparent transparent;
-}
-
-.todo-scrollbar:hover {
-  scrollbar-color: #666 transparent;
+  scrollbar-color: color-mix(in oklab, var(--ink-3) 35%, transparent)
+    transparent;
 }
 
 .bg-app {
@@ -196,73 +205,12 @@ body,
   background: var(--card);
 }
 
-.text-main {
-  color: var(--text);
-}
-
 .text-secondary {
   color: var(--secondary-text);
 }
 
 .border-app {
   border-color: var(--border);
-}
-
-@keyframes liquidShine {
-  0% {
-    transform: translateX(-100%);
-  }
-
-  100% {
-    transform: translateX(120%);
-  }
-}
-
-@keyframes bubble {
-  0% {
-    transform: translate(-50%, 10px) scale(0.5);
-    opacity: 0;
-  }
-
-  20% {
-    opacity: 0.4;
-  }
-
-  50% {
-    transform: translate(-50%, -10px) scale(0.8);
-    opacity: 0.25;
-  }
-
-  100% {
-    transform: translate(-50%, -30px) scale(1);
-    opacity: 0;
-  }
-}
-@keyframes jira-spinner {
-  0% {
-    transform: rotate(0deg);
-  }
-
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
-.animate-jira-spinner {
-  animation: jira-spinner 0.7s linear infinite;
-}
-
-::-webkit-scrollbar {
-  width: 6px;
-}
-
-::-webkit-scrollbar-thumb {
-  border-radius: 9999px;
-  background: rgba(120, 120, 120, 0.4);
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(120, 120, 120, 0.7);
 }
 
 @theme inline {
@@ -341,6 +289,12 @@ body,
   }
 }
 
+/* The knob on the end of a drop line.
+   ---------------------------------------------------------------------------
+   Brand purple rather than `--color-blue-500`, and `--elevated` rather than a
+   fixed white: a drop target is the product telling you where a card will land,
+   which is the same kind of statement as an active filter and should be the
+   same colour. The blue was the one accent left over from before the palette. */
 .overlay-indicator {
   position: relative;
 
@@ -352,8 +306,8 @@ body,
     left: 0;
     width: 8px;
     height: 8px;
-    background-color: white;
-    border: 2px solid var(--color-blue-500);
+    background-color: var(--elevated);
+    border: 2px solid var(--brand);
     border-radius: 50%;
   }
 }
@@ -369,8 +323,8 @@ body,
     transform: translateX(-50%);
     width: 8px;
     height: 8px;
-    background-color: white;
-    border: 2px solid var(--color-blue-500);
+    background-color: var(--elevated);
+    border: 2px solid var(--brand);
     border-radius: 50%;
   }
 }

@@ -3,10 +3,7 @@ import { FloatingPortal } from "@floating-ui/react";
 
 import { useCardPopover } from "./useCardPopover";
 import MemberIdentity from "@/components/members/MemberIdentity";
-import {
-  memberInitial,
-  memberName,
-} from "@/components/members/memberLabels";
+import { memberInitial, memberName } from "@/components/members/memberLabels";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useBoardMembers } from "@/services/members/useBoardMembers";
@@ -46,7 +43,7 @@ export default function AssigneeControl({
   /** Keep the trigger visible instead of revealing it on card hover. */
   alwaysVisible?: boolean;
 }) {
-  const { open, close, triggerProps, panelProps } = useCardPopover();
+  const { mounted, close, triggerProps, panelProps } = useCardPopover();
 
   // Read-only here: the trigger needs the assignee's avatar, and this hits the
   // cache entry the rail already populates rather than a request of its own.
@@ -92,11 +89,11 @@ export default function AssigneeControl({
         )}
       </button>
 
-      {open && (
+      {mounted && (
         <FloatingPortal>
           <div
             {...panelProps}
-            className="border-hairline bg-elevated z-50 w-60 overflow-hidden rounded-card border p-1 shadow-[0_8px_24px_rgba(0,0,0,0.24)]"
+            className="border-hairline bg-elevated rounded-card z-50 w-60 overflow-hidden border p-1 shadow-[0_8px_24px_rgba(0,0,0,0.24)]"
           >
             <p className="text-ink-3 px-2 py-1.5 text-[11px] font-semibold tracking-wide uppercase">
               Assignee
@@ -172,7 +169,7 @@ function MemberList({
               <button
                 type="button"
                 onClick={() => assign(selected ? null : member.id)}
-                className="hover:bg-ink/10 focus-visible:bg-ink/10 flex w-full items-center gap-2.5 rounded-control px-2 py-1.5 transition-colors outline-none"
+                className="hover:bg-ink/10 focus-visible:bg-ink/10 rounded-control flex w-full items-center gap-2.5 px-2 py-1.5 transition-colors outline-none"
               >
                 <MemberIdentity member={member} />
 
@@ -192,7 +189,7 @@ function MemberList({
           <button
             type="button"
             onClick={() => assign(null)}
-            className="text-ink-2 hover:bg-ink/10 hover:text-ink flex w-full items-center gap-2 rounded-control px-2 py-1.5 text-sm transition-colors"
+            className="text-ink-2 hover:bg-ink/10 hover:text-ink rounded-control flex w-full items-center gap-2 px-2 py-1.5 text-sm transition-colors"
           >
             <UserMinusIcon className="size-3.5" />
             Unassign

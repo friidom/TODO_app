@@ -29,13 +29,23 @@ export default function PriorityControl({
   value,
   onChange,
   showLabel = false,
+  bare = false,
 }: {
   value: string | null;
   onChange: (value: Priority | null) => void;
   /** The list view has a column's worth of room; a chip on a card does not. */
   showLabel?: boolean;
+  /**
+   * The tinted background off, leaving a coloured arrow.
+   *
+   * **The list wants the least of any field here.** Priority is one of five
+   * levels drawn as an up or down arrow, which is legible at a glance from the
+   * shape and the colour alone — the chip around it was carrying no information
+   * the arrow was not already carrying.
+   */
+  bare?: boolean;
 }) {
-  const { open, close, triggerProps, panelProps } = useCardPopover();
+  const { mounted, close, triggerProps, panelProps } = useCardPopover();
 
   const current = toPriority(value);
   const meta = priorityOf(current);
@@ -50,15 +60,26 @@ export default function PriorityControl({
         title={`Priority: ${label}`}
         aria-label={`Priority: ${label}`}
         className={cn(
-          "flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-semibold transition-colors",
-          meta ? meta.chip : "bg-ink/10 text-ink-3 hover:text-ink-2",
+          "flex shrink-0 items-center gap-1 rounded transition-colors",
+          bare
+            ? cn(
+                "hover:bg-ink/10 p-0.5",
+                // Unset is a real and common state, so it renders as something
+                // rather than as a gap — but at a weight that does not read as a
+                // priority of its own.
+                meta ? meta.tone : "text-ink-3/40 hover:text-ink-3",
+              )
+            : cn(
+                "px-1.5 py-0.5 text-[11px] font-semibold",
+                meta ? meta.chip : "bg-ink/10 text-ink-3 hover:text-ink-2",
+              ),
         )}
       >
-        <Icon className="size-3" />
+        <Icon className={bare ? "size-4" : "size-3"} />
         {showLabel && label}
       </button>
 
-      {open && (
+      {mounted && (
         <FloatingPortal>
           <div
             {...panelProps}

@@ -42,8 +42,16 @@ export function usePanel() {
         const params = new URLSearchParams(previous);
 
         params.set("panel", next);
-        // Two drawers cannot share the slot. The task panel is the more
-        // specific context, so asking for a board-level drawer closes it.
+        /**
+         * Closing the task is no longer about the slot — the task detail is a
+         * modal and takes no width from the board — but it is still right.
+         *
+         * The trigger for this lives in the board's identity row, which sits
+         * *behind* the modal's backdrop, so in practice the two cannot both be
+         * asked for by clicking. What is left is a hand-written URL carrying
+         * both, and the honest answer to that is still one surface: a drawer
+         * revealed underneath an open modal is a state nothing here draws.
+         */
         params.delete("task");
 
         return params;

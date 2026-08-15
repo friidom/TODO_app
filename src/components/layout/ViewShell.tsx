@@ -13,8 +13,11 @@ import type { ReactNode } from "react";
  *   filter, group, sort and create. Also constant, because M16 made all five
  *   view-agnostic.
  * - `children` — the only part a view supplies.
- * - `drawer` — the task panel or a board drawer, pushing at `xl` and overlaying
- *   below, both addressed by a search param.
+ * - `drawer` — a board-level drawer such as the members roster, addressed by
+ *   `?panel=`, pushing at `xl` and overlaying below. **Not the task detail**,
+ *   which held this slot until it became a modal: a work item deserves more
+ *   room than a 22rem rail, and reserving that rail for it cost the board width
+ *   on every screen where nothing was open.
  *
  * M19 and M20 therefore add a registry entry and a renderer. Neither adds a
  * layout, a header, or a second answer to where a filter control lives — which
