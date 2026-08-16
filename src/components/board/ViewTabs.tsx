@@ -15,6 +15,7 @@ const ICONS: Record<ViewMode, LucideIcon> = {
   summary: GaugeIcon,
   board: KanbanIcon,
   list: ListIcon,
+  calendar: CalendarIcon,
 };
 
 /**
@@ -30,10 +31,15 @@ const ICONS: Record<ViewMode, LucideIcon> = {
  * Board and List one product rather than two screens, and it comes free from
  * all four living in the same URL.
  *
- * **Calendar and Timeline are listed and inert**, which is the whole of M17's
- * obligation to them: the shell is prepared, nothing is built. They render at
- * low contrast and do not respond to a click — the placeholder idiom the
- * sidebar already used, and better than a tab that navigates to an empty page.
+ * **Calendar left this list in M19** and is now a registry entry like the other
+ * three — which cost exactly the icon below and nothing else, because the row
+ * is driven by `VIEW_MODES` rather than by an array kept here. That was the
+ * point of building it this way.
+ *
+ * **Timeline is still listed and inert**, which is the whole of M17's
+ * obligation to it: the shell is prepared, nothing is built. It renders at low
+ * contrast and does not respond to a click — the placeholder idiom the sidebar
+ * already used, and better than a tab that navigates to an empty page.
  *
  * Underline tabs with a brand accent on the active one. Pass 2 tried a
  * contained pill group; the mockup is explicit that these are underlines, and
@@ -41,7 +47,6 @@ const ICONS: Record<ViewMode, LucideIcon> = {
  * to its right, where an underline sits under the content it names.
  */
 const SOON: { label: string; icon: LucideIcon }[] = [
-  { label: "Calendar", icon: CalendarIcon },
   { label: "Timeline", icon: WaypointsIcon },
 ];
 
