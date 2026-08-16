@@ -11,6 +11,7 @@ import TaskDetailModal from "@/components/todo/TaskDetailModal";
 import KanbanBoard from "@/components/kanban/KanbanBoard";
 import ListView from "@/components/views/ListView";
 import SummaryView from "@/components/summary/SummaryView";
+import CalendarView from "@/components/calendar/CalendarView";
 import NotFoundPage from "@/pages/error/NotFoundPage";
 import Loading from "@/components/loading/LoadingPage";
 import { useBoard } from "@/services/boards/useBoard";
@@ -98,6 +99,8 @@ function BoardView({ boardId }: { boardId: string }) {
           <SummaryView />
         ) : view.mode === "list" ? (
           <ListView />
+        ) : view.mode === "calendar" ? (
+          <CalendarView />
         ) : (
           <KanbanBoard />
         )}

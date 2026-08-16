@@ -27,7 +27,7 @@
  * mode, though: `useBoardView` still falls back to `board`, so every existing
  * `/boards/:id` link opens exactly the view it always opened.
  */
-export const VIEW_MODES = ["summary", "board", "list"] as const;
+export const VIEW_MODES = ["summary", "board", "list", "calendar"] as const;
 
 export type ViewMode = (typeof VIEW_MODES)[number];
 
@@ -82,6 +82,32 @@ export const VIEWS: Record<ViewMode, ViewDefinition> = {
     // No drag: the list has never registered a draggable, and now that is a
     // stated property rather than an absence someone could "fix" by adding one.
     capabilities: { canReorder: false, canGroup: true, canSort: true },
+  },
+  calendar: {
+    mode: "calendar",
+    label: "Calendar",
+    /**
+     * All three false (M19), and each for a different reason.
+     *
+     * **`canReorder: false` even though the calendar drags.** The flag does not
+     * mean "has drag and drop" — it means *writes `todos.position`*, which is
+     * the dense integer two views cannot renumber from two snapshots without
+     * losing one. A calendar drop writes `due_date` through the same
+     * `updateTodo` every field control uses, so it adds no second order-writer
+     * and `registry.test.ts`'s M6-A guard keeps passing untouched.
+     *
+     * **`canSort: false` because the view has its own axis** — which is the
+     * case `canSort`'s own doc comment named before this view existed. Dates
+     * are the order; a "sort by priority" over a calendar has nothing to
+     * reorder.
+     *
+     * **`canGroup: false` because the date grouping *is* the layout.** A second
+     * grouping would mean a calendar of the board grouped by assignee, which is
+     * either swimlanes of calendars or a calendar that silently shows one
+     * person's work. Filter and search still apply, and are the right control
+     * for "only show me mine".
+     */
+    capabilities: { canReorder: false, canGroup: false, canSort: false },
   },
 };
 

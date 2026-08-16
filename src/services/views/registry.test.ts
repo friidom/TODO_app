@@ -31,7 +31,10 @@ describe("view registry", () => {
     expect(isViewMode("summary")).toBe(true);
     expect(isViewMode("board")).toBe(true);
     expect(isViewMode("list")).toBe(true);
-    expect(isViewMode("calendar")).toBe(false);
+    expect(isViewMode("calendar")).toBe(true);
+    // Still roadmap (M20). It is listed in the tab row as an inert
+    // placeholder, which is not the same as being a mode.
+    expect(isViewMode("timeline")).toBe(false);
     expect(isViewMode(undefined)).toBe(false);
   });
 
@@ -39,6 +42,18 @@ describe("view registry", () => {
     expect(capabilitiesOf("board").canReorder).toBe(true);
     expect(capabilitiesOf("list").canReorder).toBe(false);
     expect(capabilitiesOf("summary").canReorder).toBe(false);
+    // The calendar drags, and still does not reorder. `canReorder` means
+    // "writes todos.position", not "has drag and drop" — a calendar drop
+    // writes due_date through the ordinary update path.
+    expect(capabilitiesOf("calendar").canReorder).toBe(false);
+  });
+
+  it("lets the Calendar neither group nor sort, because dates are its axis", () => {
+    // Same gate Summary uses: `ViewToolbar` reads these two flags, so a view
+    // whose order is the date axis does not offer a sort that cannot reorder
+    // it, and a view whose layout IS a grouping does not offer a second one.
+    expect(capabilitiesOf("calendar").canGroup).toBe(false);
+    expect(capabilitiesOf("calendar").canSort).toBe(false);
   });
 
   it("lets both work-item views group and sort", () => {
