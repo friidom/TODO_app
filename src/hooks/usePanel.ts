@@ -1,8 +1,15 @@
 import { useCallback } from "react";
 import { useSearchParams } from "react-router";
 
-/** The drawers a board can open beside itself. */
-export const PANELS = ["members"] as const;
+/**
+ * The drawers a board can open beside itself.
+ *
+ * `activity` joins it in M18. A board's history is board-scoped by its policy
+ * key — `activities.board_id` is what RLS reads — so the feed belongs beside
+ * the board rather than on the cross-board Overview, which is also why the plan
+ * puts a cross-board activity union under *Explicitly not* for v1.
+ */
+export const PANELS = ["members", "activity"] as const;
 
 export type PanelKey = (typeof PANELS)[number];
 

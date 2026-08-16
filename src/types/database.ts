@@ -4,487 +4,545 @@ export type Json =
   | boolean
   | null
   | { [key: string]: Json | undefined }
-  | Json[]
+  | Json[];
 
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
+    PostgrestVersion: "14.5";
+  };
   graphql_public: {
     Tables: {
-      [_ in never]: never
-    }
+      [_ in never]: never;
+    };
     Views: {
-      [_ in never]: never
-    }
+      [_ in never]: never;
+    };
     Functions: {
       graphql: {
         Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
+          extensions?: Json;
+          operationName?: string;
+          query?: string;
+          variables?: Json;
+        };
+        Returns: Json;
+      };
+    };
     Enums: {
-      [_ in never]: never
-    }
+      [_ in never]: never;
+    };
     CompositeTypes: {
-      [_ in never]: never
-    }
-  }
+      [_ in never]: never;
+    };
+  };
   public: {
     Tables: {
+      activities: {
+        Row: {
+          action: string;
+          actor_id: string | null;
+          board_id: string;
+          created_at: string;
+          entity_id: string | null;
+          entity_type: string;
+          id: string;
+          payload: Json;
+        };
+        Insert: {
+          action: string;
+          actor_id?: string | null;
+          board_id: string;
+          created_at?: string;
+          entity_id?: string | null;
+          entity_type: string;
+          id?: string;
+          payload?: Json;
+        };
+        Update: {
+          action?: string;
+          actor_id?: string | null;
+          board_id?: string;
+          created_at?: string;
+          entity_id?: string | null;
+          entity_type?: string;
+          id?: string;
+          payload?: Json;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "activities_actor_id_fkey";
+            columns: ["actor_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "activities_board_id_fkey";
+            columns: ["board_id"];
+            isOneToOne: false;
+            referencedRelation: "boards";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       board_invites: {
         Row: {
-          accepted_at: string | null
-          board_id: string
-          created_at: string
-          created_by: string | null
-          email: string | null
-          expires_at: string
-          id: string
-          role: string
-          token: string
-        }
+          accepted_at: string | null;
+          board_id: string;
+          created_at: string;
+          created_by: string | null;
+          email: string | null;
+          expires_at: string;
+          id: string;
+          role: string;
+          token: string;
+        };
         Insert: {
-          accepted_at?: string | null
-          board_id: string
-          created_at?: string
-          created_by?: string | null
-          email?: string | null
-          expires_at: string
-          id?: string
-          role: string
-          token: string
-        }
+          accepted_at?: string | null;
+          board_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          email?: string | null;
+          expires_at: string;
+          id?: string;
+          role: string;
+          token: string;
+        };
         Update: {
-          accepted_at?: string | null
-          board_id?: string
-          created_at?: string
-          created_by?: string | null
-          email?: string | null
-          expires_at?: string
-          id?: string
-          role?: string
-          token?: string
-        }
+          accepted_at?: string | null;
+          board_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          email?: string | null;
+          expires_at?: string;
+          id?: string;
+          role?: string;
+          token?: string;
+        };
         Relationships: [
           {
-            foreignKeyName: "board_invites_board_id_fkey"
-            columns: ["board_id"]
-            isOneToOne: false
-            referencedRelation: "boards"
-            referencedColumns: ["id"]
+            foreignKeyName: "board_invites_board_id_fkey";
+            columns: ["board_id"];
+            isOneToOne: false;
+            referencedRelation: "boards";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "board_invites_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
+            foreignKeyName: "board_invites_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       board_members: {
         Row: {
-          board_id: string
-          joined_at: string
-          role: string
-          user_id: string
-        }
+          board_id: string;
+          joined_at: string;
+          role: string;
+          user_id: string;
+        };
         Insert: {
-          board_id: string
-          joined_at?: string
-          role: string
-          user_id: string
-        }
+          board_id: string;
+          joined_at?: string;
+          role: string;
+          user_id: string;
+        };
         Update: {
-          board_id?: string
-          joined_at?: string
-          role?: string
-          user_id?: string
-        }
+          board_id?: string;
+          joined_at?: string;
+          role?: string;
+          user_id?: string;
+        };
         Relationships: [
           {
-            foreignKeyName: "board_members_board_id_fkey"
-            columns: ["board_id"]
-            isOneToOne: false
-            referencedRelation: "boards"
-            referencedColumns: ["id"]
+            foreignKeyName: "board_members_board_id_fkey";
+            columns: ["board_id"];
+            isOneToOne: false;
+            referencedRelation: "boards";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "board_members_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
+            foreignKeyName: "board_members_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       boards: {
         Row: {
-          cover_color: string | null
-          created_at: string
-          description: string | null
-          icon: string | null
-          id: string
-          key_prefix: string
-          next_key: number
-          owner_id: string
-          space_id: string | null
-          title: string | null
-          updated_at: string
-          visibility: string
-        }
+          cover_color: string | null;
+          created_at: string;
+          description: string | null;
+          icon: string | null;
+          id: string;
+          key_prefix: string;
+          next_key: number;
+          owner_id: string;
+          space_id: string | null;
+          title: string | null;
+          updated_at: string;
+          visibility: string;
+        };
         Insert: {
-          cover_color?: string | null
-          created_at?: string
-          description?: string | null
-          icon?: string | null
-          id?: string
-          key_prefix?: string
-          next_key?: number
-          owner_id: string
-          space_id?: string | null
-          title?: string | null
-          updated_at?: string
-          visibility?: string
-        }
+          cover_color?: string | null;
+          created_at?: string;
+          description?: string | null;
+          icon?: string | null;
+          id?: string;
+          key_prefix?: string;
+          next_key?: number;
+          owner_id: string;
+          space_id?: string | null;
+          title?: string | null;
+          updated_at?: string;
+          visibility?: string;
+        };
         Update: {
-          cover_color?: string | null
-          created_at?: string
-          description?: string | null
-          icon?: string | null
-          id?: string
-          key_prefix?: string
-          next_key?: number
-          owner_id?: string
-          space_id?: string | null
-          title?: string | null
-          updated_at?: string
-          visibility?: string
-        }
+          cover_color?: string | null;
+          created_at?: string;
+          description?: string | null;
+          icon?: string | null;
+          id?: string;
+          key_prefix?: string;
+          next_key?: number;
+          owner_id?: string;
+          space_id?: string | null;
+          title?: string | null;
+          updated_at?: string;
+          visibility?: string;
+        };
         Relationships: [
           {
-            foreignKeyName: "boards_owner_id_fkey"
-            columns: ["owner_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
+            foreignKeyName: "boards_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "boards_space_id_fkey"
-            columns: ["space_id"]
-            isOneToOne: false
-            referencedRelation: "spaces"
-            referencedColumns: ["id"]
+            foreignKeyName: "boards_space_id_fkey";
+            columns: ["space_id"];
+            isOneToOne: false;
+            referencedRelation: "spaces";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       columns: {
         Row: {
-          board_id: string
-          category: string | null
-          created_at: string
-          id: string
-          max_limit: number | null
-          min_limit: number | null
-          position: number | null
-          rank: number | null
-          title: string | null
-          updated_at: string
-        }
+          board_id: string;
+          category: string | null;
+          created_at: string;
+          id: string;
+          max_limit: number | null;
+          min_limit: number | null;
+          position: number | null;
+          rank: number | null;
+          title: string | null;
+          updated_at: string;
+        };
         Insert: {
-          board_id: string
-          category?: string | null
-          created_at?: string
-          id?: string
-          max_limit?: number | null
-          min_limit?: number | null
-          position?: number | null
-          rank?: number | null
-          title?: string | null
-          updated_at?: string
-        }
+          board_id: string;
+          category?: string | null;
+          created_at?: string;
+          id?: string;
+          max_limit?: number | null;
+          min_limit?: number | null;
+          position?: number | null;
+          rank?: number | null;
+          title?: string | null;
+          updated_at?: string;
+        };
         Update: {
-          board_id?: string
-          category?: string | null
-          created_at?: string
-          id?: string
-          max_limit?: number | null
-          min_limit?: number | null
-          position?: number | null
-          rank?: number | null
-          title?: string | null
-          updated_at?: string
-        }
+          board_id?: string;
+          category?: string | null;
+          created_at?: string;
+          id?: string;
+          max_limit?: number | null;
+          min_limit?: number | null;
+          position?: number | null;
+          rank?: number | null;
+          title?: string | null;
+          updated_at?: string;
+        };
         Relationships: [
           {
-            foreignKeyName: "columns_board_id_fkey"
-            columns: ["board_id"]
-            isOneToOne: false
-            referencedRelation: "boards"
-            referencedColumns: ["id"]
+            foreignKeyName: "columns_board_id_fkey";
+            columns: ["board_id"];
+            isOneToOne: false;
+            referencedRelation: "boards";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       profiles: {
         Row: {
-          avatar_url: string | null
-          bio: string | null
-          created_at: string | null
-          email: string | null
-          full_name: string | null
-          id: string
-          username: string | null
-        }
+          avatar_url: string | null;
+          bio: string | null;
+          created_at: string | null;
+          email: string | null;
+          full_name: string | null;
+          id: string;
+          username: string | null;
+        };
         Insert: {
-          avatar_url?: string | null
-          bio?: string | null
-          created_at?: string | null
-          email?: string | null
-          full_name?: string | null
-          id: string
-          username?: string | null
-        }
+          avatar_url?: string | null;
+          bio?: string | null;
+          created_at?: string | null;
+          email?: string | null;
+          full_name?: string | null;
+          id: string;
+          username?: string | null;
+        };
         Update: {
-          avatar_url?: string | null
-          bio?: string | null
-          created_at?: string | null
-          email?: string | null
-          full_name?: string | null
-          id?: string
-          username?: string | null
-        }
-        Relationships: []
-      }
+          avatar_url?: string | null;
+          bio?: string | null;
+          created_at?: string | null;
+          email?: string | null;
+          full_name?: string | null;
+          id?: string;
+          username?: string | null;
+        };
+        Relationships: [];
+      };
       spaces: {
         Row: {
-          created_at: string
-          id: string
-          owner_id: string
-          title: string
-          updated_at: string
-        }
+          created_at: string;
+          id: string;
+          owner_id: string;
+          title: string;
+          updated_at: string;
+        };
         Insert: {
-          created_at?: string
-          id?: string
-          owner_id: string
-          title: string
-          updated_at?: string
-        }
+          created_at?: string;
+          id?: string;
+          owner_id: string;
+          title: string;
+          updated_at?: string;
+        };
         Update: {
-          created_at?: string
-          id?: string
-          owner_id?: string
-          title?: string
-          updated_at?: string
-        }
+          created_at?: string;
+          id?: string;
+          owner_id?: string;
+          title?: string;
+          updated_at?: string;
+        };
         Relationships: [
           {
-            foreignKeyName: "spaces_owner_id_fkey"
-            columns: ["owner_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
+            foreignKeyName: "spaces_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       todos: {
         Row: {
-          archived: boolean
-          assignee_id: string | null
-          board_id: string
-          board_key: number | null
-          column_id: string | null
-          created_at: string
-          creator_id: string | null
-          description: string | null
-          due_date: string | null
-          estimate: number | null
-          id: string
-          position: number | null
-          previous_status: string | null
-          priority: string | null
-          rank: number | null
-          status: string | null
-          title: string | null
-          type: string
-          updated_at: string | null
-        }
+          archived: boolean;
+          assignee_id: string | null;
+          board_id: string;
+          board_key: number | null;
+          column_id: string | null;
+          created_at: string;
+          creator_id: string | null;
+          description: string | null;
+          due_date: string | null;
+          estimate: number | null;
+          id: string;
+          position: number | null;
+          previous_status: string | null;
+          priority: string | null;
+          rank: number | null;
+          status: string | null;
+          title: string | null;
+          type: string;
+          updated_at: string | null;
+        };
         Insert: {
-          archived?: boolean
-          assignee_id?: string | null
-          board_id: string
-          board_key?: number | null
-          column_id?: string | null
-          created_at?: string
-          creator_id?: string | null
-          description?: string | null
-          due_date?: string | null
-          estimate?: number | null
-          id?: string
-          position?: number | null
-          previous_status?: string | null
-          priority?: string | null
-          rank?: number | null
-          status?: string | null
-          title?: string | null
-          type?: string
-          updated_at?: string | null
-        }
+          archived?: boolean;
+          assignee_id?: string | null;
+          board_id: string;
+          board_key?: number | null;
+          column_id?: string | null;
+          created_at?: string;
+          creator_id?: string | null;
+          description?: string | null;
+          due_date?: string | null;
+          estimate?: number | null;
+          id?: string;
+          position?: number | null;
+          previous_status?: string | null;
+          priority?: string | null;
+          rank?: number | null;
+          status?: string | null;
+          title?: string | null;
+          type?: string;
+          updated_at?: string | null;
+        };
         Update: {
-          archived?: boolean
-          assignee_id?: string | null
-          board_id?: string
-          board_key?: number | null
-          column_id?: string | null
-          created_at?: string
-          creator_id?: string | null
-          description?: string | null
-          due_date?: string | null
-          estimate?: number | null
-          id?: string
-          position?: number | null
-          previous_status?: string | null
-          priority?: string | null
-          rank?: number | null
-          status?: string | null
-          title?: string | null
-          type?: string
-          updated_at?: string | null
-        }
+          archived?: boolean;
+          assignee_id?: string | null;
+          board_id?: string;
+          board_key?: number | null;
+          column_id?: string | null;
+          created_at?: string;
+          creator_id?: string | null;
+          description?: string | null;
+          due_date?: string | null;
+          estimate?: number | null;
+          id?: string;
+          position?: number | null;
+          previous_status?: string | null;
+          priority?: string | null;
+          rank?: number | null;
+          status?: string | null;
+          title?: string | null;
+          type?: string;
+          updated_at?: string | null;
+        };
         Relationships: [
           {
-            foreignKeyName: "todos_assignee_id_fkey"
-            columns: ["assignee_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
+            foreignKeyName: "todos_assignee_id_fkey";
+            columns: ["assignee_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "todos_board_id_fkey"
-            columns: ["board_id"]
-            isOneToOne: false
-            referencedRelation: "boards"
-            referencedColumns: ["id"]
+            foreignKeyName: "todos_board_id_fkey";
+            columns: ["board_id"];
+            isOneToOne: false;
+            referencedRelation: "boards";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "todos_column_id_fkey"
-            columns: ["column_id", "board_id"]
-            isOneToOne: false
-            referencedRelation: "columns"
-            referencedColumns: ["id", "board_id"]
+            foreignKeyName: "todos_column_id_fkey";
+            columns: ["column_id", "board_id"];
+            isOneToOne: false;
+            referencedRelation: "columns";
+            referencedColumns: ["id", "board_id"];
           },
           {
-            foreignKeyName: "todos_creator_id_fkey"
-            columns: ["creator_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
+            foreignKeyName: "todos_creator_id_fkey";
+            columns: ["creator_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
           },
-        ]
-      }
-    }
+        ];
+      };
+    };
     Views: {
-      [_ in never]: never
-    }
+      [_ in never]: never;
+    };
     Functions: {
       accept_invite: {
-        Args: { p_token: string }
+        Args: { p_token: string };
         Returns: {
-          board_id: string
-          status: string
-        }[]
-      }
-      accessible_board_ids: { Args: never; Returns: string[] }
+          board_id: string;
+          status: string;
+        }[];
+      };
+      accessible_board_ids: { Args: never; Returns: string[] };
       add_board_member: {
-        Args: { p_board_id: string; p_role: string; p_user_id: string }
-        Returns: undefined
-      }
-      board_role: { Args: { p_board_id: string }; Returns: string }
-      board_role_rank: { Args: { p_role: string }; Returns: number }
+        Args: { p_board_id: string; p_role: string; p_user_id: string };
+        Returns: undefined;
+      };
+      board_role: { Args: { p_board_id: string }; Returns: string };
+      board_role_rank: { Args: { p_role: string }; Returns: number };
       board_roster: {
-        Args: { p_board_id: string }
+        Args: { p_board_id: string };
         Returns: {
-          avatar_url: string
-          full_name: string
-          id: string
-          joined_at: string
-          role: string
-          username: string
-        }[]
-      }
+          avatar_url: string;
+          full_name: string;
+          id: string;
+          joined_at: string;
+          role: string;
+          username: string;
+        }[];
+      };
       create_invite: {
-        Args: { p_board_id: string; p_expires_in_days?: number; p_role: string }
+        Args: {
+          p_board_id: string;
+          p_expires_in_days?: number;
+          p_role: string;
+        };
         Returns: {
-          expires_at: string
-          id: string
-          role: string
-          token: string
-        }[]
-      }
+          expires_at: string;
+          id: string;
+          role: string;
+          token: string;
+        }[];
+      };
       delete_column: {
-        Args: { p_column_id: string; p_move_to_column_id: string }
-        Returns: undefined
-      }
-      is_board_member: { Args: { p_board_id: string }; Returns: boolean }
+        Args: { p_column_id: string; p_move_to_column_id: string };
+        Returns: undefined;
+      };
+      is_board_member: { Args: { p_board_id: string }; Returns: boolean };
       is_board_owner: {
-        Args: { p_board_id: string; p_user_id: string }
-        Returns: boolean
-      }
-      leave_board: { Args: { p_board_id: string }; Returns: undefined }
-      owns_space: { Args: { p_space_id: string }; Returns: boolean }
-      provision_new_user: { Args: never; Returns: string }
+        Args: { p_board_id: string; p_user_id: string };
+        Returns: boolean;
+      };
+      leave_board: { Args: { p_board_id: string }; Returns: undefined };
+      owns_space: { Args: { p_space_id: string }; Returns: boolean };
+      provision_new_user: { Args: never; Returns: string };
       rebalance_board_column_ranks: {
-        Args: { p_board_id: string }
-        Returns: number
-      }
-      rebalance_column_ranks: { Args: { p_column_id: string }; Returns: number }
+        Args: { p_board_id: string };
+        Returns: number;
+      };
+      rebalance_column_ranks: {
+        Args: { p_column_id: string };
+        Returns: number;
+      };
       remove_board_member: {
-        Args: { p_board_id: string; p_user_id: string }
-        Returns: undefined
-      }
-      revoke_invite: { Args: { p_invite_id: string }; Returns: undefined }
+        Args: { p_board_id: string; p_user_id: string };
+        Returns: undefined;
+      };
+      revoke_invite: { Args: { p_invite_id: string }; Returns: undefined };
       set_member_role: {
-        Args: { p_board_id: string; p_role: string; p_user_id: string }
-        Returns: undefined
-      }
-    }
+        Args: { p_board_id: string; p_role: string; p_user_id: string };
+        Returns: undefined;
+      };
+    };
     Enums: {
-      [_ in never]: never
-    }
+      [_ in never]: never;
+    };
     CompositeTypes: {
-      [_ in never]: never
-    }
-  }
-}
+      [_ in never]: never;
+    };
+  };
+};
 
-type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">;
 
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+type DefaultSchema = DatabaseWithoutInternals[Extract<
+  keyof Database,
+  "public"
+>];
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
   ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
       DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
-      Row: infer R
+      Row: infer R;
     }
     ? R
     : never
@@ -492,95 +550,92 @@ export type Tables<
         DefaultSchema["Views"])
     ? (DefaultSchema["Tables"] &
         DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-        Row: infer R
+        Row: infer R;
       }
       ? R
       : never
-    : never
+    : never;
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Insert: infer I
+      Insert: infer I;
     }
     ? I
     : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
     ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Insert: infer I
+        Insert: infer I;
       }
       ? I
       : never
-    : never
+    : never;
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Update: infer U
+      Update: infer U;
     }
     ? U
     : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
     ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Update: infer U
+        Update: infer U;
       }
       ? U
       : never
-    : never
+    : never;
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+    keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-    : never
+    : never;
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never
+    : never;
 
 export const Constants = {
   graphql_public: {
@@ -589,4 +644,4 @@ export const Constants = {
   public: {
     Enums: {},
   },
-} as const
+} as const;

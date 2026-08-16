@@ -84,6 +84,19 @@ export const TODO_FIELDS = [
 
 export type Todo = Pick<TodoRow, (typeof TODO_FIELDS)[number]>;
 
+/**
+ * One entry in a board's history (M18).
+ *
+ * Trigger-written and read-only from the client — there is no insert grant on
+ * the table, so nothing in the app can construct one of these and send it. The
+ * shape is M7-05's, unchanged.
+ *
+ * `entity_type` and `action` are plain `text` with a CHECK over the *pair*
+ * rather than enums, so the generated type is `string` on both. The union that
+ * matters is applied where it is read, in `activities/activityText.ts`.
+ */
+export type Activity = Row<"activities">;
+
 export type ISupabaseProfile = Row<"profiles">;
 
 export type IColumn = Row<"columns">;

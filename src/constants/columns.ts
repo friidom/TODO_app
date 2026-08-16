@@ -16,6 +16,13 @@ export const COLUMN_CATEGORIES = {
     /** Theme-aware dot, for surfaces that follow the shell tokens. */
     dot: "bg-brand",
     /**
+     * The same colour as text, which is what an SVG `currentColor` stroke
+     * needs (M18's status donut). A `bg-` utility cannot paint a stroke, and
+     * the alternative — a raw hex in the chart — would be a fourth place the
+     * palette lives.
+     */
+    tone: "text-brand",
+    /**
      * The column header's wash (M17).
      *
      * Token-derived rather than the hard-coded hexes `pill` and `swatch` carry:
@@ -41,12 +48,14 @@ export const COLUMN_CATEGORIES = {
     swatch: "bg-[#cfe1fd]",
     pill: "bg-[#cfe1fd] text-[#172b4d]",
     dot: "bg-status-blue",
+    tone: "text-status-blue",
     band: "bg-gradient-to-b from-status-blue/10 via-status-blue/[0.03] to-transparent",
   },
   done: {
     swatch: "bg-[#b3df72]",
     pill: "bg-[#b3df72] text-[#172b4d]",
     dot: "bg-status-green",
+    tone: "text-status-green",
     band: "bg-gradient-to-b from-status-green/10 via-status-green/[0.03] to-transparent",
   },
 } as const;

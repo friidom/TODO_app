@@ -64,6 +64,20 @@ export const queryKeys = {
   invites: (boardId: string | undefined) => ["invites", boardId] as const,
 
   /**
+   * One board's activity history (M18).
+   *
+   * Board-scoped like `members` and `invites`, and deliberately **not** a child
+   * of `todos(boardId)`: the log outlives the rows it describes, so
+   * invalidating the board's cards must not throw away the record of what
+   * happened to them.
+   *
+   * Nothing invalidates this entry today — the table is trigger-written, so no
+   * client mutation knows an entry appeared. `useActivities` explains why that
+   * gap is left for M6-B rather than papered over with a refetch per drag.
+   */
+  activities: (boardId: string | undefined) => ["activities", boardId] as const,
+
+  /**
    * One work item's complete row, for the detail panel (M5-06).
    *
    * Deliberately its own entry rather than a slice of `todos(boardId)`: that
