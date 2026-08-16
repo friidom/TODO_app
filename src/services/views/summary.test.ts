@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   categoryIndex,
+  dueSoonItems,
   priorityDistribution,
   recentCounts,
   statusDistribution,
@@ -293,6 +294,106 @@ describe("recentCounts", () => {
     );
 
     expect(counts.dueSoon).toBe(0);
+  });
+});
+
+describe("dueSoonItems", () => {
+  it("puts the most urgent deadline first", () => {
+    const late = todo({ due_date: "2026-08-10T00:00:00Z" });
+    const soon = todo({ due_date: "2026-08-17T00:00:00Z" });
+    const today = todo({ due_date: "2026-08-15T00:00:00Z" });
+
+    const items = dueSoonItems([soon, today, late], INDEX, TODAY, 7, 10);
+
+    expect(items.map((item) => item.todo.id)).toEqual([
+      late.id,
+      today.id,
+      soon.id,
+    ]);
+  });
+
+  it("labels each row with the same dueStatus the card chip uses", () => {
+    const items = dueSoonItems(
+      [
+        todo({ due_date: "2026-08-10T00:00:00Z" }),
+        todo({ due_date: "2026-08-15T00:00:00Z" }),
+        todo({ due_date: "2026-08-18T00:00:00Z" }),
+      ],
+      INDEX,
+      TODAY,
+      7,
+      10,
+    );
+
+    expect(items.map((item) => item.status)).toEqual([
+      "overdue",
+      "today",
+      "upcoming",
+    ]);
+  });
+
+  it("keeps overdue items whatever the window is", () => {
+    // Three weeks late is more urgent than Friday. A "due soon" panel that
+    // dropped it would be the one place a late task is invisible.
+    const items = dueSoonItems(
+      [todo({ due_date: "2026-07-20T00:00:00Z" })],
+      INDEX,
+      TODAY,
+      7,
+      10,
+    );
+
+    expect(items).toHaveLength(1);
+    expect(items[0].status).toBe("overdue");
+  });
+
+  it("drops anything past the horizon", () => {
+    const items = dueSoonItems(
+      [
+        todo({ due_date: "2026-08-22T00:00:00Z" }), // exactly on it
+        todo({ due_date: "2026-08-23T00:00:00Z" }), // past it
+      ],
+      INDEX,
+      TODAY,
+      7,
+      10,
+    );
+
+    expect(items).toHaveLength(1);
+  });
+
+  it("ignores finished work and undated work", () => {
+    const items = dueSoonItems(
+      [
+        todo({ column_id: "c-done", due_date: "2026-07-01T00:00:00Z" }),
+        todo({ due_date: null }),
+      ],
+      INDEX,
+      TODAY,
+      7,
+      10,
+    );
+
+    expect(items).toEqual([]);
+  });
+
+  it("takes the most urgent N, not the first N", () => {
+    const items = dueSoonItems(
+      [
+        todo({ due_date: "2026-08-18T00:00:00Z" }),
+        todo({ due_date: "2026-08-16T00:00:00Z" }),
+        todo({ due_date: "2026-08-01T00:00:00Z" }),
+      ],
+      INDEX,
+      TODAY,
+      7,
+      2,
+    );
+
+    expect(items.map((item) => item.todo.due_date)).toEqual([
+      "2026-08-01T00:00:00Z",
+      "2026-08-16T00:00:00Z",
+    ]);
   });
 });
 

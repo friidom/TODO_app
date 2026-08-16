@@ -35,6 +35,15 @@ import { LIST_GRID } from "./listGrid";
  * meant to be *checked* rather than read. `bare` on three of those controls is
  * what took the badges off; nothing about what they do changed.
  *
+ * **An empty field renders nothing (M18).** Priority, assignee and due are all
+ * nullable and all common — on a board nobody has prioritised, `alwaysVisible`
+ * put a grey signal glyph, a grey person glyph and a grey calendar glyph on
+ * every single row, three columns of identical marks that looked like data and
+ * carried none. They now fade in on row hover, which is the bargain
+ * `AssigneeControl` and `DueDateControl` were already written for and
+ * `PriorityControl` has just been given. The controls stay in flow at
+ * `opacity-0`, so nothing about the row's geometry depends on what it holds.
+ *
  * Editing the summary is the card's inline rename, in place: the same
  * Enter-saves / Escape-cancels / blur-saves / empty-reverts behaviour, through
  * the same `useTodoPatch`.
@@ -126,7 +135,7 @@ export default function ListRow({ todo }: { todo: Todo }) {
             type="button"
             onClick={() => openTask(todo.id)}
             title={`Open ${key}`}
-            className="text-ink-3 hover:text-brand focus-visible:ring-brand block truncate rounded text-[11px] font-medium tabular-nums transition-colors outline-none focus-visible:ring-2"
+            className="text-ink-3/80 hover:text-brand focus-visible:ring-brand block truncate rounded text-[11px] font-medium tabular-nums transition-colors outline-none focus-visible:ring-2"
           >
             {key}
           </button>
@@ -157,7 +166,7 @@ export default function ListRow({ todo }: { todo: Todo }) {
             type="button"
             onClick={() => setEditing(true)}
             title={todo.title ?? undefined}
-            className="text-ink hover:text-brand focus-visible:ring-brand block w-full truncate rounded text-left text-sm transition-colors outline-none focus-visible:ring-2"
+            className="text-ink hover:text-brand focus-visible:ring-brand block w-full truncate rounded text-left text-[13.5px] font-medium transition-colors outline-none focus-visible:ring-2"
           >
             {todo.title || <span className="text-ink-3/60">Untitled</span>}
           </button>
@@ -167,7 +176,7 @@ export default function ListRow({ todo }: { todo: Todo }) {
           // there is no chip to preserve — only the words.
           <span
             title={todo.title ?? undefined}
-            className="text-ink block w-full truncate text-sm"
+            className="text-ink block w-full truncate text-[13.5px] font-medium"
           >
             {todo.title || <span className="text-ink-3/60">Untitled</span>}
           </span>
@@ -194,7 +203,6 @@ export default function ListRow({ todo }: { todo: Todo }) {
           boardId={todo.board_id}
           value={todo.assignee_id}
           onChange={(assignee_id) => patch({ assignee_id })}
-          alwaysVisible
         />
       </div>
 
@@ -206,7 +214,6 @@ export default function ListRow({ todo }: { todo: Todo }) {
           bare
           value={todo.due_date}
           onChange={(due_date) => patch({ due_date })}
-          alwaysVisible
         />
       </div>
 

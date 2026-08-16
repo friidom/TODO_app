@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { HistoryIcon } from "lucide-react";
+import { ArrowRightIcon, HistoryIcon } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -7,11 +7,13 @@ import { memberInitial, memberName } from "@/components/members/memberLabels";
 import { useKeyPrefix } from "@/hooks/useKeyPrefix";
 import { useOpenTask } from "@/hooks/useOpenTask";
 import { useActivities } from "@/services/activities/useActivities";
+import { groupActivitiesByDay } from "@/services/activities/activityGroups";
 import {
   describeActivity,
   type ActivityContext,
 } from "@/services/activities/activityText";
 import { useBoardMembers } from "@/services/members/useBoardMembers";
+import type { BoardMember } from "@/services/members/membersApi";
 import { useTodos } from "@/services/todos/useTodos";
 import type { Activity } from "@/types/data";
 import { cn } from "@/utils/cn";
@@ -39,10 +41,16 @@ import { relativeTime } from "@/utils/relativeTime";
  * query. Everything else the sentence needs was snapshotted into the payload by
  * the trigger, which is what lets an entry about a deleted card still read.
  *
+ * **Three things per entry, in a fixed shape**: who (avatar and name), what
+ * (the sentence), and where it landed (the chip). The chip is the part worth
+ * having — a column of "→ In Progress", "→ Highest", "→ Aug 20" can be scanned
+ * without reading a single sentence, which is what makes this a feed rather
+ * than a log dump.
+ *
  * **Two callers, one component.** The drawer shows the whole page of entries;
  * the Summary tab shows the newest few inside a widget. They differ by a
  * `limit` and by what wraps them, which is not enough difference to be worth a
- * second implementation of eleven event sentences.
+ * second implementation of fourteen event sentences.
  */
 export default function ActivityFeed({
   boardId,
@@ -82,6 +90,14 @@ export default function ActivityFeed({
 
   const shown = limit ? activities?.slice(0, limit) : activities;
 
+  const days = useMemo(
+    // `new Date()` rather than a frozen value: this is the render boundary
+    // where the clock is allowed to be read, which is exactly why the pure
+    // module takes it as an argument.
+    () => (shown ? groupActivitiesByDay(shown, new Date()) : []),
+    [shown],
+  );
+
   if (isPending) {
     return (
       <div className={cn("space-y-4", compact ? "px-4 pb-4" : "p-4")} aria-busy>
@@ -108,7 +124,7 @@ export default function ActivityFeed({
     );
   }
 
-  if (!shown || shown.length === 0) {
+  if (days.length === 0) {
     // Compact says it in one line, because the card around it already carries
     // a title explaining what is missing. The drawer has a whole panel to fill
     // and an illustration is what stops it reading as a failed load.
@@ -131,11 +147,41 @@ export default function ActivityFeed({
   }
 
   return (
-    <ul className={compact ? "px-2 pb-2" : "p-2"}>
-      {shown.map((activity) => (
-        <ActivityRow key={activity.id} activity={activity} context={context} />
+    <div className={compact ? "px-2 pb-2" : "p-2"}>
+      {days.map((day) => (
+        <section key={day.key}>
+          {/* The day header, and the whole reason it is here: a column of
+              relative stamps says how long ago, never when. Sticky so scrolling
+              a long day never leaves you without the boundary you are inside —
+              the same behaviour the list's group dividers have.
+
+              An inset shadow rather than a border, so nothing in the sticky
+              element's own box changes as it detaches. The fill has to be the
+              container's own — `bg-surface` inside a Summary card, `bg-rail`
+              inside the drawer — because a sticky header is opaque by
+              definition and a mismatched one would read as a band. */}
+          <h3
+            className={cn(
+              "text-ink-3 sticky top-0 z-10 px-2 py-1.5 text-[11px] font-semibold tracking-[0.04em] uppercase shadow-[inset_0_-1px_0_var(--hairline)]",
+              compact ? "bg-surface" : "bg-rail",
+            )}
+          >
+            {day.label}
+          </h3>
+
+          <ul className="pt-1 pb-2">
+            {day.items.map((activity) => (
+              <ActivityRow
+                key={activity.id}
+                activity={activity}
+                context={context}
+                members={members}
+              />
+            ))}
+          </ul>
+        </section>
       ))}
-    </ul>
+    </div>
   );
 }
 
@@ -147,16 +193,22 @@ export default function ActivityFeed({
  * row that highlights as one object is easier to scan than a line with a link
  * buried in it. Rows with nothing to open are plain `<div>`s at the same
  * metrics, so the list does not change rhythm between them.
+ *
+ * **`members` is a prop rather than a hook call.** It used to read
+ * `useBoardMembers` itself, which mounted one observer per row on a query the
+ * parent already holds — fifty rows, fifty subscriptions, one cache entry. The
+ * parent resolves it once and hands it down.
  */
 function ActivityRow({
   activity,
   context,
+  members,
 }: {
   activity: Activity;
   context: ActivityContext;
+  members: BoardMember[];
 }) {
   const { openTask } = useOpenTask();
-  const { data: members = [] } = useBoardMembers(activity.board_id);
 
   const line = describeActivity(activity, context);
   const actor = members.find((member) => member.id === activity.actor_id);
@@ -183,6 +235,26 @@ function ActivityRow({
           {line.text}
         </p>
 
+        {line.detail && (
+          <span className="border-hairline bg-ink/[0.04] mt-1.5 inline-flex max-w-full items-center gap-1 rounded-full border py-0.5 pr-2 pl-1.5 text-[11px]">
+            <span className="text-ink-3 shrink-0">{line.detail.label}</span>
+
+            <ArrowRightIcon className="text-ink-3/60 size-3 shrink-0" />
+
+            {/* The one coloured thing in the row, and only where the value has
+                a colour of its own in the product already — a priority. A chip
+                that tinted every value would make the feed a palette. */}
+            <span
+              className={cn(
+                "min-w-0 truncate font-medium",
+                line.detail.tone ?? "text-ink",
+              )}
+            >
+              {line.detail.value}
+            </span>
+          </span>
+        )}
+
         {when && (
           <p className="text-ink-3 mt-0.5 text-[11px] tabular-nums">{when}</p>
         )}
@@ -190,7 +262,7 @@ function ActivityRow({
     </>
   );
 
-  const shell = "flex w-full gap-2.5 rounded-control px-2 py-2 text-left";
+  const shell = "flex w-full gap-2.5 rounded-control px-2 py-1.5 text-left";
 
   return (
     <li>

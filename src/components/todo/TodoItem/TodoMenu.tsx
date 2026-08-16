@@ -132,6 +132,9 @@ export default function TodoMenu({
                 value={todo.priority}
                 onChange={(priority) => patch({ priority })}
                 showLabel
+                // Same reason as the detail modal: a labelled field in a menu
+                // has nothing to hover, so the control is always drawn.
+                alwaysVisible
               />
             </Field>
 

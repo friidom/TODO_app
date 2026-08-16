@@ -143,6 +143,12 @@ export default function TodoCard({
               value={priority}
               onChange={onPriorityChange}
               showLabel={toPriority(priority) !== null}
+              // The card keeps its placeholder. A board is scanned by moving
+              // between cards rather than by resting on one, so a control that
+              // only appears under the cursor is a control most people never
+              // find — the opposite of the list, where the same glyph on forty
+              // consecutive rows was the problem.
+              alwaysVisible
             />
             <WorkTypeControl
               value={workType}
