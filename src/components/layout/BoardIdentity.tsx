@@ -3,6 +3,7 @@ import {
   ChevronRightIcon,
   ClockIcon,
   Columns3Icon,
+  HistoryIcon,
   LayoutListIcon,
   type LucideIcon,
   MoreHorizontalIcon,
@@ -142,6 +143,19 @@ export default function BoardIdentity({
           as page chrome rather than as part of the heading. */}
       <div className="mt-0.5 flex shrink-0 items-center gap-1">
         <MemberStack onOpen={() => openPanel("members")} />
+
+        {/* The activity drawer's only trigger (M18). Beside the roster because
+            both are board-level context rather than view controls — the toolbar
+            below is about what is on screen, this row is about the board. */}
+        <button
+          type="button"
+          onClick={() => openPanel("activity")}
+          aria-label="Board activity"
+          title="Board activity"
+          className="text-ink-3 hover:bg-elevated hover:text-ink focus-visible:ring-brand rounded-control grid size-8 place-items-center transition-colors outline-none focus-visible:ring-2"
+        >
+          <HistoryIcon className="size-4" />
+        </button>
 
         {owned && (
           <DropdownMenu>

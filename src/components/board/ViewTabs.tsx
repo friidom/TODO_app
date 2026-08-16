@@ -1,5 +1,6 @@
 import {
   CalendarIcon,
+  GaugeIcon,
   KanbanIcon,
   ListIcon,
   WaypointsIcon,
@@ -11,6 +12,7 @@ import { VIEWS, VIEW_MODES, type ViewMode } from "@/services/views/registry";
 import { cn } from "@/utils/cn";
 
 const ICONS: Record<ViewMode, LucideIcon> = {
+  summary: GaugeIcon,
   board: KanbanIcon,
   list: ListIcon,
 };

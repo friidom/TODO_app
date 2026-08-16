@@ -5,10 +5,12 @@ import Drawer from "@/components/layout/Drawer";
 import Layout from "@/components/layout/Layout";
 import ViewShell from "@/components/layout/ViewShell";
 import ViewToolbar from "@/components/board/ViewToolbar";
+import ActivityDrawer from "@/components/activity/ActivityDrawer";
 import MembersDrawer from "@/components/members/MembersDrawer";
 import TaskDetailModal from "@/components/todo/TaskDetailModal";
 import KanbanBoard from "@/components/kanban/KanbanBoard";
 import ListView from "@/components/views/ListView";
+import SummaryView from "@/components/summary/SummaryView";
 import NotFoundPage from "@/pages/error/NotFoundPage";
 import Loading from "@/components/loading/LoadingPage";
 import { useBoard } from "@/services/boards/useBoard";
@@ -75,21 +77,30 @@ function BoardView({ boardId }: { boardId: string }) {
         // Board-level drawers only. The task detail used to win this slot and
         // reserve 22rem of every wide screen for a surface that is open a
         // fraction of the time; it is a modal now, so nothing but an open
-        // Members drawer ever takes width from the board.
+        // board drawer ever takes width from the board.
         drawer={
           panel === "members" ? (
             <Drawer title="Members" onClose={closePanel}>
               <MembersDrawer boardId={boardId} />
             </Drawer>
+          ) : panel === "activity" ? (
+            <Drawer title="Activity" onClose={closePanel}>
+              <ActivityDrawer boardId={boardId} />
+            </Drawer>
           ) : undefined
         }
       >
-        {/* Neither view takes a boardId prop: the hooks beneath them read the
-            route param themselves, so the board they render and the board in
-            the URL cannot disagree. They are two layouts over one query — the
-            filter, the search, the sort and the grouping are the same values
-            for both. */}
-        {view.mode === "list" ? <ListView /> : <KanbanBoard />}
+        {/* No view takes a boardId prop: the hooks beneath them read the route
+            param themselves, so the board they render and the board in the URL
+            cannot disagree. They are three renderings of one query — the scope,
+            the filter and the search are the same values for all of them. */}
+        {view.mode === "summary" ? (
+          <SummaryView />
+        ) : view.mode === "list" ? (
+          <ListView />
+        ) : (
+          <KanbanBoard />
+        )}
       </ViewShell>
 
       {/* Outside the shell, and `fixed`, so it costs the board no layout at all

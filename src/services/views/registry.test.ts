@@ -28,24 +28,39 @@ describe("view registry", () => {
   });
 
   it("recognises its own modes and nothing else", () => {
+    expect(isViewMode("summary")).toBe(true);
     expect(isViewMode("board")).toBe(true);
     expect(isViewMode("list")).toBe(true);
     expect(isViewMode("calendar")).toBe(false);
     expect(isViewMode(undefined)).toBe(false);
   });
 
-  it("reports the board as reordering and the list as not", () => {
+  it("reports the board as reordering and the others as not", () => {
     expect(capabilitiesOf("board").canReorder).toBe(true);
     expect(capabilitiesOf("list").canReorder).toBe(false);
+    expect(capabilitiesOf("summary").canReorder).toBe(false);
   });
 
-  it("lets both current views group and sort", () => {
+  it("lets both work-item views group and sort", () => {
     // Board and List have shown the same filter, sort and grouping since they
     // shipped. The registry has to keep saying so, or one of them would start
     // hiding a control the other offers.
-    for (const mode of VIEW_MODES) {
+    for (const mode of ["board", "list"] as const) {
       expect(capabilitiesOf(mode).canGroup).toBe(true);
       expect(capabilitiesOf(mode).canSort).toBe(true);
     }
+  });
+
+  it("lets Summary do neither, which is what hides its two dead controls", () => {
+    // `ViewToolbar` gates Group and Sort on exactly these flags. If Summary
+    // ever reports true here, two controls that change nothing reappear above
+    // a dashboard — which is the state the registry exists to make impossible
+    // to reach by accident.
+    expect(capabilitiesOf("summary").canGroup).toBe(false);
+    expect(capabilitiesOf("summary").canSort).toBe(false);
+  });
+
+  it("leads with Summary, because the tab order is this array", () => {
+    expect(VIEW_MODES[0]).toBe("summary");
   });
 });

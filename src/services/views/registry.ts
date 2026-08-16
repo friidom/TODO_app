@@ -19,7 +19,15 @@
  * adding a second is a failing test rather than a discovery in production.
  */
 
-export const VIEW_MODES = ["board", "list"] as const;
+/**
+ * Order matters: this is the order the tabs render in.
+ *
+ * Summary leads because it is the board's front page — the answer to "how is
+ * this going" before the answer to "what is on it". It is **not** the default
+ * mode, though: `useBoardView` still falls back to `board`, so every existing
+ * `/boards/:id` link opens exactly the view it always opened.
+ */
+export const VIEW_MODES = ["summary", "board", "list"] as const;
 
 export type ViewMode = (typeof VIEW_MODES)[number];
 
@@ -43,6 +51,26 @@ export interface ViewDefinition {
 }
 
 export const VIEWS: Record<ViewMode, ViewDefinition> = {
+  summary: {
+    mode: "summary",
+    label: "Summary",
+    /**
+     * All three false, and each for its own reason rather than as a default.
+     *
+     * It cannot reorder because it renders no card in a droppable. It cannot
+     * group because its widgets *are* groupings — of status, priority, type and
+     * assignee — and a second grouping layered over them would mean a status
+     * chart of the tasks grouped by status. It cannot sort because a count has
+     * no order to honour.
+     *
+     * This is the first view where the capability flags do visible work:
+     * `ViewToolbar` reads them and hides the Group and Sort controls, rather
+     * than leaving two controls on screen that change nothing. Filter and
+     * search still apply — a summary of the filtered board is a real question,
+     * and it is the same `useVisibleTodos` pipeline the other two read.
+     */
+    capabilities: { canReorder: false, canGroup: false, canSort: false },
+  },
   board: {
     mode: "board",
     label: "Board",
