@@ -363,6 +363,10 @@ function Body({
                   value={todo.priority}
                   onChange={(priority) => patch({ priority })}
                   showLabel
+                  // A labelled field has no row to hover, so the placeholder
+                  // has to stay on screen — the field's own label is what
+                  // reserves the space, and an empty one would look broken.
+                  alwaysVisible
                 />
               </Field>
 

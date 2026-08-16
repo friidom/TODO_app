@@ -19,6 +19,7 @@ import { useColumns } from "@/services/columns/useColumnsApi";
 import { useBoardMembers } from "@/services/members/useBoardMembers";
 import {
   categoryIndex,
+  dueSoonItems,
   priorityDistribution,
   recentCounts,
   statusDistribution,
@@ -30,13 +31,17 @@ import { cn } from "@/utils/cn";
 import { todayISO } from "@/utils/dueDate";
 import SummaryCard from "./SummaryCard";
 import StatusOverview from "./StatusOverview";
+import DueSoon from "./DueSoon";
 import { PriorityBreakdown, TeamWorkload, TypeBreakdown } from "./Breakdowns";
 
 /** The window every "recently" and "soon" on this page means. */
 const WINDOW_DAYS = 7;
 
 /** How many entries the activity widget shows before the drawer takes over. */
-const ACTIVITY_PREVIEW = 6;
+const ACTIVITY_PREVIEW = 7;
+
+/** How many deadlines the due-soon widget lists before it stops being a list. */
+const DUE_SOON_LIMIT = 7;
 
 /**
  * The board's own dashboard (M18).
@@ -60,9 +65,16 @@ const ACTIVITY_PREVIEW = 6;
  * cannot disagree. The board header's "3 of 57" chip already says when the view
  * is narrowed.
  *
+ * **The layout is three rows of two, under one strip.** Each row pairs a
+ * question with its answer at the same altitude: what the board looks like
+ * beside what just happened to it; how it is prioritised beside what kind of
+ * work it is; who is carrying it beside what is about to be late. Nothing here
+ * spans the full width any more — a full-bleed card with four rows in it was
+ * most of the empty space on the previous version.
+ *
  * **Adding a widget is: write a component, wrap it in `SummaryCard`, put it in
  * the grid.** There is deliberately no dashboard framework, no widget registry
- * and no layout persistence — six widgets do not pay for one, and the brief
+ * and no layout persistence — seven widgets do not pay for one, and the brief
  * asked for composable components rather than a system.
  */
 export default function SummaryView() {
@@ -76,7 +88,7 @@ export default function SummaryView() {
 
   const today = todayISO();
 
-  // One index, four consumers. Rebuilt only when the columns change, which
+  // One index, five consumers. Rebuilt only when the columns change, which
   // matters because every optimistic card patch re-runs this component.
   const index = useMemo(() => categoryIndex(columns), [columns]);
 
@@ -106,6 +118,11 @@ export default function SummaryView() {
     [todos, index, today],
   );
 
+  const due = useMemo(
+    () => dueSoonItems(todos, index, today, WINDOW_DAYS, DUE_SOON_LIMIT),
+    [todos, index, today],
+  );
+
   if (isLoading) return <Loading />;
 
   if (error) return <p className="text-status-red text-sm">{error.message}</p>;
@@ -113,10 +130,20 @@ export default function SummaryView() {
   return (
     <div className="h-full min-h-0 overflow-y-auto pb-6">
       <div className="flex flex-col gap-4">
-        {/* THE METRIC ROW — six compact tiles rather than four large ones. They
-            are read as a row, so each one is a label, a number and nothing
-            else; anything that needs a chart is a widget below. */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+        {/* THE METRIC STRIP — one surface split by hairlines, not six floating
+            tiles. Six bordered boxes in a row is six objects to parse before
+            the first number is read, and each one carried enough padding to
+            make the row taller than the chart beneath it. As one strip it is a
+            single object with six readings, which is what the row actually is.
+
+            **`gap-px` over `bg-hairline`, not `divide-x`.** The grid is 2 / 3 /
+            6 columns across three breakpoints, and `divide-*` puts its border
+            on every child but the first — which in a 3-column grid draws a top
+            rule on cells 2 and 3 as well, mid-row. A one-pixel gap letting the
+            parent's own colour through is a rule between every pair of
+            neighbours at any column count, with nothing to keep in step. Each
+            cell repaints `bg-surface` over it. */}
+        <div className="border-hairline bg-hairline rounded-surface grid grid-cols-2 gap-px overflow-hidden border sm:grid-cols-3 xl:grid-cols-6">
           <Metric icon={LayoutListIcon} label="Total" value={stats.total} />
 
           <Metric
@@ -159,13 +186,14 @@ export default function SummaryView() {
           />
         </div>
 
-        {/* The two widest widgets first: what the board looks like, and what
+        {/* The two widest questions first: what the board looks like, and what
             just happened to it. Everything below is a breakdown of the first. */}
-        <div className="grid gap-4 xl:grid-cols-[1.15fr_1fr]">
+        <div className="grid items-start gap-4 xl:grid-cols-[1.15fr_1fr]">
           <StatusOverview
             slices={byStatus}
             columns={columns}
             total={stats.total}
+            done={stats.done}
           />
 
           <SummaryCard
@@ -189,14 +217,17 @@ export default function SummaryView() {
           </SummaryCard>
         </div>
 
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="grid items-start gap-4 xl:grid-cols-2">
           <PriorityBreakdown slices={byPriority} />
           <TypeBreakdown slices={byType} />
         </div>
 
-        <TeamWorkload entries={load} members={members} />
+        <div className="grid items-start gap-4 xl:grid-cols-2">
+          <TeamWorkload entries={load} members={members} />
+          <DueSoon items={due} windowDays={WINDOW_DAYS} />
+        </div>
 
-        {/* Said once, at the foot, rather than on six cards. The identity row
+        {/* Said once, at the foot, rather than on seven cards. The identity row
             above already reports "N of M tasks" when a filter is on; this is
             the reminder that the charts moved too. */}
         {view.filterCount > 0 || view.query.trim() !== "" ? (
@@ -211,12 +242,17 @@ export default function SummaryView() {
 }
 
 /**
- * One number, at the top of the page.
+ * One number in the strip.
  *
- * Deliberately not a `SummaryCard`: a tile has no title row, no hint and no
+ * Deliberately not a `SummaryCard`: a cell has no title row, no hint and no
  * action, so wearing the widget shell would mean overriding three of its four
- * decisions. The border, surface and radius are the same tokens, which is what
- * makes them belong to the same page.
+ * decisions — and it has no border of its own at all now that the strip
+ * supplies one for the whole row.
+ *
+ * Label and value on ONE line rather than stacked. Stacked, six of these were
+ * ~110px tall and the row outweighed the chart under it; side by side they are
+ * ~62px and the number is still the largest thing in the cell, because size and
+ * weight carry the hierarchy rather than position.
  */
 function Metric({
   icon: Icon,
@@ -238,26 +274,41 @@ function Metric({
   } as const;
 
   return (
-    <div className="border-hairline bg-surface rounded-surface border px-3.5 py-3">
-      <div className="text-ink-3 flex items-center gap-1.5 text-[11px] font-medium">
-        <Icon className={cn("size-3.5 shrink-0", tone && TONES[tone])} />
-        <span className="truncate">{label}</span>
-      </div>
-
-      <p
+    // `bg-surface` here rather than on the grid: the grid's background is the
+    // hairline the 1px gaps expose, so each cell has to repaint over it.
+    <div className="bg-surface flex min-w-0 items-center gap-3 px-3.5 py-3">
+      {/* The glyph sits in a tinted disc rather than beside the label, so the
+          six cells have one repeating anchor down the left of each and the row
+          scans as a row. */}
+      <span
         className={cn(
-          "mt-1.5 text-2xl leading-none font-semibold tabular-nums",
-          tone ? TONES[tone] : "text-ink",
+          "grid size-8 shrink-0 place-items-center rounded-full",
+          tone ? `${TONES[tone]} bg-current/10` : "text-ink-3 bg-ink/[0.06]",
         )}
       >
-        {value}
-      </p>
+        <Icon className="size-4" />
+      </span>
 
-      {/* Reserved whether or not it is filled, so the six tiles stay the same
-          height and the row does not step up and down across breakpoints. */}
-      <p className="text-ink-3/70 mt-1 h-3.5 text-[10px] leading-none">
-        {note}
-      </p>
+      <div className="min-w-0">
+        <p
+          className={cn(
+            "text-xl leading-none font-semibold tabular-nums",
+            tone ? TONES[tone] : "text-ink",
+          )}
+        >
+          {value}
+        </p>
+
+        <p className="text-ink-3 mt-1 truncate text-[11px] font-medium">
+          {label}
+        </p>
+
+        {/* Reserved whether or not it is filled, so the six cells stay the same
+            height and the strip does not step up and down across breakpoints. */}
+        <p className="text-ink-3/70 mt-0.5 h-3 truncate text-[10px] leading-none">
+          {note}
+        </p>
+      </div>
     </div>
   );
 }

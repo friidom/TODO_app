@@ -30,6 +30,7 @@ export default function PriorityControl({
   onChange,
   showLabel = false,
   bare = false,
+  alwaysVisible = false,
 }: {
   value: string | null;
   onChange: (value: Priority | null) => void;
@@ -44,6 +45,20 @@ export default function PriorityControl({
    * the arrow was not already carrying.
    */
   bare?: boolean;
+  /**
+   * Keep the placeholder on screen when nothing is set.
+   *
+   * **Off by default, which is the change M18 made.** `SignalIcon` is what an
+   * unset priority renders, and in a list where most cards have none it drew
+   * the same meaningless glyph on every single row — a column of noise that
+   * looked like data. Faded out, an empty priority costs nothing to look at and
+   * the control is still one hover away, which is the same bargain
+   * `AssigneeControl` and `DueDateControl` already struck.
+   *
+   * `alwaysVisible` is for a surface with no row to hover — the card, where the
+   * control has to be findable without one.
+   */
+  alwaysVisible?: boolean;
 }) {
   const { mounted, close, triggerProps, panelProps } = useCardPopover();
 
@@ -60,7 +75,7 @@ export default function PriorityControl({
         title={`Priority: ${label}`}
         aria-label={`Priority: ${label}`}
         className={cn(
-          "flex shrink-0 items-center gap-1 rounded transition-colors",
+          "flex shrink-0 items-center gap-1 rounded transition-[colors,opacity]",
           bare
             ? cn(
                 "hover:bg-ink/10 p-0.5",
@@ -73,6 +88,12 @@ export default function PriorityControl({
                 "px-1.5 py-0.5 text-[11px] font-semibold",
                 meta ? meta.chip : "bg-ink/10 text-ink-3 hover:text-ink-2",
               ),
+          // Opacity, never `display` — the button stays in flow at zero, so a
+          // row does not reflow under the cursor and the grid track keeps its
+          // width whether or not the card has a priority.
+          !meta &&
+            !alwaysVisible &&
+            "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
         )}
       >
         <Icon className={bare ? "size-4" : "size-3"} />

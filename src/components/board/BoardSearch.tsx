@@ -71,8 +71,10 @@ export default function BoardSearch({ view }: { view: BoardView }) {
         HEADER_CONTROL_QUIET,
         // The widest control in the row, and it earns it: search is the one
         // thing here used on every visit, and a field that shows six characters
-        // of a query makes you re-read what you typed.
-        "w-44 md:w-56 lg:w-72",
+        // of a query makes you re-read what you typed. It keeps growing past
+        // `lg` because the toolbar's other four controls are fixed-width, so
+        // every pixel a wide screen adds would otherwise become empty gap.
+        "w-44 md:w-56 lg:w-72 2xl:w-96",
         // Once it is holding a query it is a decision like the others, so it
         // takes the same active treatment they do.
         active && HEADER_CONTROL_ACTIVE,

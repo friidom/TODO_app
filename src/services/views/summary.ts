@@ -10,7 +10,7 @@ import {
   type WorkType,
 } from "@/constants/workTypes";
 import type { IColumn, Todo } from "@/types/data";
-import { dueStatus, todayISO } from "@/utils/dueDate";
+import { dueStatus, todayISO, type DueStatus } from "@/utils/dueDate";
 
 /**
  * What the board Summary counts, derived from the work items themselves (M18).
@@ -247,6 +247,66 @@ export function recentCounts(
   }
 
   return counts;
+}
+
+/**
+ * What is late and what is about to be, oldest deadline first.
+ *
+ * **Open items only, and it uses `dueStatus()` rather than its own comparison.**
+ * The plan states this as a rule rather than a preference — *"a dashboard that
+ * disagrees with the board about which task is late is worse than no
+ * dashboard"* — so `overdue` here means exactly what the card chip, the `due`
+ * filter and the `Overdue` count mean, because it is the same call.
+ *
+ * Sorted by the date itself, so the most urgent thing is the first row. Ties
+ * break on `board_key` — a stable, human-meaningful order — falling back to the
+ * id for a card whose key the server has not allocated yet.
+ *
+ * `limit` is applied after sorting, so the widget shows the *most* urgent N
+ * rather than whichever N the query happened to return first.
+ */
+export type DueSoonItem = { todo: Todo; status: DueStatus };
+
+export function dueSoonItems(
+  todos: Todo[],
+  index: Map<string, ColumnCategory>,
+  today: string,
+  windowDays: number,
+  limit: number,
+): DueSoonItem[] {
+  // Same calendar-day arithmetic `recentCounts` uses, and for the same reason:
+  // `due_date` denotes a day, so the horizon has to be a day too. Building a
+  // Date here would reintroduce the timezone shift `utils/dueDate.ts` exists to
+  // avoid.
+  const horizon = todayISO(
+    new Date(Date.parse(`${today}T00:00:00Z`) + windowDays * 86_400_000),
+  );
+
+  const items: DueSoonItem[] = [];
+
+  for (const todo of todos) {
+    if (todo.due_date === null) continue;
+    if (categoryOfTodo(todo, index) === "done") continue;
+
+    const status = dueStatus(todo.due_date, today);
+
+    // Overdue is never filtered out by the horizon — something three weeks late
+    // is more urgent than something due on Friday, and a "due soon" panel that
+    // dropped it would be the one place on the page where a late task is
+    // invisible.
+    if (status !== "overdue" && todo.due_date.slice(0, 10) > horizon) continue;
+
+    items.push({ todo, status });
+  }
+
+  return items
+    .sort(
+      (a, b) =>
+        a.todo.due_date!.localeCompare(b.todo.due_date!) ||
+        (a.todo.board_key ?? 0) - (b.todo.board_key ?? 0) ||
+        a.todo.id.localeCompare(b.todo.id),
+    )
+    .slice(0, limit);
 }
 
 /** One slice of a breakdown: what it is, and how many. */

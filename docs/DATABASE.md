@@ -245,18 +245,70 @@ Fields
 
 ## activities
 
-Audit history.
+Board history. **Shipped in M18** — `20260815090000_create_activities.sql` and
+`20260816090000_activity_field_events.sql`.
+
+The shape below replaces the `todo_id` / `author_id` / `old_value` / `new_value`
+sketch this document carried before it was built. Two things changed and both
+were deliberate: the entry points at any **entity**, not only a work item, so
+column and membership events fit the same table; and the before/after pair moved
+into one `jsonb` payload, because different events need different fields and two
+text columns could not carry a column title beside a role name.
 
 Fields
 
 - id
-- board_id
-- todo_id
-- author_id
-- action
-- old_value
-- new_value
+- board_id — the policy key, as on every board-scoped child table
+- actor_id — who did it, recorded at write time and never inferred at read time
+- entity_type — `todo` | `column` | `member`
+- entity_id — **no foreign key**, deliberately
+- action — see the pair list below
+- payload — `jsonb not null default '{}'`
 - created_at
+
+`(entity_type, action)` is checked as a **pair**, so a combination no trigger
+writes and no reader can render cannot be stored:
+
+| entity_type | actions |
+| --- | --- |
+| `todo` | `created`, `moved`, `assigned`, `retitled`, `priority_changed`, `due_changed`, `type_changed`, `deleted` |
+| `column` | `created`, `renamed`, `deleted` |
+| `member` | `added`, `role_changed`, `removed` |
+
+The logged set of todo fields is exactly the set the UI can write — column,
+assignee, title, priority, due date, type. `rank` and `position` are **not** in
+it: a drag upserts a whole column's worth of rows to renumber them, and logging
+that would fill the feed in a day.
+
+### Two rules this table exists to keep
+
+1. **Record the actor, never infer it at read time.** `actor_id` is written from
+   `auth.uid()` inside the trigger. `on delete set null`, not cascade — a
+   departing account must not take the board's history with it.
+2. **An entry must still explain itself after the row it points at is deleted.**
+   `entity_id` carries no foreign key, and `payload` snapshots whatever the
+   sentence needs — column titles rather than column ids, the card's title and
+   `board_key`, the role name. A foreign key here would either cascade the
+   history away with the card or block the delete.
+
+### There is no client write path
+
+`activities` has a SELECT policy and nothing else — no INSERT policy, and no
+INSERT grant. The only writers are three `security definer` trigger functions
+(`log_todo_activity`, `log_column_activity`, `log_member_activity`). A client
+cannot forge, backdate, delete or omit an entry, because the triggers are on the
+tables themselves rather than in the API layer.
+
+Read policy: `board_id in (select accessible_board_ids())` — the same predicate
+`columns` and `todos` use, so an entry is visible under exactly the same rule as
+the card it describes.
+
+### Retention
+
+`prune_activities(p_keep_days integer default 180)`, service-role only, scheduled
+via `pg_cron` where the extension is enabled. This is the one table with no
+natural bound: every other one is proportional to how much work exists, and this
+one to how much work has ever been done.
 
 ---
 
@@ -298,11 +350,14 @@ attachments.todo_id
 labels.board_id
 → boards.id
 
-activities.todo_id
-→ todos.id
+activities.board_id
+→ boards.id (on delete cascade)
 
-activities.author_id
-→ profiles.id
+activities.actor_id
+→ profiles.id (on delete set null)
+
+activities.entity_id
+→ nothing, deliberately — see the table above
 
 ---
 
@@ -341,7 +396,9 @@ todos(board_id)
 
 comments(todo_id)
 
-activities(todo_id)
+activities(board_id, created_at desc) — the feed
+
+activities(board_id, entity_id) — one work item's own history
 
 board_members(user_id)
 

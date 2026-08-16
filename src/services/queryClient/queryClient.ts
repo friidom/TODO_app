@@ -52,6 +52,36 @@ const mutationCache = new MutationCache({
 
     toast.error(messageOf(error));
   },
+
+  /**
+   * Mark the activity feed stale after any successful write (M18).
+   *
+   * **The gap this closes.** `activities` is written by database triggers, so
+   * the client never learns that an entry appeared: moving a card patches the
+   * todos cache optimistically and the server writes a row nobody asked about.
+   * Without this, a feed open on the Summary tab stays frozen while you work in
+   * front of it — the one place the log is guaranteed to be watched.
+   *
+   * **Why it belongs here and not in the mutations.** Every mutation would
+   * otherwise grow an invalidate that has nothing to do with what it writes,
+   * and a new one added later would silently not have it. This file already
+   * owns the cross-cutting mutation concern (the failure toast); the feed is
+   * the second one.
+   *
+   * **It costs nothing on the board.** `invalidateQueries` on a query with no
+   * mounted observer only marks it stale — no request is made. `useActivities`
+   * is mounted only on the Summary tab and inside the `?panel=activity`
+   * drawer, so on Board and List this handler does no network work at all.
+   *
+   * The prefix `["activities"]` rather than a board-scoped key: this handler
+   * has no board in scope, and the only entries it can match belong to boards
+   * this session has actually opened. Realtime (M6-B) is what eventually
+   * replaces this with a push, and it is the shape an append-only table
+   * handles best.
+   */
+  onSuccess: () => {
+    void queryClient.invalidateQueries({ queryKey: ["activities"] });
+  },
 });
 
 const queryCache = new QueryCache({

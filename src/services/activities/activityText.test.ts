@@ -119,6 +119,33 @@ describe("describeActivity — work items", () => {
     expect(line.text).toBe("renamed KAN-3 to “New”");
   });
 
+  it("carries the destination status as the chip", () => {
+    // The half of an entry people scan for: the sentence says what happened,
+    // the chip says where it landed.
+    const line = describeActivity(
+      entry({
+        action: "moved",
+        payload: { board_key: 3, from: "Todo", to: "In Progress" },
+      }),
+      CTX,
+    );
+
+    expect(line.detail).toEqual({ label: "Status", value: "In Progress" });
+  });
+
+  it("gives create and rename no chip, because they land nowhere", () => {
+    expect(
+      describeActivity(entry({ action: "created" }), CTX).detail,
+    ).toBeNull();
+
+    expect(
+      describeActivity(
+        entry({ action: "retitled", payload: { from: "Old", to: "New" } }),
+        CTX,
+      ).detail,
+    ).toBeNull();
+  });
+
   it("never links a deleted item", () => {
     const line = describeActivity(
       entry({ action: "deleted", payload: { board_key: 3 } }),
@@ -150,6 +177,89 @@ describe("describeActivity — work items", () => {
     );
 
     expect(line.text).toBe("created OPS-4");
+  });
+});
+
+describe("describeActivity — field changes", () => {
+  it("spells a priority the way the rest of the product does", () => {
+    // Through `PRIORITIES`, so the feed cannot call `highest` anything the
+    // sort, the filter and the card chip do not.
+    const line = describeActivity(
+      entry({
+        action: "priority_changed",
+        payload: { board_key: 23, from: null, to: "highest" },
+      }),
+      CTX,
+    );
+
+    expect(line.text).toBe("changed the priority of KAN-23");
+    expect(line.detail).toEqual({
+      label: "Priority",
+      value: "Highest",
+      tone: "text-status-red",
+    });
+    expect(line.taskId).toBe("todo-1");
+  });
+
+  it("reads a cleared priority as None rather than as a blank", () => {
+    const line = describeActivity(
+      entry({
+        action: "priority_changed",
+        payload: { board_key: 23, from: "high", to: null },
+      }),
+      CTX,
+    );
+
+    expect(line.detail).toEqual({ label: "Priority", value: "None" });
+  });
+
+  it("renders a priority a later migration added, uncoloured", () => {
+    const line = describeActivity(
+      entry({ action: "priority_changed", payload: { to: "blocker" } }),
+      CTX,
+    );
+
+    expect(line.detail).toEqual({ label: "Priority", value: "blocker" });
+  });
+
+  it("formats a due date through the one date formatter", () => {
+    const line = describeActivity(
+      entry({
+        action: "due_changed",
+        payload: { board_key: 23, from: null, to: "2026-08-20" },
+      }),
+      CTX,
+    );
+
+    expect(line.text).toBe("rescheduled KAN-23");
+    expect(line.detail?.label).toBe("Due");
+    expect(line.detail?.value).toContain("20");
+  });
+
+  it("distinguishes clearing a due date from setting one", () => {
+    const line = describeActivity(
+      entry({
+        action: "due_changed",
+        payload: { board_key: 23, from: "2026-08-20", to: null },
+      }),
+      CTX,
+    );
+
+    expect(line.text).toBe("cleared the due date on KAN-23");
+    expect(line.detail).toEqual({ label: "Due", value: "None" });
+  });
+
+  it("reads a type change", () => {
+    const line = describeActivity(
+      entry({
+        action: "type_changed",
+        payload: { board_key: 23, from: "Task", to: "Bug" },
+      }),
+      CTX,
+    );
+
+    expect(line.text).toBe("changed the type of KAN-23");
+    expect(line.detail).toEqual({ label: "Type", value: "Bug" });
   });
 });
 
