@@ -18,9 +18,11 @@ import CalendarChip from "./CalendarChip";
  * copy of `useKanbanDnd`.
  *
  * **The overflow rule, applied.** `DAY_ITEM_LIMIT` items are listed and the
- * rest become one control that opens the day. Decided once in the pure module
- * because M19 states it recurs in both layouts; only the number differs with
- * the height a layout gives a cell.
+ * rest become one control that opens the day in the week layout. Decided once
+ * in the pure module because M19 states it recurs in both layouts — and the
+ * week's limit is infinite, so the branch below simply never fires there and
+ * the cell scrolls instead. The escalation has to stop at the surface it
+ * escalates *to*.
  */
 export default function DayCell({
   day,
@@ -95,9 +97,10 @@ export default function DayCell({
         )}
       </div>
 
-      {/* Only the week cell scrolls, and only past its own limit — a month cell
-          never does, because a scrollbar in one of thirty-five boxes is
-          invisible until you are already inside it. */}
+      {/* Only the week cell scrolls — it has no item limit, so this is where a
+          busy day is actually read. A month cell never scrolls, because a
+          scrollbar in one of thirty-five boxes is invisible until you are
+          already inside it; it shows three and hands the day over. */}
       <div
         className={cn(
           "flex min-w-0 flex-col gap-1",

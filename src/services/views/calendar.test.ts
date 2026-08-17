@@ -234,8 +234,17 @@ describe("offscreenCount", () => {
 
 describe("DAY_ITEM_LIMIT", () => {
   it("gives a week cell more room than a month cell", () => {
-    // The overflow rule is one sentence for both layouts; only N varies with
-    // the height the layout gives a cell.
+    // The overflow rule is one sentence for both layouts; only the limit
+    // varies, with the height the layout gives a cell.
     expect(DAY_ITEM_LIMIT.week).toBeGreaterThan(DAY_ITEM_LIMIT.month);
+  });
+
+  it("bounds the month and does NOT bound the week, so the rule terminates", () => {
+    // The month cell escalates to the week. The week has nowhere to escalate
+    // to, so it lists everything and scrolls — a finite limit here would leave
+    // "+N more" re-opening the layout it is already in, which is a dead
+    // control on precisely the busiest day.
+    expect(Number.isFinite(DAY_ITEM_LIMIT.month)).toBe(true);
+    expect(Number.isFinite(DAY_ITEM_LIMIT.week)).toBe(false);
   });
 });

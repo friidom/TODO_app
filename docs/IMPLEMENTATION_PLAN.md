@@ -563,7 +563,7 @@ Risk labels, applied to every task:
 | **M16 · Shared View Model** | 🔶 Built 2026-08-14 | Scope, search, the view registry and the shared row shape. No migration. **Deferred: selection**, until a bulk action exists to select *for*. |
 | **M17 · Product Redesign** | 🔶 Built 2026-08-14 | `ViewShell` contract, rail removed, `?panel=` drawers, breadcrumb + view tabs, compact sidebar, Geist typography. No schema, no business logic. **Browser verification owed.** |
 | **M18 · Activity & Overview** | ⬜ Roadmap — **new** | `activities` + feed + dashboard. |
-| **M19 · Calendar** | ⬜ Roadmap — **new** | Date-based view. **No schema change.** |
+| **M19 · Calendar** | 🔶 Built 2026-08-17 | Month and week over M16's pipeline. **No schema change**, exactly as the milestone predicted. The four decisions it forced are recorded in the milestone body. **Browser verification owed.** |
 | **M20 · Timeline** | ⬜ Roadmap — **new** | Date-range view. **The one migration this roadmap forces.** |
 
 M10–M13 were roadmap direction added in the 2026-08-10 audit; M14–M20 in the 2026-08-14 revision. None of them is decomposed into tasks, and none is a commitment until it is. Appendix E records what is deliberately out of scope — **and it changed on 2026-08-14**, because Calendar and Timeline were on it.
@@ -580,7 +580,7 @@ Dependencies, not preference. Each row states what would have to be **rebuilt** 
 | 4 | **M6-A · Ordering (ranks)** · ✅ built 2026-08-14 (M6-05 pending) | The last cheap moment for the ordering migration: before any second reorderable surface exists (backlog rows, timeline rows) and before the redesign touches drag affordances. Doing it after means doing the DnD work twice. |
 | 5 | **M17 · Product Redesign** · ✅ built 2026-08-14 | Renders a settled hierarchy (M15) over a settled view model (M16). Ships the **view shell contract** that M19 and M20 slot into — that contract is the reason the redesign precedes the two new views rather than following them. |
 | 6 | **M18 · Activity & Overview** | Activity's table must not exist without a reader (M7-05); the Overview's recent-activity panel is that reader, so the two are one milestone. Both need M17 to know where they live now that the rail is gone. |
-| 7 | **M19 · Calendar** | The cheap date view, and the proof that M16's model survives a second axis — built before M20 pays for the same lesson with a migration. |
+| 7 | **M19 · Calendar** · ✅ built 2026-08-17 | The cheap date view, and the proof that M16's model survives a second axis — built before M20 pays for the same lesson with a migration. **It was:** a registry entry, a renderer and a pure date module, with no migration and no change to the pipeline. |
 | 8 | **M20 · Timeline** | Needs `todos.start_date`, and needs Calendar to have already surfaced whatever M16 got wrong about dates. |
 | 9 | **M6-B · Realtime (channels)** | Blocks nothing above it and is blocked by none of it — it is a cache-update path, not a layout. Wants M6-A's single-row writes already in place, or every event re-applies a whole-column renumber. |
 | 10 | **M7 · Comments** | Wants M6-B for live threads and M17 for where a thread renders. |
@@ -2724,7 +2724,7 @@ scope → fetch → filter → search → sort → group → select → render
 
 ---
 
-## Milestone 19 — Calendar · 🗺 Roadmap
+## Milestone 19 — Calendar · 🔶 Built 2026-08-17
 
 **For.** Work items placed on dates.
 
@@ -2740,6 +2740,23 @@ scope → fetch → filter → search → sort → group → select → render
 - **What a day cell shows past three or four items.** Overflow rule, decided once, because it recurs in the week and month layouts.
 
 **Explicitly not.** Recurring tasks. Multi-day bars — a task spanning days is a *range*, which is M20 and needs the column M20 adds. External calendar sync (`docs/PRODUCT_SPEC.md` has it long-term).
+
+### Built 2026-08-17 — the four decisions, answered
+
+The milestone forced four decisions rather than a task list. Each is recorded here and carried in a comment at the place it is implemented, because a decision only findable in a commit message is not recorded.
+
+| Decision | Answer | Where |
+|---|---|---|
+| **How a drop writes the date** | `useUpdateTodo` — the same mutation `DueDateControl` calls. `useCalendarDrop` holds no mutation of its own and adds no `onMutate`: `updateTodo` already patches the cache, and a second optimistic layer is what the milestone rules out. `useTodoPatch` is not called directly only because it binds to one card at construction and a drag handler learns the card at drop time. | `services/todos/useCalendarDrop.ts` |
+| **Timezones** | None, anywhere. All date maths is string maths over `YYYY-MM-DD`; `Date` appears inside two helpers, always through `Date.UTC`, always discarded. Reads go through `toCalendarDay`, writes through `fromCalendarDay` — the convention `utils/dueDate.ts` already established. **Note the plan's premise was stale**: `todos.due_date` is `timestamptz`, not `date` (`20260806092902_todos_task_fields.sql`), which makes the no-conversion rule more load-bearing rather than less. | `services/views/calendar.ts` |
+| **Where undated work goes** | A collapsible side strip, which is *also* a drop target — so clearing a date is the same gesture reversed, and dragging something undated onto a day is available, which is the gesture that makes a calendar useful for planning. Dropping them off the calendar entirely was the other option and loses that. The collapsed rail keeps reporting the count. | `components/calendar/UndatedStrip.tsx` |
+| **The overflow rule** | A day cell lists what its layout can show and hands the rest to a taller surface. Month: three, then one `+N more` that opens that day in the week layout. **Week: no limit** — it is the surface the month escalates *to*, so it lists everything and scrolls. A finite week limit would leave `+N more` re-opening the layout it is already in. | `DAY_ITEM_LIMIT`, `components/calendar/DayCell.tsx` |
+
+**What it did not need.** No migration, no new query, no new cache entry, no change to `useBoardView`, `useVisibleTodos` or `scope.ts`. The calendar reads the same pipeline the board and the list read; flipping to it changes one search param. Its own view state — `?date=` (a day) and `?cal=` (month/week) — lives in `useCalendarView`, a separate hook following M16's URL idiom rather than widening M16's own object with two params the other three views would carry and ignore.
+
+**Its DnD is its own, and does not touch the board's.** `useKanbanDnd` answers "which gap between which two cards" with a custom `collisionDetection`; a calendar drop answers "which day", over big rectangles with no internal order, so it is `closestCenter` over the day cells. `canReorder` stays `false` in the registry — the flag means *writes `todos.position`*, not "has drag and drop" — so M6-A's single-reorderer guard test is untouched.
+
+**Owed.** Browser verification (drag-to-reschedule, the undated round trip, month-grid height on a short viewport). Keyboard drag is absent here as it is on the board — M9, not M19.
 
 ---
 
