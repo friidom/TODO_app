@@ -250,6 +250,103 @@ export function recentCounts(
 }
 
 /**
+ * How much work arrived per day, over the last `days` days.
+ *
+ * **This is an intake trend, not a completion trend, and the difference is the
+ * data rather than the preference.** A completion trend needs to know *when*
+ * each item was completed, and nothing in the schema records that: doneness is
+ * derived from the column a card currently sits in (M2's rule — there is no
+ * second source of truth and no `completed_at`), so the only timestamp a done
+ * card carries is `updated_at`, which moves on any edit. Charting that would
+ * report a card retitled yesterday as completed yesterday — a plausible line
+ * made of guesses, which is worse than no line.
+ *
+ * The board's *history* does record it — `activities` holds a `todo.moved` row
+ * per transition — but that table is fetched newest-first with a hard `limit`
+ * for the feed, so a window older than the last page of activity would silently
+ * read as zero. A trend that is right only on quiet boards is the same failure
+ * with extra steps. **What would make it possible:** a `completed_at` column
+ * maintained by a trigger, or a date-bounded aggregate query over `activities`.
+ * Both are schema or query work, and neither belongs in a presentation pass.
+ *
+ * So this charts what *is* known exactly: `created_at`, which every cached row
+ * carries. It answers "how fast is work arriving", which is a real board-level
+ * question and the honest half of the throughput picture.
+ *
+ * **Local days, deliberately — the opposite of `due_date`'s rule.** A due date
+ * is a calendar day the user typed and must not be converted; `created_at` is a
+ * genuine instant, so "which day did this arrive" is a question about the
+ * reader's own timezone. `todayISO` is what does the conversion, once.
+ *
+ * Pure: takes `now`, never reads the clock. Always returns exactly `days`
+ * points, oldest first, so a quiet board draws a flat line rather than a short
+ * one — a chart whose width depends on its data cannot be compared with itself.
+ */
+export type TrendPoint = { day: string; count: number };
+
+export function createdTrend(
+  todos: Todo[],
+  now: Date,
+  days: number,
+): TrendPoint[] {
+  const points: TrendPoint[] = [];
+  const index = new Map<string, number>();
+
+  for (let i = days - 1; i >= 0; i -= 1) {
+    const day = todayISO(new Date(now.getTime() - i * 86_400_000));
+
+    index.set(day, points.length);
+    points.push({ day, count: 0 });
+  }
+
+  for (const todo of todos) {
+    const created = Date.parse(todo.created_at);
+
+    if (Number.isNaN(created)) continue;
+
+    const at = index.get(todayISO(new Date(created)));
+
+    if (at !== undefined) points[at].count += 1;
+  }
+
+  return points;
+}
+
+/**
+ * The same count over the `days` *before* the window, for a comparison.
+ *
+ * Real data on both sides — the same `created_at` field over the adjacent
+ * window — so "up 4 on the previous fortnight" is a fact rather than a
+ * flourish. Returns null when the board is younger than two windows, because
+ * comparing against a period that predates the board would report a rise that
+ * only means the board did not exist yet.
+ */
+export function previousIntake(
+  todos: Todo[],
+  now: Date,
+  days: number,
+): number | null {
+  const windowMs = days * 86_400_000;
+  const start = now.getTime() - 2 * windowMs;
+  const end = now.getTime() - windowMs;
+
+  let oldest = Infinity;
+  let count = 0;
+
+  for (const todo of todos) {
+    const created = Date.parse(todo.created_at);
+
+    if (Number.isNaN(created)) continue;
+
+    oldest = Math.min(oldest, created);
+
+    if (created >= start && created < end) count += 1;
+  }
+
+  return oldest === Infinity || oldest > start ? null : count;
+}
+
+/**
  * What is late and what is about to be, oldest deadline first.
  *
  * **Open items only, and it uses `dueStatus()` rather than its own comparison.**

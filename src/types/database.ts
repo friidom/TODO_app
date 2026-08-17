@@ -360,6 +360,7 @@ export type Database = {
           previous_status: string | null;
           priority: string | null;
           rank: number | null;
+          start_date: string | null;
           status: string | null;
           title: string | null;
           type: string;
@@ -381,6 +382,7 @@ export type Database = {
           previous_status?: string | null;
           priority?: string | null;
           rank?: number | null;
+          start_date?: string | null;
           status?: string | null;
           title?: string | null;
           type?: string;
@@ -402,6 +404,7 @@ export type Database = {
           previous_status?: string | null;
           priority?: string | null;
           rank?: number | null;
+          start_date?: string | null;
           status?: string | null;
           title?: string | null;
           type?: string;
@@ -493,6 +496,7 @@ export type Database = {
       leave_board: { Args: { p_board_id: string }; Returns: undefined };
       owns_space: { Args: { p_space_id: string }; Returns: boolean };
       provision_new_user: { Args: never; Returns: string };
+      prune_activities: { Args: { p_keep_days?: number }; Returns: number };
       rebalance_board_column_ranks: {
         Args: { p_board_id: string };
         Returns: number;

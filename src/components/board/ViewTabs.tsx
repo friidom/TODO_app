@@ -16,6 +16,7 @@ const ICONS: Record<ViewMode, LucideIcon> = {
   board: KanbanIcon,
   list: ListIcon,
   calendar: CalendarIcon,
+  timeline: WaypointsIcon,
 };
 
 /**
@@ -31,24 +32,21 @@ const ICONS: Record<ViewMode, LucideIcon> = {
  * Board and List one product rather than two screens, and it comes free from
  * all four living in the same URL.
  *
- * **Calendar left this list in M19** and is now a registry entry like the other
- * three — which cost exactly the icon below and nothing else, because the row
- * is driven by `VIEW_MODES` rather than by an array kept here. That was the
- * point of building it this way.
+ * **Calendar left this list in M19 and Timeline in M20**, and each cost exactly
+ * one icon below — because the row is driven by `VIEW_MODES` rather than by an
+ * array kept here. That was the point of building it this way.
  *
- * **Timeline is still listed and inert**, which is the whole of M17's
- * obligation to it: the shell is prepared, nothing is built. It renders at low
- * contrast and does not respond to a click — the placeholder idiom the sidebar
- * already used, and better than a tab that navigates to an empty page.
+ * **The placeholder list is gone with them.** M17 rendered the two unbuilt
+ * views as inert, low-contrast tabs so the shell was visibly prepared; both are
+ * built now, so the mechanism has nothing left to hold and staying would mean
+ * keeping an empty array and a second render path against the day someone
+ * invents a sixth view. The commit that adds one can add it back.
  *
  * Underline tabs with a brand accent on the active one. Pass 2 tried a
  * contained pill group; the mockup is explicit that these are underlines, and
  * it is the right call — a pill group competes with the four bordered controls
  * to its right, where an underline sits under the content it names.
  */
-const SOON: { label: string; icon: LucideIcon }[] = [
-  { label: "Timeline", icon: WaypointsIcon },
-];
 
 /**
  * The tab shell, worn by the live tabs and the placeholders alike.
@@ -100,20 +98,6 @@ export default function ViewTabs({ view }: { view: BoardView }) {
           </button>
         );
       })}
-
-      {SOON.map(({ label, icon: Icon }) => (
-        <span
-          key={label}
-          role="tab"
-          aria-selected={false}
-          aria-disabled
-          title={`${label} — not built yet`}
-          className={cn(TAB, "text-ink-3/45 cursor-default border-transparent")}
-        >
-          <Icon className="size-[17px]" />
-          {label}
-        </span>
-      ))}
     </div>
   );
 }

@@ -76,6 +76,16 @@ export const TODO_FIELDS = [
   "title",
   "type",
   "priority",
+  // Both ends of the range, and they arrive together (M20). The plan named
+  // `start_date` at M16 for exactly this moment: "adding `start_date` for M20
+  // widens it once, here, rather than per view" — so the Timeline is a
+  // renderer over the row every view already holds, not a query of its own.
+  //
+  // Same type and same convention as `due_date`: a `timestamptz` holding
+  // midnight UTC, read back through `toCalendarDay`. See the migration
+  // `20260817090000_todos_start_date.sql` for why the plan's `date` was not
+  // followed to the letter.
+  "start_date",
   "due_date",
   "assignee_id",
   "created_at",

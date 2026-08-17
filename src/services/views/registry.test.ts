@@ -32,9 +32,10 @@ describe("view registry", () => {
     expect(isViewMode("board")).toBe(true);
     expect(isViewMode("list")).toBe(true);
     expect(isViewMode("calendar")).toBe(true);
-    // Still roadmap (M20). It is listed in the tab row as an inert
-    // placeholder, which is not the same as being a mode.
-    expect(isViewMode("timeline")).toBe(false);
+    expect(isViewMode("timeline")).toBe(true);
+    // Not a view. The tab row is driven by this array, so a name that is not
+    // in it cannot be reached by hand-editing `?view=` either.
+    expect(isViewMode("gantt")).toBe(false);
     expect(isViewMode(undefined)).toBe(false);
   });
 
@@ -46,14 +47,20 @@ describe("view registry", () => {
     // "writes todos.position", not "has drag and drop" — a calendar drop
     // writes due_date through the ordinary update path.
     expect(capabilitiesOf("calendar").canReorder).toBe(false);
+    // The timeline does not drag at all: its row order is derived from
+    // `start_date` at render, which is exactly how M20 avoids becoming the
+    // second ranked surface that would reopen M6-A.
+    expect(capabilitiesOf("timeline").canReorder).toBe(false);
   });
 
-  it("lets the Calendar neither group nor sort, because dates are its axis", () => {
+  it("lets neither date view group nor sort, because time is their axis", () => {
     // Same gate Summary uses: `ViewToolbar` reads these two flags, so a view
     // whose order is the date axis does not offer a sort that cannot reorder
     // it, and a view whose layout IS a grouping does not offer a second one.
-    expect(capabilitiesOf("calendar").canGroup).toBe(false);
-    expect(capabilitiesOf("calendar").canSort).toBe(false);
+    for (const mode of ["calendar", "timeline"] as const) {
+      expect(capabilitiesOf(mode).canGroup).toBe(false);
+      expect(capabilitiesOf(mode).canSort).toBe(false);
+    }
   });
 
   it("lets both work-item views group and sort", () => {

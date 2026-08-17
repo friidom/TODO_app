@@ -32,7 +32,7 @@ import { supabase } from "../api/supabase";
  * make the cache heterogeneous.
  */
 export const TODO_LIST_FIELDS =
-  "id, board_id, column_id, position, rank, board_key, title, type, priority, due_date, assignee_id, created_at, updated_at";
+  "id, board_id, column_id, position, rank, board_key, title, type, priority, start_date, due_date, assignee_id, created_at, updated_at";
 
 //!get
 /**
@@ -302,6 +302,7 @@ export type TodoPatch = { id: string; board_id: string } & Partial<
     TodoRow,
     | "title"
     | "column_id"
+    | "start_date"
     | "due_date"
     | "assignee_id"
     | "type"

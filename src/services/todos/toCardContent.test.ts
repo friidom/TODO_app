@@ -12,6 +12,7 @@ const row: Todo = {
   title: "Ship the thing",
   board_key: 7,
   type: "task",
+  start_date: null,
   due_date: "2026-08-20T00:00:00.000Z",
   assignee_id: "33333333-3333-4333-8333-333333333333",
   priority: "high",

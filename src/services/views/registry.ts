@@ -27,7 +27,13 @@
  * mode, though: `useBoardView` still falls back to `board`, so every existing
  * `/boards/:id` link opens exactly the view it always opened.
  */
-export const VIEW_MODES = ["summary", "board", "list", "calendar"] as const;
+export const VIEW_MODES = [
+  "summary",
+  "board",
+  "list",
+  "calendar",
+  "timeline",
+] as const;
 
 export type ViewMode = (typeof VIEW_MODES)[number];
 
@@ -106,6 +112,28 @@ export const VIEWS: Record<ViewMode, ViewDefinition> = {
      * either swimlanes of calendars or a calendar that silently shows one
      * person's work. Filter and search still apply, and are the right control
      * for "only show me mine".
+     */
+    capabilities: { canReorder: false, canGroup: false, canSort: false },
+  },
+  timeline: {
+    mode: "timeline",
+    label: "Timeline",
+    /**
+     * All three false (M20), and `canReorder` is the load-bearing one.
+     *
+     * **A timeline's rows are ordered by `start_date`, and that order is
+     * derived at render — never stored.** The plan makes this a decision rather
+     * than an implementation detail: *"a Gantt whose rows can be dragged into
+     * an arbitrary order is a second ranked surface, and it would reopen
+     * M3-10 and M6-A on the day it ships."* So this view has no drag at all,
+     * `todos.position` still has exactly one writer, and `registry.test.ts`'s
+     * guard keeps passing untouched.
+     *
+     * `canSort: false` because time is the axis — the case `canSort`'s own doc
+     * comment named. `canGroup: false` because a second grouping over a
+     * chronological layout is either swimlanes of Gantts or a chart quietly
+     * showing one person's work; filter and search are the right controls for
+     * narrowing, and they still apply.
      */
     capabilities: { canReorder: false, canGroup: false, canSort: false },
   },
