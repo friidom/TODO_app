@@ -13,6 +13,7 @@ import {
 import BoardFormModal from "@/components/boards/BoardFormModal";
 import DeleteBoardModal from "@/components/boards/DeleteBoardModal";
 import MemberStack from "@/components/board/MemberStack";
+import PresenceStack from "@/components/board/PresenceStack";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -57,6 +58,7 @@ export default function BoardIdentity({
   todoCount,
   visibleCount,
   lastActivity,
+  viewers = [],
 }: {
   board: IBoard;
   columnCount: number;
@@ -64,6 +66,14 @@ export default function BoardIdentity({
   todoCount: number;
   /** How many of them survived the filter and the search. */
   visibleCount: number;
+  /**
+   * Who else has this board open right now, by user id (M6-B).
+   *
+   * Channel presence, not a query — it defaults to empty so the component
+   * still renders without a socket, which is what it does while the
+   * subscription is connecting.
+   */
+  viewers?: string[];
   /**
    * When the board was last worked on, already formatted — "2m ago".
    *
@@ -142,6 +152,10 @@ export default function BoardIdentity({
           the title and its metadata own the left column, and the actions read
           as page chrome rather than as part of the heading. */}
       <div className="mt-0.5 flex shrink-0 items-center gap-1">
+        {/* Before the roster, because it is the more perishable fact: who is
+            here now changes minute to minute, who is a member does not. */}
+        <PresenceStack viewers={viewers} />
+
         <MemberStack onOpen={() => openPanel("members")} />
 
         {/* The activity drawer's only trigger (M18). Beside the roster because
