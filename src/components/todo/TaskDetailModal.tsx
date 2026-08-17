@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import AssigneeControl from "./TodoItem/AssigneeControl";
 import DueDateControl from "./TodoItem/DueDateControl";
 import PriorityControl from "./TodoItem/PriorityControl";
+import StartDateControl from "./TodoItem/StartDateControl";
 import StatusControl from "./TodoItem/StatusControl";
 import WorkTypeControl from "./TodoItem/WorkTypeControl";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -379,10 +380,30 @@ function Body({
                 />
               </Field>
 
+              {/* The range, and the only place either end of it is editable
+                  (M20). The plan put start date here rather than on the card:
+                  "every new *property* is a row added to it, not a new
+                  section", and a second date on a 100px board card would be
+                  the fifth control on it.
+
+                  Each is bounded by the other, so the pair cannot be inverted
+                  — `todos_date_range_check` refuses that write, and a disabled
+                  day is a better answer than a constraint violation in a
+                  toast. */}
+              <Field label="Start date">
+                <StartDateControl
+                  value={todo.start_date}
+                  onChange={(start_date) => patch({ start_date })}
+                  notAfter={todo.due_date}
+                  alwaysVisible
+                />
+              </Field>
+
               <Field label="Due date">
                 <DueDateControl
                   value={todo.due_date}
                   onChange={(due_date) => patch({ due_date })}
+                  notBefore={todo.start_date}
                   alwaysVisible
                 />
               </Field>

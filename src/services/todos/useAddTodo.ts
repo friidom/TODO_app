@@ -115,6 +115,11 @@ export function useAddTodo() {
         assignee_id,
         type,
         priority: null,
+        // Null, and not carried from the form: the create surfaces ask for a
+        // due date and nothing asks for a start (M20 put that control in the
+        // task detail). A new card is therefore a point on the timeline until
+        // someone gives it a range.
+        start_date: null,
         due_date,
         updated_at: null,
       };

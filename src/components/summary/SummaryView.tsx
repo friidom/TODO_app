@@ -19,7 +19,9 @@ import { useColumns } from "@/services/columns/useColumnsApi";
 import { useBoardMembers } from "@/services/members/useBoardMembers";
 import {
   categoryIndex,
+  createdTrend,
   dueSoonItems,
+  previousIntake,
   priorityDistribution,
   recentCounts,
   statusDistribution,
@@ -32,16 +34,32 @@ import { todayISO } from "@/utils/dueDate";
 import SummaryCard from "./SummaryCard";
 import StatusOverview from "./StatusOverview";
 import DueSoon from "./DueSoon";
+import Intake from "./Intake";
 import { PriorityBreakdown, TeamWorkload, TypeBreakdown } from "./Breakdowns";
 
 /** The window every "recently" and "soon" on this page means. */
 const WINDOW_DAYS = 7;
 
+/**
+ * How far back the intake chart looks.
+ *
+ * Longer than `WINDOW_DAYS`, because a shape needs more points than a count
+ * needs days: seven columns is a bar chart pretending to be a trend, and a
+ * fortnight is enough to see a week's rhythm twice.
+ */
+const TREND_DAYS = 14;
+
 /** How many entries the activity widget shows before the drawer takes over. */
 const ACTIVITY_PREVIEW = 7;
 
-/** How many deadlines the due-soon widget lists before it stops being a list. */
-const DUE_SOON_LIMIT = 7;
+/**
+ * How many deadlines the due-soon widget lists before it stops being a list.
+ *
+ * Ten rather than seven since the widget went full width: two columns of five
+ * fill the same height the seven took in one, so the extra width buys more
+ * deadlines instead of longer rules.
+ */
+const DUE_SOON_LIMIT = 10;
 
 /**
  * The board's own dashboard (M18).
@@ -121,6 +139,16 @@ export default function SummaryView() {
   const due = useMemo(
     () => dueSoonItems(todos, index, today, WINDOW_DAYS, DUE_SOON_LIMIT),
     [todos, index, today],
+  );
+
+  const trend = useMemo(
+    () => createdTrend(todos, new Date(), TREND_DAYS),
+    [todos],
+  );
+
+  const priorIntake = useMemo(
+    () => previousIntake(todos, new Date(), TREND_DAYS),
+    [todos],
   );
 
   if (isLoading) return <Loading />;
@@ -217,15 +245,30 @@ export default function SummaryView() {
           </SummaryCard>
         </div>
 
-        <div className="grid items-start gap-4 xl:grid-cols-2">
-          <PriorityBreakdown slices={byPriority} />
+        {/* Two rows of a pair, then one full-width row — rather than three
+            identical pairs. Symmetry was costing the page its hierarchy: every
+            widget the same size says every widget matters the same amount, and
+            the one that names actual work items matters more than a
+            distribution of five priorities.
+
+            The narrower column of each pair takes the chart with a fixed
+            height (the trend, the type bars); the wider takes the one whose
+            content grows with the board. */}
+        <div className="grid items-start gap-4 xl:grid-cols-[1fr_1.15fr]">
+          <Intake points={trend} previous={priorIntake} />
           <TypeBreakdown slices={byType} />
         </div>
 
-        <div className="grid items-start gap-4 xl:grid-cols-2">
+        <div className="grid items-start gap-4 xl:grid-cols-[1fr_1.15fr]">
+          <PriorityBreakdown slices={byPriority} />
           <TeamWorkload entries={load} members={members} />
-          <DueSoon items={due} windowDays={WINDOW_DAYS} />
         </div>
+
+        {/* Full width, and last, because it is the only widget that names work
+            you can act on — everything above describes the board, this one
+            hands you the next thing to do. Two columns of rows at `xl` so the
+            extra width buys more deadlines rather than longer rules. */}
+        <DueSoon items={due} windowDays={WINDOW_DAYS} columns />
 
         {/* Said once, at the foot, rather than on seven cards. The identity row
             above already reports "N of M tasks" when a filter is on; this is

@@ -12,6 +12,7 @@ import KanbanBoard from "@/components/kanban/KanbanBoard";
 import ListView from "@/components/views/ListView";
 import SummaryView from "@/components/summary/SummaryView";
 import CalendarView from "@/components/calendar/CalendarView";
+import TimelineView from "@/components/timeline/TimelineView";
 import NotFoundPage from "@/pages/error/NotFoundPage";
 import Loading from "@/components/loading/LoadingPage";
 import { useBoard } from "@/services/boards/useBoard";
@@ -93,7 +94,7 @@ function BoardView({ boardId }: { boardId: string }) {
       >
         {/* No view takes a boardId prop: the hooks beneath them read the route
             param themselves, so the board they render and the board in the URL
-            cannot disagree. They are three renderings of one query — the scope,
+            cannot disagree. They are five renderings of one query — the scope,
             the filter and the search are the same values for all of them. */}
         {view.mode === "summary" ? (
           <SummaryView />
@@ -101,6 +102,8 @@ function BoardView({ boardId }: { boardId: string }) {
           <ListView />
         ) : view.mode === "calendar" ? (
           <CalendarView />
+        ) : view.mode === "timeline" ? (
+          <TimelineView />
         ) : (
           <KanbanBoard />
         )}

@@ -169,12 +169,36 @@ Fields
 - title
 - description
 - priority
+- start_date
 - due_date
 - estimate
 - position
 - archived
 - created_at
 - updated_at
+
+---
+
+Dates
+
+`start_date` and `due_date` are the two ends of a work item's range, added in
+M2-03 and M20 respectively. Both are **`timestamptz` holding midnight UTC**, and
+both are read back by slicing the leading `YYYY-MM-DD` — never by parsing to a
+local `Date`, which would move a task due the 13th to the 12th for a reader west
+of Greenwich. `src/utils/dueDate.ts` is the only place that conversion happens.
+
+Either may be null. A row with both is a range, a row with one is a single
+dated day, and a row with neither is not on the timeline at all.
+
+`todos_date_range_check` enforces `start_date is null or due_date is null or
+start_date <= due_date`, so an inverted range cannot be stored. Equality is
+allowed — a one-day task. The constraint is the reason both columns share a
+type: comparing a `date` with a `timestamptz` depends on the session's TimeZone
+and so is not immutable, which a CHECK constraint may not be.
+
+`estimate` is **not** a duration and nothing derives a range from it. It is a
+number meaning points or hours depending on who filled it in, and M20 records
+that leaving it alone was a decision.
 
 ---
 

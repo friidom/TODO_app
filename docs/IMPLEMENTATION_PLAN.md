@@ -564,7 +564,7 @@ Risk labels, applied to every task:
 | **M17 · Product Redesign** | 🔶 Built 2026-08-14 | `ViewShell` contract, rail removed, `?panel=` drawers, breadcrumb + view tabs, compact sidebar, Geist typography. No schema, no business logic. **Browser verification owed.** |
 | **M18 · Activity & Overview** | ⬜ Roadmap — **new** | `activities` + feed + dashboard. |
 | **M19 · Calendar** | 🔶 Built 2026-08-17 | Month and week over M16's pipeline. **No schema change**, exactly as the milestone predicted. The four decisions it forced are recorded in the milestone body. **Browser verification owed.** |
-| **M20 · Timeline** | ⬜ Roadmap — **new** | Date-range view. **The one migration this roadmap forces.** |
+| **M20 · Timeline** | 🔶 Built 2026-08-17 | Date-range view. **Its migration is applied** — `todos.start_date` + `todos_date_range_check`, Tier A, no backfill. Row order derived from `start_date`, so `todos.position` still has one writer. **Browser verification owed.** |
 
 M10–M13 were roadmap direction added in the 2026-08-10 audit; M14–M20 in the 2026-08-14 revision. None of them is decomposed into tasks, and none is a commitment until it is. Appendix E records what is deliberately out of scope — **and it changed on 2026-08-14**, because Calendar and Timeline were on it.
 
@@ -581,7 +581,7 @@ Dependencies, not preference. Each row states what would have to be **rebuilt** 
 | 5 | **M17 · Product Redesign** · ✅ built 2026-08-14 | Renders a settled hierarchy (M15) over a settled view model (M16). Ships the **view shell contract** that M19 and M20 slot into — that contract is the reason the redesign precedes the two new views rather than following them. |
 | 6 | **M18 · Activity & Overview** | Activity's table must not exist without a reader (M7-05); the Overview's recent-activity panel is that reader, so the two are one milestone. Both need M17 to know where they live now that the rail is gone. |
 | 7 | **M19 · Calendar** · ✅ built 2026-08-17 | The cheap date view, and the proof that M16's model survives a second axis — built before M20 pays for the same lesson with a migration. **It was:** a registry entry, a renderer and a pure date module, with no migration and no change to the pipeline. |
-| 8 | **M20 · Timeline** | Needs `todos.start_date`, and needs Calendar to have already surfaced whatever M16 got wrong about dates. |
+| 8 | **M20 · Timeline** · ✅ built 2026-08-17 | Needs `todos.start_date`, and needs Calendar to have already surfaced whatever M16 got wrong about dates. **Both paid off exactly as predicted:** M19 found that `due_date` is a `timestamptz` rather than the `date` this plan assumed, and that discovery decided this milestone's column type before a line of it was written. |
 | 9 | **M6-B · Realtime (channels)** | Blocks nothing above it and is blocked by none of it — it is a cache-update path, not a layout. Wants M6-A's single-row writes already in place, or every event re-applies a whole-column renumber. |
 | 10 | **M7 · Comments** | Wants M6-B for live threads and M17 for where a thread renders. |
 | 11 | **M9 · Quality** | Accessibility, keyboard, mobile and performance across the final surface rather than across two. **Exception: pull M9-01 and M9-02 into M17** if the redesign rewrites the board's DOM — retrofitting accessibility is doing it twice, which is what M9's own dependency note already says. |
@@ -2383,7 +2383,7 @@ exactly this reason.
 | Capability | Schema? | When | Reuses |
 |---|---|---|---|
 | Title, description, status, priority, work type, assignee, due date | **No** — all shipped | ✅ M5-06 | `useTodoPatch`, the card's own controls |
-| **Start date** | **Yes** — one nullable `todos.start_date`, Tier A | **M20**, and already in Appendix D | `DueDateControl`'s shape; the `date`-not-timestamptz rule |
+| **Start date** | **Yes** — one nullable `todos.start_date`, Tier A | ✅ **M20, 2026-08-17** | `DueDateControl`'s shape — literally, via the `DatePanel` extracted from it. **`timestamptz`, not `date`:** the rule named here assumed `due_date` was a `date` and it never was, so "reuse due_date's type" is what was followed. See M20 |
 | **Labels** | **Yes** — `labels` + `todo_labels`, board-scoped, `board_id` on both per M7-01's precedent | **M10** | The chip idiom in `constants/`; a filter category in `FILTER_CATEGORIES` |
 | **Subtasks / parent** | **Yes** — `todos.parent_id`, plus Appendix D's unanswered *does a subtask render as a board card?* | **M10**, and the decision **before** the column | `todos` itself — one table, one self-reference |
 | **Linked work items** | **Yes** — `work_item_links(from_id, to_id, type)`, plus the directionality decision in Appendix D | **M10** | The same board-scoped policy shape |
@@ -2760,7 +2760,7 @@ The milestone forced four decisions rather than a task list. Each is recorded he
 
 ---
 
-## Milestone 20 — Timeline · 🗺 Roadmap
+## Milestone 20 — Timeline · 🔶 Built 2026-08-17
 
 **For.** Work items as ranges over time.
 
@@ -2787,6 +2787,32 @@ Today the row has `due_date` (a date), and `estimate` (a number). There is no st
 **Explicitly not.** Dependency arrows and critical path — those need M10's `work_item_links`, and committing to them here would drag M10 forward for a line between two bars. Resource levelling. Baselines. Zoom levels beyond what the shell contract supports.
 
 > **Appendix E note.** Timeline/Gantt and calendar views were on the *out of scope* list, whose reopening condition was *"dependencies and date ranges exist and are maintained"*. The 2026-08-14 direction commits to both views, so the list is updated rather than quietly contradicted — and the condition is met the honest way, by M20 adding the date range rather than by declaring it already there.
+
+### Built 2026-08-17 — what shipped, and the one correction to this section
+
+**The migration, applied:** `20260817090000_todos_start_date.sql` — `start_date` plus `todos_date_range_check`, Tier A, additive, nullable, no backfill, no data written. Option (a) as recommended; (b) and (c) were not revisited.
+
+**The correction, and it is the whole of M19's payoff.** This section says `todos.start_date date null`, and Appendix D calls it *"the `date`-not-timestamptz rule"*. **`due_date` has been `timestamptz` since M2-03**, so the premise was false and the literal word `date` could not be followed. What *was* followed is this section's stated reason for preferring option (a) — *"reuses the type, the control idiom and the timezone rule `due_date` already established"* — which resolves to `timestamptz`, midnight UTC, read back by slicing.
+
+Mixing the two would not merely have been untidy: **the check constraint this milestone requires could not have been created.** Comparing a `date` with a `timestamptz` promotes the date through the session's `TimeZone`, making the expression STABLE rather than IMMUTABLE, which Postgres refuses in a CHECK. And had it been allowed, its truth would have depended on a connection setting — west of UTC, a task starting and ending on the same day would be rejected.
+
+**Everything else this milestone had to decide, decided:**
+
+| Decision | Answer | Where |
+|---|---|---|
+| The range constraint | `start_date is null or due_date is null or start_date <= due_date`. Both null branches written out rather than left to three-valued logic, so "one date is a point, not a violation" is stated rather than inferred. Equality allowed — a one-day task. | the migration |
+| A task with only a due date | A **point** (a diamond), not a zero-width bar. Extended symmetrically: a task with only a *start* date is a point too, since the rule is about how much is known. A task with both dates on one day is a real one-day **range**. A task with neither is not on the timeline — and is counted and reported in the navigator, never silently dropped. | `services/views/timeline.ts` |
+| Row order | Derived at render: `start` ascending, then `end`, then the item's key. **Stored nowhere and not draggable**, which is what keeps `todos.position` at exactly one writer and stops this view reopening M3-10 and M6-A. `canReorder: false` in the registry, and `registry.test.ts` guards it. | `timelineItems`, `services/views/registry.ts` |
+| `estimate` | Untouched. It is not a duration and nothing here derives a length from it. | — |
+| The shared row shape | Widened once, in M16's `TODO_FIELDS` / `TODO_LIST_FIELDS`, not per view. | `types/data.ts` |
+
+**Where a range is edited.** The task detail's Details rail, which is where the *Task Detail surface* section above assigns it — a property is a row added to that list, never a new section. Each end bounds the other in the picker, so the pair cannot be inverted before the write; the database would refuse it, and a disabled day is a better answer than a constraint violation in a toast. The picker itself was lifted out of `DueDateControl` into a shared `DatePanel` rather than copied.
+
+**No drag, deliberately.** This section specifies a schema change, a range rule and a derived row order; it specifies no gesture. Dragging a bar is two gestures wearing one affordance — move the range, or move one end — and neither is described anywhere in this plan, so building them would have been inventing scope. **Reopen when** someone asks to reschedule from the timeline; the write path already exists (`useTodoPatch` → `updateTodo`) and M19's `useCalendarDrop` is the shape it would take.
+
+**Zoom.** Two scales, `weeks` (six weeks, a column per day) and `months` (half a year, a column per week), which is the same two-position toggle the calendar established. The "explicitly not" line above rules out more.
+
+**Owed.** Browser verification: the sticky rail against the scrolling axis, the today marker's alignment at both scales, and a bar clipped at each edge of the window.
 
 ---
 
@@ -2907,7 +2933,7 @@ Decisions deliberately postponed, with the trigger that should reopen them. **A 
 | **RLS membership performance (PH-03)** | *"When a real board passes a few hundred work items"* | **Re-anchored: before M18's cross-board query ships.** That query's cost is proportional to everything the caller can see, not to one board — a shape nothing in the product has had before. |
 | ~~**`reorder_todos` RPC (M3-10)**~~ | ~~Deferred to M6-04~~ → **✅ CLOSED as unnecessary, 2026-08-14** | M6-04 made a move a single-row write, so no client-supplied array of ids and positions reaches the database on the drag path. The one surviving bulk renumber — M6-06's rebalance — takes an id and derives every value server-side, which is the property M3-10 asked for. See M3-10. |
 | **Cross-board query shape** — new | — | **M16 decides it.** Per-board queries unioned client-side, or a scope-keyed query. The recommendation and the reason are in M16; the deciding factor is that a second cache shape forks the write path M2-16 unified and M6-B depends on. |
-| **`todos.start_date`** — new | — | **M20 adds it.** Additive, nullable, Tier A, no backfill. Named now so that M16 widens the shared row shape once rather than per view. |
+| **`todos.start_date`** — new | — | ✅ **Added by M20, 2026-08-17.** Additive, nullable, Tier A, no backfill — and naming it early worked: M16's shared row shape was widened once, in `TODO_FIELDS`, not per view. Shipped as `timestamptz` rather than the `date` written here, because `due_date` always was one and a mixed-type range constraint is not immutable. |
 | **Space membership (shared spaces)** — new | — | **Deferred, with an upgrade path rather than a rewrite:** if spaces ever need sharing, `spaces` gains membership and `boards.space_id` keeps working. Reopen when two people need to organise the same set of boards. |
 | **Per-user filing of a shared board** — found while building M15 | **Deferred** | `boards.space_id` is one column on a shared row, so a board can sit in at most one person's folder. M15 resolves the conflict by letting only the board's **owner** file it; per-user filing needs a `space_boards(space_id, board_id)` join table. **Reopen when** someone asks to organise a board that was shared with them. |
 | **Board `archived`** (M8-03) | **M15 left it open** | The semantics were never decided: does an archived board disappear for its members too, and can they still read it? Recommendation unchanged — board-wide and read-only for everyone until restored. **Reopen when** a board needs retiring without being deleted. |

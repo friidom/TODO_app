@@ -31,9 +31,18 @@ import SummaryCard from "./SummaryCard";
 export default function DueSoon({
   items,
   windowDays,
+  columns = false,
 }: {
   items: DueSoonItem[];
   windowDays: number;
+  /**
+   * Lay the rows out in two columns from `lg` up.
+   *
+   * Set when the widget has the full page width. A single column of ten rows
+   * across 1400px is ten short strings against a very long rule — the same
+   * emptiness the metric strip was rebuilt to fix, one row lower.
+   */
+  columns?: boolean;
 }) {
   const { openTask } = useOpenTask();
   const keyPrefix = useKeyPrefix();
@@ -61,7 +70,17 @@ export default function DueSoon({
           <p className="text-ink-2 text-xs">Nothing is due in this window.</p>
         </div>
       ) : (
-        <ul className="px-2 pb-2">
+        <ul
+          className={cn(
+            "px-2 pb-2",
+            // `columns-2` rather than a grid: the rows are a list read top to
+            // bottom, and a CSS column flow keeps that reading order while
+            // filling the width. A grid would order them left-to-right, so the
+            // most urgent item and the second most urgent would sit side by
+            // side rather than one under the other.
+            columns && "lg:columns-2 lg:gap-x-2",
+          )}
+        >
           {items.map(({ todo, status }) => {
             const meta = workTypeOf(todo.type);
             const Icon = meta.icon;
