@@ -29,6 +29,12 @@ import SummaryCard, { WidgetEmpty } from "./SummaryCard";
  * next to it and left its right half empty. Two columns is the same information
  * in half the height, and the threshold is the point where the list stops being
  * shorter than the ring.
+ *
+ * **Nothing in here is `flex-1`.** The panel is exactly as tall as a ring, a
+ * legend and a progress line; it is not stretched to meet the feed beside it,
+ * which is where its blank lower half used to come from. The ring is `size-24`
+ * rather than `size-32` for the same reason — 128px of chart set the panel's
+ * height from its decoration rather than from its data.
  */
 
 /** How far each successive column of the same category fades. */
@@ -42,12 +48,15 @@ export default function StatusOverview({
   columns,
   total,
   done,
+  className,
 }: {
   slices: Slice<string | null>[];
   columns: IColumn[];
   total: number;
   /** Items in a `done` column. Feeds the progress line at the foot, nothing else. */
   done: number;
+  /** The widget's span in the Summary's grid. */
+  className?: string;
 }) {
   // Which shade each column takes: its index among the columns that share its
   // category. Computed here rather than in the pure module because it is a
@@ -93,16 +102,17 @@ export default function StatusOverview({
 
   return (
     <SummaryCard
-      title="Status overview"
-      hint="Where the work on this board currently sits."
+      title="Work status"
+      hint="Snapshot of your work items"
+      className={className}
     >
       {total === 0 ? (
         <WidgetEmpty>No work items on this board yet.</WidgetEmpty>
       ) : (
-        <div className="flex flex-1 flex-col gap-4 px-4 pb-4">
-          <div className="flex flex-1 flex-col items-center gap-4 sm:flex-row sm:gap-5">
+        <div className="flex flex-col gap-3 px-3.5 pb-3">
+          <div className="flex flex-col items-center gap-3 sm:flex-row sm:gap-4">
             <div className="relative shrink-0">
-              <svg viewBox="0 0 42 42" className="size-32 -rotate-90">
+              <svg viewBox="0 0 42 42" className="size-24 -rotate-90">
                 {/* The track, so a board with one status still reads as a ring
                     rather than as an arc floating in space. */}
                 <circle
@@ -146,11 +156,11 @@ export default function StatusOverview({
                   foreignObject would not inherit the page's font, and a <text>
                   would not wrap. */}
               <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-ink text-2xl leading-none font-semibold tabular-nums">
+                <span className="text-ink text-xl leading-none font-semibold tabular-nums">
                   {total}
                 </span>
-                <span className="text-ink-3 mt-1 text-[11px]">
-                  {total === 1 ? "work item" : "work items"}
+                <span className="text-ink-3 mt-0.5 text-[10px]">
+                  {total === 1 ? "item" : "items"}
                 </span>
               </div>
             </div>
@@ -158,7 +168,7 @@ export default function StatusOverview({
             <ul
               className={cn(
                 "min-w-0 flex-1",
-                wrapped ? "gap-x-6 sm:columns-2" : "flex flex-col gap-1.5",
+                wrapped ? "gap-x-5 sm:columns-2" : "flex flex-col",
               )}
             >
               {slices.map((slice) => {
@@ -168,11 +178,10 @@ export default function StatusOverview({
                   <li
                     key={slice.key ?? "none"}
                     className={cn(
-                      "flex min-w-0 break-inside-avoid items-center gap-2",
-                      wrapped && "py-0.5",
+                      "flex min-w-0 break-inside-avoid items-center gap-2 py-0.5",
                       // An empty column is part of the board's shape and stays
                       // listed, but it is not something to look at.
-                      slice.count === 0 && "opacity-55",
+                      slice.count === 0 && "opacity-45",
                     )}
                   >
                     <span
@@ -215,10 +224,10 @@ export default function StatusOverview({
               so a board with two finished columns counts both — and this figure
               is the one `summaryStats` already computes for the metric strip,
               passed in rather than recounted, so the two cannot disagree. */}
-          <div className="border-hairline flex items-center gap-3 border-t pt-3">
+          <div className="border-hairline flex items-center gap-2.5 border-t pt-2.5">
             <span className="text-ink-3 shrink-0 text-[11px]">Completed</span>
 
-            <div className="bg-ink/[0.06] h-1.5 min-w-0 flex-1 overflow-hidden rounded-full">
+            <div className="bg-ink/[0.06] h-1 min-w-0 flex-1 overflow-hidden rounded-full">
               <div
                 style={{ width: `${complete}%` }}
                 className="bg-status-green h-full rounded-full transition-[width] duration-300"

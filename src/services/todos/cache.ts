@@ -106,9 +106,16 @@ export function applyTodoDeleted(todos: Todo[], id: Todo["id"]): Todo[] {
  * single field on a single row and every other card is passed through **by
  * reference** — which also means React re-renders exactly the card that moved.
  *
- * This is the function M6-B's realtime handler applies for a remote move, which
- * is why it takes the rank rather than computing one: the sender already chose
- * it, and recomputing here would put the card somewhere else on every receiver.
+ * It takes the rank rather than computing one because the sender already chose
+ * it, and recomputing on the receiving side would put the card somewhere else
+ * on every client.
+ *
+ * **M6-B does not call this, and the prediction that it would was wrong.** A
+ * remote move arrives as an UPDATE carrying the *complete* new row — the new
+ * column, the sender's rank and every other field — so `applyTodoUpdated` is
+ * strictly more correct there: rebuilding the row from the cached copy would
+ * lose a rename that travelled with the move. This is the local drag path's
+ * function, and the drag path is its only caller.
  */
 export function applyTodoMoved(
   todos: Todo[],

@@ -58,4 +58,36 @@ describe("relativeTime", () => {
     // mattering, while a wrong unit still reads as a bug.
     expect(relativeTime(ago(90 * DAY), NOW)).toBe("90d ago");
   });
+
+  describe("short form", () => {
+    it("drops the 'ago' and shortens 'just now'", () => {
+      // For a stamp whose position already says it is an age — the right edge
+      // of an activity row, opposite the sentence it dates.
+      expect(relativeTime(ago(0), NOW, { short: true })).toBe("now");
+      expect(relativeTime(ago(5 * MINUTE), NOW, { short: true })).toBe("5m");
+      expect(relativeTime(ago(5 * HOUR), NOW, { short: true })).toBe("5h");
+      expect(relativeTime(ago(3 * DAY), NOW, { short: true })).toBe("3d");
+    });
+
+    it("picks the same unit at the same boundary as the long form", () => {
+      // Short is a suffix decision, not a rounding one: the two forms must
+      // never disagree about whether something is 59m or 1h old.
+      expect(relativeTime(ago(HOUR - 1), NOW, { short: true })).toBe("59m");
+      expect(relativeTime(ago(HOUR), NOW, { short: true })).toBe("1h");
+      expect(relativeTime(ago(DAY), NOW, { short: true })).toBe("1d");
+    });
+
+    it("leaves the long form alone when omitted or explicitly off", () => {
+      // The default has to be the existing behaviour: every caller predates the
+      // option and none of them passes it.
+      expect(relativeTime(ago(5 * HOUR), NOW)).toBe("5h ago");
+      expect(relativeTime(ago(5 * HOUR), NOW, {})).toBe("5h ago");
+      expect(relativeTime(ago(5 * HOUR), NOW, { short: false })).toBe("5h ago");
+    });
+
+    it("still refuses what it refused before", () => {
+      expect(relativeTime(null, NOW, { short: true })).toBeNull();
+      expect(relativeTime("not a date", NOW, { short: true })).toBeNull();
+    });
+  });
 });

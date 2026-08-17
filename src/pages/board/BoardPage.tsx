@@ -21,6 +21,7 @@ import { useBoardView } from "@/hooks/useBoardView";
 import { usePanel } from "@/hooks/usePanel";
 import { useVisibleTodos } from "@/hooks/useVisibleTodos";
 import { useColumns } from "@/services/columns/useColumnsApi";
+import { useBoardRealtime } from "@/services/realtime/useBoardRealtime";
 import { relativeTime } from "@/utils/relativeTime";
 import { isUuid } from "@/utils/uuid";
 
@@ -58,6 +59,22 @@ function BoardView({ boardId }: { boardId: string }) {
 
   const { panel, closePanel } = usePanel();
 
+  /**
+   * The board's realtime channel (M6-B).
+   *
+   * **Subscribed here, and only here.** One channel per board, opened where the
+   * board is mounted and removed when this component unmounts or `boardId`
+   * changes — which is what keeps ten navigations from leaving ten sockets
+   * behind. Every view underneath renders from the same cache entries the
+   * channel patches, so Board, List, Summary, Calendar and Timeline all became
+   * live at once and none of them had to learn that realtime exists.
+   *
+   * Above the early returns because it is a hook: a board that is still loading
+   * subscribes anyway, and the handlers skip a cache entry that has not
+   * resolved yet.
+   */
+  const viewers = useBoardRealtime(boardId);
+
   if (isPending) return <Loading />;
 
   // A genuine failure — offline, a policy error — is not a missing board.
@@ -74,7 +91,7 @@ function BoardView({ boardId }: { boardId: string }) {
   return (
     <Layout>
       <ViewShell
-        identity={<BoardMeta board={board} />}
+        identity={<BoardMeta board={board} viewers={viewers} />}
         toolbar={<ViewToolbar view={view} />}
         // Board-level drawers only. The task detail used to win this slot and
         // reserve 22rem of every wide screen for a surface that is open a
@@ -127,8 +144,11 @@ function BoardView({ boardId }: { boardId: string }) {
  */
 function BoardMeta({
   board,
+  viewers,
 }: {
   board: NonNullable<ReturnType<typeof useBoard>["data"]>;
+  /** Passed down rather than re-subscribed: one channel per board, not two. */
+  viewers: string[];
 }) {
   const { data: columns = [] } = useColumns();
   const { todos, all, total } = useVisibleTodos();
@@ -162,6 +182,7 @@ function BoardMeta({
       todoCount={total}
       visibleCount={todos.length}
       lastActivity={lastActivity}
+      viewers={viewers}
     />
   );
 }

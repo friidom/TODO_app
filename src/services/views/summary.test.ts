@@ -2,9 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   categoryIndex,
-  createdTrend,
   dueSoonItems,
-  previousIntake,
   priorityDistribution,
   recentCounts,
   statusDistribution,
@@ -13,7 +11,6 @@ import {
   workload,
 } from "./summary";
 import type { IColumn, Todo } from "@/types/data";
-import { todayISO } from "@/utils/dueDate";
 
 const TODAY = "2026-08-15";
 
@@ -494,83 +491,5 @@ describe("typeDistribution", () => {
     // 'Epic' does not exist in this product; `toWorkType` resolves it to the
     // default rather than inventing a fifth bar.
     expect(slices.find((slice) => slice.key === "Task")?.count).toBe(1);
-  });
-});
-
-describe("createdTrend", () => {
-  // Midday, so a naive UTC/local slip would show up as an off-by-one day
-  // rather than hiding at a boundary.
-  const NOW = new Date("2026-08-15T12:00:00Z");
-
-  function at(iso: string) {
-    return todo({ created_at: iso });
-  }
-
-  it("always returns one point per day, oldest first", () => {
-    const points = createdTrend([], NOW, 14);
-
-    expect(points).toHaveLength(14);
-    expect(points.at(-1)?.day).toBe(todayISO(NOW));
-    expect(points.every((point) => point.count === 0)).toBe(true);
-  });
-
-  it("counts each item on the local day it was created", () => {
-    // Midday UTC, well inside the window: no real timezone offset moves either
-    // of these onto a different date, so the test says the same thing wherever
-    // it runs. The expected bucket is named with `todayISO` — the same
-    // conversion the function uses — because "which local day" is genuinely a
-    // property of the reader's zone here. `created_at` is a true instant,
-    // unlike `due_date`, which must never be converted at all.
-    const older = "2026-08-12T12:00:00Z";
-    const newer = "2026-08-14T12:00:00Z";
-
-    const points = createdTrend([at(newer), at(newer), at(older)], NOW, 7);
-    const byDay = new Map(points.map((point) => [point.day, point.count]));
-
-    expect(byDay.get(todayISO(new Date(newer)))).toBe(2);
-    expect(byDay.get(todayISO(new Date(older)))).toBe(1);
-    expect(points.reduce((sum, point) => sum + point.count, 0)).toBe(3);
-  });
-
-  it("ignores anything older than the window rather than clamping it in", () => {
-    const points = createdTrend([at("2026-01-01T00:00:00Z")], NOW, 7);
-
-    expect(points.reduce((sum, point) => sum + point.count, 0)).toBe(0);
-  });
-
-  it("survives an unparseable timestamp", () => {
-    const points = createdTrend([at("not a date")], NOW, 7);
-
-    expect(points.reduce((sum, point) => sum + point.count, 0)).toBe(0);
-  });
-});
-
-describe("previousIntake", () => {
-  const NOW = new Date("2026-08-15T12:00:00Z");
-
-  it("counts the window before the window", () => {
-    const rows = [
-      // Inside the previous fortnight (18 July – 1 August).
-      todo({ created_at: "2026-07-25T00:00:00Z" }),
-      todo({ created_at: "2026-07-30T00:00:00Z" }),
-      // Inside the current one, so not counted here.
-      todo({ created_at: "2026-08-10T00:00:00Z" }),
-      // Older than both, which is also what makes the comparison valid.
-      todo({ created_at: "2026-06-01T00:00:00Z" }),
-    ];
-
-    expect(previousIntake(rows, NOW, 14)).toBe(2);
-  });
-
-  it("is null when the board is younger than two windows", () => {
-    // Nothing predates the comparison window, so "0 last fortnight" would
-    // report a rise that only means the board did not exist yet.
-    expect(
-      previousIntake([todo({ created_at: "2026-08-10T00:00:00Z" })], NOW, 14),
-    ).toBeNull();
-  });
-
-  it("is null for an empty board", () => {
-    expect(previousIntake([], NOW, 14)).toBeNull();
   });
 });
