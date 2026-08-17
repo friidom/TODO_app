@@ -39,20 +39,27 @@ export type CalendarLayout = (typeof CALENDAR_LAYOUTS)[number];
 const WEEK_STARTS_ON_MONDAY = true;
 
 /**
- * How many work items a day cell shows before it stops listing them.
+ * How many work items a day cell lists before it stops.
  *
  * **The overflow rule, decided once**, because M19 states it recurs in both
- * layouts. The rule itself is one sentence — *show N, then a control that opens
- * the whole day* — and only N varies, with the height the layout gives a cell.
- * A month cell is roughly a fifth of the grid; a week cell is the full height.
+ * layouts. One sentence covers them: *a day cell lists what its layout can show
+ * and hands the rest to a taller surface.*
  *
- * The alternative, scrolling inside a cell, was rejected: a scrollbar in one of
- * thirty-five boxes is invisible until you are already inside it, so a day with
- * nine items looks exactly like a day with three.
+ * **The week is that taller surface, so it has no limit** — a week cell is a
+ * seventh of the width and the full height of the grid, and it scrolls. Giving
+ * it a number too would leave "+N more" pointing at the layout it is already
+ * in: a control that re-anchors the week you are looking at to the week you are
+ * looking at, i.e. a button that does nothing on the one day busy enough to
+ * need it. A rule that escalates has to terminate somewhere, and this is where.
+ *
+ * Scrolling was rejected for the *month* cell for the reason it is right here:
+ * a scrollbar in one of thirty-five small boxes is invisible until you are
+ * already inside it, so a day with nine items looks exactly like a day with
+ * three. One of seven full-height columns has no such problem.
  */
 export const DAY_ITEM_LIMIT: Record<CalendarLayout, number> = {
   month: 3,
-  week: 10,
+  week: Number.POSITIVE_INFINITY,
 };
 
 /** `YYYY-MM-DD` → the three numbers, or null when it is not a day. */

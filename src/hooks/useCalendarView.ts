@@ -44,8 +44,20 @@ export interface CalendarView {
   /** One month or one week, whichever the layout is. */
   step: (direction: -1 | 1) => void;
   goToday: () => void;
-  /** Jump to a specific day — the month grid's "open this day" affordance. */
-  goTo: (day: string) => void;
+  /**
+   * Anchor on a day *and* switch to the week layout — the month grid's
+   * "+N more" affordance, as **one** action rather than two.
+   *
+   * **It has to be one call, and that is a property of `useSearchParams`, not a
+   * style preference.** react-router hands the functional updater
+   * `new URLSearchParams(searchParams)` built from the render that produced the
+   * callback — not from any write still in flight. So two calls in one handler
+   * both start from the *same* base URL and the second `navigate` overwrites
+   * the first: an anchor write followed by `setLayout("week")` would land on
+   * `?cal=week` with no `date` at all, opening the week you were already
+   * anchored on instead of the day you clicked.
+   */
+  openDay: (day: string) => void;
 }
 
 /** `YYYY-MM-DD` and nothing else. A hand-edited URL is untrusted input. */
@@ -93,17 +105,27 @@ export function useCalendarView(): CalendarView {
     [setSearchParams],
   );
 
+  /**
+   * Today is the default, so anchoring there clears the param rather than
+   * pinning a date that will be wrong tomorrow. A shared link reading
+   * `/boards/x?view=calendar` opens on the reader's today, which is what
+   * someone sending "look at the calendar" means.
+   *
+   * Written as a mutation over the params rather than as an action, so the one
+   * caller that changes the anchor *and* the layout can apply both in a single
+   * write. See `openDay`.
+   */
+  const anchorParam = useCallback(
+    (params: URLSearchParams, day: string) => {
+      if (day === today) params.delete("date");
+      else params.set("date", day);
+    },
+    [today],
+  );
+
   const setAnchor = useCallback(
-    (day: string) =>
-      write((params) => {
-        // Today is the default, so anchoring there clears the param rather
-        // than pinning a date that will be wrong tomorrow. A shared link
-        // reading `/boards/x?view=calendar` opens on the reader's today, which
-        // is what someone sending "look at the calendar" means.
-        if (day === today) params.delete("date");
-        else params.set("date", day);
-      }),
-    [write, today],
+    (day: string) => write((params) => anchorParam(params, day)),
+    [write, anchorParam],
   );
 
   const setLayout = useCallback(
@@ -129,6 +151,17 @@ export function useCalendarView(): CalendarView {
 
   const goToday = useCallback(() => setAnchor(today), [setAnchor, today]);
 
+  // Both params, one navigation. The interface comment above records why the
+  // obvious two-line version silently drops the anchor.
+  const openDay = useCallback(
+    (day: string) =>
+      write((params) => {
+        anchorParam(params, day);
+        params.set("cal", "week");
+      }),
+    [write, anchorParam],
+  );
+
   return {
     anchor,
     layout,
@@ -144,6 +177,6 @@ export function useCalendarView(): CalendarView {
     setLayout,
     step,
     goToday,
-    goTo: setAnchor,
+    openDay,
   };
 }

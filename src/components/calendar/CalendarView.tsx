@@ -181,10 +181,11 @@ export default function CalendarView() {
             // work items, with its own scroll and its own empty state; the week
             // layout already exists, already shows a whole day, and is a place
             // you can keep working from.
-            onOpenDay={(day) => {
-              calendar.goTo(day);
-              calendar.setLayout("week");
-            }}
+            //
+            // One action rather than an anchor write plus a layout write: two
+            // param writes in one handler both build on the render's params,
+            // so the second wins. `useCalendarView` carries the mechanism.
+            onOpenDay={calendar.openDay}
             locale={i18n.language}
           />
 
