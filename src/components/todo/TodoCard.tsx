@@ -72,7 +72,10 @@ export default function TodoCard({
   celebrate = false,
   overlay = false,
   dragging = false,
-  dragDisabled = false,
+  // `dragDisabled` is deliberately not destructured any more. It stays on
+  // `TodoViewState` because `TodoItem` needs it for `useDraggable`, but the
+  // card itself no longer renders differently for it: opening is what the
+  // pointer cursor now promises, and that works whether or not drag does.
   onDraftChange,
   onSave,
   onCancel,
@@ -101,17 +104,50 @@ export default function TodoCard({
     <div
       ref={setNodeRef}
       {...handleProps}
+      /**
+       * The whole card opens the detail, not just the key.
+       *
+       * **Safe to put on the drag handle, and dnd-kit is what makes it safe.**
+       * The pointer sensor carries `activationConstraint: { distance: 8 }`, so
+       * a press that never moves 8px never becomes a drag — and the moment one
+       * does, dnd-kit adds a capture-phase `click` listener on the document
+       * that stops propagation, which it keeps for 50ms after the drop. So a
+       * drop never reaches this handler and a click that stayed still always
+       * does. That is why the earlier attempt at this was commented out rather
+       * than fixed: as a bare `onClick={onOpen}` it also fired on every drop.
+       */
+      onClick={(event) => {
+        // Every control inside the card answers its own click: the priority
+        // and work-type popovers, the assignee, the due date, the rename
+        // field, the menu, and the key. Without this, setting a priority would
+        // also open the modal behind the popover that was just used to set it.
+        if (
+          event.target instanceof Element &&
+          event.target.closest("button, input, a")
+        ) {
+          return;
+        }
+
+        // Mid-rename this click is the blur that saves. Opening the modal on
+        // top of that would take the card out from under the field being
+        // edited.
+        if (editing) return;
+
+        onOpen?.();
+      }}
       className={cn(
         // No resting shadow and a border at half the hairline's contrast: the
         // card is found by its surface being one step above the column, which
         // is what the tightened token ladder is for. A border and a shadow on
         // top of that is the "developer dashboard" look.
         "group border-ink/[0.06] bg-elevated hover:border-ink/15 hover:bg-ink/[0.02] rounded-card relative flex touch-none flex-col gap-2 border p-3 transition-[background-color,border-color,opacity] duration-150 select-none",
+        // The pointer cursor is earned by opening rather than by dragging now,
+        // which is why the `dragDisabled` branch is gone: a card on a grouped
+        // board cannot be dragged and still opens, so a default cursor there
+        // was telling the truth about the wrong verb.
         overlay
           ? "cursor-grabbing opacity-70 shadow-lg"
-          : dragDisabled
-            ? ""
-            : "cursor-grab",
+          : onOpen && "cursor-pointer",
         dragging && "hover:border-ink/[0.06] opacity-40",
         // Mounting in a done column means the card just got there — the
         // animation is one-shot, so mounting is the whole trigger.
@@ -171,7 +207,7 @@ export default function TodoCard({
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={onOpen}
                 title={`Open ${taskKey}`}
-                className="text-ink-3 hover:text-brand text-[11px] font-semibold tracking-wide transition-colors"
+                className="text-ink-3 hover:text-brand cursor-pointer text-[11px] font-semibold tracking-wide transition-colors"
               >
                 {taskKey}
               </button>
