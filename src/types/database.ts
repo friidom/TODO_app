@@ -281,6 +281,51 @@ export type Database = {
           },
         ];
       };
+      comments: {
+        Row: {
+          author_id: string;
+          board_id: string;
+          content: string;
+          created_at: string;
+          id: string;
+          todo_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          author_id: string;
+          board_id: string;
+          content: string;
+          created_at?: string;
+          id?: string;
+          todo_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          author_id?: string;
+          board_id?: string;
+          content?: string;
+          created_at?: string;
+          id?: string;
+          todo_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "comments_author_id_fkey";
+            columns: ["author_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "comments_todo_id_fkey";
+            columns: ["todo_id", "board_id"];
+            isOneToOne: false;
+            referencedRelation: "todos";
+            referencedColumns: ["id", "board_id"];
+          },
+        ];
+      };
       profiles: {
         Row: {
           avatar_url: string | null;
