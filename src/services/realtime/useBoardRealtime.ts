@@ -186,6 +186,15 @@ export function useBoardRealtime(boardId: string | undefined): string[] {
       // Clears the presence entry, unsubscribes, and removes the channel from
       // the client's registry — all three, which is what `removeChannel` is for
       // and what `unsubscribe()` alone would not do.
+      //
+      // **Known window, recorded rather than papered over** (M6-12): the
+      // registry entry only goes when the server acks the leave, and
+      // `supabase.channel(topic)` hands back whatever is still registered. A
+      // board revisited inside that round trip would bind onto a channel that
+      // is already leaving, whose `subscribe()` no-ops — no `track`, no resync.
+      // Tearing it down early destroys the in-flight leave and rejoins a topic
+      // the server still holds, which is worse; the repair is to await this
+      // promise before the next subscribe. See `docs/REALTIME_VERIFICATION.md`.
       void supabase.removeChannel(channel);
       setViewers([]);
     };

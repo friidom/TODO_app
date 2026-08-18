@@ -164,7 +164,8 @@ specified: *"with client-generated UUIDs this is an identity match."*
 | The same person under two keys counts once | **AUTO** |
 | Someone leaving disappears from the list | **AUTO** |
 | Order is stable across reconnects | **AUTO** |
-| Two browsers see each other | **MANUAL — re-test needed after the 2026-08-18 fix** |
+| Two browsers, two accounts, see each other | **MANUAL — re-test needed after the 2026-08-18 fix** |
+| The same account in two browsers | **One avatar, by design** — see below |
 | Closing one removes the avatar within a few seconds | **MANUAL** |
 | A network drop eventually clears it | **MANUAL** |
 
@@ -186,24 +187,79 @@ specified: *"with client-generated UUIDs this is an identity match."*
 > roster has not caught up with as an anonymous disc instead of dropping them,
 > so the count cannot under-report someone who is genuinely connected.
 
+**One avatar per _person_, not per tab, and it is deliberate.** The channel sets
+`config.presence.key` to the user's id, so every session of one account collapses
+into a single presence key — and `viewersFrom` de-duplicates by `user_id` on top
+of that. Two windows signed into the **same** account therefore show one avatar
+each, correctly. Testing presence needs two *accounts*: the same account in two
+browsers reproduces the symptom of the bug above without the bug being present,
+which is the confusion that made the original failure hard to read in the first
+place.
+
 ---
 
 ## M6-12 · Concurrency
 
-Every row here is **MANUAL**. None has been run.
+**Run 2026-08-18.** The scenarios split in two, and the split is the result
+worth recording: a row is either *what one cache does with two clients' events*
+— pure, deterministic, and now asserted in `events.test.ts` — or *whether the
+socket delivers them at all*, which needs a second account in a second browser
+and has still not been run here.
 
-| Scenario | Expected |
+| Scenario | Status |
 |---|---|
-| Local mutation and a remote one arriving together | Both survive; neither is lost to the other's snapshot |
-| Insert / update / delete ordering | Out-of-order delivery converges; an update before its insert is dropped and recovered by the reconnect resync |
-| Moving a task between columns on two clients | One winner, no duplicate, no orphan |
-| Two clients dragging different cards in one column | Both survive — this is what M6-A's single-row rank writes buy |
-| Two clients editing the same task | Last write wins on the field level, whole-row replacement, no merge invented |
-| Column create / rename / delete | Reflected on the other client without a refetch |
-| Echo events | Covered by M6-10's manual rows |
-| Navigation between boards | Old channel gone, new one live |
-| Ten navigations | One channel, not ten |
-| A client offline for 30 seconds | Converges on reconnect via the one-shot resync in `useBoardRealtime` |
+| Local mutation and a remote one arriving together | **AUTO** — the local row survives an insert into its own column |
+| An update that overtakes its insert | **AUTO** — dropped, not invented; the later insert still lands |
+| A late update for an already-deleted row | **AUTO** — no resurrection |
+| Moving a task between columns on two clients | **AUTO** — one winner, one copy, nothing left in the abandoned column |
+| Two clients dragging different cards in one column | **AUTO** — each keeps the rank its sender chose, which is what M6-A bought |
+| Two clients editing the same task | **AUTO** — whole-row last-write-wins, no merge invented |
+| No handler mutates the cached array | **AUTO** — todos and columns both |
+| Column create / rename / delete | **AUTO** for the transformation, **MANUAL** for the delivery |
+| Echo events | **AUTO** — M6-10 |
+| **Never refetches on an event** | **AUTO (by construction)** — `grep -rn invalidateQueries src/services/realtime` returns two lines, both inside the re-subscribe branch |
+| Navigation between boards | **MANUAL** |
+| Ten navigations leave one channel | **MANUAL** |
+| A client offline for 30 seconds | **MANUAL** — the mechanism is by construction, the convergence is not observed |
+| Two browsers deliver any of the above at all | **MANUAL** |
+
+### What the MANUAL rows need
+
+One session covers all of them: two accounts, both members of one board, one
+browser each (a private window counts as the second).
+
+The channel count is the only number that has to be read, and the client is not
+on `window` — so that check is a one-line temporary edit to
+`services/api/supabase.ts` (`Object.assign(window, { supabase })`) or a
+breakpoint in the effect, then `supabase.getChannels().length`: **1** on a
+board, **0** on the board list.
+
+Create, rename, drag and delete a card on A and watch B; switch boards on A ten
+times and re-read the count; then take A offline for 30 seconds, edit on B, and
+restore it. **Nothing below the transport is in question any more** — the cache
+half of every one of those steps is asserted above.
+
+### Finding — channel reuse inside the leave round trip
+
+`RealtimeClient.channel(topic)` returns the channel **already registered** for
+that topic rather than building a new one, and `removeChannel` only leaves that
+registry once the server acks the leave. So a board revisited inside that one
+round trip (A → B → A within a couple of hundred milliseconds) is handed the
+channel that is still leaving: the `.on(...)` chain binds onto it a second time,
+and `subscribe()` no-ops because the channel is not `closed` — so the SUBSCRIBED
+callback never runs, `track()` never runs, and the board looks live while being
+silently dead until a reload.
+
+**Not fixed, deliberately.** Tearing the leaving channel down early destroys its
+in-flight leave push and rejoins a topic the server still considers joined,
+which is a worse failure than the one being repaired. The honest fix is to await
+the teardown before the next subscribe, which means holding a promise across
+effect runs. It is recorded in `useBoardRealtime`'s cleanup comment so the next
+person starts from here, and it is not on M6-B's critical path: no route in the
+app navigates board → board inside a socket round trip, and there is no
+StrictMode double-mount to force one.
 
 **A failure in any of these becomes a task in `IMPLEMENTATION_PLAN.md` before
 M6-B closes** — that is M6-12's own instruction and it has not been overtaken.
+The finding above is the only one so far, and it came from reading the client
+rather than from a run.
