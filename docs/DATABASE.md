@@ -219,11 +219,24 @@ Task discussion.
 Fields
 
 - id
+- board_id
 - todo_id
 - author_id
 - content
 - created_at
 - updated_at
+
+`board_id` is denormalised from the work item, and it is the exception to this
+document's own rule against duplicated information: it is a derived key used by
+the security boundary, not duplicated user data. The membership helpers take a
+board id, so without it every policy evaluation would join comments → todos to
+find one, on every row. It cannot drift — `(todo_id, board_id)` references
+`todos (id, board_id)`, the M3-18 pattern.
+
+Any board member may post, including a viewer. An author may edit only their own
+comment and only its `content` (a column-level grant, not just a policy); an
+author may delete their own, and admins and owners may delete any. See
+*Permission Model* in `docs/IMPLEMENTATION_PLAN.md`.
 
 ---
 
@@ -365,8 +378,11 @@ todos.creator_id
 todos.assignee_id
 → profiles.id
 
-comments.todo_id
-→ todos.id
+comments.(todo_id, board_id)
+→ todos.(id, board_id) — composite, on delete cascade
+
+comments.author_id
+→ profiles.id — on delete cascade, unlike todos.creator_id
 
 attachments.todo_id
 → todos.id
@@ -418,7 +434,7 @@ todos(column_id, position)
 
 todos(board_id)
 
-comments(todo_id)
+comments(todo_id, created_at) — one thread, in posting order, no sort node
 
 activities(board_id, created_at desc) — the feed
 
