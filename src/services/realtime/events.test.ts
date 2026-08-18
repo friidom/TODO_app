@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { applyColumnEvent, applyTodoEvent, type RowChange } from "./events";
-import type { IColumn, Todo } from "@/types/data";
+import {
+  applyColumnEvent,
+  applyCommentEvent,
+  applyTodoEvent,
+  type RowChange,
+} from "./events";
+import type { Comment, IColumn, Todo } from "@/types/data";
 
 let seq = 0;
 
@@ -351,5 +356,159 @@ describe("applyTodoEvent — M6-12 concurrency", () => {
     applyTodoEvent(board, change("DELETE", { old: { id: "a" } }));
 
     expect(board).toEqual(before);
+  });
+});
+
+/**
+ * M7-04 · comment events.
+ *
+ * The routing — which thread a payload belongs to — is `useBoardRealtime`'s and
+ * is not testable without a query client. What is testable is everything that
+ * decides what happens once the right array is in hand, which is where the
+ * duplicate-comment and lost-edit failures would live.
+ */
+let commentSeq = 0;
+
+function comment(over: Partial<Comment> = {}): Comment {
+  commentSeq += 1;
+
+  return {
+    id: `cm-${commentSeq}`,
+    board_id: "b-1",
+    todo_id: "t-1",
+    author_id: "u-1",
+    content: `comment ${commentSeq}`,
+    created_at: `2026-08-18T09:${String(commentSeq).padStart(2, "0")}:00.000Z`,
+    updated_at: `2026-08-18T09:${String(commentSeq).padStart(2, "0")}:00.000Z`,
+    ...over,
+  } as Comment;
+}
+
+describe("applyCommentEvent", () => {
+  it("adds a comment from another client", () => {
+    const thread = [comment({ id: "a" })];
+
+    const result = applyCommentEvent(
+      thread,
+      change("INSERT", { new: comment({ id: "b" }) }),
+    );
+
+    expect(result.map((it) => it.id)).toEqual(["a", "b"]);
+  });
+
+  it("IGNORES AN ECHO OF THIS CLIENT'S OWN COMMENT", () => {
+    // The duplicate-comment failure, and it is the same one line as M6-10's:
+    // the client mints the uuid (M7-02), so its own insert comes back carrying
+    // an id the thread already holds.
+    const mine = comment({ id: "mine", content: "posted locally" });
+    const thread = [mine];
+
+    const result = applyCommentEvent(
+      thread,
+      change("INSERT", { new: { ...mine } }),
+    );
+
+    expect(result).toHaveLength(1);
+    // Untouched, not replaced — and the array identity survives, so the open
+    // thread does not re-render for its own echo.
+    expect(result[0]).toBe(mine);
+    expect(result).toBe(thread);
+  });
+
+  it("is idempotent when the same remote insert is delivered twice", () => {
+    const thread = [comment({ id: "a" })];
+    const event = change("INSERT", { new: comment({ id: "b" }) });
+
+    const once = applyCommentEvent(thread, event);
+    const twice = applyCommentEvent(once, event);
+
+    expect(twice).toHaveLength(2);
+  });
+
+  it("puts an out-of-order arrival in posting order", () => {
+    // Two people posting in the same second can be delivered either way round.
+    const thread = [
+      comment({ id: "a", created_at: "2026-08-18T09:00:00.000Z" }),
+      comment({ id: "c", created_at: "2026-08-18T09:02:00.000Z" }),
+    ];
+
+    const result = applyCommentEvent(
+      thread,
+      change("INSERT", {
+        new: comment({ id: "b", created_at: "2026-08-18T09:01:00.000Z" }),
+      }),
+    );
+
+    expect(result.map((it) => it.id)).toEqual(["a", "b", "c"]);
+  });
+
+  it("applies a remote edit as a whole-row replacement", () => {
+    const thread = [comment({ id: "a", content: "before" })];
+
+    const result = applyCommentEvent(
+      thread,
+      change("UPDATE", {
+        new: comment({
+          id: "a",
+          content: "after",
+          updated_at: "2026-08-18T10:00:00.000Z",
+        }),
+      }),
+    );
+
+    expect(result[0].content).toBe("after");
+    // The trigger's stamp comes through, which is what puts the "edited"
+    // marker on the other client's copy.
+    expect(result[0].updated_at).toBe("2026-08-18T10:00:00.000Z");
+  });
+
+  it("drops an edit for a comment it does not have, rather than inventing it", () => {
+    const thread = [comment({ id: "a" })];
+
+    expect(
+      applyCommentEvent(
+        thread,
+        change("UPDATE", { new: comment({ id: "x" }) }),
+      ),
+    ).toBe(thread);
+  });
+
+  it("removes a deleted comment by the primary key, which is all it carries", () => {
+    const thread = [comment({ id: "a" }), comment({ id: "b" })];
+
+    const result = applyCommentEvent(
+      thread,
+      change("DELETE", { old: { id: "a" } }),
+    );
+
+    expect(result.map((it) => it.id)).toEqual(["b"]);
+  });
+
+  it("is a no-op for a delete whose comment is in another thread", () => {
+    // The DELETE subscription is unfiltered, so ids from work items this client
+    // does not have open do arrive — and the caller hands this whichever thread
+    // it is searching. A miss must cost nothing.
+    const thread = [comment({ id: "a" })];
+
+    expect(
+      applyCommentEvent(thread, change("DELETE", { old: { id: "elsewhere" } })),
+    ).toHaveLength(1);
+  });
+
+  it("ignores payloads with nothing to act on", () => {
+    const thread = [comment({ id: "a" })];
+
+    expect(applyCommentEvent(thread, change("INSERT", {}))).toBe(thread);
+    expect(applyCommentEvent(thread, change("DELETE", {}))).toBe(thread);
+  });
+
+  it("does not mutate the thread it is given", () => {
+    const thread = [comment({ id: "a" })];
+    const before = [...thread];
+
+    applyCommentEvent(thread, change("INSERT", { new: comment({ id: "b" }) }));
+    applyCommentEvent(thread, change("DELETE", { old: { id: "a" } }));
+
+    expect(thread).toEqual(before);
   });
 });

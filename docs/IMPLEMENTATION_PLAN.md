@@ -2136,6 +2136,11 @@ List and composer inside the task detail view. Author avatar, relative timestamp
 Subscribe only while a task is open; tear down on close.
 **Test:** two browsers on the same task → comments appear live; close and reopen → no duplicate subscription; open ten tasks in sequence → no channel leak.
 **Commit:** `feat(comments): realtime comment updates`
+> **Built 2026-08-18 on the board channel instead, and the task text above is left as written.** *"Subscribe only while a task is open"* was specified before M6-B existed; by the time this was built there was already exactly one channel per board, with its reconnect resync and its teardown, and comments carry `board_id` (M7-01) so they filter on it identically to `todos` and `columns`. Three more `postgres_changes` bindings on that channel therefore add **no lifecycle at all**, where a per-task channel would add a subscribe/teardown cycle per task opened — which is the case that would drive the topic-reuse window recorded in `docs/REALTIME_VERIFICATION.md` on every click, and would have forced that fix into this task.
+>
+> **What that does to this task's three tests.** "Two browsers on the same task → comments appear live" is unchanged and still the acceptance criterion. The other two — *no duplicate subscription on close and reopen*, *no channel leak over ten tasks* — become vacuous rather than passed: there is no second channel to duplicate or leak, and `supabase.getChannels().length` stays 1 across any number of tasks opened. They are recorded here as **not applicable to the shape built** rather than ticked off.
+>
+> **The cost, stated plainly:** a client receives comment events for every card on the board, not only the open one. `patchComments` drops an event whose thread is not in cache, which is every thread but one, so the cost is wire traffic proportional to the board's comment rate and nothing else. Scoping to one work item would mean a filter on `todo_id`, which is the per-task channel again.
 
 #### M7-05 · Activity history — **MEDIUM RISK, CONDITIONAL**
 **Only build this if the activity feed UI is actually being designed in this milestone.** `docs/DATABASE.md` lists `activities` in the base ERD, but an unbounded audit table with no reader grows forever and is silently wrong the day you finally build the UI. If there is no feed, skip it and record the deferral here.

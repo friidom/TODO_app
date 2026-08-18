@@ -4,11 +4,16 @@ import {
   applyColumnUpdated,
 } from "@/services/columns/cache";
 import {
+  applyCommentDeleted,
+  applyCommentInserted,
+  applyCommentUpdated,
+} from "@/services/comments/cache";
+import {
   applyTodoDeleted,
   applyTodoInserted,
   applyTodoUpdated,
 } from "@/services/todos/cache";
-import type { IColumn, Todo } from "@/types/data";
+import type { Comment, IColumn, Todo } from "@/types/data";
 
 /**
  * A replication event, turned into a cache transformation (M6-09).
@@ -122,4 +127,49 @@ export function applyColumnEvent(
   }
 
   return known ? applyColumnUpdated(columns, row) : columns;
+}
+
+/**
+ * One work item's thread after one event (M7-04).
+ *
+ * Same three rules as the two above, and it calls the M7-02 cache functions
+ * rather than a second set — the reuse `docs/API.md` asks for, one table
+ * further out.
+ *
+ * **The echo rule is not repeated here.** `applyCommentInserted` already
+ * ignores an id the thread holds, because M7-02 needed that for its own
+ * optimistic post: the client mints the uuid, so this client's insert comes
+ * back carrying an id already in the cache. Re-testing it here would be a
+ * second place that decides what an echo is.
+ *
+ * **The array this is applied to is chosen by the caller, not by this
+ * function.** Comments are cached one thread per work item, and a DELETE
+ * payload carries the primary key and nothing else — no `todo_id` to route by.
+ * `useBoardRealtime` searches the cached threads for the id; this function is
+ * given whichever array holds it, and removes nothing when handed one that
+ * does not.
+ */
+export function applyCommentEvent(
+  comments: Comment[],
+  change: RowChange<Comment>,
+): Comment[] {
+  if (change.eventType === "DELETE") {
+    const id = change.old?.id;
+
+    return id ? applyCommentDeleted(comments, id) : comments;
+  }
+
+  const row = change.new as Comment | undefined;
+
+  if (!row?.id) return comments;
+
+  if (change.eventType === "INSERT") return applyCommentInserted(comments, row);
+
+  // An edit for a comment this client does not have is dropped, not inserted:
+  // it means the INSERT was missed, and the re-subscribe resync is what
+  // recovers that — inventing the row from an update payload would be a second
+  // convergence mechanism.
+  return comments.some((comment) => comment.id === row.id)
+    ? applyCommentUpdated(comments, row)
+    : comments;
 }
