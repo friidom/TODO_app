@@ -999,6 +999,246 @@ select pg_temp.expect_true('11 structure',
                        'add_board_member','set_member_role','remove_board_member','leave_board')));
 
 
+-- ===========================================================================
+-- 12. Comments — M7-01
+-- ===========================================================================
+--
+-- The matrix Part II gained when M7-01 resolved "may a viewer comment?":
+--
+--   any member  may post, as themselves and nobody else
+--   author      may edit their own text, and only the text
+--   author      may delete their own
+--   admin/owner may delete anyone's — and may NOT edit anyone's
+--
+-- Self-contained fixtures. Earlier sections create and delete work items on
+-- board A, so this one seeds its own rather than depending on what they left
+-- behind — a section that fails because section 2 deleted its subject is a
+-- false negative, and the one this harness would be slowest to diagnose.
+
+do $comments_fixture$
+begin
+  insert into public.todos (id, board_id, column_id, title, position) values
+    ('00000000-0000-4000-8000-0000000000d7',
+     '00000000-0000-4000-8000-0000000000fa',
+     '00000000-0000-4000-8000-0000000000c1', 'comment subject', 7);
+
+  -- Two comments by two different people, seeded as the session role so the
+  -- policies under test are not also the thing that created the fixture.
+  insert into public.comments (id, board_id, todo_id, author_id, content) values
+    ('00000000-0000-4000-8000-00000000ca01',
+     '00000000-0000-4000-8000-0000000000fa',
+     '00000000-0000-4000-8000-0000000000d7',
+     '00000000-0000-4000-8000-00000000f004', 'viewer said this'),
+    ('00000000-0000-4000-8000-00000000ca02',
+     '00000000-0000-4000-8000-0000000000fa',
+     '00000000-0000-4000-8000-0000000000d7',
+     '00000000-0000-4000-8000-00000000f003', 'editor said this');
+end;
+$comments_fixture$;
+
+
+-- Read: every member, nobody else.
+select pg_temp.rows_as('12 comments', 'viewer reads the thread',
+  '00000000-0000-4000-8000-00000000f004',
+  $$select * from public.comments where todo_id = '00000000-0000-4000-8000-0000000000d7'$$, 2);
+
+select pg_temp.rows_as('12 comments', 'owner reads the thread',
+  '00000000-0000-4000-8000-00000000f001',
+  $$select * from public.comments where todo_id = '00000000-0000-4000-8000-0000000000d7'$$, 2);
+
+select pg_temp.rows_as('12 comments', 'outsider reads nothing',
+  '00000000-0000-4000-8000-00000000f005',
+  $$select * from public.comments where todo_id = '00000000-0000-4000-8000-0000000000d7'$$, 0);
+
+-- Membership on another board grants nothing here, which is the check that
+-- proves the policy resolves board_role against the ROW's board.
+select pg_temp.rows_as('12 comments', 'a member of board B reads nothing on board A',
+  '00000000-0000-4000-8000-00000000f006',
+  $$select * from public.comments where todo_id = '00000000-0000-4000-8000-0000000000d7'$$, 0);
+
+
+-- Post: the decision this table was blocked on. A viewer may.
+select pg_temp.rows_as('12 comments', 'VIEWER MAY COMMENT — the M7-01 decision',
+  '00000000-0000-4000-8000-00000000f004',
+  $$insert into public.comments (board_id, todo_id, author_id, content)
+    values ('00000000-0000-4000-8000-0000000000fa','00000000-0000-4000-8000-0000000000d7',
+            '00000000-0000-4000-8000-00000000f004','viewer posting')$$, 1);
+
+select pg_temp.rows_as('12 comments', 'editor may comment',
+  '00000000-0000-4000-8000-00000000f003',
+  $$insert into public.comments (board_id, todo_id, author_id, content)
+    values ('00000000-0000-4000-8000-0000000000fa','00000000-0000-4000-8000-0000000000d7',
+            '00000000-0000-4000-8000-00000000f003','editor posting')$$, 1);
+
+select pg_temp.try_as('12 comments', 'outsider cannot comment',
+  '00000000-0000-4000-8000-00000000f005',
+  $$insert into public.comments (board_id, todo_id, author_id, content)
+    values ('00000000-0000-4000-8000-0000000000fa','00000000-0000-4000-8000-0000000000d7',
+            '00000000-0000-4000-8000-00000000f005','nope')$$, '42501');
+
+select pg_temp.try_as('12 comments', 'a member of board B cannot comment on board A',
+  '00000000-0000-4000-8000-00000000f006',
+  $$insert into public.comments (board_id, todo_id, author_id, content)
+    values ('00000000-0000-4000-8000-0000000000fa','00000000-0000-4000-8000-0000000000d7',
+            '00000000-0000-4000-8000-00000000f006','nope')$$, '42501');
+
+-- PostgREST will send whatever author_id the client puts in the body, so this
+-- is the clause that stops a member posting under someone else's name.
+select pg_temp.try_as('12 comments', 'a member cannot post as another user',
+  '00000000-0000-4000-8000-00000000f004',
+  $$insert into public.comments (board_id, todo_id, author_id, content)
+    values ('00000000-0000-4000-8000-0000000000fa','00000000-0000-4000-8000-0000000000d7',
+            '00000000-0000-4000-8000-00000000f003','signed by someone else')$$, '42501');
+
+select pg_temp.try_as('12 comments', 'empty content is refused by the constraint',
+  '00000000-0000-4000-8000-00000000f004',
+  $$insert into public.comments (board_id, todo_id, author_id, content)
+    values ('00000000-0000-4000-8000-0000000000fa','00000000-0000-4000-8000-0000000000d7',
+            '00000000-0000-4000-8000-00000000f004','')$$, '23514');
+
+select pg_temp.try_as('12 comments', 'whitespace-only content is refused too',
+  '00000000-0000-4000-8000-00000000f004',
+  $$insert into public.comments (board_id, todo_id, author_id, content)
+    values ('00000000-0000-4000-8000-0000000000fa','00000000-0000-4000-8000-0000000000d7',
+            '00000000-0000-4000-8000-00000000f004','   ')$$, '23514');
+
+-- 23503, not 42501: f001 owns board C, so the WITH CHECK passes and the
+-- COMPOSITE FOREIGN KEY is what refuses it. That is the point of the
+-- constraint — board_id cannot disagree with the work item it points at, even
+-- for a caller who is entitled to both boards.
+select pg_temp.try_as('12 comments', 'board_id cannot disagree with the work item''s board',
+  '00000000-0000-4000-8000-00000000f001',
+  $$insert into public.comments (board_id, todo_id, author_id, content)
+    values ('00000000-0000-4000-8000-0000000000fc','00000000-0000-4000-8000-0000000000d7',
+            '00000000-0000-4000-8000-00000000f001','filed under the wrong board')$$, '23503');
+
+
+-- Edit: the author, only the author, and only the text.
+select pg_temp.rows_as('12 comments', 'author edits their own comment',
+  '00000000-0000-4000-8000-00000000f004',
+  $$update public.comments set content = 'viewer edited'
+     where id = '00000000-0000-4000-8000-00000000ca01'$$, 1);
+
+select pg_temp.rows_as('12 comments', 'an editor cannot edit someone else''s comment',
+  '00000000-0000-4000-8000-00000000f003',
+  $$update public.comments set content = 'rewritten'
+     where id = '00000000-0000-4000-8000-00000000ca01'$$, 0);
+
+select pg_temp.rows_as('12 comments', 'AN ADMIN CANNOT EDIT SOMEONE ELSE''S COMMENT',
+  '00000000-0000-4000-8000-00000000f002',
+  $$update public.comments set content = 'rewritten by admin'
+     where id = '00000000-0000-4000-8000-00000000ca01'$$, 0);
+
+select pg_temp.rows_as('12 comments', 'nor can the owner — nobody edits another person''s text',
+  '00000000-0000-4000-8000-00000000f001',
+  $$update public.comments set content = 'rewritten by owner'
+     where id = '00000000-0000-4000-8000-00000000ca01'$$, 0);
+
+-- 42501 from the COLUMN grant, not from a policy. A row-level policy cannot
+-- express "only this column", so `grant update (content)` is what stops an
+-- author backdating their own comment or moving it to another card in the same
+-- PATCH — both of which the UPDATE policy alone would permit.
+select pg_temp.try_as('12 comments', 'an author cannot backdate their own comment',
+  '00000000-0000-4000-8000-00000000f004',
+  $$update public.comments set created_at = now() - interval '1 year'
+     where id = '00000000-0000-4000-8000-00000000ca01'$$, '42501');
+
+select pg_temp.try_as('12 comments', 'an author cannot hand their comment to someone else',
+  '00000000-0000-4000-8000-00000000f004',
+  $$update public.comments set author_id = '00000000-0000-4000-8000-00000000f003'
+     where id = '00000000-0000-4000-8000-00000000ca01'$$, '42501');
+
+
+-- Delete: your own, or anyone's if you administer the board.
+select pg_temp.rows_as('12 comments', 'an editor cannot delete someone else''s comment',
+  '00000000-0000-4000-8000-00000000f003',
+  $$delete from public.comments where id = '00000000-0000-4000-8000-00000000ca01'$$, 0);
+
+select pg_temp.rows_as('12 comments', 'outsider deletes nothing',
+  '00000000-0000-4000-8000-00000000f005',
+  $$delete from public.comments where id = '00000000-0000-4000-8000-00000000ca01'$$, 0);
+
+select pg_temp.rows_as('12 comments', 'an author deletes their own comment',
+  '00000000-0000-4000-8000-00000000f004',
+  $$delete from public.comments where id = '00000000-0000-4000-8000-00000000ca01'$$, 1);
+
+select pg_temp.rows_as('12 comments', 'AN ADMIN DELETES ANYONE''S — moderation',
+  '00000000-0000-4000-8000-00000000f002',
+  $$delete from public.comments where id = '00000000-0000-4000-8000-00000000ca02'$$, 1);
+
+
+-- The thread goes with the work item. There is nowhere to rehome a comment to,
+-- which is why this FK cascades where M3-18's restricts.
+select pg_temp.rows_as('12 comments', 'deleting the work item takes its comments',
+  '00000000-0000-4000-8000-00000000f001',
+  $$delete from public.todos where id = '00000000-0000-4000-8000-0000000000d7'$$, 1);
+
+select pg_temp.expect_true('12 comments',
+  'no comment survives the work item it hung off',
+  (select count(*) = 0 from public.comments
+   where todo_id = '00000000-0000-4000-8000-0000000000d7'));
+
+
+-- Structure — the same "assert the mechanism, not only the behaviour" pass
+-- section 11 makes for M3-05 and M3-18.
+
+select pg_temp.expect_true('12 comments',
+  'comments_todo_id_fkey is composite — (todo_id, board_id) → todos (id, board_id), CASCADE',
+  (select array_length(conkey, 1) = 2
+      and confrelid = 'public.todos'::regclass
+      and confdeltype = 'c'
+   from pg_constraint
+   where conname = 'comments_todo_id_fkey'
+     and conrelid = 'public.comments'::regclass));
+
+select pg_temp.expect_true('12 comments',
+  'the unique key that composite foreign key references exists on todos',
+  (select exists (select 1 from pg_constraint
+                  where conname = 'todos_id_board_id_key'
+                    and contype = 'u'
+                    and conrelid = 'public.todos'::regclass)));
+
+select pg_temp.expect_true('12 comments',
+  'anon holds no privilege at all on comments',
+  (select not (has_table_privilege('anon','public.comments','SELECT')
+            or has_table_privilege('anon','public.comments','INSERT')
+            or has_table_privilege('anon','public.comments','UPDATE')
+            or has_table_privilege('anon','public.comments','DELETE')
+            or has_table_privilege('anon','public.comments','TRUNCATE'))));
+
+-- The column-level grant, asserted as a grant rather than only through the
+-- 42501 above: authenticated may update `content` and no other column.
+select pg_temp.expect_true('12 comments',
+  'authenticated may update content and nothing else',
+  (select has_column_privilege('authenticated','public.comments','content','UPDATE')
+      and not has_column_privilege('authenticated','public.comments','author_id','UPDATE')
+      and not has_column_privilege('authenticated','public.comments','board_id','UPDATE')
+      and not has_column_privilege('authenticated','public.comments','todo_id','UPDATE')
+      and not has_column_privilege('authenticated','public.comments','created_at','UPDATE')));
+
+select pg_temp.expect_true('12 comments',
+  'comments has RLS enabled and exactly four policies',
+  (select relrowsecurity from pg_class where oid = 'public.comments'::regclass)
+  and (select count(*) = 4 from pg_policies
+       where schemaname = 'public' and tablename = 'comments'));
+
+select pg_temp.expect_true('12 comments',
+  'the UPDATE policy carries WITH CHECK as well as USING',
+  (select with_check is not null from pg_policies
+   where schemaname = 'public' and tablename = 'comments' and cmd = 'UPDATE'));
+
+select pg_temp.expect_true('12 comments',
+  'blank content is refused by a constraint, not only by the composer',
+  (select exists (select 1 from pg_constraint
+                  where conname = 'comments_content_not_blank'
+                    and conrelid = 'public.comments'::regclass)));
+
+select pg_temp.expect_true('12 comments',
+  'comments is NOT in the realtime publication — that is M7-04''s to add',
+  (select count(*) = 0 from pg_publication_tables
+   where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'comments'));
+
+
 -- ---------------------------------------------------------------------------
 -- Report — failures first
 -- ---------------------------------------------------------------------------

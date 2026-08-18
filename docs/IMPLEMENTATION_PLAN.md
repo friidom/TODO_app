@@ -286,6 +286,23 @@ Each role includes everything the role to its left can do.
 
 Read as a single rule: **an actor may only act on a member strictly below their own rank, and never on the Owner.** An admin acting on another admin is denied; that is what "removes members below owner level" and "changes roles of Viewer and Editor" mean together.
 
+### Comment matrix
+
+Decided at M7-01, 2026-08-18, resolving the open question this section carried from M7. Comments are deliberately **not** part of the content matrix above: commenting is participation, not content, and that distinction is the whole of why a viewer appears in this table and not in that one.
+
+| Capability | viewer | editor | admin | owner |
+|---|:---:|:---:|:---:|:---:|
+| Read comments on a board they belong to | ✅ | ✅ | ✅ | ✅ |
+| Post a comment | ✅ | ✅ | ✅ | ✅ |
+| Post **as another user** | ❌ | ❌ | ❌ | ❌ |
+| Edit their own comment's text | ✅ | ✅ | ✅ | ✅ |
+| Edit **anyone else's** comment | ❌ | ❌ | ❌ | ❌ |
+| Edit any field of a comment other than its text | ❌ | ❌ | ❌ | ❌ |
+| Delete their own comment | ✅ | ✅ | ✅ | ✅ |
+| Delete **anyone's** comment (moderation) | ❌ | ❌ | ✅ | ✅ |
+
+Read as a single rule: **a comment belongs to its author, and the only power anyone else has over it is to remove it.** Nobody edits another person's text — an admin who could would make the attribution a lie, which is worse than deleting it. Editing is narrowed to the text itself by a column-level `grant update (content)`, because a row-level policy cannot say which columns a permitted update may touch.
+
 ### Owner immutability — invariants
 
 These are database invariants, not UI rules. I1–I5 each have a named test in M3-16; I6 is a scoping rule, enforced by M3-14 refusing `role = 'owner'` and by no transfer operation existing.
@@ -325,6 +342,8 @@ Deleting the Owner's *profile* cascades the board away entirely (`boards.owner_i
 | Board settings by role | `"Admins and above update boards"` — `board_role(id) in ('owner','admin')` on UPDATE; DELETE left owner-only from M2-01 | ✅ applied and verified 2026-08-12 (M3-17) — M3-16 §5, §6, §11. `owner_id` stays unwritable through the widened policy because M3-15's `boards_owner_immutable` trigger refuses it — no policy can express "unchanged" |
 | A work item's column belongs to its board | composite FK `todos (column_id, board_id) → columns (id, board_id)` | ✅ applied and verified 2026-08-12 (M3-18) — M3-16 §7. The preflight passed against production data, so no existing row violated it. Integrity, not authorization — it refuses the owner exactly as it refuses an editor |
 | Column deletion is atomic and editor-gated | `delete_column(uuid, uuid)` — `SECURITY INVOKER`, so M3-05's policies authorize it; the zero-row DELETE check turns a silent RLS denial into 42501 | ✅ applied and verified 2026-08-12 (M3-11) — M3-16 §10. Backend only; the client still uses the four round-trip path. Backend only; the client still uses the four round-trip path |
+| Comments: post as any member, edit your own, delete your own or moderate as admin+ | four policies on `comments` using `board_role(board_id)` and `author_id = auth.uid()`, plus `grant update (content)` so an edit cannot touch any other column | ✅ **written and verified against a shadow database 2026-08-18 (M7-01) — 32/32 in `scripts/verify-m3-16-role-matrix.sql` §12. NOT YET APPLIED to the linked project**; `npm run db:push` is the remaining step |
+| A comment's board matches its work item's board | composite FK `comments (todo_id, board_id) → todos (id, board_id)` on cascade, plus `todos_id_board_id_key` | ✅ written and verified 2026-08-18 (M7-01) — M3-16 §12. The same M3-18 pattern, one table further out; integrity, not authorization |
 
 ### Decisions this section makes that the role specification did not state
 
@@ -337,7 +356,7 @@ Flagged explicitly so they are visible rather than smuggled in. Changing one mea
 | Who may rename a board / change its appearance? | **admin and owner** (M3-17) | It is board administration, which is what "admin" names. Editors manage content, not the board. |
 | Who may delete or archive a board? | **owner only** (M3-17) | Irreversible and cascades across every table. "Owner is the ultimate authority over the board." |
 | May a viewer be assigned a work item? | **Yes** — assignment requires membership, not write permission (M5-05) | Being responsible for something you cannot edit is a real state; refusing it would be a surprise, not a safeguard. |
-| May a viewer comment? | **Undecided — M7 must decide before `comments` RLS is written** | Not derivable from the role spec. Recorded as an open decision, not silently resolved. |
+| May a viewer comment? | **Yes — decided M7-01, 2026-08-18.** Any member may post; an author may edit only their own text; an author may delete their own and admins/owners may delete any. See the *Comment matrix* above. | Commenting is participation, not content. A reviewer who can read a board but not change it is exactly the person with something to say about it. The capability is cheap to grant now and expensive to withdraw once people use it, so the reversible direction was taken. **Moderation is the one power over someone else's comment**, and it stops at deletion: editing another person's text would make the attribution a lie. |
 | **Is a Space a permission scope?** | **No — decided M14, 2026-08-14.** A space is an organisational container. Membership and roles stay board-scoped, and the four roles keep meaning exactly what they mean above. | Appendix B deferred this *"until workspaces become real"*, and M15 makes them real, so it had to be answered before a `spaces` table existed rather than after. The alternative is a space role and a board role that can disagree, a precedence rule between them, a second set of RPCs and a second matrix in this section — a whole second authorization system, bought for *filing*. **The shape that follows:** `spaces.owner_id` with owner-only RLS; `boards.space_id` is the owner's filing decision; a member who does not own the space cannot read the space row and sees the board unfiled. **The one new rule it adds, and it is enforced in the database, not the client:** `boards.space_id` may only be set to a space the caller owns — M3-17 lets any admin update a board, so without it an admin could file a board into a space they cannot see. **Reversible without a rewrite:** if spaces later need sharing, `spaces` gains its own membership and `boards.space_id` is unchanged. |
 
 ---
