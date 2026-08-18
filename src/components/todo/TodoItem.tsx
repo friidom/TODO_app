@@ -4,6 +4,7 @@ import { useDraggable } from "@dnd-kit/core";
 import TodoCard from "./TodoCard";
 import AssigneeControl from "./TodoItem/AssigneeControl";
 import TodoMenu from "./TodoItem/TodoMenu";
+import { itemLabel } from "@/hooks/dragAnnouncements";
 import { useKeyPrefix } from "@/hooks/useKeyPrefix";
 import { useOpenTask } from "@/hooks/useOpenTask";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -11,6 +12,7 @@ import { useTodoPatch } from "@/hooks/useTodoPatch";
 import { toCardContent } from "@/services/todos/toCardContent";
 import { useDoneFlash } from "@/stores/doneFlash";
 import type { Todo, TodoViewState } from "@/types/data";
+import { taskKey } from "@/utils/taskKey";
 
 /**
  * The container behind a card: state, writes and drag registration (M5-02).
@@ -49,6 +51,8 @@ function DraggableTodo({
   todo: Todo;
   dragDisabled?: boolean;
 }) {
+  const keyPrefix = useKeyPrefix();
+
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: todo.id,
     data: { type: "todo", columnId: todo.column_id },
@@ -66,7 +70,20 @@ function DraggableTodo({
       dragging={isDragging}
       dragDisabled={dragDisabled}
       setNodeRef={setNodeRef}
-      handleProps={{ ...attributes, ...listeners }}
+      handleProps={{
+        ...attributes,
+        ...listeners,
+        // M9-02. `attributes` already carries role, tabIndex and the
+        // aria-describedby pointing at dnd-kit's instructions; what it cannot
+        // know is what this particular card *is*. Without a label a screen
+        // reader reads the card's whole contents — two chip labels, a title, a
+        // date — as the name of a button.
+        "aria-label": itemLabel(taskKey(keyPrefix, todo.board_key), todo.title),
+        // Overrides dnd-kit's "draggable", which describes the mechanism
+        // rather than the thing. "card" is the word the rest of the product
+        // uses out loud.
+        "aria-roledescription": "card",
+      }}
     />
   );
 }
