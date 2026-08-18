@@ -1,15 +1,40 @@
+import { Suspense, type ReactNode } from "react";
 import { createBrowserRouter } from "react-router";
 
 import ProtectedRoute from "./ProtectedRoute";
 import BoardIndexRoute from "./BoardIndexRoute";
-import RegisterPage from "@/pages/auth/RegisterPage";
-import LoginPage from "@/pages/auth/LoginPage";
 import PublicRoute from "./PublicRoute";
-import BoardPage from "@/pages/board/BoardPage";
-import ProfilePage from "@/pages/profile/ProfilePage";
-import InvitePage from "@/pages/invite/InvitePage";
+import LoginPage from "@/pages/auth/LoginPage";
 import NotFoundPage from "@/pages/error/NotFoundPage";
 import RouteErrorPage from "@/pages/error/RouteErrorPage";
+import Loading from "@/components/loading/LoadingPage";
+import { BoardPage, InvitePage, ProfilePage, RegisterPage } from "./lazyPages";
+
+/**
+ * The split (M9-03), and what governs which side of it a route lands on.
+ *
+ * `docs/FRONTEND.md` asks for *"lazy loading for large routes"*, and on this
+ * app that is very nearly one route. `BoardPage` reaches @dnd-kit, five view
+ * renderers, the comment thread, the activity drawer and every board modal;
+ * everything else is a form or a sentence. Splitting it is most of the win, and
+ * splitting the rest is what stops it being clawed back the next time one of
+ * them grows.
+ *
+ * **Four routes stay eager, each for a reason rather than by omission:**
+ *
+ *   · `LoginPage` is the first paint for a signed-out visitor. Deferring it
+ *     buys nothing — it *is* the initial bundle's job — and costs a spinner on
+ *     the one screen that should feel instant.
+ *   · `BoardIndexRoute` is the first paint for a signed-in one, and it only
+ *     picks a board.
+ *   · `NotFoundPage` and `RouteErrorPage` are the error paths. A page whose
+ *     job is to work when something else did not must not itself depend on a
+ *     chunk request succeeding — a failed lazy import inside an error boundary
+ *     is a blank screen with no way out.
+ */
+const deferred = (element: ReactNode) => (
+  <Suspense fallback={<Loading />}>{element}</Suspense>
+);
 
 export const router = createBrowserRouter([
   {
@@ -25,11 +50,11 @@ export const router = createBrowserRouter([
       },
       {
         path: "/boards/:boardId",
-        element: <BoardPage />,
+        element: deferred(<BoardPage />),
       },
       {
         path: "/profile",
-        element: <ProfilePage />,
+        element: deferred(<ProfilePage />),
       },
     ],
   },
@@ -40,7 +65,7 @@ export const router = createBrowserRouter([
     children: [
       {
         path: "/register",
-        element: <RegisterPage />,
+        element: deferred(<RegisterPage />),
       },
       {
         path: "/login",
@@ -55,7 +80,7 @@ export const router = createBrowserRouter([
   // /. The page gates itself and carries the token through login via `?next=`.
   {
     path: "/invite/:token",
-    element: <InvitePage />,
+    element: deferred(<InvitePage />),
     errorElement: <RouteErrorPage />,
   },
 
