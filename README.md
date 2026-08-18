@@ -9,9 +9,21 @@ Currently, two official plugins are available:
 
 ## React Compiler
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+**Not enabled** (decided in M9-04, 2026-08-18). This section previously said it
+was, which was the template's claim rather than this project's: the plugin was
+commented out of `vite.config.ts` in July and the dependencies were never used.
 
-Note: This will impact Vite dev & build performances.
+Measured before deciding, on this codebase: enabling it cost **2.7x build time**
+(3.56s → 9.70s, median of three) and **+25% on the board chunk** (440 kB →
+552 kB), against a re-render saving nobody has profiled. `babel-plugin-react-compiler`,
+`@rolldown/plugin-babel`, `@babel/core` and `@types/babel__core` were removed
+with it — `@vitejs/plugin-react` uses Oxc, so nothing else in the build needed
+Babel.
+
+Revisit it at M9-05, which profiles rendering. If the profiler names re-renders
+as the bottleneck, the compiler is the first thing to reach for — with numbers
+on both sides rather than one. See `docs/IMPLEMENTATION_PLAN.md` for the full
+record.
 
 ## Expanding the ESLint configuration
 
