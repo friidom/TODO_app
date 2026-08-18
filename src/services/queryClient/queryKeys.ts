@@ -10,6 +10,8 @@
 
 const PROFILE_ROOT = ["profile"] as const;
 
+const COMMENT_ROOT = ["comments"] as const;
+
 export const queryKeys = {
   /**
    * Every todo on one board as a flat array — not one entry per column.
@@ -97,7 +99,17 @@ export const queryKeys = {
    * entry would mean holding every thread on the board to render one of them.
    * A work item id belongs to exactly one board, so nothing collides.
    */
-  comments: (todoId: string | undefined) => ["comments", todoId] as const,
+  comments: (todoId: string | undefined) => [...COMMENT_ROOT, todoId] as const,
+
+  /**
+   * Prefix covering every comment thread in the cache (M7-04).
+   *
+   * Shaped like `profiles()` above, and it exists for one reason: a realtime
+   * DELETE payload is the primary key and nothing else, so the thread a
+   * removed comment belonged to has to be *found* rather than read off the
+   * row. This is what the realtime handler matches on to search them.
+   */
+  commentThreads: () => COMMENT_ROOT,
 
   /** Prefix covering every profile entry; matches them all when invalidating. */
   profiles: () => PROFILE_ROOT,

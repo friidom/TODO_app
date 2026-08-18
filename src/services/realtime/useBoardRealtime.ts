@@ -4,8 +4,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/services/api/supabase";
 import { useAuth } from "@/services/auth/useAuth";
 import { queryKeys } from "@/services/queryClient/queryKeys";
-import type { IColumn, Todo } from "@/types/data";
-import { applyColumnEvent, applyTodoEvent, type RowChange } from "./events";
+import type { Comment, IColumn, Todo } from "@/types/data";
+import {
+  applyColumnEvent,
+  applyCommentEvent,
+  applyTodoEvent,
+  type RowChange,
+} from "./events";
 import { viewersFrom, type PresenceMeta, type PresenceState } from "./presence";
 
 /**
@@ -73,6 +78,69 @@ export function useBoardRealtime(boardId: string | undefined): string[] {
     function patchColumns(change: RowChange<IColumn>) {
       queryClient.setQueryData<IColumn[]>(columnsKey, (old) =>
         old ? applyColumnEvent(old, change) : old,
+      );
+    }
+
+    /**
+     * One comment event, routed to the thread it belongs to (M7-04).
+     *
+     * **Comments ride the board channel rather than a channel of their own.**
+     * The plan sketched "subscribe only while a task is open; tear down on
+     * close", written before M6-B existed. Doing it that way now would add a
+     * second channel lifecycle — subscribe on open, tear down on close, ten
+     * tasks in a row — whose failure modes are exactly the ones M6-B already
+     * solved once and, worse, would drive the topic-reuse window recorded in
+     * this file's cleanup on every task the user opens. Three bindings on the
+     * channel that is already here inherit its reconnect and its teardown and
+     * add no lifecycle at all.
+     *
+     * The cost is that a client receives comment events for cards it does not
+     * have open. That costs nothing: the write below is skipped for a thread
+     * that is not in cache, which is every thread but the open one.
+     *
+     * **Two routing shapes, and the schema forces the split.** INSERT and
+     * UPDATE carry the whole row, so `todo_id` names the thread directly. A
+     * DELETE carries the primary key and nothing else — the same
+     * `REPLICA IDENTITY DEFAULT` consequence recorded above — so the thread has
+     * to be found by searching the cached ones for that id. There is at most
+     * one open thread, and ids are unique, so this is a scan of one short array
+     * that stops at the first hit.
+     */
+    function patchComments(change: RowChange<Comment>) {
+      if (change.eventType === "DELETE") {
+        const id = change.old?.id;
+
+        if (!id) return;
+
+        const threads = queryClient.getQueriesData<Comment[]>({
+          queryKey: queryKeys.commentThreads(),
+        });
+
+        for (const [key, thread] of threads) {
+          if (!thread?.some((comment) => comment.id === id)) continue;
+
+          queryClient.setQueryData<Comment[]>(
+            key,
+            applyCommentEvent(thread, change),
+          );
+
+          // Ids are unique, so the thread holding it is the only one to touch.
+          // Writing the rest would hand every cached thread a new array and
+          // re-render threads nothing happened to.
+          break;
+        }
+
+        return;
+      }
+
+      const todoId = change.new?.todo_id;
+
+      if (!todoId) return;
+
+      // Same rule as the two above: a thread that has not been fetched is left
+      // alone rather than created holding one comment.
+      queryClient.setQueryData<Comment[]>(queryKeys.comments(todoId), (old) =>
+        old ? applyCommentEvent(old, change) : old,
       );
     }
 
@@ -147,6 +215,35 @@ export function useBoardRealtime(boardId: string | undefined): string[] {
         { event: "DELETE", schema: "public", table: "columns" },
         (payload) => patchColumns(payload as RowChange<IColumn>),
       )
+      // Comments (M7-04). Filterable by board for the same reason the other two
+      // are, and that is what M7-01's denormalised `board_id` bought: without it
+      // the filter would have to be a column the table does not have.
+      .on<Comment>(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "comments",
+          filter: boardFilter,
+        },
+        (payload) => patchComments(payload as RowChange<Comment>),
+      )
+      .on<Comment>(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "comments",
+          filter: boardFilter,
+        },
+        (payload) => patchComments(payload as RowChange<Comment>),
+      )
+      // Unfiltered, for the replica-identity reason above.
+      .on<Comment>(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "comments" },
+        (payload) => patchComments(payload as RowChange<Comment>),
+      )
       // `sync` alone is the complete signal: realtime-js registers it through
       // Phoenix's `onSync`, which fires after the initial state message *and*
       // after every diff — so joins and leaves both land here. Separate `join`
@@ -172,6 +269,13 @@ export function useBoardRealtime(boardId: string | undefined): string[] {
         // nobody is looking at any more does not need the round trip.
         void queryClient.invalidateQueries({ queryKey: todosKey });
         void queryClient.invalidateQueries({ queryKey: columnsKey });
+        // Threads too, since M7-04 (same branch, same reasoning — a comment
+        // posted while the socket was down was never delivered). The prefix
+        // matches every cached thread, but only a thread with an observer
+        // refetches, and at most one is ever open.
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.commentThreads(),
+        });
       }
 
       hasSubscribed = true;
