@@ -7,6 +7,7 @@ import PriorityControl from "./TodoItem/PriorityControl";
 import StartDateControl from "./TodoItem/StartDateControl";
 import StatusControl from "./TodoItem/StatusControl";
 import WorkTypeControl from "./TodoItem/WorkTypeControl";
+import CommentThread from "@/components/comments/CommentThread";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useKeyPrefix } from "@/hooks/useKeyPrefix";
 import { useOpenTask } from "@/hooks/useOpenTask";
@@ -322,6 +323,19 @@ function Body({
                 "focus:border-brand/60 focus:ring-brand/25 focus:ring-2",
             )}
           />
+
+          {/* M7-03. In the left column and below the description, because a
+              comment is what somebody wrote rather than what the system knows
+              — and because it is the one section that grows without bound, so
+              it belongs under a field of fixed height inside the column that
+              already scrolls.
+
+              Outside the `pointer-events-none` the rail carries for a viewer,
+              deliberately: commenting is participation, not content, so a
+              viewer's discussion controls stay live while their status picker
+              does not. That is M7-01's decision, and this is the one place in
+              the UI where the two rules visibly differ. */}
+          <CommentThread todoId={todo.id} />
         </div>
 
         {/* THE DETAILS RAIL — what the system knows, as against what someone
