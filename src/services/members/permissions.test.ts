@@ -4,6 +4,8 @@ import {
   BOARD_ROLES,
   assignableRoles,
   canActOnMember,
+  canDeleteComment,
+  canEditComment,
   permissionsFor,
   roleRank,
 } from "./permissions";
@@ -130,5 +132,66 @@ describe("assignableRoles", () => {
         expect(canActOnMember(actor, target)).toBe(true);
       }
     }
+  });
+});
+
+describe("comment permissions — M7-01", () => {
+  it("lets every member comment, viewer included", () => {
+    // The decision M7-01 was blocked on: commenting is participation, not
+    // content, so this is the one capability a viewer shares with an owner.
+    for (const role of BOARD_ROLES) {
+      expect(permissionsFor(role).canComment).toBe(true);
+    }
+
+    expect(permissionsFor(null).canComment).toBe(false);
+  });
+
+  it("gives moderation to admins and owners only", () => {
+    expect(permissionsFor("viewer").canModerateComments).toBe(false);
+    expect(permissionsFor("editor").canModerateComments).toBe(false);
+    expect(permissionsFor("admin").canModerateComments).toBe(true);
+    expect(permissionsFor("owner").canModerateComments).toBe(true);
+  });
+
+  it("lets the author edit their own comment", () => {
+    expect(canEditComment("u-1", "u-1")).toBe(true);
+  });
+
+  it("LETS NOBODY EDIT SOMEONE ELSE'S — there is no rank that widens it", () => {
+    // Mirrors the policy exactly: UPDATE is author_id = auth.uid() with no
+    // role branch. An admin who could rewrite someone's words would make the
+    // attribution a lie.
+    expect(canEditComment("u-2", "u-1")).toBe(false);
+    expect(canDeleteComment("admin", "u-2", "u-1")).toBe(true);
+    expect(canEditComment("u-2", "u-1")).toBe(false);
+  });
+
+  it("treats a missing session as nobody", () => {
+    expect(canEditComment(undefined, "u-1")).toBe(false);
+    expect(canEditComment(null, "u-1")).toBe(false);
+    // The dangerous shape: an undefined author id must never match an
+    // undefined user id into an allow.
+    expect(canEditComment(undefined, undefined as unknown as string)).toBe(
+      false,
+    );
+  });
+
+  it("lets an author delete their own comment at any rank", () => {
+    expect(canDeleteComment("viewer", "u-1", "u-1")).toBe(true);
+    expect(canDeleteComment("editor", "u-1", "u-1")).toBe(true);
+  });
+
+  it("lets admins and owners delete anyone's, and editors nobody else's", () => {
+    expect(canDeleteComment("admin", "u-2", "u-1")).toBe(true);
+    expect(canDeleteComment("owner", "u-2", "u-1")).toBe(true);
+    expect(canDeleteComment("editor", "u-2", "u-1")).toBe(false);
+    expect(canDeleteComment("viewer", "u-2", "u-1")).toBe(false);
+  });
+
+  it("gives a non-member nothing, even over a comment carrying their id", () => {
+    // The membership test is what stops a stale id from a signed-out session
+    // matching an author id into an allow.
+    expect(canDeleteComment(null, "u-1", "u-1")).toBe(false);
+    expect(canDeleteComment("nonsense", "u-1", "u-1")).toBe(false);
   });
 });

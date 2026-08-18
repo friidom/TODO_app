@@ -59,6 +59,22 @@ export interface Permissions {
   canManageMembers: boolean;
   canManageAdmins: boolean;
   canDeleteBoard: boolean;
+  /**
+   * May post a comment (M7-01).
+   *
+   * **Identical to `canReadBoard` today, and named separately on purpose.**
+   * "May a viewer comment?" was carried as an open decision until M7-01
+   * answered it — commenting is participation, not content — and a rule that
+   * hard-won should be findable by name rather than inferred from an alias.
+   */
+  canComment: boolean;
+  /**
+   * May delete somebody else's comment (M7-01).
+   *
+   * Moderation, and the only power anyone has over a comment they did not
+   * write. Editing another person's text is nobody's, at any rank.
+   */
+  canModerateComments: boolean;
 }
 
 export const NO_PERMISSIONS: Permissions = {
@@ -69,6 +85,8 @@ export const NO_PERMISSIONS: Permissions = {
   canManageMembers: false,
   canManageAdmins: false,
   canDeleteBoard: false,
+  canComment: false,
+  canModerateComments: false,
 };
 
 /**
@@ -101,7 +119,49 @@ export function permissionsFor(role: string | null | undefined): Permissions {
     canManageMembers: rank >= RANK.admin,
     canManageAdmins: rank >= RANK.owner,
     canDeleteBoard: rank >= RANK.owner,
+    canComment: true,
+    canModerateComments: rank >= RANK.admin,
   };
+}
+
+/**
+ * Whether the actor may edit this comment.
+ *
+ * **The author, and nobody else — there is no rank that widens this.** An admin
+ * who could rewrite someone's words would make the attribution a lie, which is
+ * a different and worse thing than removing them. The database says the same:
+ * M7-01's UPDATE policy is `author_id = auth.uid()` with no role branch, and
+ * the grant narrows it further to the `content` column alone.
+ *
+ * Takes ids rather than a role, because rank is genuinely irrelevant here.
+ * A missing `userId` — the session still resolving — is not the author.
+ */
+export function canEditComment(
+  userId: string | null | undefined,
+  authorId: string,
+): boolean {
+  return Boolean(userId) && userId === authorId;
+}
+
+/**
+ * Whether the actor may delete this comment.
+ *
+ * The client's copy of M7-01's DELETE policy, in the same order: an admin or
+ * owner reaches any comment on their board, and everyone else reaches only
+ * their own. The membership test on the second branch is what stops a stale
+ * `userId` from a signed-out session matching an author id.
+ */
+export function canDeleteComment(
+  actorRole: string | null | undefined,
+  userId: string | null | undefined,
+  authorId: string,
+): boolean {
+  const actor = roleRank(actorRole);
+
+  if (actor === null) return false;
+  if (actor >= RANK.admin) return true;
+
+  return canEditComment(userId, authorId);
 }
 
 /**
