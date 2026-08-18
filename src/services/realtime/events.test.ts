@@ -215,3 +215,141 @@ describe("applyColumnEvent", () => {
     expect(board).toEqual(before);
   });
 });
+
+/**
+ * M6-12 · concurrency.
+ *
+ * The Testing Checklist's concurrency section, as far as it can be pinned
+ * without a socket: every row below is two clients' events arriving at one
+ * cache in a particular order, which is exactly what these pure functions take.
+ * What stays manual is the transport — that two browsers *deliver* these
+ * payloads — and it is recorded as such in `docs/REALTIME_VERIFICATION.md`.
+ */
+describe("applyTodoEvent — M6-12 concurrency", () => {
+  it("keeps a local optimistic card when a remote insert lands beside it", () => {
+    // The client's own row is already in the cache under its minted uuid; a
+    // stranger's insert into the same column must not cost it.
+    const board = [todo({ id: "mine", column_id: "c-1", rank: 100 })];
+
+    const result = applyTodoEvent(
+      board,
+      change("INSERT", { new: todo({ id: "theirs", column_id: "c-1" }) }),
+    );
+
+    expect(result.map((it) => it.id).sort()).toEqual(["mine", "theirs"]);
+  });
+
+  it("gives one winner and no orphan when two clients move the same card", () => {
+    // Both moves are whole-row UPDATEs for one id. Last write wins, and the
+    // card cannot end up in two columns because the row is replaced, not added.
+    const board = [todo({ id: "a", column_id: "c-1", rank: 100 })];
+
+    const viaFirst = applyTodoEvent(
+      board,
+      change("UPDATE", { new: todo({ id: "a", column_id: "c-2", rank: 250 }) }),
+    );
+
+    const viaSecond = applyTodoEvent(
+      viaFirst,
+      change("UPDATE", { new: todo({ id: "a", column_id: "c-3", rank: 400 }) }),
+    );
+
+    expect(viaSecond.filter((it) => it.id === "a")).toHaveLength(1);
+    expect(viaSecond.find((it) => it.id === "a")?.column_id).toBe("c-3");
+    expect(viaSecond.some((it) => it.column_id === "c-2")).toBe(false);
+  });
+
+  it("keeps both cards when two clients drag different cards in one column", () => {
+    // This is what M6-A's single-row rank writes buy. Under the old dense
+    // renumbering each sender wrote the whole column from its own snapshot, so
+    // the second event silently reverted the first sender's card.
+    const board = [
+      todo({ id: "a", column_id: "c-1", rank: 100 }),
+      todo({ id: "b", column_id: "c-1", rank: 200 }),
+    ];
+
+    const afterA = applyTodoEvent(
+      board,
+      change("UPDATE", { new: todo({ id: "a", column_id: "c-1", rank: 300 }) }),
+    );
+
+    const afterB = applyTodoEvent(
+      afterA,
+      change("UPDATE", { new: todo({ id: "b", column_id: "c-1", rank: 150 }) }),
+    );
+
+    expect(afterB.find((it) => it.id === "a")?.rank).toBe(300);
+    expect(afterB.find((it) => it.id === "b")?.rank).toBe(150);
+  });
+
+  it("takes the last write whole, without inventing a merge", () => {
+    // Field-level last-write-wins is what the payload gives us: the row is
+    // replaced by the sender's copy, so a field the second sender did not set
+    // reverts rather than surviving from the first. Merging would be a rule
+    // neither client agreed to.
+    const base = todo({ id: "a", title: "Original", priority: null });
+
+    const afterFirst = applyTodoEvent(
+      [base],
+      change("UPDATE", { new: { ...base, title: "From A", priority: "high" } }),
+    );
+
+    const afterSecond = applyTodoEvent(
+      afterFirst,
+      change("UPDATE", { new: { ...base, title: "From B" } }),
+    );
+
+    expect(afterSecond[0].title).toBe("From B");
+    expect(afterSecond[0].priority).toBeNull();
+  });
+
+  it("converges when an update overtakes its insert", () => {
+    // Out-of-order delivery: the update for a row we do not have is dropped
+    // rather than invented, and the insert that follows still lands.
+    const board = [todo({ id: "a" })];
+    const late = todo({ id: "late", title: "Edited" });
+
+    const dropped = applyTodoEvent(board, change("UPDATE", { new: late }));
+
+    expect(dropped).toBe(board);
+
+    const arrived = applyTodoEvent(dropped, change("INSERT", { new: late }));
+
+    expect(arrived.map((it) => it.id).sort()).toEqual(["a", "late"]);
+  });
+
+  it("does not resurrect a deleted row from a late update", () => {
+    const board = [todo({ id: "a" }), todo({ id: "b" })];
+
+    const deleted = applyTodoEvent(
+      board,
+      change("DELETE", { old: { id: "a" } }),
+    );
+
+    const stale = applyTodoEvent(
+      deleted,
+      change("UPDATE", { new: todo({ id: "a", title: "Ghost" }) }),
+    );
+
+    expect(stale.map((it) => it.id)).toEqual(["b"]);
+  });
+
+  it("does not mutate the array it is given", () => {
+    // The cached array is the rollback snapshot of any mutation in flight, so
+    // an event arriving mid-drag must not renumber the rows onError restores.
+    const board = [todo({ id: "a", column_id: "c-1" })];
+    const before = [...board];
+
+    applyTodoEvent(
+      board,
+      change("INSERT", { new: todo({ column_id: "c-1" }) }),
+    );
+    applyTodoEvent(
+      board,
+      change("UPDATE", { new: { ...board[0], title: "x" } }),
+    );
+    applyTodoEvent(board, change("DELETE", { old: { id: "a" } }));
+
+    expect(board).toEqual(before);
+  });
+});
