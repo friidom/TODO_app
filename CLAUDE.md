@@ -20,7 +20,7 @@ Pure logic worth checking gets a `*.test.ts` sibling next to it. `vitest.config.
 
 No React Testing Library, deliberately: pure logic is where the risk is, and component tests nobody needs are a maintenance cost. Revisit if a component grows logic worth pinning down.
 
-`README.md` is the untouched Vite template — ignore it (it claims React Compiler is enabled; the babel plugin is commented out in `vite.config.ts`).
+`README.md` is otherwise the untouched Vite template — ignore it, except for its React Compiler section, which M9-04 rewrote. **The React Compiler is not enabled and its plugin is gone** (measured: 2.7x build time, +25% on the board chunk, against an unprofiled saving). `vite.config.ts` records why; M9-05 is the trigger to revisit.
 
 Requires `.env` with `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` (gitignored). `src/services/api/supabase.ts` throws at module load if either is missing. Vite inlines them at build time, so a missing variable is a rebuild, not a redeploy.
 

@@ -2287,6 +2287,25 @@ Not a config flag. The custom `collisionDetection` reads `pointerCoordinates` as
 The babel plugin is installed but commented out in `vite.config.ts`, and `README.md` claims it is enabled. Either turn it on and verify, or remove the plugin and fix the README. **Do not leave it ambiguous.**
 **Test (if enabling):** full Smoke checklist — the compiler changes memoisation semantics, and M1-11's memo fix is a prerequisite.
 **Commit:** `chore: enable the React Compiler` **or** `chore: remove the unused React Compiler plugin`
+> **Decided 2026-08-18: REMOVED, and the ambiguity is what mattered.** The history is not a decision anyone made — the compiler was on in the Vite template (`177fe65`), was commented out mid-way through unrelated feature work (`b6fae18`, "profile & loading & routing & editing", with no note), and M0's unused-import sweep then deleted the imports it referenced, leaving a line of dead text that no longer even parsed as code. `README.md` went on claiming it was enabled for three weeks.
+>
+> **M1-11's prerequisite was met**, so this was decided on evidence rather than blocked: `useTodosByColumns` builds `grouped` inside the memo now, which is the stale-accumulator pattern the plan said "will not survive … the React Compiler".
+>
+> **Both sides were measured on this codebase before choosing**, by enabling it, building, and reverting:
+>
+> | | off | on | delta |
+> |---|---|---|---|
+> | `npm run build`, median of 3 | 3.56s | 9.70s | **2.7x** |
+> | initial payload (what `index.html` requests) | 620.77 kB | 628.15 kB | +7.4 kB |
+> | `BoardPage` chunk | 440.29 kB | 552.08 kB | **+111.8 kB, +25%** |
+>
+> The compiler did run — nothing else could move a chunk by 112 kB — and the board chunk is the one M9-03 had just split out, so a quarter of that win would have gone straight back.
+>
+> **The reason is the asymmetry, not the numbers alone.** The cost is measured and certain; the benefit is auto-memoisation that *nobody has profiled*, on a board whose re-render behaviour is M9-05's subject and not yet characterised. Enabling a blanket memoiser before that profiling contradicts M9-05's own instruction — *"profile first; memoise only what the profiler names"* — and would have made the task moot without answering it. The plan's stated test for enabling is the full Smoke checklist, which needs a signed-in board and could not be run here; shipping a change to memoisation semantics across every component without it would have been the third unverified thing in a row.
+>
+> **Reopen trigger:** M9-05. If the profiler names re-renders as the bottleneck, the compiler is the first thing to reach for, and this table is half the comparison already done. Restoring it is four devDependencies and three lines of `vite.config.ts`.
+>
+> Removed with it: `babel-plugin-react-compiler`, `@rolldown/plugin-babel`, `@babel/core`, `@types/babel__core`. `@vitejs/plugin-react` uses Oxc, so nothing else in the build wanted Babel — the build is green without all four.
 
 #### M9-05 · Render profiling and targeted memoisation — **MEDIUM RISK**
 Every mutation replaces the whole `["todos"]` array, and `TodoItem` is not memoised, so every card re-renders on every cache write. **Profile first; memoise only what the profiler names.** `docs/FRONTEND.md`: *"Memoize only when beneficial."*
