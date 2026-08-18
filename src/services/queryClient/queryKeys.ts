@@ -88,6 +88,17 @@ export const queryKeys = {
    */
   todo: (todoId: string | undefined) => ["todo", todoId] as const,
 
+  /**
+   * One work item's comment thread (M7-02).
+   *
+   * **Keyed by the work item, not the board**, which is the shape M7-02
+   * specifies and the same reasoning `todo(todoId)` above follows: the thread
+   * is fetched when a task opens and dropped when it closes, and a board-scoped
+   * entry would mean holding every thread on the board to render one of them.
+   * A work item id belongs to exactly one board, so nothing collides.
+   */
+  comments: (todoId: string | undefined) => ["comments", todoId] as const,
+
   /** Prefix covering every profile entry; matches them all when invalidating. */
   profiles: () => PROFILE_ROOT,
 

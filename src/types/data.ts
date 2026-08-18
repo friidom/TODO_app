@@ -107,6 +107,23 @@ export type Todo = Pick<TodoRow, (typeof TODO_FIELDS)[number]>;
  */
 export type Activity = Row<"activities">;
 
+/**
+ * One comment on one work item (M7-01).
+ *
+ * The whole row, unlike `Todo`: the table has seven columns and the thread
+ * renders every one of them or uses it as a key, so there is nothing to narrow.
+ *
+ * `board_id` is on it because the policy needs it, not because a reader does —
+ * it is denormalised from the work item and pinned there by a composite foreign
+ * key, so it can never say anything the `todo_id` does not already imply.
+ *
+ * No client-only fields, for the reason `Todo` records: the client mints the
+ * uuid, so an optimistic comment *is* the comment and there is nothing to tell
+ * apart. What a reader wants — "has this been edited?" — is
+ * `updated_at > created_at`, stamped by a trigger rather than claimed by us.
+ */
+export type Comment = Row<"comments">;
+
 export type ISupabaseProfile = Row<"profiles">;
 
 export type IColumn = Row<"columns">;
