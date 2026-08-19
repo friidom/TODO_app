@@ -1948,7 +1948,7 @@ The bug, chevron, calendar and user buttons in `TodoCreateForm` currently do not
 >
 > **What is deliberately not done, and why each is a decision rather than an omission:**
 > - **M6-05 (drop `position`) — no.** It is genuinely Tier B (it destroys values that exist), it needs a dump that Docker currently blocks, and the plan's own commit order requires **M6-04 to soak for several days first**. Applying it in the same session that introduced single-row rank writes would discard the rollback before anything has exercised it. It also reopens PH-01/PH-02, which is a decision for the owner. `insertDense.ts` therefore stays.
-> - **M6-B (M6-07 → M6-12) — untouched.** No publication, no channel, no handler.
+> - **M6-B (M6-07 → M6-12) — untouched.** No publication, no channel, no handler. *(Superseded 2026-08-19 — M6-B was built on 2026-08-18. See the M6-B status block below.)*
 >
 > **What was removed as a consequence of M6-04**, because it had no callers left: `useReorderColumns.ts`, `reorderColumns`, and `applyColumnMoved` with its tests. A column move is a rank write now, so a from/to splice over a renumbered array has nothing left to express — including for M6-B, whose remote-move handler applies `applyTodoMoved` with the rank the sender chose.
 >
@@ -2062,6 +2062,31 @@ Who is viewing the board, via the presence channel.
 #### M6-12 · Concurrency verification — **SAFE** (verification)
 Execute the full Concurrency section of the Testing Checklist and record results in the PR. Any failure becomes a new task in this document before the milestone closes.
 **Commit:** `docs: realtime concurrency verification results`
+
+---
+
+> ### M6-B status — updated 2026-08-19
+>
+> **M6-07 → M6-11 are built and shipped** (`20260818090000_realtime_publication.sql`, `20260818110000_realtime_comments.sql`, `src/services/realtime/`). **M6-12 remains OPEN**, and the reason is not that nobody has got to it — it is that its remaining rows are the ones no single client can produce. Full evidence table: `docs/REALTIME_VERIFICATION.md`.
+>
+> **M6-11 · Presence — ◑ code complete, delivery unverified.** The pure half is asserted (`presence.test.ts`, 15 cases): self is included, two tabs count once, a departed key drops, order is stable across reconnects, malformed entries survive. What is *not* observed is that two sockets deliver any of it.
+>
+> **Two defects found and fixed 2026-08-19**, both by reading the client against the production criteria rather than by a run:
+>
+> | Defect | Was | Now |
+> |---|---|---|
+> | **Every `sync` repainted the board** | `setViewers(viewersFrom(…))` allocated a fresh array on each sync. Phoenix emits `sync` per *diff and per rejoin*, not per arrival, so an unchanged roster still handed `BoardPage` a new reference — and `BoardPage` renders the active view, so a heartbeat repainted every card. | `sameViewers` gates the write; returning `prev` makes React bail out of the subtree entirely. Pinned by six tests. |
+> | **A dropped socket left the stack stale forever** | `subscribe` returned early on any non-`SUBSCRIBED` status, so a client that lost its connection kept drawing whoever was present when it dropped, indefinitely and indistinguishably from a live board. | `CHANNEL_ERROR` / `TIMED_OUT` / `CLOSED` clear the roster. The `sync` after rejoin refills it. This is the local half of "a network drop eventually clears it" — the remote half was already server-authoritative. |
+>
+> **Neither is a rewrite and neither touched DnD, the cache handlers, RLS, or the channel's shape.** No new state layer, no memoisation added.
+>
+> **The residual re-render is recorded, not fixed.** A *genuine* join or leave still re-renders `BoardPage` and therefore the active view. Lifting `viewers` out of `BoardPage` — a context, or moving the hook down to `BoardIdentity` — would confine it, but that relocates the board's only channel for a repaint that happens when someone actually arrives. Not worth it at this size; revisit if boards grow large enough for the repaint to be felt.
+>
+> **What blocks M6-12 from closing.** Its open rows all need **two accounts in two browsers** (the doc is explicit that the same account twice is one avatar *by design*, and reproduces the symptom of the 2026-08-18 bug without the bug). Creating a second account now requires clicking a confirmation link — `enable_confirmations` was turned on 2026-08-19 — so this needs a real inbox, and Supabase's built-in SMTP is rate-limited to ~2 emails/hour. **M6-12 is therefore gated on the transactional email provider**, not on realtime work. It should close in the same session that verifies the confirmation click-through.
+>
+> **Verification run 2026-08-19:** `npm test` 40 files / 539 tests, `npm run build`, `npm run lint` — all green. No two-browser run; see above for why.
+>
+> **The channel-reuse finding from 2026-08-18 stands unchanged** and is still deliberate: a board revisited inside the leave round trip binds onto a channel that is already leaving. Recorded in `useBoardRealtime`'s cleanup comment and in `REALTIME_VERIFICATION.md`. No route in the app can currently produce it.
 
 ### Expected commit order — Milestone 6
 
