@@ -1,15 +1,25 @@
-import { Link, useLocation } from "react-router";
+import { Link, useLocation, useSearchParams } from "react-router";
 
 import AuthShell from "@/components/authForm/AuthShell";
 import LoginForm from "@/components/authForm/LoginForm";
 
 export default function LoginPage() {
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+
+  // Set by ProtectedRoute when it turns away a session whose address has not
+  // been confirmed. Without it the bounce back to this page is silent and
+  // looks like the sign-in simply failed.
+  const unconfirmed = searchParams.get("unconfirmed") === "1";
 
   return (
     <AuthShell
       title="Welcome back"
-      subtitle="Sign in to pick up where your board left off."
+      subtitle={
+        unconfirmed
+          ? "Confirm your email address first — check your inbox for the link we sent."
+          : "Sign in to pick up where your board left off."
+      }
       footer={
         <>
           Don't have an account?{" "}

@@ -21,7 +21,12 @@ export function useRegister() {
     mutationFn: ({ email, password }: { email: string; password: string }) =>
       signUp(email, password),
 
-    onSuccess: () => {
+    onSuccess: ({ needsConfirmation }) => {
+      // With email confirmation required there is no session yet, so there is
+      // nowhere to navigate to — ProtectedRoute would bounce straight back.
+      // RegisterForm renders the "check your email" state off this same flag.
+      if (needsConfirmation) return;
+
       navigate(next);
     },
   });
