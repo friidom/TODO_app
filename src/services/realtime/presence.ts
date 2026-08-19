@@ -62,3 +62,25 @@ export function viewersFrom(state: PresenceState): string[] {
 
   return [...ids].sort();
 }
+
+/**
+ * Whether two rosters name the same people.
+ *
+ * **This is a render guard, not a nicety.** `viewersFrom` builds a fresh array
+ * every time, and `sync` fires far more often than the roster actually changes:
+ * Phoenix re-emits it after the initial state message, after every diff, and
+ * after each rejoin — so re-tracking the same person, or a socket that blinks,
+ * produces an identical list under a new reference. Handing that to `setState`
+ * re-renders `BoardPage`, and `BoardPage` renders the whole active view, so a
+ * presence heartbeat would repaint every card on the board.
+ *
+ * Comparing element-wise is sound *because* `viewersFrom` sorts: two rosters
+ * with the same members always have them in the same order, so equal length
+ * plus equal positions is equality of the set, with no allocation to check it.
+ */
+export function sameViewers(a: string[], b: string[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+
+  return a.every((id, index) => id === b[index]);
+}

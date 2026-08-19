@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { viewersFrom, type PresenceState } from "./presence";
+import { sameViewers, viewersFrom, type PresenceState } from "./presence";
 
 const AT = "2026-08-18T09:00:00Z";
 
@@ -80,5 +80,46 @@ describe("viewersFrom", () => {
     expect(viewersFrom({})).toEqual([]);
     expect(viewersFrom({ broken: [undefined as never] })).toEqual([]);
     expect(viewersFrom({ empty: [] })).toEqual([]);
+  });
+});
+
+describe("sameViewers", () => {
+  it("holds the render guard: an identical roster under a new reference", () => {
+    // The exact shape the sync handler sees. `viewersFrom` allocates a fresh
+    // array every time, so this is what an unchanged board looks like — and
+    // the case that has to return true or the whole board repaints.
+    const a = viewersFrom(state({ u1: ["u1"], u2: ["u2"] }));
+    const b = viewersFrom(state({ u1: ["u1"], u2: ["u2"] }));
+
+    expect(a).not.toBe(b);
+    expect(sameViewers(a, b)).toBe(true);
+  });
+
+  it("sees an arrival", () => {
+    expect(sameViewers(["u1"], ["u1", "u2"])).toBe(false);
+  });
+
+  it("sees a departure", () => {
+    expect(sameViewers(["u1", "u2"], ["u1"])).toBe(false);
+  });
+
+  it("sees a swap that keeps the count", () => {
+    // Same length, different people — the case a length check alone would miss.
+    expect(sameViewers(["u1", "u2"], ["u1", "u3"])).toBe(false);
+  });
+
+  it("treats two empty rosters as equal", () => {
+    expect(sameViewers([], [])).toBe(true);
+  });
+
+  it("compares element-wise, which viewersFrom's sort is what licenses", () => {
+    // Not a claim that order is ignored — it is a claim that it never differs.
+    // Both sides go through viewersFrom, which sorts, so the same members
+    // always arrive in the same positions.
+    const a = viewersFrom(state({ z: ["u2"], a: ["u1"] }));
+    const b = viewersFrom(state({ a: ["u1"], z: ["u2"] }));
+
+    expect(a).toEqual(["u1", "u2"]);
+    expect(sameViewers(a, b)).toBe(true);
   });
 });

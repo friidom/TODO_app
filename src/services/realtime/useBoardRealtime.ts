@@ -11,7 +11,12 @@ import {
   applyTodoEvent,
   type RowChange,
 } from "./events";
-import { viewersFrom, type PresenceMeta, type PresenceState } from "./presence";
+import {
+  sameViewers,
+  viewersFrom,
+  type PresenceMeta,
+  type PresenceState,
+} from "./presence";
 
 /**
  * One board, live (M6-08, M6-09, M6-11).
@@ -250,9 +255,18 @@ export function useBoardRealtime(boardId: string | undefined): string[] {
       // and `leave` listeners would run the same reduction a second time
       // against the same state.
       .on("presence", { event: "sync" }, () => {
-        setViewers(
-          viewersFrom(channel.presenceState<PresenceMeta>() as PresenceState),
+        const next = viewersFrom(
+          channel.presenceState<PresenceMeta>() as PresenceState,
         );
+
+        // **Returning `prev` is the point, not an optimisation detail.** React
+        // bails out of the re-render entirely when the next state is
+        // `Object.is`-identical to the current one, so an unchanged roster
+        // costs nothing below this hook. Without it every `sync` — and Phoenix
+        // emits one per diff and per rejoin, not per arrival — would hand
+        // `BoardPage` a new array and repaint the whole active view, cards
+        // included, because someone's socket blinked.
+        setViewers((prev) => (sameViewers(prev, next) ? prev : next));
       });
 
     // Local to this subscription, not a ref: a new board gets a new channel and
@@ -260,6 +274,24 @@ export function useBoardRealtime(boardId: string | undefined): string[] {
     let hasSubscribed = false;
 
     void channel.subscribe((status) => {
+      // **A dropped socket has to empty the stack, and only this client can do
+      // it.** Presence is server-authoritative: everyone else learns we left
+      // because Phoenix times our key out, but nothing tells *us* that the
+      // roster we are still drawing has gone stale. Without this branch a
+      // client that loses its connection keeps showing whoever was present at
+      // the moment it dropped — indefinitely, and with no way to tell that
+      // from a live board. Empty is the honest answer while disconnected; the
+      // `sync` that follows the rejoin refills it.
+      if (
+        status === "CHANNEL_ERROR" ||
+        status === "TIMED_OUT" ||
+        status === "CLOSED"
+      ) {
+        setViewers((prev) => (prev.length === 0 ? prev : []));
+
+        return;
+      }
+
       if (status !== "SUBSCRIBED") return;
 
       if (hasSubscribed) {

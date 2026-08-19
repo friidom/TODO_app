@@ -164,10 +164,12 @@ specified: *"with client-generated UUIDs this is an identity match."*
 | The same person under two keys counts once | **AUTO** |
 | Someone leaving disappears from the list | **AUTO** |
 | Order is stable across reconnects | **AUTO** |
-| Two browsers, two accounts, see each other | **MANUAL — re-test needed after the 2026-08-18 fix** |
+| Two browsers, two accounts, see each other | **MANUAL — blocked, see *Why the manual rows are blocked*** |
 | The same account in two browsers | **One avatar, by design** — see below |
-| Closing one removes the avatar within a few seconds | **MANUAL** |
-| A network drop eventually clears it | **MANUAL** |
+| Closing one removes the avatar within a few seconds | **MANUAL — blocked** |
+| A network drop eventually clears it *(remote viewer)* | **MANUAL — blocked** |
+| A network drop clears it *(this client's own stack)* | **AUTO (by construction, 2026-08-19)** — `CHANNEL_ERROR` / `TIMED_OUT` / `CLOSED` empty the roster |
+| An unchanged roster does not re-render the board | **AUTO (2026-08-19)** — `sameViewers` gates the write; 6 cases in `presence.test.ts` |
 
 > **Failure found and fixed, 2026-08-18.** Two-account testing showed each
 > client rendering one avatar and never more — the roster looked stuck at one
@@ -186,6 +188,46 @@ specified: *"with client-generated UUIDs this is an identity match."*
 > chained calls are written in. And `PresenceStack` now draws a viewer the
 > roster has not caught up with as an anonymous disc instead of dropping them,
 > so the count cannot under-report someone who is genuinely connected.
+
+> **Two defects found and fixed 2026-08-19**, both from reading the client
+> against the production criteria rather than from a run. Neither was visible in
+> the pure tests, because neither is about *what the roster contains*.
+>
+> **1. Every `sync` repainted the whole board.** `viewersFrom` allocates a fresh
+> array, and Phoenix emits `sync` after the initial state message, after every
+> diff **and after every rejoin** — so an unchanged roster still produced a new
+> reference. `BoardPage` holds `viewers` and renders the active view, so a
+> socket blink repainted every card on the board. `sameViewers` now gates the
+> write and the handler returns `prev` when the set is unchanged, which makes
+> React bail out of the subtree entirely. Element-wise comparison is sound
+> because `viewersFrom` sorts — equal members always occupy equal positions.
+>
+> **2. A dropped socket left the stack stale indefinitely.** The `subscribe`
+> callback returned early on every status but `SUBSCRIBED`, so a client that
+> lost its connection kept drawing the roster from the moment it dropped, with
+> nothing to distinguish that from a live board. Presence is
+> server-authoritative — everyone *else* learns we left when Phoenix times our
+> key out, but nothing tells **us**. `CHANNEL_ERROR` / `TIMED_OUT` / `CLOSED`
+> now clear it, and the `sync` after rejoin refills it.
+>
+> **Residual, recorded not fixed:** a *genuine* join or leave still re-renders
+> `BoardPage` and the active view. Confining it means lifting `viewers` out of
+> `BoardPage` — a context, or moving the hook to `BoardIdentity` — which
+> relocates the board's only channel to spare a repaint that happens when
+> somebody actually arrives. Not worth it at this board size.
+
+### Why the manual rows are blocked
+
+They need **two accounts**, and as of 2026-08-19 creating the second one means
+clicking an email confirmation link (`enable_confirmations = true`). Supabase's
+built-in SMTP allows ~2 emails/hour, which is not enough to work with. **These
+rows are gated on the transactional email provider, not on realtime work** —
+they should be run in the same session that verifies the confirmation
+click-through, since that session will already have a second real inbox.
+
+The same account in two browsers does **not** substitute: it is one avatar by
+design, which is precisely the symptom of the 2026-08-18 bug appearing without
+the bug.
 
 **One avatar per _person_, not per tab, and it is deliberate.** The channel sets
 `config.presence.key` to the user's id, so every session of one account collapses
