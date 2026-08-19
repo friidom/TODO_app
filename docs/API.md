@@ -80,7 +80,7 @@ Example
 
 boardsApi.ts
 
-todosApi.ts
+todoApi.ts
 
 columnsApi.ts
 
@@ -117,13 +117,13 @@ services/
 
     todos/
 
-        todosApi.ts
+        todoApi.ts
 
         useTodos.ts
 
         useTodo.ts
 
-        useCreateTodo.ts
+        useAddTodo.ts
 
         useUpdateTodo.ts
 
@@ -299,9 +299,7 @@ Fetching
 ```
 getBoards()
 
-getTodos()
-
-getMembers()
+getColumns()
 ```
 
 Creation
@@ -309,7 +307,7 @@ Creation
 ```
 createBoard()
 
-createTodo()
+createColumn()
 ```
 
 Updating
@@ -339,6 +337,18 @@ useCreateBoard()
 
 useDeleteBoard()
 ```
+
+**The codebase does not hold to this everywhere, and the exceptions are named rather than hidden.** `boardsApi` and `columnsApi` follow it. Three do not:
+
+| Feature | Reads | Creates |
+|---|---|---|
+| `todoApi.ts` | `fetchTodos` / `fetchTodo` | `addTodo` (hook: `useAddTodo`) |
+| `membersApi.ts` | `fetchBoardMembers` | — |
+| `profileApi.ts` | `fetchProfile` | — |
+
+`updateTodo` / `deleteTodo` do match, so the split is only on the read and create verbs.
+
+M9-09 chose not to rename them. A sweeping rename is a large diff with no behavioural change, and it would touch every call site of the most-used API in the app to satisfy a convention that costs nothing where it is broken. The rule stands for **new** code; existing names get corrected opportunistically when a file is being edited for another reason.
 
 ---
 

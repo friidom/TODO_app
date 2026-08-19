@@ -69,14 +69,14 @@ function DeleteColumnDialog({
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
     >
       <form
         onSubmit={handleSubmit}
-        className="bg-card w-[640px] rounded-2xl p-8 shadow-2xl"
+        className="bg-card max-h-full w-[640px] max-w-full overflow-y-auto rounded-2xl p-8 shadow-2xl"
       >
         <div className="mb-5 flex items-start justify-between gap-4">
-          <h2 className="flex items-center gap-4 text-2xl font-bold text-ink">
+          <h2 className="text-ink flex items-center gap-4 text-2xl font-bold">
             <DangerDiamond />
             Move work from {columnTitle(column.title)} column
           </h2>
@@ -85,25 +85,25 @@ function DeleteColumnDialog({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="-mt-1 shrink-0 rounded p-1 text-ink-2 hover:bg-ink/10"
+            className="text-ink-2 hover:bg-ink/10 -mt-1 shrink-0 rounded p-1"
           >
             <X size={22} />
           </button>
         </div>
 
-        <p className="mb-8 text-[15px] text-ink-2">
-          Select a new home for any work with the &quot;{columnTitle(column.title)}&quot;
-          status.
+        <p className="text-ink-2 mb-8 text-[15px]">
+          Select a new home for any work with the &quot;
+          {columnTitle(column.title)}&quot; status.
         </p>
 
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-x-5 gap-y-3">
-          <p className="text-sm font-semibold text-ink">
+          <p className="text-ink text-sm font-semibold">
             This status will be deleted
           </p>
 
           <span aria-hidden="true" />
 
-          <p className="text-sm font-semibold text-ink">
+          <p className="text-ink text-sm font-semibold">
             Work will be moved to
           </p>
 
@@ -117,18 +117,15 @@ function DeleteColumnDialog({
             {columnTitle(column.title)}
           </span>
 
-          <ArrowRight className="shrink-0 text-ink" size={22} />
+          <ArrowRight className="text-ink shrink-0" size={22} />
 
           <DropdownMenu>
-            <DropdownMenuTrigger className="flex w-full items-center gap-2 rounded-md border border-hairline bg-transparent px-3 py-3.5 text-left outline-none focus-visible:border-brand focus-visible:ring-1 focus-visible:ring-brand data-[popup-open]:border-brand data-[popup-open]:ring-1 data-[popup-open]:ring-brand">
+            <DropdownMenuTrigger className="border-hairline focus-visible:border-brand focus-visible:ring-brand data-[popup-open]:border-brand data-[popup-open]:ring-brand flex w-full items-center gap-2 rounded-md border bg-transparent px-3 py-3.5 text-left outline-none focus-visible:ring-1 data-[popup-open]:ring-1">
               <span className={cn(PILL, categoryOf(selected.category).pill)}>
                 {columnTitle(selected.title)}
               </span>
 
-              <ChevronDown
-                size={18}
-                className="ml-auto shrink-0 text-ink-2"
-              />
+              <ChevronDown size={18} className="text-ink-2 ml-auto shrink-0" />
             </DropdownMenuTrigger>
 
             <DropdownMenuContent>
@@ -148,7 +145,7 @@ function DeleteColumnDialog({
         </div>
 
         {deleteColumn.error && (
-          <p className="mt-6 rounded-md bg-status-red/15 px-4 py-3 text-sm text-status-red">
+          <p className="bg-status-red/15 text-status-red mt-6 rounded-md px-4 py-3 text-sm">
             {deleteColumn.error.message}
           </p>
         )}
@@ -157,7 +154,7 @@ function DeleteColumnDialog({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md px-4 py-2.5 text-[17px] text-ink hover:bg-ink/10"
+            className="text-ink hover:bg-ink/10 rounded-md px-4 py-2.5 text-[17px]"
           >
             Cancel
           </button>
@@ -165,7 +162,7 @@ function DeleteColumnDialog({
           <button
             type="submit"
             disabled={deleteColumn.isPending}
-            className="rounded-md bg-status-red px-5 py-2.5 text-[17px] font-medium text-white hover:bg-status-red/85 disabled:opacity-50"
+            className="bg-status-red hover:bg-status-red/85 rounded-md px-5 py-2.5 text-[17px] font-medium text-white disabled:opacity-50"
           >
             {deleteColumn.isPending ? "Deleting..." : "Delete"}
           </button>
@@ -182,7 +179,7 @@ function DangerDiamond() {
       width="26"
       height="26"
       viewBox="0 0 24 24"
-      className="shrink-0 text-status-red"
+      className="text-status-red shrink-0"
       aria-hidden="true"
     >
       <rect

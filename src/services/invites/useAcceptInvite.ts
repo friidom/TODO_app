@@ -32,6 +32,9 @@ export function useAcceptInvite() {
     onSuccess: ({ board_id }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.boards() });
       queryClient.invalidateQueries({ queryKey: queryKeys.members(board_id) });
+      // The invitation just stopped being pending (M4-08), so the sidebar list
+      // that offered it has to lose the row it was rendering.
+      queryClient.invalidateQueries({ queryKey: queryKeys.myInvites() });
     },
   });
 }

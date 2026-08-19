@@ -130,7 +130,7 @@ useTodos()
 
 useBoards()
 
-useCreateTodo()
+useAddTodo()
 
 useBoardMembers()
 
@@ -152,9 +152,9 @@ Example
 
 boardsApi.ts
 
-todosApi.ts
+todoApi.ts
 
-profilesApi.ts
+profileApi.ts
 
 Only services know Supabase.
 

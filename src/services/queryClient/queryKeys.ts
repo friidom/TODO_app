@@ -66,6 +66,29 @@ export const queryKeys = {
   invites: (boardId: string | undefined) => ["invites", boardId] as const,
 
   /**
+   * Autocomplete results for the invite field (M4-08).
+   *
+   * Keyed by the query text as well as the board, so each distinct search is
+   * its own entry and typing backwards re-reads the cache instead of the
+   * network. Short-lived by nature — the roster it describes changes the moment
+   * an invite is sent, which is why `useCreateInvite` invalidates the prefix.
+   */
+  inviteeSearch: (boardId: string | undefined, query: string) =>
+    ["invitee-search", boardId, query] as const,
+
+  /** Prefix covering every cached search for one board, for invalidation. */
+  inviteeSearches: (boardId: string | undefined) =>
+    ["invitee-search", boardId] as const,
+
+  /**
+   * Invitations addressed to the signed-in user (M4-08).
+   *
+   * Not board-scoped — it is the cross-board question "what am I being asked to
+   * join", and the answer is keyed to the person, not to any one board.
+   */
+  myInvites: () => ["my-invites"] as const,
+
+  /**
    * One board's activity history (M18).
    *
    * Board-scoped like `members` and `invites`, and deliberately **not** a child

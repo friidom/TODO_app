@@ -3,7 +3,7 @@ import TodoItem from "../todo/TodoItem";
 
 import type { IColumn, Todo } from "../../types/data";
 import { Plus } from "lucide-react";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useCallback, useState, useRef, useEffect } from "react";
 import { useAddTodo } from "@/services/todos/useAddTodo";
 import DropZone from "./DropZone";
 import TodoCreateForm, { type CreateDraft } from "./TodoCreateForm";
@@ -31,6 +31,14 @@ interface Props {
    * is a promise about where a card will land, and there is no honest answer.
    */
   dragDisabled?: boolean;
+  /**
+   * Something on the board is being dragged right now.
+   *
+   * Read from the board rather than from `useDndContext()` inside each gap —
+   * see `DropZone`'s own note. This is the prop that took ~200 context
+   * subscribers out of the drag's render path (M9-05).
+   */
+  dragging?: boolean;
   /**
    * Whether `todos` is this column's complete list, in stored order.
    *
@@ -69,6 +77,7 @@ export default function KanbanColumn({
   isDragSource = false,
   transition = null,
   dragDisabled = false,
+  dragging = false,
   exactOrder = true,
   lane = false,
   onCollapse,
@@ -98,10 +107,13 @@ export default function KanbanColumn({
   const addTodoMutation = useAddTodo();
   const formRef = useRef<HTMLDivElement>(null);
 
-  function openAt(gap: number) {
+  // Stable across renders, which is what lets `DropZone` be memoised (M9-05):
+  // it is handed to ~200 gaps, and a fresh closure per render would fail every
+  // memo comparison and put the gaps straight back into the drag's render path.
+  const openAt = useCallback((gap: number) => {
     setCreatingAt(gap);
     setSkeleton(true);
-  }
+  }, []);
 
   function onClose() {
     setCreatingAt(null);
@@ -180,10 +192,11 @@ export default function KanbanColumn({
    * the column is showing a subset, since the gap does not name a position the
    * stored column has.
    */
-  const addHandlerFor = (gap: number) =>
-    canEditTodos && exactOrder && gap < todos.length && creatingAt !== gap
-      ? () => openAt(gap)
-      : undefined;
+  // A boolean rather than a closure, so `DropZone`'s memo compares equal on the
+  // gaps nothing happened to (M9-05). The handler itself is the one stable
+  // `openAt` above, and the gap tells it which index it is.
+  const canAddAt = (gap: number) =>
+    canEditTodos && exactOrder && gap < todos.length && creatingAt !== gap;
 
   // One element, rendered at whichever gap `creatingAt` points to. Moving it
   // remounts it, which re-runs its autoFocus.
@@ -285,7 +298,9 @@ export default function KanbanColumn({
                 index={0}
                 active={isIndicatorHere && indicator.index === 0}
                 afterId={todos[0]?.id}
-                onAdd={addHandlerFor(0)}
+                dragging={dragging}
+                canAdd={canAddAt(0)}
+                onAdd={openAt}
               />
             )}
 
@@ -302,7 +317,9 @@ export default function KanbanColumn({
                     active={isIndicatorHere && indicator.index === index + 1}
                     beforeId={todo.id}
                     afterId={todos[index + 1]?.id}
-                    onAdd={addHandlerFor(index + 1)}
+                    dragging={dragging}
+                    canAdd={canAddAt(index + 1)}
+                    onAdd={openAt}
                   />
                 )}
 

@@ -262,6 +262,9 @@ export default function KanbanBoard() {
                       indicator={indicator}
                       isDragSource={!!activeTodo && column.id === sourceId}
                       dragDisabled={dragDisabled}
+                      // One boolean, computed once, in place of ~200 gaps each
+                      // subscribing to dnd-kit's context (M9-05).
+                      dragging={!!activeTodo || !!activeColumn}
                       // A search narrows a column exactly as a filter does, so
                       // it belongs in this test — without it a searched column
                       // believed it was showing stored order, offered the

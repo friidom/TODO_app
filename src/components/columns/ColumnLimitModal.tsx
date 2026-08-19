@@ -65,11 +65,11 @@ function ColumnLimitDialog({
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
     >
       <form
         onSubmit={handleSubmit}
-        className="bg-card w-[480px] rounded-2xl p-6 shadow-2xl"
+        className="bg-card max-h-full w-[480px] max-w-full overflow-y-auto rounded-2xl p-6 shadow-2xl"
       >
         <div className="mb-4 flex items-start justify-between">
           <h2 className="text-2xl font-bold">Column limit</h2>
@@ -103,7 +103,7 @@ function ColumnLimitDialog({
               value={min}
               onChange={(e) => setMin(e.target.value)}
               placeholder="No limit set"
-              className="border-app w-full rounded-xl border bg-transparent px-4 py-3 outline-none focus:ring-2 focus:ring-brand"
+              className="border-app focus:ring-brand w-full rounded-xl border bg-transparent px-4 py-3 outline-none focus:ring-2"
             />
           </div>
 
@@ -121,13 +121,13 @@ function ColumnLimitDialog({
               value={max}
               onChange={(e) => setMax(e.target.value)}
               placeholder="No limit set"
-              className="border-app w-full rounded-xl border bg-transparent px-4 py-3 outline-none focus:ring-2 focus:ring-brand"
+              className="border-app focus:ring-brand w-full rounded-xl border bg-transparent px-4 py-3 outline-none focus:ring-2"
             />
           </div>
         </div>
 
         {(error || updateColumn.error) && (
-          <p className="mt-4 rounded-xl bg-status-red/15 px-4 py-3 text-sm text-status-red">
+          <p className="bg-status-red/15 text-status-red mt-4 rounded-xl px-4 py-3 text-sm">
             {error ?? updateColumn.error?.message}
           </p>
         )}
@@ -144,7 +144,7 @@ function ColumnLimitDialog({
           <button
             type="submit"
             disabled={!!error || updateColumn.isPending}
-            className="rounded-xl bg-brand hover:bg-brand/90 px-4 py-2 text-brand-fg disabled:opacity-50"
+            className="bg-brand hover:bg-brand/90 text-brand-fg rounded-xl px-4 py-2 disabled:opacity-50"
           >
             {updateColumn.isPending ? "Saving..." : "Save"}
           </button>

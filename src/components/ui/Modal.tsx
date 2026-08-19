@@ -48,7 +48,7 @@ export default function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`bg-card max-h-full ${width} overflow-y-auto rounded-2xl p-6 shadow-2xl`}
+        className={`bg-card max-h-full ${width} max-w-full overflow-y-auto rounded-2xl p-6 shadow-2xl`}
       >
         {children}
       </div>
