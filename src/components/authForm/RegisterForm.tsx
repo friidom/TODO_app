@@ -17,6 +17,29 @@ export default function RegisterForm() {
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<AuthFieldErrors>({});
 
+  // Rendered instead of the form once the account exists but the address has
+  // not been confirmed. Replacing the form rather than sitting above it: the
+  // fields are done with, and leaving them editable invites a second signup
+  // for the address that was just used.
+  if (register.isSuccess && register.data.needsConfirmation) {
+    return (
+      <div className="text-center">
+        <p className="text-ink mb-2 text-base font-semibold">
+          Check your email
+        </p>
+
+        <p className="text-ink-2 text-sm leading-relaxed">
+          We sent a confirmation link to{" "}
+          <span className="text-ink font-medium">
+            {register.variables?.email}
+          </span>
+          . Open it to finish setting up your account — you will not be able to
+          sign in until you do.
+        </p>
+      </div>
+    );
+  }
+
   /** Drop stale feedback as soon as the user acts on it. */
   function clearFeedback(field: keyof AuthFieldErrors) {
     setErrors((prev) => (prev[field] ? { ...prev, [field]: undefined } : prev));
