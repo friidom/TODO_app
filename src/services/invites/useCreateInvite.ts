@@ -28,6 +28,13 @@ export function useCreateInvite() {
 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.invites(boardId) });
+
+      // The autocomplete filters out anyone already holding a live invitation,
+      // so every cached search for this board is now wrong by one person
+      // (M4-08). The prefix matches them all.
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.inviteeSearches(boardId),
+      });
     },
   });
 }

@@ -18,6 +18,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/SideBarUI/sidebar";
 import BoardsSection from "./BoardsSection";
+import MyInvitations from "@/components/invites/MyInvitations";
 import { useProfile } from "@/services/profile/useProfile";
 import { cn } from "@/utils/cn";
 
@@ -142,6 +143,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             ))}
           </SidebarMenu>
         </SidebarGroup>
+
+        <MyInvitations />
 
         <BoardsSection />
       </SidebarContent>

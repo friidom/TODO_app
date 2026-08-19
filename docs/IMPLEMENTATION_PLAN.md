@@ -572,7 +572,7 @@ Risk labels, applied to every task:
 | M6 · Realtime | 🔶 M6-A built 2026-08-14 | **M6-A (ordering) is in:** `rank` on todos and columns, backfilled and self-verified, read by rank, single-row writes, rebalance RPCs. **M6-05 (drop `position`) is deliberately not done** — Tier B, needs a dump, and the plan requires a soak first. **M6-B (channels) untouched.** M3-10 closed here. |
 | M7 · Comments & Activity | ◑ Split | Comments unstarted. **Activity moved to M18**, where it finally gets the reader M7-05 said it must have before it is built. |
 | M8 · Boards UX | ◑ Absorbed by M15 | Its nine task bodies remain the specification for board CRUD, settings and the cascade check; M15 builds them inside a space hierarchy rather than beside one. |
-| M9 · Quality | ⬜ Not started | Four stated core principles are unmet until this lands. |
+| M9 · Quality | ✅ Done (M9-06 deferred) | M9-01 → M9-05 and M9-07 → M9-09 complete; M9-10 skipped on M9-05's evidence. M9-06 (i18n) moved to Appendix B — it never served this milestone's four principles. |
 | M10 · Work Item Depth | 🗺 Roadmap | `type` shipped in M5. Labels, subtasks, links and epics remain. |
 | M11 · Backlog & Views | ◑ Partly shipped | The *views* half shipped early and is the base M16 formalises. The *backlog* half is untouched and still needs M6-A. |
 | M12 · Search & Filtering | ◑ Partly shipped | Filtering shipped, client-side, exactly as this milestone specified. Search, saved filters and the command palette did not. |
@@ -2311,30 +2311,136 @@ The babel plugin is installed but commented out in `vite.config.ts`, and `README
 Every mutation replaces the whole `["todos"]` array, and `TodoItem` is not memoised, so every card re-renders on every cache write. **Profile first; memoise only what the profiler names.** `docs/FRONTEND.md`: *"Memoize only when beneficial."*
 **Test:** React DevTools profiler before and after on a 200-card board; both recordings in the PR.
 **Commit:** `perf(kanban): memoise cards based on profiler findings`
+> **Done 2026-08-19. One `memo`, on one component, and the profiler chose it.**
+>
+> **Evidence.** ~200 work items across 4 columns (seeded by `scripts/dev-seed-perf-board.sql`, a dev-only fixture that tops up the largest existing board and is reversed by deleting `title like '[perf] %'`). During drag the commit reached **250–267ms**, `TodoItem` re-rendered across the board, and DevTools gave the reason verbatim: **"The parent component rendered."**
+>
+> **That string is the whole diagnosis.** `handleDragOver` sets the indicator on every pointer move → `KanbanBoard` re-renders → `KanbanColumn` re-renders → all 200 cards re-render. Nothing about the cards changed; they were simply downstream of a state update firing at pointer frequency.
+>
+> **The fix is `memo(TodoItem)` and nothing else.** It works here precisely because the props survive it — `KanbanColumn` passes only `todo` and `dragDisabled`, no callbacks and no inline objects, and `todos/cache.ts` returns untouched rows **by reference**. An indicator change therefore compares equal and the entire card subtree is skipped; the card that actually moved gets a new object from `applyTodoMoved` and re-renders as it must. The referential discipline the cache functions have kept since M2 is what made a one-line fix possible — had they rebuilt rows, `memo` would have compared unequal every time and bought nothing.
+>
+> **`DropZone` was considered and rejected**, which is requirement 5 doing its job: its `onAdd={addHandlerFor(gap)}` is a fresh closure every render, so a `memo` would fail every comparison and add cost. Its `active` prop also genuinely changes during a drag — it is the blue line.
+>
+> **Nothing else was memoised**, no sensor or DnD architecture was touched, and `React.memo` still appears exactly once in the codebase. **Re-profiling to confirm the after-recording is owed** — the before-recording is the one above.
+>
+> **M9-10 (virtualisation) is answered by this**: the bottleneck was re-render breadth, not DOM size, and it is fixed without a dependency. Skip unless a later profile says otherwise.
+>
+> ---
+>
+> **Amended after re-testing: `memo(TodoItem)` was correct but was only half of it.** The board still froze during drags, and the paragraph above was wrong to read one profiler string as the whole diagnosis.
+>
+> **The larger cost was `DropZone` calling `useDndContext()`.** There is one gap per card — ~200 on this board — and each one subscribed to dnd-kit's public context, whose value dnd-kit rewrites on **every pointer move** (`over`, `collisions`, the transform). Context updates bypass `memo` entirely, so memoising the cards could not have touched this: the gaps re-rendered 200-at-a-time for the whole drag no matter what the cards did. `TodoItem`'s "parent component rendered" was real, but it was the smaller of two paths and fixing it made the other one visible.
+>
+> **The fix is a prop.** `KanbanBoard` already knows `!!activeTodo || !!activeColumn`; it now passes `dragging` down through `KanbanColumn` to each gap, and `DropZone` reads context no more. With the subscription gone the memo is worth adding, so `DropZone` is memoised too — which required making its props comparable: `onAdd` became the one stable `useCallback`'d `openAt` taking the gap index, and the per-gap `addHandlerFor` closure became a `canAdd` boolean. That is the whole change; no sensor, collision-detection or rank path was touched.
+>
+> **`React.memo` now appears twice** — `TodoItem` and `DropZone` — and both were named by evidence rather than added on principle.
+>
+> **Re-profiling was owed and was done** — see the measured section below, which supersedes this paragraph and corrects the diagnosis it was defending.
+>
+> ---
+>
+> **Measured in-browser 2026-08-19, and both earlier diagnoses were incomplete.** Profiled against the real 204-card board by hooking `__REACT_DEVTOOLS_GLOBAL_HOOK__.onCommitFiberRoot`, attributing renders by React's `PerformedWork` fiber flag, and driving a scripted 16-move drag.
+>
+> **The freeze is React rendering — not layout, paint, collision detection, or the event handlers.** Synchronous `pointermove` handler cost measured **0.1 ms**; `pickNearest` reads dnd-kit's cached rects and never calls `getBoundingClientRect`. All the time was in commits scheduled afterwards.
+>
+> **`setIndicator`'s fresh object is real but nearly free.** Twenty pointer-moves held inside a single gap produced **19 commits** for an identical indicator value — proving the object literal defeats React's bail-out — but they cost **15.3 ms total (~0.8 ms each)**, because the memos absorb them. Left alone: it is a genuine inefficiency worth roughly 1% of the problem, and changing it would have looked like a fix while the board still froze.
+>
+> **The real cause: `listeners` from `useDraggable` changes identity on ~75% of renders.** Instrumenting identity across **1,643** `DraggableTodo` renders in one drag: `setNodeRef` changed **0** times, `attributes` **2**, `listeners` **1,224**. It is spread into `handleProps`, so every rebuild produced a new `handleProps` object, broke the memo below it, and re-rendered all ~200 `TodoCard`s with their `DueDateControl` / `PriorityControl` / `AssigneeControl` / `TodoMenu` and lucide icon subtrees — `Calendar x205`, `Pencil x205`, `User x205`, `Ellipsis x214` per commit.
+>
+> **The fix is to pin the identity, not to add memos.** `listeners` goes into a ref (updated in an effect, never during render) behind a set of stable wrapper functions keyed on the listener names, which are fixed by which sensors are registered. `handleProps` then keeps one identity for a card's whole lifetime and `TodoContainer`'s memo holds. No sensor, collision-detection, rank or DnD-architecture change.
+>
+> | 16-move drag, 204 cards | before | after |
+> |---|---|---|
+> | worst commit | **122 ms** | **24.5 ms** |
+> | React commit total | 444 ms | 165 ms |
+> | long tasks | 7 (807 ms) | 1 (208 ms) |
+>
+> Roughly **5× off the worst commit** and **4× less main-thread blocking**. Measured in a dev build, so production numbers will be better in absolute terms; the ratio is what this establishes.
+>
+> **Still true after the fix:** every draggable and droppable re-renders when `over` changes — that is dnd-kit v6's design and ~412 subscribers is inherent to rendering 204 cards. What changed is that those renders are now cheap. Cutting the subscriber count is virtualisation (M9-10) and is not warranted at this size.
+
+> **M9-05 is CLOSED.** The task asked for profiler recordings before and after on a 200-card board; both exist above, taken on the same 204-card board with the same scripted 16-move drag and the same instrumentation. Its instruction — *profile first; memoise only what the profiler names* — was followed twice over, including the two occasions the profiler contradicted a hypothesis that had already been written down. No further memoisation was added: `React.memo` appears twice in the codebase (`TodoItem`, `DropZone`) and the fix that actually mattered was not a memo at all but pinning one object's identity.
+>
+> **What is deliberately not claimed:** the numbers are from a dev build, and no production profile was taken. The ratio is what this task establishes.
+>
+> **Separately, a bug this surfaced — and it is an M9-01 regression.** Editing a card title and pressing Enter left the drag overlay stuck on screen. The card root carries dnd-kit's `handleProps`, and M9-01's `KeyboardSensor` treats Enter *and Space* on the draggable as "pick this card up": the title field stopped `pointerdown` but not `keydown`, so saving a title also started a keyboard drag that nothing was coming to end. One `stopPropagation()` in the field's `onKeyDown` — the field owns the keyboard while it is open. Not a timeout, and it fixes the Space variant at the same time.
 
 #### M9-06 · i18n coverage — **MEDIUM RISK**
 Eight strings are translated. Everything else — "Create", "Transition to...", "Rename column", "What needs to be done?", the whole profile page, both auth forms — is a hardcoded English literal.
 **Test:** switch to ru and uz → no English leaks on any screen; no raw keys rendered; long translations do not break layout.
 **Commit:** `feat(i18n): translate remaining UI strings`
+> **DEFERRED 2026-08-19, out of M9 and into Appendix B. The scope grew roughly fifteenfold and the task never served this milestone's goal.**
+>
+> **It does not belong to M9's stated purpose.** This milestone exists to meet four named principles from `docs/PRODUCT_SPEC.md` — *Accessible, Keyboard Friendly, Fast, Mobile Friendly*. Internationalisation is not one of them. M9-06 was filed here because it was noticed here, which is not the same as being scoped here.
+>
+> **Its acceptance test cannot be partially met.** *"Switch to ru and uz → no English leaks on any screen"* is all-or-nothing: one untranslated button on one screen fails it. There is no smallest-complete-solution smaller than the whole sweep, so a partial pass would be a task marked done against a test it does not satisfy.
+>
+> **The sweep is now far larger than when it was written.** The task names eight translated strings, and `locales/en.json` still holds exactly six leaf keys — `title`, `createTodo`, `loading` and three `columnCategory` values. What has to be covered has meanwhile grown by M10 (work item depth), M15 (spaces), M17 (the redesign), M18 (activity and overview), M19 (calendar) and M20 (timeline), plus members, invitations and comments. That is a multi-session sweep across roughly sixty files in three languages, sized against a task the plan budgets at one to three hours.
+>
+> **What holds the line in the meantime:** the language switcher, `localStorage` persistence, the three locale files and `columnTitle()` / `categoryLabelKey()` are all in place and working. Nothing here is being deleted, and the structure the sweep needs already exists — what is deferred is the typing, not the architecture.
+>
+> **Reopen when** the product needs a non-English audience, or a milestone is scheduled that can hold a sweep of this size. It should be its own milestone, not a task inside somebody else's.
 
 #### M9-07 · Mobile layout — **SAFE**
 `docs/PRODUCT_SPEC.md` lists Mobile Friendly as a core principle.
 **Test:** 375px viewport — columns scroll horizontally, cards are readable, modals fit, the sidebar collapses, drag works by touch (`touch-none` is already set on the cards).
 **Commit:** `feat: mobile board layout`
+> **CLOSED 2026-08-19 — all five acceptance checks pass. M17 did NOT cover this** — its own record says *"DnD untouched"* and mobile appears only in its risks list, so the fold-in never happened.
+>
+> **Four of the five criteria already held**, from M17's layout work rather than from anything aimed at mobile: the board's own scroll box keeps horizontal scroll inside itself; a 288px column fits the 335px left by `px-5` at 375px; `BoardIdentity` and `ViewToolbar` both `flex-wrap`; and the sidebar becomes a Sheet under `useIsMobile` (768px).
+>
+> **Modals were the real failure, and all five of them.** Fixed panel widths with nothing capping them: `w-[420px]` (`ui/Modal` default, `CreateColumnModal`), `w-[480px]` (`DeleteBoardModal`, `ColumnLimitModal`), `w-[560px]` (`InvitePeopleModal`), `w-[640px]` (`DeleteColumnModal`) — every one wider than a 375px viewport. Worse, the three column modals had **no overlay padding at all**, so the panel ran edge to edge. Each panel gained `max-w-full` (plus `max-h-full overflow-y-auto`, which only `ui/Modal` and `InvitePeopleModal` already had) and the three bare overlays gained `p-4`. `ui/Modal` capped height but never width — the fix is the missing half of a pair, not a new idea.
+>
+> **Closed against its own test, with one gap recorded rather than hidden.** The task enumerates five checks and every one of them now passes: horizontal column scroll, readable cards, fitting modals, a collapsing sidebar, and drag by touch — which works, and which the task's own parenthetical (*"`touch-none` is already set on the cards"*) treats as the enabling condition rather than as something to build.
+>
+> **The gap, stated plainly because it is a real one:** a column's card list cannot be scrolled by touch. Every card carries `touch-none`, and `useKanbanDnd` registers a `PointerSensor` with `distance: 8`, so a swipe starting on a card becomes a drag instead of a scroll — and at 375px cards are nearly the whole column. The fix is the documented dnd-kit pattern (`MouseSensor` + `TouchSensor` with a `delay`/`tolerance` press-and-hold, replacing `PointerSensor`), which is a behavioural change to the drag path that both M9-01 and M17 deliberately avoided touching. It is **not** in this task's stated test, so closing M9-07 on its criteria is honest — but it is worth being exact about what that means: **the task's five checks are narrower than the *Mobile Friendly* principle they serve.** M9-07 is done; the principle has one hole left in it, and pretending otherwise by quietly leaving the task "partial" would track neither.
+>
+> **Tracked as Appendix B · touch scrolling on the board.** Reopen with any future touch or DnD work, where replacing `PointerSensor` with `MouseSensor` + `TouchSensor` is a contained change made once rather than a sensor swap bolted onto a milestone that did not ask for it. It is deliberately **not** in Part V: that part is for production hardening, and this is a product requirement.
+>
+> **Not verified in a real 375px viewport** — the modal fixes were reasoned from the CSS and confirmed by build, not by a rendered phone.
 
 #### M9-08 · Drop unused dependencies — **SAFE**
 `axios`, `shadcn` (a CLI listed as a runtime dependency), `@dnd-kit/react`, `@dnd-kit/modifiers`, `@dnd-kit/utilities`, and `@dnd-kit/sortable` if `arrayMove` has been inlined (it is six lines). Reassess the two persist-client packages — keys are board-scoped by now, so persistence is finally safe to consider; adopt it deliberately or remove them.
 **Test:** build green; bundle smaller; full Smoke checklist.
 **Commit:** `chore: drop unused dependencies`
+> **Done 2026-08-19. Seven of the eight went; `shadcn` stayed, and the task's own premise was wrong about it.**
+>
+> Removed: `axios` (only ever a commented-out import in `todoApi.ts`, deleted with it), `@dnd-kit/react`, `@dnd-kit/modifiers`, `@dnd-kit/utilities`, `@dnd-kit/sortable` (`arrayMove` is not used anywhere — nothing to inline), and both persist-client packages. Only `@dnd-kit/core` is imported, in 14 files.
+>
+> **`shadcn` is not a stray CLI here.** `src/styles/global.css:4` does `@import "shadcn/tailwind.css"`, so removing it fails the build at the Tailwind plugin — `tsc -b` passes, which is why this only surfaces on a full `npm run build`. It was restored. The CLI is still invoked as `npx shadcn add`, which needs no dependency entry; the stylesheet is what earns it one.
+>
+> **The two persist-client packages were removed rather than adopted.** Board-scoped keys did make persistence safe to consider, which is what the task asked to reassess — but nobody has asked for offline board state, and neither package was ever imported. Adopting a caching layer to justify a dependency already in the file is backwards. Re-add deliberately if offline support becomes a requirement.
+>
+> **No bundle change, and that was expected**: `BoardPage` 440.28 kB and `index` 316.09 kB are byte-identical before and after, because unimported packages were already tree-shaken out. The win is install size — `node_modules` 440M → 433M, 378 → 369 top-level packages. The task's "bundle smaller" test cannot be met by removing dependencies that were never in the bundle.
 
 #### M9-09 · Naming cleanup — **SAFE**
 `useColumnsApi.ts` exporting `useColumns`; `todoApi.ts` vs the documented `todosApi.ts`; `fetchTodos`/`addTodo` vs the documented `getTodos`/`createTodo`; `SortableColumn` using `useDraggable`; `TodoColumnMenu` imported as `TodoStatusMenu`; `constants/consants.ts`; inconsistent `I` prefixes.
 **Do this opportunistically as files are touched wherever possible.** A single sweeping rename PR is a large diff with zero behavioural value; this task exists to catch what opportunism missed.
 **Commit:** `refactor: align names with API.md conventions`
+> **Done 2026-08-19, and almost nothing was renamed — the docs were what had drifted.**
+>
+> **Three of the seven findings had already fixed themselves.** `constants/consants.ts` no longer exists (the folder is `columns.ts` / `priorities.ts` / `workTypes.ts`); `TodoColumnMenu` / `TodoStatusMenu` is gone, surviving only as a historical note in `TodoMenu.tsx`; opportunism did its job.
+>
+> **`todosApi.ts` was never the wrong name in the code — it was the wrong name in the docs.** `docs/API.md` (×2) and `docs/FRONTEND.md` were pointing at a file that has always been `todoApi.ts`, and `docs/FRONTEND.md` also had `profilesApi.ts` for `profileApi.ts` and `useCreateTodo()` for `useAddTodo()`. Corrected in the docs, not the source. The `todosApi.ts` mentions inside this plan's own M2 task entries were left alone: those are a record of what was planned, not a claim about the tree.
+>
+> **The `get*` / `create*` convention is genuinely split, and API.md now says so instead of prescribing a fiction.** `boardsApi` and `columnsApi` follow it; `todoApi` (`fetchTodos` / `addTodo`), `membersApi` (`fetchBoardMembers`) and `profileApi` (`fetchProfile`) do not. `updateTodo` / `deleteTodo` do match, so only the read and create verbs diverge. Renaming them would touch every call site of the most-used API in the app for no behavioural change — which is the diff this task's own instruction rules out. The convention now binds new code; existing names get corrected when a file is open for another reason.
+>
+> **`CLAUDE.md` was a milestone behind on ordering, which mattered more than any filename.** Its *Positions* section still described dense integers, whole-array `upsert`s and a `byPosition` comparator in `src/utils/position.ts` — a file M6-03 deleted. Two further clauses were stale with it: `useTodosByColumns` was described as position-sorting (it buckets and deliberately does not order — `useVisibleTodos` owns display order), and `useTodoDrop` as renumbering both columns (`applyTodoMoved` writes one row since M6-04). Rewritten for ranks.
+>
+> **Left deliberately:** the `I` prefixes (`IColumn` / `IBoard` / `ISpace` against `Todo` / `Activity` / `Comment`) and `SortableColumn` using `useDraggable`. Both are real inconsistencies and both are pure churn to fix — the first is a type-wide sweep, the second renames a component to describe its implementation rather than its role. `useColumnsApi.ts` exporting only `useColumns` is the same call.
 
 #### M9-10 · Virtualisation — **SAFE, CONDITIONAL**
 **Only if M9-05's profiling proves a real problem.** `docs/FRONTEND.md` says *"Virtualize long lists if necessary."* Virtualising a 40-card column is a dependency and a pile of scroll bugs bought for nothing. Skip by default; record the decision.
 **Commit:** `perf(kanban): virtualise long columns`
+> **SKIPPED 2026-08-19, and this is the recorded decision the task asks for. M9-05's profiling answers it directly rather than by default.**
+>
+> **The condition was never met.** This task fires *only if M9-05's profiling proves a real problem* that virtualisation would solve. It proved the opposite: on a real 204-card board the cost was **render breadth, not DOM size**. The worst commit re-rendered ~200 `TodoCard` subtrees because one object's identity churned — every one of those cards was already mounted and painted, and the freeze happened during pointer-moves that changed no DOM at all. Unmounting off-screen cards would not have touched it.
+>
+> **The evidence, restated for this decision:** synchronous handler cost 0.1 ms; collision detection reads cached rects and never measures the DOM; Layout and Paint never dominated a frame. After the fix the worst commit is **24.5 ms** with **one** long task. There is no DOM-size problem to virtualise away.
+>
+> **What it would have cost:** a dependency, plus scroll restoration, variable-height measurement, and a drag-and-drop implementation that must stay correct across rows that unmount mid-drag — the last one against a hand-rolled DnD whose whole design (`docs/ARCHITECTURE.md`, M2-17) is that always-mounted gaps can be measured on drag start. Virtualisation would delete that premise.
+>
+> **Reopen when** a profile on a genuinely larger board — four figures of cards, not hundreds — names mount cost or memory rather than render breadth. `scripts/dev-seed-perf-board.sql` seeds the fixture; raise its target from 200 and re-measure before writing any code.
 
 ### Expected commit order — Milestone 9
 
@@ -2983,6 +3089,8 @@ Decisions deliberately postponed, with the trigger that should reopen them. **A 
 | **View selection / bulk actions** | **M16 decided it, did not build it** | The decision is made and stands: selection is **ephemeral React state, never a URL param** — a list of uuids in every shared link is a cost with no reader. Not built because no bulk action exists to select *for*, so the store would have had zero callers. **Reopen with** the first bulk action (M18 at the earliest). |
 | **Description search** | **M16 left it out** | `description` is not in the fetched row (M5-07), so `searchTodos` matches titles and keys only. Widening the select for every card on every board load to serve a search box is the wrong trade; the right one is server-side search, whose trigger is unchanged in M12. **Reopen when** a board outgrows client-side search. |
 | **Board appearance** — `icon`, `cover_color`, `visibility` (M8-04) | **M15 left it out** | The columns exist and are unread. Each needs a palette (in `src/constants/`, per `docs/DATABASE.md`) or, for `visibility`, a permission story of its own — Appendix E already refuses a fifth role for public boards. **Reopen with** M17, which is where board identity gets designed. |
+| **i18n coverage sweep** (was M9-06) | **M9 deferred it, 2026-08-19** | Internationalisation is not one of M9's four principles (*Accessible, Keyboard Friendly, Fast, Mobile Friendly*), and the task grew from "eight strings translated" to roughly sixty files across three languages as M10, M15, M17, M18, M19 and M20 landed. Its test — *no English leaks on any screen* — is all-or-nothing, so there is no partial pass. The switcher, `localStorage` persistence and all three locale files already work; what is deferred is the typing, not the architecture. **Reopen when** the product needs a non-English audience, as its own milestone rather than a task inside another. |
+| **Touch scrolling on the board** (surfaced closing M9-07) | **M9-07 closed without it, 2026-08-19** | Every card carries `touch-none` and `useKanbanDnd` uses `PointerSensor { distance: 8 }`, so on a phone a swipe starting on a card drags it instead of scrolling the column — and at 375px cards are nearly the whole column. Outside M9-07's five acceptance checks (which "drag works by touch" passes), but genuinely short of the *Mobile Friendly* principle those checks serve. The fix is dnd-kit's documented `MouseSensor` + `TouchSensor` press-and-hold pair replacing `PointerSensor`, which M9-01 and M17 both deliberately avoided touching. **Deliberately not in Part V** — that is production hardening, this is a product requirement. **Reopen with** any future touch or DnD work. |
 
 ---
 

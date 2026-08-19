@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { CheckIcon, ChevronDown, CopyIcon, X } from "lucide-react";
 
 import PendingInviteRow from "./PendingInviteRow";
+import InviteeCombobox from "./InviteeCombobox";
 import { copyInviteLink } from "./copyInviteLink";
 import {
   DEFAULT_EXPIRY_DAYS,
@@ -21,7 +22,11 @@ import { inviteUrl } from "@/services/invites/inviteLink";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useCreateInvite } from "@/services/invites/useCreateInvite";
 import { usePendingInvites } from "@/services/invites/usePendingInvites";
-import type { CreatedInvite, InviteRole } from "@/services/invites/invitesApi";
+import type {
+  CreatedInvite,
+  Invitee,
+  InviteRole,
+} from "@/services/invites/invitesApi";
 import { useBoardId } from "@/hooks/useBoardId";
 
 /**
@@ -67,6 +72,8 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
   const [role, setRole] = useState<InviteRole>(DEFAULT_INVITE_ROLE);
   const [days, setDays] = useState(DEFAULT_EXPIRY_DAYS);
   const [created, setCreated] = useState<CreatedInvite | null>(null);
+  /** Who the invite is for, or null for a shareable link (M4-08). */
+  const [invitee, setInvitee] = useState<Invitee | null>(null);
 
   const createInvite = useCreateInvite();
 
@@ -87,8 +94,17 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
     if (!boardId) return;
 
     createInvite.mutate(
-      { boardId, role, expiresInDays: days },
-      { onSuccess: setCreated },
+      // `email: null` is the link invite, unchanged: the RPC skips its whole
+      // addressee block, so this path is exactly what M4-02 shipped.
+      { boardId, role, expiresInDays: days, email: invitee?.email ?? null },
+      {
+        onSuccess: (created) => {
+          setCreated(created);
+          // The person is now invited, so the field should not still be
+          // holding them as if they were about to be.
+          setInvitee(null);
+        },
+      },
     );
   }
 
@@ -111,7 +127,7 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
         role="dialog"
         aria-modal="true"
         aria-label="Invite people"
-        className="bg-card max-h-full w-[560px] overflow-y-auto rounded-2xl p-7 shadow-2xl"
+        className="bg-card max-h-full w-[560px] max-w-full overflow-y-auto rounded-2xl p-7 shadow-2xl"
       >
         <div className="mb-1 flex items-start justify-between gap-4">
           <h2 className="text-ink text-xl font-bold">Invite people</h2>
@@ -131,17 +147,18 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
           role you choose.
         </p>
 
-        {/* The email field is the Jira silhouette without the behaviour: v1
-            sends nothing, and the placeholder says so rather than leaving
-            someone to type an address and wonder where it went. */}
+        {/* M4-08 stage 1. The field searches registered users and nothing else:
+            an address with no account behind it is stage 2's problem, and the
+            empty state says so rather than accepting input that would fail. */}
         <label className="text-ink mb-1.5 block text-sm font-medium">
           Names or emails
         </label>
 
-        <input
-          disabled
-          placeholder="Email invitations are coming soon — share a link instead"
-          className="border-hairline text-ink-3 mb-6 w-full cursor-not-allowed rounded-lg border bg-transparent px-3 py-2.5 text-sm"
+        <InviteeCombobox
+          boardId={boardId}
+          value={invitee}
+          onChange={setInvitee}
+          disabled={!canInvite}
         />
 
         <div className="mb-6 grid grid-cols-2 gap-3">
@@ -240,10 +257,14 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
           className="bg-brand text-brand-fg hover:bg-brand/90 w-full rounded-lg px-4 py-2.5 text-sm font-medium disabled:opacity-50"
         >
           {createInvite.isPending
-            ? "Creating link..."
-            : created
-              ? "Create another link"
-              : "Create invite link"}
+            ? invitee
+              ? "Sending invite..."
+              : "Creating link..."
+            : invitee
+              ? `Invite ${invitee.full_name || invitee.username || invitee.email}`
+              : created
+                ? "Create another link"
+                : "Create invite link"}
         </button>
 
         <PendingInvites boardId={boardId} canInvite={canInvite} />

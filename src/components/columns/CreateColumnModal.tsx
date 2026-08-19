@@ -58,11 +58,11 @@ function CreateColumnDialog({ onClose }: { onClose: () => void }) {
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
     >
       <form
         onSubmit={handleSubmit}
-        className="bg-card w-[420px] rounded-2xl p-6 shadow-2xl"
+        className="bg-card max-h-full w-[420px] max-w-full overflow-y-auto rounded-2xl p-6 shadow-2xl"
       >
         <h2 className="mb-6 text-2xl font-bold">Create column</h2>
 
@@ -72,7 +72,7 @@ function CreateColumnDialog({ onClose }: { onClose: () => void }) {
           autoFocus
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="border-app mb-6 w-full rounded-xl border bg-transparent px-4 py-3 outline-none focus:ring-2 focus:ring-brand"
+          className="border-app focus:ring-brand mb-6 w-full rounded-xl border bg-transparent px-4 py-3 outline-none focus:ring-2"
           placeholder="Column name..."
         />
 
@@ -85,7 +85,7 @@ function CreateColumnDialog({ onClose }: { onClose: () => void }) {
         </div>
 
         {createColumnMutation.error && (
-          <p className="mb-4 rounded-xl bg-status-red/15 px-4 py-3 text-sm text-status-red">
+          <p className="bg-status-red/15 text-status-red mb-4 rounded-xl px-4 py-3 text-sm">
             {createColumnMutation.error.message}
           </p>
         )}
@@ -102,7 +102,7 @@ function CreateColumnDialog({ onClose }: { onClose: () => void }) {
           <button
             type="submit"
             disabled={!title.trim() || createColumnMutation.isPending}
-            className="rounded-xl bg-brand hover:bg-brand/90 px-4 py-2 text-brand-fg disabled:opacity-50"
+            className="bg-brand hover:bg-brand/90 text-brand-fg rounded-xl px-4 py-2 disabled:opacity-50"
           >
             {createColumnMutation.isPending ? "Creating..." : "Create"}
           </button>

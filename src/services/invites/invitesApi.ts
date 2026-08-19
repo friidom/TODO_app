@@ -49,15 +49,30 @@ export async function createInvite({
   boardId,
   role,
   expiresInDays,
+  email = null,
 }: {
   boardId: string;
   role: InviteRole;
   expiresInDays: number;
+  /**
+   * Who the invitation is for (M4-08 stage 1).
+   *
+   * `null` is the link invite this function shipped with, and it takes the
+   * identical path through the RPC — the addressee block is skipped entirely.
+   * A non-null address must belong to a registered profile; that is the one
+   * rule stage 2 relaxes.
+   */
+  email?: string | null;
 }): Promise<CreatedInvite> {
   const { data, error } = await supabase.rpc("create_invite", {
     p_board_id: boardId,
     p_role: role,
     p_expires_in_days: expiresInDays,
+    // Omitted rather than passed as null. The generated signature types this
+    // as an optional `string` — Supabase's generator cannot express a nullable
+    // text parameter — and omitting it lets the RPC's own `default null` apply,
+    // which is exactly the link-invite path.
+    ...(email ? { p_email: email } : {}),
   });
 
   if (error) throw error;
@@ -153,4 +168,59 @@ export async function acceptInvite(token: string): Promise<AcceptedInvite> {
     status: result.status === "accepted" ? "accepted" : "already_member",
     board_id: result.board_id,
   };
+}
+
+/**
+ * One row of the invite autocomplete (M4-08).
+ *
+ * Five columns, and the RPC's `returns table (…)` list is the exposure
+ * boundary exactly as `board_roster`'s is. `bio`, `created_at` and every future
+ * profile column stay on the far side of it.
+ */
+export type Invitee =
+  Database["public"]["Functions"]["search_board_invitees"]["Returns"][number];
+
+/**
+ * Registered users who could still be invited to this board.
+ *
+ * The filtering — not yourself, not already a member, not already holding a
+ * live invitation — is the RPC's, not the caller's. Doing it here would mean
+ * shipping the full profile list to the client and hiding rows in React, which
+ * is not hiding them at all.
+ *
+ * Under two characters the RPC returns nothing rather than everything, so a
+ * half-typed query cannot be used to walk the user table.
+ */
+export async function searchInvitees(
+  boardId: string,
+  query: string,
+): Promise<Invitee[]> {
+  const { data, error } = await supabase.rpc("search_board_invitees", {
+    p_board_id: boardId,
+    p_query: query,
+  });
+
+  if (error) throw error;
+
+  return data ?? [];
+}
+
+/** A live invitation addressed to the signed-in user. */
+export type MyInvite =
+  Database["public"]["Functions"]["my_pending_invites"]["Returns"][number];
+
+/**
+ * Invitations waiting for the current user.
+ *
+ * This exists because stage 1 sends no email: an addressed invitation would
+ * otherwise be visible to everyone except the person it is for. It takes no
+ * argument on purpose — the address is read from the caller's own profile
+ * inside the RPC, so nobody can list invitations sent to somebody else.
+ */
+export async function fetchMyInvites(): Promise<MyInvite[]> {
+  const { data, error } = await supabase.rpc("my_pending_invites");
+
+  if (error) throw error;
+
+  return data ?? [];
 }

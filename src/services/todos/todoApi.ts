@@ -1,7 +1,6 @@
 import { DEFAULT_WORK_TYPE } from "@/constants/workTypes";
 import type { Todo, TodoRow } from "../../types/data";
 import { rankForAppend } from "../../utils/rank";
-// import axios from "axios";
 import { supabase } from "../api/supabase";
 
 //!SUPABASE//

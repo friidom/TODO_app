@@ -247,6 +247,16 @@ export default function TodoCard({
           onChange={(e) => onDraftChange(e.target.value)}
           onBlur={onSave}
           onKeyDown={(e) => {
+            // The field owns the keyboard while it is open, and this line is
+            // what says so. The card root carries dnd-kit's listeners, and
+            // M9-01's KeyboardSensor treats Enter *and Space* on the draggable
+            // as "pick this card up" — so without this, saving a title also
+            // started a keyboard drag, and the overlay it raised stayed on
+            // screen because nothing else was coming to end it. The pointer
+            // path below was guarded from the start; the keyboard path arrived
+            // a milestone later and was not.
+            e.stopPropagation();
+
             if (e.key === "Enter") onSave();
             if (e.key === "Escape") onCancel();
           }}

@@ -1,4 +1,5 @@
-import { useDndContext, useDroppable } from "@dnd-kit/core";
+import { memo } from "react";
+import { useDroppable } from "@dnd-kit/core";
 import { Plus } from "lucide-react";
 
 import { cn } from "@/utils/cn";
@@ -10,8 +11,23 @@ interface Props {
   /** Card directly above / below the gap — used to skip no-op drops. */
   beforeId?: string;
   afterId?: string;
-  /** Opens the inline create form at this gap. */
-  onAdd?: () => void;
+  /**
+   * Something on the board is being dragged.
+   *
+   * **A prop rather than `useDndContext()`, and that is the M9-05 fix.** This
+   * component is mounted once per gap — about 200 times on a full board — and
+   * reading the drag context here subscribed every one of them to a value
+   * dnd-kit rewrites on every pointer move (`over`, `collisions`, the
+   * transform). Context updates bypass `memo`, so no amount of memoising the
+   * cards could stop it: the gaps re-rendered 200-at-a-time for the whole drag.
+   * The board already knows this boolean; passing it down costs one prop and
+   * lets the memo below actually hold.
+   */
+  dragging?: boolean;
+  /** Whether this gap may open the create form at all. */
+  canAdd?: boolean;
+  /** Opens the inline create form at this gap. Stable — takes the index. */
+  onAdd?: (index: number) => void;
 }
 
 /**
@@ -22,12 +38,14 @@ interface Props {
  * Idle, it doubles as a create affordance: hovering reveals a line and a `+`,
  * and clicking anywhere along it opens the form at that position.
  */
-export default function DropZone({
+const DropZone = memo(function DropZone({
   columnId,
   index,
   active,
   beforeId,
   afterId,
+  dragging = false,
+  canAdd = false,
   onAdd,
 }: Props) {
   const { setNodeRef } = useDroppable({
@@ -37,9 +55,7 @@ export default function DropZone({
 
   // While something is being dragged the gap means "drop here", so the create
   // affordance stays out of the way.
-  const dragging = !!useDndContext().active;
-
-  const showAdd = !!onAdd && !dragging;
+  const showAdd = canAdd && !!onAdd && !dragging;
 
   return (
     <div ref={setNodeRef} className="group relative h-2.5 w-full shrink-0">
@@ -60,7 +76,7 @@ export default function DropZone({
 
           <button
             type="button"
-            onClick={onAdd}
+            onClick={() => onAdd?.(index)}
             title="Create work item"
             aria-label="Create work item"
             // Inert until the gap is hovered, so the badge — which is taller
@@ -73,4 +89,6 @@ export default function DropZone({
       )}
     </div>
   );
-}
+});
+
+export default DropZone;
