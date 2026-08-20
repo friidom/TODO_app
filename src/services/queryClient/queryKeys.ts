@@ -138,4 +138,18 @@ export const queryKeys = {
   profiles: () => PROFILE_ROOT,
 
   profile: (userId: string | undefined) => [...PROFILE_ROOT, userId] as const,
+
+  /**
+   * Whether one username is free (M10-01).
+   *
+   * Not board-scoped and not user-scoped, because the question is not: a
+   * username is unique across the product, and the answer is the same for
+   * whoever is asking — including the signed-out visitor on the registration
+   * form, who is the main caller.
+   *
+   * Keyed by the *normalised* name, so `Ada` and `ada` share one cache entry
+   * and one request, exactly as they share one row in `profiles`.
+   */
+  usernameAvailability: (username: string) =>
+    ["username-availability", username] as const,
 };

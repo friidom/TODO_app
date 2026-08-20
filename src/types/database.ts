@@ -334,7 +334,7 @@ export type Database = {
           email: string | null
           full_name: string | null
           id: string
-          username: string | null
+          username: string
         }
         Insert: {
           avatar_url?: string | null
@@ -343,7 +343,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id: string
-          username?: string | null
+          username: string
         }
         Update: {
           avatar_url?: string | null
@@ -352,7 +352,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
-          username?: string | null
+          username?: string
         }
         Relationships: []
       }
@@ -503,6 +503,10 @@ export type Database = {
         Args: { p_board_id: string; p_role: string; p_user_id: string }
         Returns: undefined
       }
+      available_username: {
+        Args: { p_seed?: string; p_wanted: string }
+        Returns: string
+      }
       board_role: { Args: { p_board_id: string }; Returns: string }
       board_role_rank: { Args: { p_role: string }; Returns: number }
       board_roster: {
@@ -540,6 +544,7 @@ export type Database = {
         Args: { p_board_id: string; p_user_id: string }
         Returns: boolean
       }
+      is_valid_username: { Args: { p_username: string }; Returns: boolean }
       leave_board: { Args: { p_board_id: string }; Returns: undefined }
       my_pending_invites: {
         Args: never
@@ -552,8 +557,10 @@ export type Database = {
           token: string
         }[]
       }
+      normalize_username: { Args: { p_username: string }; Returns: string }
       owns_space: { Args: { p_space_id: string }; Returns: boolean }
       provision_new_user: { Args: never; Returns: string }
+      provision_user: { Args: { p_user_id: string }; Returns: string }
       prune_activities: { Args: { p_keep_days?: number }; Returns: number }
       rebalance_board_column_ranks: {
         Args: { p_board_id: string }
@@ -579,6 +586,7 @@ export type Database = {
         Args: { p_board_id: string; p_role: string; p_user_id: string }
         Returns: undefined
       }
+      username_available: { Args: { p_username: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
