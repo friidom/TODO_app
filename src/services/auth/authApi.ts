@@ -1,9 +1,29 @@
 import { supabase } from "../api/supabase";
+import { normalizeUsername } from "@/utils/username";
 
-export async function signUp(email: string, password: string) {
+export async function signUp(
+  email: string,
+  password: string,
+  username: string,
+) {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      /**
+       * **The only channel a username can travel at signup** (M10-01).
+       *
+       * Confirmation is required, so there is no session here and `auth.uid()`
+       * is null — the client cannot write to `profiles` at all. Metadata rides
+       * on `auth.users.raw_user_meta_data`, survives the confirmation gap, and
+       * is read back by `provision_user()` at the moment the profile is
+       * actually created. No second table, nothing pending to reconcile.
+       *
+       * Normalised here as well as in Postgres so what is stored on the auth
+       * user matches what ends up on the profile.
+       */
+      data: { username: normalizeUsername(username) },
+    },
   });
 
   if (error) throw error;

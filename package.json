@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:live": "vitest run --config vitest.live.config.ts",
     "preview": "vite preview",
     "db:pull": "supabase db pull",
     "db:push": "supabase db push",

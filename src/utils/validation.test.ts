@@ -92,3 +92,41 @@ describe("hasErrors", () => {
     expect(hasErrors(validateAuthForm("", ""))).toBe(true);
   });
 });
+
+describe("validateAuthForm — the username field (M10-01)", () => {
+  it("checks the username only when the form has one", () => {
+    // The login form passes two arguments and must not be told it is missing a
+    // field it does not render.
+    expect(validateAuthForm("someone@example.com", "123456").username).toBe(
+      undefined,
+    );
+  });
+
+  it("REPORTS A BAD USERNAME ALONGSIDE THE OTHER FIELDS", () => {
+    const errors = validateAuthForm("nope", "123", "ad");
+
+    expect(errors.email).toBeDefined();
+    expect(errors.password).toBeDefined();
+    expect(errors.username).toMatch(/at least 3/);
+  });
+
+  it("accepts a whole valid registration", () => {
+    const errors = validateAuthForm("ada@example.com", "123456", "ada_l");
+
+    expect(errors).toEqual({});
+    expect(hasErrors(errors)).toBe(false);
+  });
+
+  it("treats an empty username as a failure when the field exists", () => {
+    const errors = validateAuthForm("ada@example.com", "123456", "");
+
+    expect(errors.username).toBe("Username is required.");
+    expect(hasErrors(errors)).toBe(true);
+  });
+
+  it("makes hasErrors fail on a username alone", () => {
+    // Before M10-01 hasErrors only looked at email and password, so a bad
+    // username would have submitted.
+    expect(hasErrors({ username: "Username is required." })).toBe(true);
+  });
+});

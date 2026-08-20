@@ -6,6 +6,7 @@
  * decides whether it exists.
  */
 
+import { validateUsername } from "./username";
 /** Supabase's own default minimum. Rejecting shorter here saves a round trip. */
 export const PASSWORD_MIN_LENGTH = 6;
 
@@ -15,6 +16,8 @@ export const PASSWORD_MIN_LENGTH = 6;
 const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export interface AuthFieldErrors {
+  /** Registration only; the login form never sets it (M10-01). */
+  username?: string;
   email?: string;
   password?: string;
 }
@@ -41,10 +44,17 @@ export function validatePassword(password: string): string | undefined {
   return undefined;
 }
 
-/** Only the fields that failed appear on the result. */
+/**
+ * Only the fields that failed appear on the result.
+ *
+ * `username` is optional because the login form has no such field. Passing
+ * `undefined` leaves it unchecked rather than reporting it as missing, which is
+ * what keeps this one function serving both screens.
+ */
 export function validateAuthForm(
   email: string,
   password: string,
+  username?: string,
 ): AuthFieldErrors {
   const errors: AuthFieldErrors = {};
 
@@ -54,9 +64,15 @@ export function validateAuthForm(
   if (emailError) errors.email = emailError;
   if (passwordError) errors.password = passwordError;
 
+  if (username !== undefined) {
+    const usernameError = validateUsername(username);
+
+    if (usernameError) errors.username = usernameError;
+  }
+
   return errors;
 }
 
 export function hasErrors(errors: AuthFieldErrors): boolean {
-  return Boolean(errors.email || errors.password);
+  return Boolean(errors.email || errors.password || errors.username);
 }

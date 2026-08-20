@@ -18,8 +18,15 @@ export function useRegister() {
     // MutationCache toast would say the same thing a second time.
     meta: { silent: true },
 
-    mutationFn: ({ email, password }: { email: string; password: string }) =>
-      signUp(email, password),
+    mutationFn: ({
+      email,
+      password,
+      username,
+    }: {
+      email: string;
+      password: string;
+      username: string;
+    }) => signUp(email, password, username),
 
     onSuccess: ({ needsConfirmation }) => {
       // With email confirmation required there is no session yet, so there is

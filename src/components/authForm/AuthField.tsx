@@ -26,7 +26,8 @@ export default function AuthField({
 }: {
   id: string;
   label: string;
-  type: "email" | "password";
+  /** `text` since M10-01, for the username field. */
+  type: "email" | "password" | "text";
   value: string;
   onChange: (value: string) => void;
   error?: string;
