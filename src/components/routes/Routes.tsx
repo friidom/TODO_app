@@ -8,7 +8,14 @@ import LoginPage from "@/pages/auth/LoginPage";
 import NotFoundPage from "@/pages/error/NotFoundPage";
 import RouteErrorPage from "@/pages/error/RouteErrorPage";
 import Loading from "@/components/loading/LoadingPage";
-import { BoardPage, InvitePage, ProfilePage, RegisterPage } from "./lazyPages";
+import {
+  BoardPage,
+  ForgotPasswordPage,
+  InvitePage,
+  ProfilePage,
+  RegisterPage,
+  ResetPasswordPage,
+} from "./lazyPages";
 
 /**
  * The split (M9-03), and what governs which side of it a route lands on.
@@ -76,16 +83,33 @@ export const router = createBrowserRouter([
         path: "/login",
         element: <LoginPage />,
       },
+      {
+        path: "/forgot-password",
+        element: deferred(<ForgotPasswordPage />),
+      },
     ],
   },
 
-  // Outside both guards on purpose, and the only page that is: it has to work
-  // signed in AND signed out. ProtectedRoute would bounce a signed-out visitor
-  // to /login and lose the token; PublicRoute would bounce a signed-in one to
-  // /. The page gates itself and carries the token through login via `?next=`.
+  // Outside both guards on purpose: it has to work signed in AND signed out.
+  // ProtectedRoute would bounce a signed-out visitor to /login and lose the
+  // token; PublicRoute would bounce a signed-in one to /. The page gates itself
+  // and carries the token through login via `?next=`.
   {
     path: "/invite/:token",
     element: deferred(<InvitePage />),
+    errorElement: <RouteErrorPage />,
+  },
+
+  // Outside both guards for a related but distinct reason (M22). A Supabase
+  // recovery link does not hand this page a token to redeem — it *signs the
+  // user in*, exchanging the URL fragment for a real session before the page
+  // renders. So PublicRoute would see that session and redirect to `/` before
+  // the password could be changed, which is precisely the screen the link
+  // exists to reach. The page waits for the session itself and says so when it
+  // never arrives.
+  {
+    path: "/reset-password",
+    element: deferred(<ResetPasswordPage />),
     errorElement: <RouteErrorPage />,
   },
 

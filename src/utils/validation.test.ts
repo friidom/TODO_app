@@ -4,6 +4,7 @@ import {
   PASSWORD_MIN_LENGTH,
   hasErrors,
   validateAuthForm,
+  validateConfirmPassword,
   validateEmail,
   validatePassword,
 } from "./validation";
@@ -128,5 +129,54 @@ describe("validateAuthForm — the username field (M10-01)", () => {
     // Before M10-01 hasErrors only looked at email and password, so a bad
     // username would have submitted.
     expect(hasErrors({ username: "Username is required." })).toBe(true);
+  });
+});
+
+describe("validateConfirmPassword — the second field (M22)", () => {
+  it("passes when the two match exactly", () => {
+    expect(validateConfirmPassword("hunter22", "hunter22")).toBeUndefined();
+  });
+
+  it("asks for the confirmation before complaining about a mismatch", () => {
+    // "They do not match" is technically true of an empty field and reads like
+    // an accusation about something nobody has filled in yet.
+    expect(validateConfirmPassword("hunter22", "")).toBe(
+      "Confirm your password.",
+    );
+  });
+
+  it("catches a mismatch", () => {
+    expect(validateConfirmPassword("hunter22", "hunter23")).toBe(
+      "Passwords do not match.",
+    );
+  });
+
+  it("COMPARES UNTRIMMED — spaces are part of a password", () => {
+    // Trimming one side would let these pass as a match and then store only one
+    // of them, producing an account nobody can sign in to. Registration had no
+    // confirmation at all before M22, and with no reset flow that was
+    // unrecoverable — which is why this check exists.
+    expect(validateConfirmPassword("  hunter22", "hunter22")).toBe(
+      "Passwords do not match.",
+    );
+    expect(
+      validateConfirmPassword("  hunter22  ", "  hunter22  "),
+    ).toBeUndefined();
+  });
+
+  it("is case-sensitive, unlike a username", () => {
+    expect(validateConfirmPassword("Hunter22", "hunter22")).toBe(
+      "Passwords do not match.",
+    );
+  });
+});
+
+describe("hasErrors — the confirm field (M22)", () => {
+  it("MAKES A MISMATCHED FORM FAIL", () => {
+    // The same regression M10-01 fixed for `username`: a new member of the
+    // error shape that `hasErrors` does not know about lets the form submit.
+    expect(hasErrors({ confirmPassword: "Passwords do not match." })).toBe(
+      true,
+    );
   });
 });

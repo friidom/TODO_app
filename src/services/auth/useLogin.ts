@@ -18,8 +18,15 @@ export function useLogin() {
     // MutationCache toast would say the same thing a second time.
     meta: { silent: true },
 
-    mutationFn: ({ email, password }: { email: string; password: string }) =>
-      signIn(email, password),
+    // `identifier`, not `email`, since M22: the field takes either, and naming
+    // it for one of the two is how a caller ends up validating the wrong thing.
+    mutationFn: ({
+      identifier,
+      password,
+    }: {
+      identifier: string;
+      password: string;
+    }) => signIn(identifier, password),
 
     onSuccess: () => {
       navigate(next);

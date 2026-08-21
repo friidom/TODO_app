@@ -179,7 +179,10 @@ function NoBoards({ onCreate }: { onCreate: () => void }) {
       <button
         type="button"
         onClick={onCreate}
-        className="bg-brand text-brand-fg hover:bg-brand/90 rounded-control focus-visible:ring-brand mt-4 flex items-center gap-1.5 px-3 py-2 text-[13px] font-medium transition-colors outline-none focus-visible:ring-2"
+        // `h-9 px-3.5`, matching every other primary action in the product
+        // (M22) — it was `px-3 py-2`, which rendered a button a couple of
+        // pixels shorter than the ones in the dialogs beside it.
+        className="bg-brand text-brand-fg hover:bg-brand/90 rounded-control focus-visible:ring-brand focus-visible:ring-offset-surface mt-4 inline-flex h-9 items-center gap-1.5 px-3.5 text-[13px] font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
       >
         <PlusIcon className="size-4" />
         Create board

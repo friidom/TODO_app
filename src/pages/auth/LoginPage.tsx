@@ -12,13 +12,20 @@ export default function LoginPage() {
   // looks like the sign-in simply failed.
   const unconfirmed = searchParams.get("unconfirmed") === "1";
 
+  // Set by `useUpdatePassword` after a reset (M22). The sign-out that follows
+  // the update is deliberate, so landing back on a bare sign-in form would read
+  // as the reset having failed — this is the acknowledgement.
+  const justReset = searchParams.get("reset") === "1";
+
   return (
     <AuthShell
       title="Welcome back"
       subtitle={
         unconfirmed
           ? "Confirm your email address first — check your inbox for the link we sent."
-          : "Sign in to pick up where your board left off."
+          : justReset
+            ? "Your password has been updated. Sign in with the new one."
+            : "Sign in to pick up where your board left off."
       }
       footer={
         <>
