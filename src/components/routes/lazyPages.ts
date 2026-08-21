@@ -20,3 +20,12 @@ export const ProfilePage = lazy(() => import("@/pages/profile/ProfilePage"));
 export const InvitePage = lazy(() => import("@/pages/invite/InvitePage"));
 
 export const RegisterPage = lazy(() => import("@/pages/auth/RegisterPage"));
+
+/** The two halves of the password reset (M22). Both are off the hot path. */
+export const ForgotPasswordPage = lazy(
+  () => import("@/pages/auth/ForgotPasswordPage"),
+);
+
+export const ResetPasswordPage = lazy(
+  () => import("@/pages/auth/ResetPasswordPage"),
+);

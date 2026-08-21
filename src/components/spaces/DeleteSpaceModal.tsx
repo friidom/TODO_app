@@ -1,4 +1,14 @@
+import { Loader2 } from "lucide-react";
+
 import Modal from "@/components/ui/Modal";
+import {
+  DIALOG_ACTIONS,
+  DIALOG_BODY,
+  DIALOG_CANCEL,
+  DIALOG_DANGER,
+  DIALOG_ERROR,
+  DIALOG_TITLE,
+} from "@/components/ui/dialogChrome";
 import { useDeleteSpace } from "@/services/spaces/useDeleteSpace";
 import type { ISpace } from "@/types/data";
 
@@ -10,6 +20,11 @@ import type { ISpace } from "@/types/data";
  * inside survives, unchanged, and reappears under Unfiled — `boards.space_id`
  * is `on delete set null`. Demanding the same ceremony for both would teach
  * people to type past the one that matters.
+ *
+ * **What it does now say is what happens to the boards**, in the sentence
+ * rather than in a footnote, because "delete" is a frightening word for an
+ * action that deletes nothing but a label. That is the whole of the
+ * accident-prevention here: an accurate description beats a second click.
  */
 export default function DeleteSpaceModal({
   space,
@@ -24,16 +39,16 @@ export default function DeleteSpaceModal({
 
   return (
     <Modal title="Delete space" onClose={onClose}>
-      <h2 className="mb-4 text-2xl font-bold">Delete this space?</h2>
+      <h2 className={DIALOG_TITLE}>Delete this space?</h2>
 
-      <p className="text-ink-2 mb-6 text-[15px]">
-        <span className="text-ink font-semibold">{space.title}</span> will be
+      <p className={`${DIALOG_BODY} mt-2`}>
+        <span className="text-ink font-medium">{space.title}</span> will be
         removed.{" "}
         {boardCount > 0 ? (
           <>
             The {boardCount} {boardCount === 1 ? "board" : "boards"} in it{" "}
-            <span className="text-ink font-semibold">are not deleted</span> —
-            they move to Unfiled, with their members and work items untouched.
+            <span className="text-ink font-medium">are not deleted</span> — they
+            move to Unfiled, with their members and work items untouched.
           </>
         ) : (
           <>It has no boards in it.</>
@@ -41,17 +56,13 @@ export default function DeleteSpaceModal({
       </p>
 
       {deleteSpace.error && (
-        <p className="bg-status-red/15 text-status-red mb-4 rounded-xl px-4 py-3 text-sm">
+        <p role="alert" className={DIALOG_ERROR}>
           {deleteSpace.error.message}
         </p>
       )}
 
-      <div className="flex justify-end gap-3">
-        <button
-          type="button"
-          onClick={onClose}
-          className="hover:bg-muted rounded-xl px-4 py-2"
-        >
+      <div className={DIALOG_ACTIONS}>
+        <button type="button" onClick={onClose} className={DIALOG_CANCEL}>
           Cancel
         </button>
 
@@ -59,9 +70,12 @@ export default function DeleteSpaceModal({
           type="button"
           onClick={() => deleteSpace.mutate(space.id, { onSuccess: onClose })}
           disabled={deleteSpace.isPending}
-          className="bg-status-red rounded-xl px-4 py-2 text-white hover:opacity-90 disabled:opacity-50"
+          className={DIALOG_DANGER}
         >
-          {deleteSpace.isPending ? "Deleting..." : "Delete space"}
+          {deleteSpace.isPending && (
+            <Loader2 className="size-3.5 animate-spin" />
+          )}
+          {deleteSpace.isPending ? "Deleting…" : "Delete space"}
         </button>
       </div>
     </Modal>

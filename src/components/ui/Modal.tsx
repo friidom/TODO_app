@@ -48,7 +48,12 @@ export default function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`bg-card max-h-full ${width} max-w-full overflow-y-auto rounded-2xl p-6 shadow-2xl`}
+        // `bg-surface` + `rounded-surface` + a hairline, matching every other
+        // raised surface in the product (M22). It was `bg-card`/`rounded-2xl`
+        // /`shadow-2xl` — pre-token classes and a heavier shadow than anything
+        // else here, so a dialog read as belonging to a different application
+        // than the board it opened over.
+        className={`border-hairline bg-surface rounded-surface max-h-full ${width} max-w-full overflow-y-auto border p-5 shadow-[0_16px_40px_-16px_rgba(0,0,0,0.5)]`}
       >
         {children}
       </div>

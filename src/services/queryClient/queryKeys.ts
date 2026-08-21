@@ -14,6 +14,8 @@ const COMMENT_ROOT = ["comments"] as const;
 
 const FOR_YOU_ROOT = ["for-you"] as const;
 
+const NOTIFICATION_ROOT = ["notifications"] as const;
+
 export const queryKeys = {
   /**
    * Every todo on one board as a flat array — not one entry per column.
@@ -176,6 +178,21 @@ export const queryKeys = {
    */
   forYouByIds: (ids: string[]) =>
     [...FOR_YOU_ROOT, "by-ids", [...ids].sort().join(",")] as const,
+
+  /**
+   * The caller's inbox and its unread count (M22).
+   *
+   * Not board-scoped, like the For You keys and for the same reason: the
+   * question is "what is mine", answered by RLS rather than by a filter the key
+   * could name. Under one root so marking something read can drop the list and
+   * the badge together — they are two views of one table and must never
+   * disagree about it.
+   */
+  notifications: () => NOTIFICATION_ROOT,
+
+  notificationList: () => [...NOTIFICATION_ROOT, "list"] as const,
+
+  notificationUnread: () => [...NOTIFICATION_ROOT, "unread"] as const,
 
   /** Prefix covering every profile entry; matches them all when invalidating. */
   profiles: () => PROFILE_ROOT,

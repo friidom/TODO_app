@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/SideBarUI/sidebar";
 import BoardsSection from "./BoardsSection";
 import MyInvitations from "@/components/invites/MyInvitations";
+import NotificationsButton from "@/components/notifications/NotificationsButton";
 import { useProfile } from "@/services/profile/useProfile";
 import { cn } from "@/utils/cn";
 
@@ -31,8 +32,7 @@ import { cn } from "@/utils/cn";
  * the live items and the one thing the sidebar is *for*, the Spaces → Boards
  * tree, was the smallest thing in it.
  *
- * What is left: For You, Dashboard (the one placeholder kept, because M18 is
- * next and the slot orients rather than teases), the board tree, and a footer.
+ * What is left: For You, Notifications, the board tree, and a footer.
  * Views moved to the board's own toolbar, where switching one does not mean
  * travelling to the sidebar and back.
  *
@@ -143,6 +143,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             {WORKSPACE.map((item) => (
               <NavItem key={item.label} item={item} />
             ))}
+
+            {/* Beside For You, because both answer "what is mine" rather than
+                "what is on this board" (M22). */}
+            <NotificationsButton />
           </SidebarMenu>
         </SidebarGroup>
 

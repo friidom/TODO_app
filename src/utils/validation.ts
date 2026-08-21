@@ -6,6 +6,7 @@
  * decides whether it exists.
  */
 
+import { identifierKind } from "./identifier";
 import { validateUsername } from "./username";
 /** Supabase's own default minimum. Rejecting shorter here saves a round trip. */
 export const PASSWORD_MIN_LENGTH = 6;
@@ -20,6 +21,8 @@ export interface AuthFieldErrors {
   username?: string;
   email?: string;
   password?: string;
+  /** Registration and password reset — the second password field (M22). */
+  confirmPassword?: string;
 }
 
 export function validateEmail(email: string): string | undefined {
@@ -29,6 +32,33 @@ export function validateEmail(email: string): string | undefined {
   if (!EMAIL_SHAPE.test(trimmed)) return "Enter a valid email address.";
 
   return undefined;
+}
+
+/**
+ * The login field, which takes an address **or** a username (M22).
+ *
+ * It dispatches on the same `identifierKind` the sign-in call uses, so the form
+ * and the request can never disagree about which branch a string is on. Each
+ * branch then defers to the existing checker — there is no third notion of
+ * validity invented here.
+ *
+ * The message names both possibilities rather than guessing which the user
+ * meant: "Enter a valid email address" is actively unhelpful to someone who was
+ * typing a username and mistyped it.
+ */
+export function validateIdentifier(value: string): string | undefined {
+  const trimmed = value.trim();
+
+  if (!trimmed) return "Email or username is required.";
+
+  if (identifierKind(trimmed) === "email") return validateEmail(trimmed);
+
+  // A username typed at the login form is checked for shape only. It is
+  // deliberately NOT checked for existence — that answer belongs to the server,
+  // and asking here would build the enumeration oracle the RPC avoids.
+  return validateUsername(trimmed)
+    ? "Enter a valid email address or username."
+    : undefined;
 }
 
 export function validatePassword(password: string): string | undefined {
@@ -73,6 +103,32 @@ export function validateAuthForm(
   return errors;
 }
 
+/**
+ * Whether the two password fields agree.
+ *
+ * Compared untrimmed, for the reason `validatePassword` records: spaces are
+ * part of a password. Trimming one side would let "  hunter2" and "hunter2"
+ * pass as a match and then store only one of them.
+ *
+ * An empty confirmation reports "confirm it" rather than "they do not match" —
+ * the second is technically true and reads like an accusation about a field
+ * that has not been filled in yet.
+ */
+export function validateConfirmPassword(
+  password: string,
+  confirmPassword: string,
+): string | undefined {
+  if (!confirmPassword) return "Confirm your password.";
+  if (password !== confirmPassword) return "Passwords do not match.";
+
+  return undefined;
+}
+
 export function hasErrors(errors: AuthFieldErrors): boolean {
-  return Boolean(errors.email || errors.password || errors.username);
+  return Boolean(
+    errors.email ||
+    errors.password ||
+    errors.username ||
+    errors.confirmPassword,
+  );
 }

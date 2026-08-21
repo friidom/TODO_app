@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Check, Loader2, X as XIcon } from "lucide-react";
 
 import AuthField from "@/components/authForm/AuthField";
+import PasswordInput from "@/components/authForm/PasswordInput";
 import { FORM_SUBMIT } from "@/components/ui/fieldInput";
 import { useRegister } from "@/services/auth/useRegister";
 import {
@@ -12,6 +13,8 @@ import { normalizeUsername } from "@/utils/username";
 import {
   hasErrors,
   validateAuthForm,
+  validateConfirmPassword,
+  PASSWORD_MIN_LENGTH,
   type AuthFieldErrors,
 } from "@/utils/validation";
 
@@ -21,6 +24,7 @@ export default function RegisterForm() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [errors, setErrors] = useState<AuthFieldErrors>({});
 
   const availability = useUsernameAvailability(username);
@@ -68,6 +72,16 @@ export default function RegisterForm() {
       password,
       canonicalUsername,
     );
+
+    // Checked here rather than inside `validateAuthForm`, which serves a form
+    // that has no such field. A confirmation only means something once the
+    // password itself is acceptable — reporting "they do not match" underneath
+    // "too short" is two complaints about one mistake.
+    if (!fieldErrors.password) {
+      const mismatch = validateConfirmPassword(password, confirmPassword);
+
+      if (mismatch) fieldErrors.confirmPassword = mismatch;
+    }
 
     // **The last look at availability before committing.** It closes the window
     // between the debounced answer and the click, but not the one between the
@@ -129,18 +143,34 @@ export default function RegisterForm() {
         }}
       />
 
-      <AuthField
+      <PasswordInput
         id="register-password"
         label="Password"
-        type="password"
-        placeholder="At least 6 characters"
+        placeholder={`At least ${PASSWORD_MIN_LENGTH} characters`}
         autoComplete="new-password"
         value={password}
         error={errors.password}
+        hint={`At least ${PASSWORD_MIN_LENGTH} characters.`}
         disabled={register.isPending}
         onChange={(value) => {
           setPassword(value);
           clearFeedback("password");
+        }}
+      />
+
+      {/* New in M22. Registration had no confirmation at all, so a typo in the
+          one password field created an account nobody could sign in to — and
+          with no reset flow that was unrecoverable. */}
+      <PasswordInput
+        id="register-confirm-password"
+        label="Confirm password"
+        autoComplete="new-password"
+        value={confirmPassword}
+        error={errors.confirmPassword}
+        disabled={register.isPending}
+        onChange={(value) => {
+          setConfirmPassword(value);
+          clearFeedback("confirmPassword");
         }}
       />
 

@@ -269,7 +269,11 @@ function SpaceRow({
             onClick={() =>
               onDialog({ kind: "create-board", spaceId: space?.id ?? null })
             }
-            className="hover:text-ink rounded p-0.5 opacity-0 transition-opacity duration-150 group-focus-within/space:opacity-100 group-hover/space:opacity-100"
+            // Always visible below `md`, revealed on hover above it (M22). A
+            // pointer-only affordance is unreachable on a touch screen — there
+            // is no hover to trigger it — so the only way to add a board inside
+            // a space on a phone was not to.
+            className="hover:text-ink rounded p-0.5 transition-opacity duration-150 max-md:opacity-100 md:opacity-0 md:group-focus-within/space:opacity-100 md:group-hover/space:opacity-100"
           >
             <PlusIcon className="size-3.5" />
             <span className="sr-only">
@@ -282,7 +286,9 @@ function SpaceRow({
               <DropdownMenu>
                 <DropdownMenuTrigger
                   aria-label={`${space.title} options`}
-                  className="hover:text-ink rounded p-0.5 opacity-0 transition-opacity duration-150 group-focus-within/space:opacity-100 group-hover/space:opacity-100"
+                  // Same rule as the `+` above: rename and delete were both
+                  // unreachable on touch before M22.
+                  className="hover:text-ink rounded p-0.5 transition-opacity duration-150 max-md:opacity-100 md:opacity-0 md:group-focus-within/space:opacity-100 md:group-hover/space:opacity-100"
                 >
                   <MoreHorizontalIcon className="size-3.5" />
                 </DropdownMenuTrigger>
