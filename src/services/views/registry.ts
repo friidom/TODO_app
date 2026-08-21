@@ -125,9 +125,17 @@ export const VIEWS: Record<ViewMode, ViewDefinition> = {
      * derived at render — never stored.** The plan makes this a decision rather
      * than an implementation detail: *"a Gantt whose rows can be dragged into
      * an arbitrary order is a second ranked surface, and it would reopen
-     * M3-10 and M6-A on the day it ships."* So this view has no drag at all,
-     * `todos.position` still has exactly one writer, and `registry.test.ts`'s
-     * guard keeps passing untouched.
+     * M3-10 and M6-A on the day it ships."*
+     *
+     * **The timeline does drag as of M20-B, and this stays false**, which is
+     * the same reading the calendar entry above already relies on: the flag
+     * means *writes `todos.position`*, not *has drag and drop*. Moving a bar,
+     * dragging an end and sweeping out a new range all write `start_date` and
+     * `due_date` through `useUpdateTodo`; none of them touches `position`, and
+     * the row they land on is still whichever one the dates sort them into. So
+     * `todos.position` keeps exactly one writer and `registry.test.ts`'s guard
+     * keeps passing untouched — the vertical order remains underivable from a
+     * gesture, which is the property that was actually being protected.
      *
      * `canSort: false` because time is the axis — the case `canSort`'s own doc
      * comment named. `canGroup: false` because a second grouping over a

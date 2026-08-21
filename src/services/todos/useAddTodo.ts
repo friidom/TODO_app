@@ -18,6 +18,12 @@ interface AddTodoVars {
    * did before these were added.
    */
   assignee_id?: string | null;
+  /**
+   * Sent only by the timeline, which is the one surface that draws a whole
+   * range before the card exists (M20-B). Null everywhere else, so every other
+   * create path behaves exactly as it did.
+   */
+  start_date?: string | null;
   due_date?: string | null;
   /** Defaults to the column's own default, so untouched behaves as before. */
   type?: string;
@@ -36,6 +42,7 @@ export function useAddTodo() {
       title,
       column_id,
       assignee_id = null,
+      start_date = null,
       due_date = null,
       type = DEFAULT_WORK_TYPE,
     }: AddTodoInput) => {
@@ -47,6 +54,7 @@ export function useAddTodo() {
         column_id,
         board_id: boardId,
         assignee_id,
+        start_date,
         due_date,
         type,
       });
@@ -60,6 +68,7 @@ export function useAddTodo() {
       column_id,
       index,
       assignee_id = null,
+      start_date = null,
       due_date = null,
       type = DEFAULT_WORK_TYPE,
     }) => {
@@ -115,11 +124,15 @@ export function useAddTodo() {
         assignee_id,
         type,
         priority: null,
-        // Null, and not carried from the form: the create surfaces ask for a
-        // due date and nothing asks for a start (M20 put that control in the
-        // task detail). A new card is therefore a point on the timeline until
-        // someone gives it a range.
-        start_date: null,
+        // Carried, since M20-B. It is still null from every other create
+        // surface — the column's create card and the header form ask for a due
+        // date and nothing asks for a start, so a card made there is a point on
+        // the timeline until someone gives it a range. What changed is that
+        // there is now one surface where the range *is* the gesture: drawing a
+        // bar on the axis supplies both ends before the row exists, and
+        // carrying them here is what makes the new bar appear at the range that
+        // was drawn rather than jumping there when the server answers.
+        start_date,
         due_date,
         updated_at: null,
       };

@@ -105,6 +105,7 @@ export async function addTodo({
   column_id,
   board_id,
   assignee_id = null,
+  start_date = null,
   due_date = null,
   type = DEFAULT_WORK_TYPE,
 }: {
@@ -114,6 +115,18 @@ export async function addTodo({
   board_id: string;
   /** Chosen in the create form before the card existed. Null when untouched. */
   assignee_id?: string | null;
+  /**
+   * The other end of the range, when the surface that created this card was
+   * the timeline (M20-B).
+   *
+   * Null from every other create surface, which is what it has always been —
+   * the column's create card and the header form ask for a due date and
+   * nothing else, so a card made there is still a point until someone gives it
+   * a range. A range drawn on the axis is the one gesture that supplies both
+   * ends at once, and it sends them together so the row is never briefly
+   * inverted against `todos_date_range_check`.
+   */
+  start_date?: string | null;
   due_date?: string | null;
   /** Omitted falls through to the column's own 'Task' default. */
   type?: string;
@@ -159,6 +172,7 @@ export async function addTodo({
         position,
         rank,
         assignee_id,
+        start_date,
         due_date,
         type,
       },

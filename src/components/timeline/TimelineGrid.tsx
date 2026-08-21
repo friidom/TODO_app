@@ -1,18 +1,23 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { CalendarRangeIcon, ChevronRightIcon } from "lucide-react";
 
+import { useTimelineDrag, CREATE_KEY } from "@/hooks/useTimelineDrag";
+import type { Schedulable } from "@/services/todos/useTimelineSchedule";
 import { monthLabel } from "@/services/views/calendar";
 import {
   bandAnchor,
   monthBands,
+  placeItem,
   tickIndexOf,
   tickLabel,
-  type placeItem,
+  type placeItem as placeItemType,
   type TimelineItem,
   type TimelineScale,
 } from "@/services/views/timeline";
+import type { DayRange, DragMode } from "@/services/views/timelineDrag";
 import type { IColumn, Todo } from "@/types/data";
 import { cn } from "@/utils/cn";
+import TimelineCreateRow from "./TimelineCreateRow";
 import TimelineRow, { Row, RowRail } from "./TimelineRow";
 import {
   HEADER_HEIGHT,
@@ -22,10 +27,10 @@ import {
   trackMinWidth,
 } from "./timelineAxis";
 
-type Placement = NonNullable<ReturnType<typeof placeItem>>;
+type Placement = NonNullable<ReturnType<typeof placeItemType>>;
 
 /**
- * The axis and everything on it (M20).
+ * The axis and everything on it (M20, planning gestures M20-B).
  *
  * **One scroll container, and the rail is sticky inside it.** The obvious
  * alternative — a fixed label column beside a separately scrolling track — puts
@@ -34,13 +39,18 @@ type Placement = NonNullable<ReturnType<typeof placeItem>>;
  * header sticks to the top, each row's label sticks to the left, and both are
  * the *same* scrolled content, so they cannot drift.
  *
- * **The axis is drawn once, full height, behind the rows.** This is what the
- * polish pass changed and it is the difference between a chart and a table with
- * markers in it: the column rules, the weekend tint and the today line are a
- * single absolutely positioned layer spanning the whole scroller, so a board
- * with four dated items shows four bars *on a calendar* rather than four bars
- * above a void. Drawing the rules per row instead would mean every row
- * repeating thirty-odd elements and stopping dead where the data does.
+ * **The axis is drawn once, full height, behind the rows** — a single
+ * absolutely positioned layer spanning the whole scroller, so a board with four
+ * dated items shows four bars *on a calendar* rather than four bars above a
+ * void. Drawing the rules per row instead would mean every row repeating thirty
+ * elements and stopping dead where the data does.
+ *
+ * **That same layer is what the gestures measure against**, which is why it
+ * carries `trackRef`. Its inner grid is the track *by construction* — it is
+ * inset past the rail and below the header and holds one cell per tick — so
+ * pixel-to-column can never disagree with the columns the bars are placed in.
+ * Measuring a row instead would mean a different element per row and a
+ * different answer whenever one of them was scrolled out.
  *
  * **The column count is fixed by the scale, never by the data.** `timelineTicks`
  * always returns the same number of columns, so paging a week changes the width
@@ -57,11 +67,14 @@ export default function TimelineGrid({
   keyPrefix,
   locale,
   today,
+  interactive,
   onOpenTask,
+  onSchedule,
+  onCreate,
   emptyReason,
 }: {
   rows: { item: TimelineItem; place: Placement }[];
-  /** Items with no date at all — listed below the axis, never placed on it. */
+  /** Items with no date at all — listed below the axis, and schedulable there. */
   undated: Todo[];
   ticks: string[];
   scale: TimelineScale;
@@ -69,13 +82,46 @@ export default function TimelineGrid({
   keyPrefix: string;
   locale?: string;
   today: string;
+  /** Editor and above. A viewer reads the timeline but does not plan on it. */
+  interactive: boolean;
   onOpenTask: (id: string) => void;
+  onSchedule: (todo: Schedulable, range: DayRange) => Promise<unknown>;
+  onCreate: (title: string, range: DayRange) => void;
   /** What to say when there is nothing to draw. Null when there is. */
   emptyReason: { title: string; hint: string } | null;
 }) {
   const bands = monthBands(ticks);
   const todayIndex = tickIndexOf(today, ticks, scale);
   const columns = trackColumns(ticks.length, scale);
+
+  /** A swept range waiting for a title. Null whenever the form is closed. */
+  const [pending, setPending] = useState<DayRange | null>(null);
+
+  // Destructured rather than kept as one object: `trackRef` is a ref, and
+  // reaching the rest of the result through the same binding reads to the
+  // linter (correctly) as touching a ref during render.
+  const { trackRef, draft, dragging, begin, consumeClick } = useTimelineDrag({
+    ticks,
+    scale,
+    enabled: interactive,
+    onSchedule,
+    onDraw: setPending,
+  });
+
+  // Stable, so `TimelineRow`'s memo holds — a fresh closure per render would
+  // fail the comparison on every row and put all of them back into the drag's
+  // render path, which is the exact cost the memo exists to avoid.
+  const open = useCallback(
+    (id: string) => {
+      // The click that ends a drag must not also open the task. The board and
+      // the calendar get this from dnd-kit's activation constraint; here the
+      // gesture layer answers the same question directly.
+      if (consumeClick()) return;
+
+      onOpenTask(id);
+    },
+    [consumeClick, onOpenTask],
+  );
 
   // Where each month begins, so those rules can be drawn a step stronger than
   // the ones between days. Derived from the bands the header already uses, so
@@ -103,6 +149,7 @@ export default function TimelineGrid({
             style={{ paddingTop: HEADER_HEIGHT, paddingLeft: RAIL_WIDTH }}
           >
             <div
+              ref={trackRef}
               className="grid h-full"
               style={{ gridTemplateColumns: columns }}
             >
@@ -221,30 +268,77 @@ export default function TimelineGrid({
           {emptyReason ? (
             <Empty {...emptyReason} />
           ) : (
-            rows.map(({ item, place }) => (
-              <TimelineRow
-                key={item.todo.id}
-                item={item}
-                place={place}
-                ticks={ticks.length}
-                scale={scale}
-                column={
-                  item.todo.column_id
-                    ? columnById.get(item.todo.column_id)
-                    : undefined
-                }
-                keyPrefix={keyPrefix}
-                locale={locale}
-                today={today}
-                onOpen={() => onOpenTask(item.todo.id)}
-              />
-            ))
+            rows.map(({ item, place }) => {
+              const active = draft?.key === item.todo.id;
+
+              return (
+                <TimelineRow
+                  key={item.todo.id}
+                  item={item}
+                  place={place}
+                  // Null for every row but the dragged one, and null is the
+                  // same value every render — which is what lets the memo stop
+                  // the other rows re-rendering mid-gesture.
+                  draft={active ? draft!.range : null}
+                  ticks={ticks}
+                  scale={scale}
+                  column={
+                    item.todo.column_id
+                      ? columnById.get(item.todo.column_id)
+                      : undefined
+                  }
+                  keyPrefix={keyPrefix}
+                  locale={locale}
+                  today={today}
+                  interactive={interactive}
+                  dragging={active && dragging}
+                  onOpenTask={open}
+                  // `begin` itself, not a closure over this row. A fresh
+                  // function per row per render would fail the memo comparison
+                  // on every row and put all of them back into the drag's
+                  // render path — undoing the exact thing the memo is for. The
+                  // row builds its own target: it already holds the item.
+                  onGrab={begin}
+                />
+              );
+            })
           )}
+
+          {/* Offered even while the axis is empty — an empty timeline is
+              precisely when you most want to put something on it, and the
+              empty state's own advice is to go and set a date elsewhere. */}
+          <TimelineCreateRow
+            ticks={ticks}
+            scale={scale}
+            draft={draft?.key === CREATE_KEY ? draft.range : null}
+            pending={pending}
+            today={today}
+            locale={locale}
+            interactive={interactive}
+            onBegin={(event) =>
+              begin(event, {
+                key: CREATE_KEY,
+                todo: null,
+                mode: "draw",
+                base: null,
+              })
+            }
+            onSubmit={(title) => {
+              if (pending) onCreate(title, pending);
+              setPending(null);
+            }}
+            onCancel={() => setPending(null)}
+          />
 
           <Undated
             todos={undated}
+            ticks={ticks}
+            scale={scale}
             keyPrefix={keyPrefix}
-            onOpenTask={onOpenTask}
+            interactive={interactive}
+            draft={draft}
+            onOpenTask={open}
+            onBegin={begin}
           />
         </div>
       </div>
@@ -267,27 +361,52 @@ function HeaderRail() {
 }
 
 /**
- * The work that has no dates, listed rather than counted.
+ * The work that has no dates — listed rather than counted, and now schedulable
+ * where it is listed.
  *
- * **M20 says a task with neither date "is not on the timeline", and that is
- * about placement.** There is no honest column to draw it in, and inventing one
- * is the only thing that would be worse than hiding it. So it is listed under
- * the axis, in the same rail shape a placed row has, with an empty track beside
- * it — which also makes it obvious *why* it is down here.
+ * **M20's rule was that a task with neither date "is not on the timeline", and
+ * that is about placement.** There is no honest column to draw it in, and
+ * inventing one is the only thing that would be worse than hiding it. So it is
+ * listed under the axis, in the same rail shape a placed row has, with an empty
+ * track beside it.
+ *
+ * **M20-B makes that empty track the place you give it a range.** The gesture
+ * is the create row's, exactly — sweep two columns — and only the commit
+ * differs: an id already exists, so it writes through `useTimelineSchedule`
+ * rather than creating anything. Nothing is invented on hover or on render;
+ * the dates appear because someone drew them, which is the same standard the
+ * rest of this view holds to.
  *
  * Collapsed by default, because on a young board this is most of the items and
  * an expanded list of forty would bury the four rows that are actually
- * scheduled. The count is on the summary row either way, so collapsing hides
- * nothing.
+ * scheduled. The count is on the summary row either way.
  */
 function Undated({
   todos,
+  ticks,
+  scale,
   keyPrefix,
+  interactive,
+  draft,
   onOpenTask,
+  onBegin,
 }: {
   todos: Todo[];
+  ticks: string[];
+  scale: TimelineScale;
   keyPrefix: string;
+  interactive: boolean;
+  draft: { key: string; range: DayRange } | null;
   onOpenTask: (id: string) => void;
+  onBegin: (
+    event: React.PointerEvent,
+    target: {
+      key: string;
+      todo: Schedulable;
+      mode: DragMode | "draw";
+      base: null;
+    },
+  ) => void;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -319,19 +438,52 @@ function Undated({
       </div>
 
       {open &&
-        todos.map((todo) => (
-          <Row key={todo.id}>
-            <RowRail
-              todo={todo}
-              keyPrefix={keyPrefix}
-              onOpen={() => onOpenTask(todo.id)}
-            />
+        todos.map((todo) => {
+          const range = draft?.key === todo.id ? draft.range : null;
+          const place = range ? placeItem(range, ticks, scale) : null;
 
-            {/* No track content, deliberately. The empty span beside the name
-                is the statement: this item has nowhere to sit on the axis. */}
-            <div className="flex-1" />
-          </Row>
-        ))}
+          return (
+            <Row key={todo.id}>
+              <RowRail
+                todo={todo}
+                keyPrefix={keyPrefix}
+                onOpen={() => onOpenTask(todo.id)}
+                hint={interactive ? "drag to plan" : undefined}
+              />
+
+              <div
+                onPointerDown={
+                  interactive
+                    ? (event) =>
+                        onBegin(event, {
+                          key: todo.id,
+                          todo,
+                          mode: "draw",
+                          base: null,
+                        })
+                    : undefined
+                }
+                className={cn(
+                  "grid flex-1 items-center",
+                  interactive && "cursor-crosshair",
+                )}
+                style={{
+                  gridTemplateColumns: trackColumns(ticks.length, scale),
+                }}
+              >
+                {place && (
+                  <span
+                    aria-hidden
+                    style={{
+                      gridColumn: `${place.index + 1} / span ${place.span}`,
+                    }}
+                    className="border-brand bg-brand/25 mx-px h-4 rounded-[3px] border border-dashed"
+                  />
+                )}
+              </div>
+            </Row>
+          );
+        })}
     </div>
   );
 }

@@ -47,9 +47,12 @@ describe("view registry", () => {
     // "writes todos.position", not "has drag and drop" — a calendar drop
     // writes due_date through the ordinary update path.
     expect(capabilitiesOf("calendar").canReorder).toBe(false);
-    // The timeline does not drag at all: its row order is derived from
-    // `start_date` at render, which is exactly how M20 avoids becoming the
-    // second ranked surface that would reopen M6-A.
+    // The timeline drags as of M20-B — a bar moves, its ends resize, and a
+    // sweep across empty track creates — and it still does not reorder, for
+    // the same reason the calendar does not: every one of those gestures
+    // writes `start_date`/`due_date` and none writes `position`. Its row order
+    // is derived from the dates at render, so there is no stored order for a
+    // drag to disagree with.
     expect(capabilitiesOf("timeline").canReorder).toBe(false);
   });
 

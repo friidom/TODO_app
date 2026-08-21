@@ -12,6 +12,8 @@ const PROFILE_ROOT = ["profile"] as const;
 
 const COMMENT_ROOT = ["comments"] as const;
 
+const FOR_YOU_ROOT = ["for-you"] as const;
+
 export const queryKeys = {
   /**
    * Every todo on one board as a flat array — not one entry per column.
@@ -133,6 +135,51 @@ export const queryKeys = {
    * row. This is what the realtime handler matches on to search them.
    */
   commentThreads: () => COMMENT_ROOT,
+
+  /**
+   * The personal hub's entries (M21).
+   *
+   * **Not board-scoped, and that is the whole shape of this page.** Every other
+   * key here answers "what is on this board"; these answer "what is mine",
+   * across every board RLS lets the caller reach. Keying them by board would be
+   * meaningless — the query has no board filter, because the policy already is
+   * one.
+   *
+   * Under one `["for-you", …]` root so the page's whole cache can be dropped
+   * with a single prefix invalidation, which is what starring does: a new star
+   * changes the Starred tab and can change Recommended, and neither is worth
+   * enumerating at the call site.
+   *
+   * `recent` takes no argument for the same reason `boards()` does not — the
+   * answer is already the caller's own, decided by RLS rather than by a filter
+   * this key could name. The rest carry the user id explicitly, so signing in
+   * as somebody else on the same tab cannot read the previous person's feed out
+   * of the cache.
+   */
+  forYou: () => FOR_YOU_ROOT,
+
+  forYouRecent: () => [...FOR_YOU_ROOT, "recent"] as const,
+
+  forYouAssigned: (userId: string | undefined) =>
+    [...FOR_YOU_ROOT, "assigned", userId] as const,
+
+  forYouStars: (userId: string | undefined) =>
+    [...FOR_YOU_ROOT, "stars", userId] as const,
+
+  forYouWorkedOn: (userId: string | undefined) =>
+    [...FOR_YOU_ROOT, "worked-on", userId] as const,
+
+  /**
+   * Work items resolved from a list of ids — Starred, Worked on and Viewed all
+   * end in one of these.
+   *
+   * Keyed by the ids themselves, sorted and joined, so the entry changes
+   * exactly when the set does and two tabs asking for the same rows share one
+   * request. Sorted because the *set* is the question; the caller re-orders by
+   * its own timestamps afterwards.
+   */
+  forYouByIds: (ids: string[]) =>
+    [...FOR_YOU_ROOT, "by-ids", [...ids].sort().join(",")] as const,
 
   /** Prefix covering every profile entry; matches them all when invalidating. */
   profiles: () => PROFILE_ROOT,

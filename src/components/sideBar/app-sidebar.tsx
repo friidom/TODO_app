@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from "react-router";
 import {
   CircleUserIcon,
-  LayoutGridIcon,
+  CircleUserRoundIcon,
   type LucideIcon,
   SettingsIcon,
   SquareKanbanIcon,
@@ -31,7 +31,7 @@ import { cn } from "@/utils/cn";
  * the live items and the one thing the sidebar is *for*, the Spaces → Boards
  * tree, was the smallest thing in it.
  *
- * What is left: Overview, Dashboard (the one placeholder kept, because M18 is
+ * What is left: For You, Dashboard (the one placeholder kept, because M18 is
  * next and the slot orients rather than teases), the board tree, and a footer.
  * Views moved to the board's own toolbar, where switching one does not mean
  * travelling to the sidebar and back.
@@ -56,8 +56,10 @@ type Item = {
 };
 
 const WORKSPACE: Item[] = [
-  { label: "Overview", icon: LayoutGridIcon, to: "/" },
-  { label: "Dashboard", icon: SquareKanbanIcon },
+  // "For You" as of M21, and not just a rename: `/` now renders the personal
+  // hub rather than redirecting to whichever board happened to be oldest.
+  { label: "For You", icon: CircleUserRoundIcon, to: "/" },
+  // { label: "Dashboard", icon: SquareKanbanIcon },
 ];
 
 function NavItem({ item }: { item: Item }) {
@@ -85,7 +87,7 @@ function NavItem({ item }: { item: Item }) {
   // This vendored SidebarMenuButton is base-ui's `render` prop, not Radix's
   // `asChild`, so the link is passed as an element and the children below are
   // rendered into it. NavLink's own render-prop form is unavailable for the
-  // same reason, hence the explicit pathname comparison — exact, so Overview at
+  // same reason, hence the explicit pathname comparison — exact, so For You at
   // "/" is not active on every board URL.
   const isActive = location.pathname === item.to;
 

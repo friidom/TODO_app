@@ -216,7 +216,11 @@ export function tickIndexOf(
  * is on screen in August, and hiding it would make a busy quarter look empty.
  */
 export function placeItem(
-  item: TimelineItem,
+  // Only the two ends, so a range that has no row yet — a create sweep, an
+  // undated item being drawn on — is placed by the same rule a stored one is,
+  // rather than by a second copy of the clipping logic or by a fake `Todo`
+  // cast into the shape of one (M20-B).
+  item: Pick<TimelineItem, "start" | "end">,
   ticks: string[],
   scale: TimelineScale,
 ): {
