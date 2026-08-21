@@ -128,3 +128,23 @@ export function notificationText(notification: Notification): {
     detail: board,
   };
 }
+
+/**
+ * The invitation a notification refers to, if it refers to one at all (M23).
+ *
+ * The inbox stores the invite's **id** in `entity_id` and never its token — a
+ * token is a credential, and putting one in a row every client fetches would
+ * make the inbox a place invitations could be redeemed from by anyone who
+ * could read it. The token comes from `my_pending_invites`, which is scoped to
+ * the caller by their own address inside the RPC; this is the id to match it
+ * on.
+ *
+ * Null for every other notification type, and null for an invite row whose
+ * `entity_id` is missing — that is possible because `entity_id` is deliberately
+ * not a foreign key, so the row outlives the invitation it describes.
+ */
+export function inviteIdOf(notification: Notification): string | null {
+  if (notification.type !== "invite") return null;
+
+  return notification.entity_id ?? null;
+}

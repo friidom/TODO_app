@@ -288,7 +288,15 @@ function SpaceRow({
                   aria-label={`${space.title} options`}
                   // Same rule as the `+` above: rename and delete were both
                   // unreachable on touch before M22.
-                  className="hover:text-ink rounded p-0.5 transition-opacity duration-150 max-md:opacity-100 md:opacity-0 md:group-focus-within/space:opacity-100 md:group-hover/space:opacity-100"
+                  // **Always visible, on every space** (M23). It was revealed
+                  // on hover, which made rename and delete undiscoverable —
+                  // there is nothing on the row to suggest a menu exists, so
+                  // the only way to find it was to sweep the pointer over a
+                  // heading. `SidebarMenuAction`'s `showOnHover` is right for a
+                  // board row, where the list is long and the menu is a
+                  // repeat-per-item; a space heading appears a handful of times
+                  // and its menu is the only way to manage the space at all.
+                  className="hover:text-ink hover:bg-ink/[0.06] rounded p-0.5 transition-colors duration-150"
                 >
                   <MoreHorizontalIcon className="size-3.5" />
                 </DropdownMenuTrigger>

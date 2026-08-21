@@ -18,7 +18,6 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/SideBarUI/sidebar";
 import BoardsSection from "./BoardsSection";
-import MyInvitations from "@/components/invites/MyInvitations";
 import NotificationsButton from "@/components/notifications/NotificationsButton";
 import { useProfile } from "@/services/profile/useProfile";
 import { cn } from "@/utils/cn";
@@ -33,6 +32,13 @@ import { cn } from "@/utils/cn";
  * tree, was the smallest thing in it.
  *
  * What is left: For You, Notifications, the board tree, and a footer.
+ *
+ * **The Invitations section is gone (M23).** It existed because stage 1 sent no
+ * email, so an addressed invitation would otherwise reach nobody — a real gap,
+ * filled by a section that appeared and vanished depending on whether anything
+ * was pending. Invitations are notifications now and live in the inbox with
+ * Accept and Decline on the row, which is one place to look for "something
+ * needs my attention" instead of two.
  * Views moved to the board's own toolbar, where switching one does not mean
  * travelling to the sidebar and back.
  *
@@ -149,8 +155,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <NotificationsButton />
           </SidebarMenu>
         </SidebarGroup>
-
-        <MyInvitations />
 
         <BoardsSection />
       </SidebarContent>

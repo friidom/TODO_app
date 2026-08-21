@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   filterNotifications,
+  inviteIdOf,
   isNotificationTab,
   isUnread,
   notificationTarget,
@@ -199,5 +200,39 @@ describe("current-user isolation", () => {
 
     expect(unreadCount(rows)).toBe(1);
     expect(filterNotifications(rows, "all")).toHaveLength(1);
+  });
+});
+
+describe("matching a notification to its invitation (M23)", () => {
+  it("returns the invite id for an invitation", () => {
+    expect(
+      inviteIdOf(notification({ type: "invite", entity_id: "inv-1" })),
+    ).toBe("inv-1");
+  });
+
+  it("returns null for every other type", () => {
+    // An assignment's entity_id is a TODO id. Handing that to the invite
+    // lookup would match nothing at best and the wrong thing at worst.
+    expect(
+      inviteIdOf(notification({ type: "assigned", entity_id: "t-1" })),
+    ).toBeNull();
+  });
+
+  it("returns null when the invitation it described is gone", () => {
+    // `entity_id` is deliberately not a foreign key, so the row outlives its
+    // subject — the panel must render it as a record, not offer buttons.
+    expect(
+      inviteIdOf(notification({ type: "invite", entity_id: null })),
+    ).toBeNull();
+  });
+
+  it("NEVER exposes a token — the inbox stores an id only", () => {
+    // The security property: a token is a credential, and a row every client
+    // fetches must not carry one. The token comes from `my_pending_invites`,
+    // which is scoped to the caller inside the RPC.
+    const row = notification({ type: "invite", entity_id: "inv-1" });
+
+    expect(JSON.stringify(row)).not.toMatch(/token/i);
+    expect(Object.keys(row.payload)).not.toContain("token");
   });
 });

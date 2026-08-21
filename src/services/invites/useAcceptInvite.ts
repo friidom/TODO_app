@@ -32,9 +32,15 @@ export function useAcceptInvite() {
     onSuccess: ({ board_id }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.boards() });
       queryClient.invalidateQueries({ queryKey: queryKeys.members(board_id) });
-      // The invitation just stopped being pending (M4-08), so the sidebar list
-      // that offered it has to lose the row it was rendering.
+      // The invitation just stopped being pending (M4-08), so the list that
+      // offered it has to lose the row it was rendering.
       queryClient.invalidateQueries({ queryKey: queryKeys.myInvites() });
+      // And the inbox, which is where invitations live as of M23. The
+      // notification row survives — it records that you were invited, which
+      // stays true — but the panel re-reads `my_pending_invites` to decide
+      // whether it is still actionable, so both caches must turn over together
+      // or the Accept button outlives the invitation.
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications() });
     },
   });
 }
