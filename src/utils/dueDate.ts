@@ -72,6 +72,33 @@ export function dueStatus(
  *
  * Formatted in UTC deliberately, for the reason at the top of this file.
  */
+/**
+ * `2026-07-10T00:00:00+00:00` → `Jul 10, 2026`. Always with the year.
+ *
+ * `formatDue` drops the year in the current one, which is right on a card where
+ * space is tight and "this year" is the assumption. It is wrong on the
+ * timeline's drag readout: that label exists to remove all doubt about the day
+ * a bar has landed on, and a window can straddle a new year while you drag
+ * across it. Separate from `formatDue` rather than a flag on it, because the
+ * two answer different questions and a boolean parameter at a call site says
+ * neither of them out loud.
+ *
+ * Formatted in UTC, for the reason at the top of this file.
+ */
+export function formatDayFull(value: string, locale?: string): string {
+  const day = toCalendarDay(value);
+  const [year, month, date] = day.split("-").map(Number);
+
+  if (!year || !month || !date) return day;
+
+  return new Date(Date.UTC(year, month - 1, date)).toLocaleDateString(locale, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 export function formatDue(
   value: string,
   today: string = todayISO(),

@@ -2,7 +2,7 @@ import { Suspense, type ReactNode } from "react";
 import { createBrowserRouter } from "react-router";
 
 import ProtectedRoute from "./ProtectedRoute";
-import BoardIndexRoute from "./BoardIndexRoute";
+import ForYouPage from "@/pages/forYou/ForYouPage";
 import PublicRoute from "./PublicRoute";
 import LoginPage from "@/pages/auth/LoginPage";
 import NotFoundPage from "@/pages/error/NotFoundPage";
@@ -25,8 +25,11 @@ import { BoardPage, InvitePage, ProfilePage, RegisterPage } from "./lazyPages";
  *   · `LoginPage` is the first paint for a signed-out visitor. Deferring it
  *     buys nothing — it *is* the initial bundle's job — and costs a spinner on
  *     the one screen that should feel instant.
- *   · `BoardIndexRoute` is the first paint for a signed-in one, and it only
- *     picks a board.
+ *   · `ForYouPage` is the first paint for a signed-in one (M21). Same argument
+ *     as the login page: deferring the landing screen buys nothing and costs a
+ *     spinner on the one route that should feel instant. It is also small — a
+ *     list, a segmented control and three states — and reaches none of the
+ *     board's heavy dependencies.
  *   · `NotFoundPage` and `RouteErrorPage` are the error paths. A page whose
  *     job is to work when something else did not must not itself depend on a
  *     chunk request succeeding — a failed lazy import inside an error boundary
@@ -41,12 +44,14 @@ export const router = createBrowserRouter([
     element: <ProtectedRoute />,
     errorElement: <RouteErrorPage />,
     children: [
-      // `/` no longer renders a board, it picks one. The board itself is
+      // `/` is the personal hub as of M21. It used to redirect to the oldest
+      // board, which meant the app had no home — the first thing you saw was
+      // one arbitrary board rather than your own work. The board is still
       // always addressed by id, so every open board has a shareable URL and
-      // the app has one answer to "which board is this".
+      // the app still has one answer to "which board is this".
       {
         path: "/",
-        element: <BoardIndexRoute />,
+        element: <ForYouPage />,
       },
       {
         path: "/boards/:boardId",

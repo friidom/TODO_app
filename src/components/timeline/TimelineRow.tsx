@@ -1,15 +1,20 @@
+import { memo } from "react";
+
 import { categoryOf } from "@/constants/columns";
 import { PRIORITIES, toPriority } from "@/constants/priorities";
 import { workTypeOf } from "@/constants/workTypes";
-import type {
+import {
   placeItem,
-  TimelineItem,
-  TimelineScale,
+  type TimelineItem,
+  type TimelineScale,
 } from "@/services/views/timeline";
+import type { DragTarget } from "@/hooks/useTimelineDrag";
+import type { DayRange, DragMode } from "@/services/views/timelineDrag";
 import type { IColumn, Todo } from "@/types/data";
 import { cn } from "@/utils/cn";
-import { formatDue } from "@/utils/dueDate";
+import { formatDayFull, formatDue } from "@/utils/dueDate";
 import { taskKey } from "@/utils/taskKey";
+import TimelineBar, { DatePill } from "./TimelineBar";
 import { ROW_HEIGHT, trackColumns } from "./timelineAxis";
 
 type Placement = NonNullable<ReturnType<typeof placeItem>>;
@@ -17,102 +22,160 @@ type Placement = NonNullable<ReturnType<typeof placeItem>>;
 /**
  * One work item as a row: its name on the left, its range on the axis (M20).
  *
- * **The bar carries no text.** The rail beside it already names the item, and a
- * label inside a bar is legible only while the bar is wide — so a two-day task
- * would show an empty capsule and a three-month one would repeat what is six
- * inches to its left. The bar's job is to say *when*; the rail's is to say
- * *what*.
+ * **Memoised, and that is load-bearing rather than housekeeping.** A drag
+ * re-renders the grid once per column the pointer crosses; without this, each
+ * of those renders would walk every row on the board. Every row but the dragged
+ * one receives `draft: null` — the same value, so the comparison passes and the
+ * render stops here. `onOpenTask` takes the id rather than being a per-row
+ * closure for the same reason: a fresh function each render would fail the
+ * comparison for every row and undo the memo entirely.
  *
- * **Colour comes from the board's own status palette**, `categoryOf(...).dot` —
- * the same green a Done column is on the board and in the Summary donut. Three
- * tones, all of them already in the product: no legend to learn, and no new
- * colour introduced for this view, which is M17's token-continuity rule.
- *
- * **A square end means "continues past this edge".** A range that started in
- * June is drawn from the first column with its left end squared off, rather
- * than being dropped or being redrawn as if it began here. A rounded end is the
- * real start or the real finish.
+ * **The draft is what makes the bar move live.** While a gesture is in flight
+ * the row is handed a range that is not what is stored, and it re-places itself
+ * from that instead — so the width and position follow the pointer without
+ * anything being written, and a cancelled gesture leaves nothing to undo. The
+ * placement is recomputed with the same `placeItem` the grid used, so a bar
+ * dragged towards the edge of the window clips exactly as a stored one would.
  */
-export default function TimelineRow({
+const TimelineRow = memo(function TimelineRow({
   item,
   place,
+  draft,
   ticks,
   scale,
   column,
   keyPrefix,
   locale,
   today,
-  onOpen,
+  interactive,
+  dragging,
+  onOpenTask,
+  onGrab,
 }: {
   item: TimelineItem;
+  /** Where the stored dates put it. Superseded by `draft` mid-gesture. */
   place: Placement;
-  ticks: number;
+  /** The range this row is being dragged to, or null when it is at rest. */
+  draft: DayRange | null;
+  ticks: string[];
   scale: TimelineScale;
   /** The column the item is in — its category is the bar's colour. */
   column?: IColumn;
   keyPrefix: string;
   locale?: string;
   today: string;
-  onOpen: () => void;
+  interactive: boolean;
+  dragging: boolean;
+  onOpenTask: (id: string) => void;
+  /**
+   * The hook's own `begin`, handed down unwrapped so it stays referentially
+   * stable across renders and the memo above keeps holding. The row builds the
+   * target itself — it is the thing that knows which item this is.
+   */
+  onGrab: (event: React.PointerEvent, target: DragTarget) => void;
 }) {
   const { todo } = item;
 
-  const tone = categoryOf(column?.category).dot;
+  const range = draft ?? { start: item.start, end: item.end };
+
+  // Re-placed from the draft while dragging. `placeItem` returns null once a
+  // range leaves the window entirely, in which case there is nothing to draw
+  // and the stored placement is the honest fallback until the pointer comes
+  // back.
+  const shown =
+    (draft &&
+      placeItem(
+        { ...item, start: range.start, end: range.end },
+        ticks,
+        scale,
+      )) ||
+    place;
 
   const label = item.isPoint
-    ? `${todo.title ?? "Untitled"} — ${formatDue(item.start, today, locale)}`
-    : `${todo.title ?? "Untitled"} — ${formatDue(item.start, today, locale)} to ${formatDue(item.end, today, locale)}`;
+    ? `${todo.title ?? "Untitled"} — ${formatDue(range.start, today, locale)}`
+    : `${todo.title ?? "Untitled"} — ${formatDue(range.start, today, locale)} to ${formatDue(range.end, today, locale)}`;
+
+  const open = () => onOpenTask(todo.id);
+
+  // Built here rather than by the grid: a closure per row created *outside* the
+  // memo is a new prop every render, while one created inside it is free.
+  const grab = (event: React.PointerEvent, mode: DragMode) =>
+    onGrab(event, {
+      key: todo.id,
+      todo,
+      mode,
+      // The stored range, never the draft — a gesture that began mid-drag would
+      // otherwise compound the previous one's offset.
+      base: { start: item.start, end: item.end },
+    });
 
   return (
     <Row>
-      <RowRail todo={todo} keyPrefix={keyPrefix} onOpen={onOpen} />
+      <RowRail todo={todo} keyPrefix={keyPrefix} onOpen={open} />
 
       <div
         className="grid flex-1 items-center"
-        style={{ gridTemplateColumns: trackColumns(ticks, scale) }}
+        style={{ gridTemplateColumns: trackColumns(ticks.length, scale) }}
       >
-        <button
-          type="button"
-          onClick={onOpen}
-          aria-label={label}
-          title={label}
-          style={{ gridColumn: `${place.index + 1} / span ${place.span}` }}
-          className={cn(
-            "focus-visible:ring-brand flex items-center outline-none focus-visible:ring-2",
-            item.isPoint ? "justify-center" : "px-px",
-          )}
-        >
-          {item.isPoint ? (
-            // A diamond, not a one-column bar: the plan draws the distinction
-            // between a task whose range is known and one that has a single
-            // date, and the shapes have to differ or the distinction is lost.
-            // A ring rather than a size change on hover — growing a marker
-            // reads as motion in a dense grid without moving anything.
+        {item.isPoint ? (
+          // A diamond, not a one-column bar: the plan draws the distinction
+          // between a task whose range is known and one that has a single date,
+          // and the shapes have to differ or the distinction is lost.
+          //
+          // **It moves and it does not resize.** A point knows one date and
+          // nothing about the other; dragging it says that date moved, and
+          // giving it an edge to pull would mean manufacturing the missing end
+          // on a gesture that never asked for one. `scheduleFields` is where
+          // that rule is enforced — this is only where it is not offered.
+          <button
+            type="button"
+            onClick={open}
+            aria-label={label}
+            title={label}
+            onPointerDown={interactive ? (e) => grab(e, "move") : undefined}
+            style={{ gridColumn: `${shown.index + 1} / span ${shown.span}` }}
+            className={cn(
+              "focus-visible:ring-brand relative flex items-center justify-center outline-none focus-visible:ring-2",
+              interactive && "cursor-pointer",
+              dragging && "cursor-grabbing",
+            )}
+          >
+            {/* One pill, not two. A point knows one date; a second chip reading
+                the same day back would imply a span it does not have. */}
+            <DatePill
+              side="end"
+              show={dragging}
+              text={formatDayFull(range.start, locale)}
+            />
+
             <span
               className={cn(
                 "size-2.5 rotate-45 rounded-[2px] ring-1 ring-white/15 transition-shadow duration-150 ring-inset group-hover:ring-white/35",
-                tone,
+                categoryOf(column?.category).dot,
+                dragging && "ring-white/50",
               )}
             />
-          ) : (
-            // **Subtly rounded, not a pill.** A capsule reads as a chip; a 3px
-            // radius reads as a span of time, which is what it is. The inset
-            // ring keeps a solid fill from looking flat on a dark surface
-            // without introducing a second colour or a shadow.
-            <span
-              className={cn(
-                "h-4 w-full ring-1 ring-white/10 transition-opacity duration-150 ring-inset group-hover:opacity-90",
-                tone,
-                place.openStart ? "rounded-l-none" : "rounded-l-[3px]",
-                place.openEnd ? "rounded-r-none" : "rounded-r-[3px]",
-              )}
-            />
-          )}
-        </button>
+          </button>
+        ) : (
+          <TimelineBar
+            category={column?.category}
+            place={shown}
+            range={range}
+            today={today}
+            label={label}
+            locale={locale}
+            interactive={interactive}
+            dragging={dragging}
+            onOpen={open}
+            onGrab={grab}
+          />
+        )}
       </div>
     </Row>
   );
-}
+});
+
+export default TimelineRow;
 
 /**
  * The row shell, worn by a placed item and an undated one alike.
@@ -150,10 +213,13 @@ export function RowRail({
   todo,
   keyPrefix,
   onOpen,
+  hint,
 }: {
   todo: Todo;
   keyPrefix: string;
   onOpen: () => void;
+  /** Shown on hover in place of the priority icon — the undated rows' nudge. */
+  hint?: string;
 }) {
   const type = workTypeOf(todo.type);
   const TypeIcon = type.icon;
@@ -183,8 +249,16 @@ export function RowRail({
         {todo.title || <span className="text-ink-3/60">Untitled</span>}
       </span>
 
-      {PriorityIcon && (
-        <PriorityIcon className={cn("size-3.5 shrink-0", priorityMeta?.tone)} />
+      {hint ? (
+        <span className="text-ink-3/70 hidden shrink-0 text-[10px] group-hover:inline">
+          {hint}
+        </span>
+      ) : (
+        PriorityIcon && (
+          <PriorityIcon
+            className={cn("size-3.5 shrink-0", priorityMeta?.tone)}
+          />
+        )
       )}
     </button>
   );

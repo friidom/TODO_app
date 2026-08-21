@@ -6,16 +6,20 @@ import Loading from "@/components/loading/LoadingPage";
 import { useBoardView } from "@/hooks/useBoardView";
 import { useKeyPrefix } from "@/hooks/useKeyPrefix";
 import { useOpenTask } from "@/hooks/useOpenTask";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useTimelineView } from "@/hooks/useTimelineView";
 import { useVisibleTodos } from "@/hooks/useVisibleTodos";
 import { useColumns } from "@/services/columns/useColumnsApi";
+import { useAddTodo } from "@/services/todos/useAddTodo";
+import { useTimelineSchedule } from "@/services/todos/useTimelineSchedule";
 import {
   placeItems,
   timelineItems,
   timelineTicks,
   unscheduledTodos,
 } from "@/services/views/timeline";
-import { todayISO } from "@/utils/dueDate";
+import type { DayRange } from "@/services/views/timelineDrag";
+import { fromCalendarDay, todayISO } from "@/utils/dueDate";
 import TimelineGrid from "./TimelineGrid";
 import TimelineNav from "./TimelineNav";
 
@@ -28,19 +32,27 @@ import TimelineNav from "./TimelineNav";
  * are one computation over one cache entry. Flipping to the timeline changes a
  * search param, not a query.
  *
- * **It writes nothing, and that is the milestone's decision rather than an
- * omission.** M20 specifies a schema change, a range rule and a derived row
- * order; it specifies no drag. Dragging a bar is two different gestures wearing
- * one affordance — move the whole range, or move one end — and neither is
- * described anywhere in the plan, so building them here would be inventing
- * scope. A range is edited where the plan puts it: the task detail's Details
- * rail, where Start date now sits beside Due date, and both write through the
- * same `useTodoPatch` every other field uses.
+ * **It is now the surface planning happens on (M20-B), and it still writes no
+ * order.** M20 shipped it read-only and recorded why: a draggable Gantt was
+ * feared to be *"a second surface that writes order"*, which would reopen M3-10
+ * and M6-A. That fear was about `todos.position`, and the distinction is the
+ * load-bearing one — **these gestures write `start_date` and `due_date`, and
+ * nothing else.** Row order is still derived by `timelineItems` at render and
+ * stored nowhere, `todos.position` still has exactly one writer, and
+ * `registry.test.ts`'s guard passes untouched. It is the same argument the
+ * calendar already makes for its own drag: `canReorder` means *writes
+ * `todos.position`*, not *has drag and drop*.
  *
- * **Row order is derived from the dates and stored nowhere.** `timelineItems`
- * sorts; nothing here can reorder. That is what keeps `todos.position` at
- * exactly one writer and stops this view reopening M3-10 and M6-A — see the
- * plan's own note on why a draggable Gantt was ruled out before it was drawn.
+ * The two gestures M20 called "two different gestures wearing one affordance"
+ * are separated by where you grab: the body moves the range, the ends move one
+ * end each. Both commit through `useTimelineSchedule`, which is `useUpdateTodo`
+ * — the same write the task detail's Start date and Due date controls make, so
+ * dragging a bar and typing a date cannot disagree.
+ *
+ * **Creating from here uses the existing create flow**, widened by one existing
+ * field: `useAddTodo` now carries `start_date`, so a task drawn on the axis is
+ * an ordinary task that happens to have both ends. There is no second task
+ * model and no second mutation.
  *
  * The sort control is hidden for this view (`canSort: false` in the registry),
  * because time is the axis — a "sort by priority" has nothing to reorder when
@@ -54,7 +66,11 @@ export default function TimelineView() {
   const { todos, isLoading, error } = useVisibleTodos();
   const { data: columns = [] } = useColumns();
   const { openTask } = useOpenTask();
+  const { canEditTodos } = usePermissions();
   const keyPrefix = useKeyPrefix();
+
+  const schedule = useTimelineSchedule();
+  const addTodo = useAddTodo();
 
   const today = todayISO();
 
@@ -81,6 +97,34 @@ export default function TimelineView() {
   // grid's `Undated` section.
   const undated = useMemo(() => unscheduledTodos(todos), [todos]);
   const offWindow = items.length - rows.length;
+
+  /**
+   * Where a task drawn on the axis lands.
+   *
+   * **The board's first column, which is its first status.** `getColumns`
+   * orders by rank, so this is the leftmost column on the board — normally To
+   * Do, and whatever the board's owner renamed it to otherwise. The create
+   * form collects a title and nothing else for the reason `TodoCreateForm`
+   * gives for having no status control: *"status is which column a card is in"*
+   * — and unlike that form, this one is not inside one, so the only honest
+   * default is the column the board itself puts first.
+   */
+  const createColumnId = columns[0]?.id ?? null;
+
+  function create(title: string, range: DayRange) {
+    if (!createColumnId) return;
+
+    addTodo.mutate({
+      title,
+      column_id: createColumnId,
+      // Both ends, in one insert. Sending them separately would put the row
+      // through a moment of having a start and no end, and `addTodo` upserts —
+      // so the follow-up would be a second write for a value the first already
+      // knew.
+      start_date: fromCalendarDay(range.start),
+      due_date: fromCalendarDay(range.end),
+    });
+  }
 
   if (isLoading) return <Loading />;
 
@@ -109,7 +153,12 @@ export default function TimelineView() {
         keyPrefix={keyPrefix}
         locale={i18n.language}
         today={today}
+        // Creating work and editing it are one permission (M3-05), and both
+        // gestures here are one or the other.
+        interactive={canEditTodos && Boolean(createColumnId)}
         onOpenTask={openTask}
+        onSchedule={schedule}
+        onCreate={create}
         emptyReason={
           rows.length > 0
             ? null
@@ -120,7 +169,7 @@ export default function TimelineView() {
                 }
               : {
                   title: "No work item has dates yet",
-                  hint: "Open a task and set a start date, a due date, or both — anything with a date appears here.",
+                  hint: "Drag across the row below to plan one, or open a task and set a start date, a due date, or both.",
                 }
         }
       />
