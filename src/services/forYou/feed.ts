@@ -4,12 +4,18 @@ import { DEFAULT_KEY_PREFIX, taskKey } from "@/utils/taskKey";
 /**
  * The personal feed, as data (M21).
  *
- * **One row shape for all five tabs.** Recommended, Assigned, Starred, Worked
- * on and Viewed differ in *which* work items they return and *which timestamp*
- * dates them — an assignment is dated by `updated_at`, a star by when it was
- * starred, a view by when it was opened. Everything after that is identical, so
- * the tabs converge here and the list, the grouping and the row renderer are
- * written once. A per-tab item shape would be five renderers drifting apart.
+ * **One row shape for all four tabs.** Recommended, Assigned, Worked on and
+ * Viewed differ in *which* work items they return and *which timestamp* dates
+ * them — an assignment is dated by `updated_at`, a view by when it was opened.
+ * Everything after that is identical, so the tabs converge here and the list,
+ * the grouping and the row renderer are written once. A per-tab item shape
+ * would be four renderers drifting apart.
+ *
+ * **There is no Starred tab.** It was built and then removed: a star is the one
+ * thing on this page that cannot be derived from existing data, so it needed a
+ * `todo_stars` table, and that migration was never applied. Rather than ship a
+ * tab that explains why it does not work, the feature is out until the table
+ * is. Everything else here reads columns the schema already had.
  *
  * Pure, and it takes `now` rather than reading the clock — the same rule
  * `relativeTime`, `dueStatus`, `recentCounts` and `groupActivitiesByDay`
@@ -28,7 +34,7 @@ export interface FeedItem {
 }
 
 /**
- * The five tabs, in the order they render.
+ * The tabs, in the order they render.
  *
  * `recommended` leads and is the default, which the brief asks for and which is
  * also the only tab that is never empty on an account with any work at all.
@@ -36,7 +42,6 @@ export interface FeedItem {
 export const FOR_YOU_TABS = [
   "recommended",
   "assigned",
-
   "workedon",
   "viewed",
 ] as const;
@@ -46,7 +51,6 @@ export type ForYouTab = (typeof FOR_YOU_TABS)[number];
 export const FOR_YOU_TAB_LABELS: Record<ForYouTab, string> = {
   recommended: "Recommended",
   assigned: "Assigned to me",
-  // starred: "Starred",
   workedon: "Worked on",
   viewed: "Viewed",
 };

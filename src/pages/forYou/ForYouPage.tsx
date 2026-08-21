@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { PlusIcon } from "lucide-react";
 
@@ -14,7 +14,7 @@ import {
   type FeedItem,
   type ForYouTab,
 } from "@/services/forYou/feed";
-import { useForYouFeed, useStarIds, useToggleStar } from "@/services/forYou/useForYou";
+import { useForYouFeed } from "@/services/forYou/useForYou";
 import { recordView } from "@/services/forYou/viewed";
 import { useProfile } from "@/services/profile/useProfile";
 
@@ -77,8 +77,6 @@ export default function ForYouPage() {
   );
 
   const { items, isLoading, error } = useForYouFeed(tab);
-  const stars = useStarIds();
-  const toggleStar = useToggleStar();
 
   /**
    * One clock for the whole render.
@@ -90,11 +88,6 @@ export default function ForYouPage() {
    * timer re-rendering the feed to turn "5m ago" into "6m ago".
    */
   const [now] = useState(() => Date.now());
-
-  const starredIds = useMemo(
-    () => (stars ? new Set(stars.keys()) : null),
-    [stars],
-  );
 
   const openTask = useCallback(
     (item: FeedItem) => {
@@ -155,11 +148,7 @@ export default function ForYouPage() {
               currentUserId={user?.id}
               avatarUrl={profile?.avatar_url}
               initial={(name[0] || "?").toUpperCase()}
-              starredIds={starredIds}
               onOpen={openTask}
-              onToggleStar={(item, starred) =>
-                toggleStar.mutate({ todoId: item.todo.id, starred })
-              }
             />
           )}
         </div>

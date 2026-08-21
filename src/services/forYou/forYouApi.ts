@@ -119,9 +119,9 @@ export async function fetchWorkedOn(userId: string, limit = FEED_PAGE * 4) {
  * The second half of the two-step tabs — Worked on and Viewed both start from a
  * list of ids and need the rows behind them. **RLS is doing real work here**:
  * an id from a board the caller has since lost access to simply does not come
- * back, which is exactly how a stale localStorage view list or a star on a
- * board you were removed from stops being visible without any client-side
- * filtering. The caller re-orders by its own timestamps.
+ * back, which is exactly how a stale localStorage view list stops being visible
+ * without any client-side filtering. The caller re-orders by its own
+ * timestamps.
  *
  * Returns nothing for an empty input rather than issuing `in.()`, which
  * PostgREST rejects.

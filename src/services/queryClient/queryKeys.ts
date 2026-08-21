@@ -146,9 +146,8 @@ export const queryKeys = {
    * one.
    *
    * Under one `["for-you", …]` root so the page's whole cache can be dropped
-   * with a single prefix invalidation, which is what starring does: a new star
-   * changes the Starred tab and can change Recommended, and neither is worth
-   * enumerating at the call site.
+   * with a single prefix invalidation, rather than enumerating four entries at
+   * a call site that would then have to be kept in step with the tabs.
    *
    * `recent` takes no argument for the same reason `boards()` does not — the
    * answer is already the caller's own, decided by RLS rather than by a filter
@@ -163,15 +162,12 @@ export const queryKeys = {
   forYouAssigned: (userId: string | undefined) =>
     [...FOR_YOU_ROOT, "assigned", userId] as const,
 
-  forYouStars: (userId: string | undefined) =>
-    [...FOR_YOU_ROOT, "stars", userId] as const,
-
   forYouWorkedOn: (userId: string | undefined) =>
     [...FOR_YOU_ROOT, "worked-on", userId] as const,
 
   /**
-   * Work items resolved from a list of ids — Starred, Worked on and Viewed all
-   * end in one of these.
+   * Work items resolved from a list of ids — Worked on and Viewed both end in
+   * one of these.
    *
    * Keyed by the ids themselves, sorted and joined, so the entry changes
    * exactly when the set does and two tabs asking for the same rows share one
