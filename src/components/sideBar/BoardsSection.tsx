@@ -212,7 +212,16 @@ export default function BoardsSection() {
   );
 }
 
-/** One space heading and the boards under it. `space === null` is Unfiled. */
+/**
+ * One space heading and the boards under it.
+ *
+ * `space === null` is the synthetic group — the boards that are in no space of
+ * *yours*. Since M23 that no longer means "your default folder": every account
+ * gets a real space called Unfiled, so what falls through to here is a board
+ * you cannot file, which in practice means one shared with you (its `space_id`
+ * names its owner's space, which your RLS cannot read). It is labelled for what
+ * it now is, and it has no ⋯ because there is still no row behind it.
+ */
 function SpaceRow({
   space,
   boards,
@@ -236,7 +245,7 @@ function SpaceRow({
             type="button"
             onClick={onToggle}
             aria-expanded={!collapsed}
-            aria-label={`${collapsed ? "Expand" : "Collapse"} ${space?.title ?? "Unfiled"}`}
+            aria-label={`${collapsed ? "Expand" : "Collapse"} ${space?.title ?? "Not in a space"}`}
             className="hover:text-ink shrink-0 rounded p-0.5 transition-colors duration-150"
           >
             <ChevronRightIcon
@@ -260,12 +269,14 @@ function SpaceRow({
           )}
 
           <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">
-            {space ? space.title : "Unfiled"}
+            {space ? space.title : "Not in a space"}
           </span>
 
           <button
             type="button"
-            title={space ? `New board in ${space.title}` : "New unfiled board"}
+            title={
+              space ? `New board in ${space.title}` : "New board, in no space"
+            }
             onClick={() =>
               onDialog({ kind: "create-board", spaceId: space?.id ?? null })
             }
@@ -277,7 +288,7 @@ function SpaceRow({
           >
             <PlusIcon className="size-3.5" />
             <span className="sr-only">
-              {space ? `New board in ${space.title}` : "New unfiled board"}
+              {space ? `New board in ${space.title}` : "New board, in no space"}
             </span>
           </button>
 
@@ -337,7 +348,7 @@ function SpaceRow({
           {boards.length === 0 ? (
             <SidebarMenuItem>
               <span className="text-ink-3 block px-2 py-1 pl-3 text-[13px] italic">
-                {space ? "No boards" : "Nothing unfiled"}
+                {space ? "No boards" : "Nothing here"}
               </span>
             </SidebarMenuItem>
           ) : (
