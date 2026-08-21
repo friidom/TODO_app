@@ -17,7 +17,7 @@ import type { ISpace } from "@/types/data";
  *
  * A board deletion destroys work for everyone on it, so `DeleteBoardModal`
  * makes you type the name. Deleting a space destroys a folder: every board
- * inside survives, unchanged, and reappears under Unfiled — `boards.space_id`
+ * inside survives, unchanged, and drops out of the space — `boards.space_id`
  * is `on delete set null`. Demanding the same ceremony for both would teach
  * people to type past the one that matters.
  *
@@ -48,7 +48,7 @@ export default function DeleteSpaceModal({
           <>
             The {boardCount} {boardCount === 1 ? "board" : "boards"} in it{" "}
             <span className="text-ink font-medium">are not deleted</span> — they
-            move to Unfiled, with their members and work items untouched.
+            move out of this space, with their members and work items untouched.
           </>
         ) : (
           <>It has no boards in it.</>

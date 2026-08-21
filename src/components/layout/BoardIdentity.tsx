@@ -40,10 +40,11 @@ import { cn } from "@/utils/cn";
  * occupies.
  *
  * The trail reads the caller's own spaces (M15), so a board filed in *someone
- * else's* space shows "Unfiled" — not a bug, and not a leak either: spaces are
- * owner-only by RLS, so the row genuinely is not the caller's to see. That is
- * the same rule `groupBoardsBySpace` applies in the sidebar, and both come out
- * of the M15 decision that a space is filing rather than a permission scope.
+ * else's* space shows "Not in a space" — not a bug, and not a leak either:
+ * spaces are owner-only by RLS, so the row genuinely is not the caller's to
+ * see. That is the same rule `groupBoardsBySpace` applies in the sidebar, and
+ * both come out of the M15 decision that a space is filing rather than a
+ * permission scope.
  *
  * The `⋯` menu replaces the inert one the old board header carried. It reuses
  * M15's modals and M15's ownership gate — settings and deletion are owner-only
@@ -110,7 +111,9 @@ export default function BoardIdentity({
         {/* The trail. Not a link yet — a space has no page of its own, and a
             crumb that navigates nowhere is worse than one that simply orients. */}
         <p className="text-ink-3 flex min-w-0 items-center gap-1 text-xs">
-          <span className="truncate">{space ? space.title : "Unfiled"}</span>
+          <span className="truncate">
+            {space ? space.title : "Not in a space"}
+          </span>
           <ChevronRightIcon className="size-3 shrink-0" />
           <span className="text-ink-2 truncate font-medium">
             {board.title || "Untitled board"}

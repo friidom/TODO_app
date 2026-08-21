@@ -92,7 +92,7 @@ export default function FeedList({
           {/* Sticky, so the period you are reading stays named while you scroll
               a long feed. `bg-canvas` rather than transparent: rows pass
               underneath it. */}
-          <h2 className="bg-canvas text-ink-3 sticky top-0 z-10 py-1.5 text-[11px] font-semibold tracking-[0.08em] uppercase">
+          <h2 className="bg-canvas text-ink-3 sticky top-0  py-1.5 text-[11px] font-semibold tracking-[0.08em] uppercase">
             {group.label}
           </h2>
 
