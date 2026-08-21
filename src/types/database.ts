@@ -596,6 +596,7 @@ export type Database = {
           token: string
         }[]
       }
+      decline_invite: { Args: { p_token: string }; Returns: boolean }
       delete_column: {
         Args: { p_column_id: string; p_move_to_column_id: string }
         Returns: undefined

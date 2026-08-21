@@ -9,11 +9,15 @@ import {
 } from "lucide-react";
 
 import { HEADER_CONTROL_ACTIVE } from "@/components/board/headerControl";
+import InviteActions from "@/components/notifications/InviteActions";
+import type { MyInvite } from "@/services/invites/invitesApi";
+import { useMyInvites } from "@/services/invites/useMyInvites";
 import {
   filterNotifications,
   isUnread,
   notificationTarget,
   notificationText,
+  inviteIdOf,
   NOTIFICATION_TABS,
   NOTIFICATION_TAB_LABELS,
   unreadCount,
@@ -50,6 +54,23 @@ export default function NotificationsPanel({
   const navigate = useNavigate();
   const { data: notifications = [], isLoading, error } = useNotifications();
   const markRead = useMarkRead();
+
+  /**
+   * The invitations that are still pending, keyed by invite id.
+   *
+   * `notifications.entity_id` is the invite's id; `my_pending_invites` returns
+   * the token the accept/decline RPCs take. This map is the join between them,
+   * and it is the single source of "is this still actionable" — an invitation
+   * that has been accepted, declined, revoked or expired is simply absent from
+   * the RPC's result, so no per-row expiry check is needed here.
+   */
+  const { data: pendingInvites = [], isPending: invitesPending } =
+    useMyInvites();
+
+  const inviteById = useMemo(
+    () => new Map<string, MyInvite>(pendingInvites.map((i) => [i.id, i])),
+    [pendingInvites],
+  );
 
   const rows = useMemo(
     () => filterNotifications(notifications, tab),
@@ -168,7 +189,17 @@ export default function NotificationsPanel({
               <Row
                 key={notification.id}
                 notification={notification}
+                invite={(() => {
+                  const id = inviteIdOf(notification);
+
+                  return id ? (inviteById.get(id) ?? null) : null;
+                })()}
+                invitesPending={invitesPending}
                 onOpen={() => open(notification)}
+                onAccepted={(boardId) => {
+                  navigate(`/boards/${boardId}`);
+                  onClose();
+                }}
               />
             ))}
           </ul>
@@ -180,10 +211,18 @@ export default function NotificationsPanel({
 
 function Row({
   notification,
+  invite,
+  invitesPending,
   onOpen,
+  onAccepted,
 }: {
   notification: Notification;
+  /** Present only for an invitation that can still be acted on. */
+  invite: MyInvite | null;
+  /** The pending list has not answered yet, so `invite: null` means nothing. */
+  invitesPending: boolean;
   onOpen: () => void;
+  onAccepted: (boardId: string) => void;
 }) {
   const { title, detail } = notificationText(notification);
   const unread = isUnread(notification);
@@ -235,6 +274,21 @@ function Row({
           />
         )}
       </button>
+
+      {/* OUTSIDE the button, because a button inside a button is invalid HTML
+          and the browser's own repair of it drops one of them — the same
+          constraint `FeedRow` works around for its star. Indented to the text
+          column so the actions read as belonging to this row's message rather
+          than to the list. */}
+      {notification.type === "invite" && (
+        <div className="pr-2 pb-2 pl-[3.375rem]">
+          <InviteActions
+            invite={invite}
+            pending={invitesPending}
+            onSettled={onAccepted}
+          />
+        </div>
+      )}
     </li>
   );
 }

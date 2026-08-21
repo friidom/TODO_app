@@ -217,6 +217,33 @@ export type MyInvite =
  * argument on purpose — the address is read from the caller's own profile
  * inside the RPC, so nobody can list invitations sent to somebody else.
  */
+/**
+ * Refuse an invitation addressed to you (M23).
+ *
+ * **The counterpart to `acceptInvite`, and deliberately not `revokeInvite`.**
+ * That one is the *inviter* withdrawing an invitation and requires admin on the
+ * board — the person being invited is not a member at all, so it refuses them
+ * by design. See `20260821170000_decline_invite.sql`.
+ *
+ * Takes the token rather than the id for the same reason `acceptInvite` does:
+ * the token is the credential, and `my_pending_invites` already handed it to
+ * the caller. An id parameter would let someone probe for invitations by uuid.
+ *
+ * Returns whether anything was declined. **False is not an error** — it is the
+ * single answer for unknown, foreign, already-accepted and expired tokens
+ * alike, which is what lets the UI say "this is no longer available" without
+ * learning why.
+ */
+export async function declineInvite(token: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc("decline_invite", {
+    p_token: token,
+  });
+
+  if (error) throw error;
+
+  return data ?? false;
+}
+
 export async function fetchMyInvites(): Promise<MyInvite[]> {
   const { data, error } = await supabase.rpc("my_pending_invites");
 
