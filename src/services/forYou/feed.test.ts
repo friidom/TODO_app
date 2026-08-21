@@ -54,15 +54,17 @@ function item(at: string, over: Partial<Todo> = {}): FeedItem {
 }
 
 describe("tab param", () => {
-  it("accepts the five real tabs and nothing else", () => {
+  it("accepts the four real tabs and nothing else", () => {
     expect(isForYouTab("recommended")).toBe(true);
     expect(isForYouTab("assigned")).toBe(true);
-    expect(isForYouTab("starred")).toBe(true);
     expect(isForYouTab("workedon")).toBe(true);
     expect(isForYouTab("viewed")).toBe(true);
 
     // A hand-edited `?tab=` is untrusted input, like every other param.
     expect(isForYouTab("everything")).toBe(false);
+    // Starred was built and removed — an old bookmark must fall back to the
+    // default rather than resolve to a tab that no longer renders.
+    expect(isForYouTab("starred")).toBe(false);
     expect(isForYouTab("")).toBe(false);
     expect(isForYouTab(null)).toBe(false);
   });
@@ -120,8 +122,8 @@ describe("building feed items", () => {
     expect(never.at).toBe("2026-08-01T09:00:00Z");
   });
 
-  it("takes an explicit date, which is what the star/view/activity tabs use", () => {
-    // Starred is ordered by when you starred it, not by when the row changed.
+  it("takes an explicit date, which is what the worked-on/viewed tabs use", () => {
+    // Worked on is ordered by when you touched it, not by when the row changed.
     const [row] = toFeedItems([todo()], [board()], () => "2026-08-19T12:00:00Z");
 
     expect(row.at).toBe("2026-08-19T12:00:00Z");

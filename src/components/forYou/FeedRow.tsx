@@ -1,5 +1,3 @@
-import { StarIcon } from "lucide-react";
-
 import { workTypeOf } from "@/constants/workTypes";
 import type { FeedItem } from "@/services/forYou/feed";
 import { cn } from "@/utils/cn";
@@ -30,9 +28,7 @@ export default function FeedRow({
   isMine,
   avatarUrl,
   initial,
-  starred,
   onOpen,
-  onToggleStar,
 }: {
   item: FeedItem;
   /** Passed down so every row in a render agrees on what "now" is. */
@@ -42,10 +38,7 @@ export default function FeedRow({
   avatarUrl?: string | null;
   /** First letter of the current user's name, for the avatar fallback. */
   initial: string;
-  /** Null while the star state is unknown, which hides the control. */
-  starred: boolean | null;
   onOpen: () => void;
-  onToggleStar?: () => void;
 }) {
   const { todo } = item;
 
@@ -55,18 +48,11 @@ export default function FeedRow({
   const meta = [todo.type, item.key, item.boardName].filter(Boolean);
 
   return (
-    <li className="group/row relative">
+    <li>
       <button
         type="button"
         onClick={onOpen}
-        className={cn(
-          "hover:bg-ink/[0.04] focus-visible:ring-brand flex w-full items-center gap-3 rounded-lg py-2 pl-2 text-left transition-colors duration-150 outline-none focus-visible:ring-2 sm:pl-3",
-          // Room for the star, reserved whether or not one is offered. Sizing
-          // the gap on hover instead would slide the timestamp sideways under
-          // the pointer — and reserving it unconditionally keeps every row's
-          // right edge on the same line, starred or not.
-          onToggleStar ? "pr-10" : "pr-2 sm:pr-3",
-        )}
+        className="hover:bg-ink/[0.04] focus-visible:ring-brand flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors duration-150 outline-none focus-visible:ring-2 sm:px-3"
       >
         {/* The type, as a tinted square rather than a bare icon. Same `chip`
             token the compact card uses, so a Bug reads identically here and on
@@ -115,32 +101,6 @@ export default function FeedRow({
         </span>
       </button>
 
-      {/* THE STAR. Outside the button, because a button inside a button is
-          invalid HTML and the browser's own repair of it drops one of them.
-          Absolutely positioned over the row's right edge and revealed on hover,
-          so an idle feed is titles rather than a column of grey stars — and it
-          stays visible once starred, since that is state rather than an
-          affordance. */}
-      {starred !== null && onToggleStar && (
-        <button
-          type="button"
-          onClick={onToggleStar}
-          aria-label={starred ? "Remove star" : "Star this work item"}
-          aria-pressed={starred}
-          className={cn(
-            "focus-visible:ring-brand absolute top-1/2 right-1.5 grid size-7 -translate-y-1/2 place-items-center rounded-md transition-all duration-150 outline-none focus-visible:opacity-100 focus-visible:ring-2",
-            "hover:bg-ink/[0.06]",
-            starred
-              ? "text-status-orange opacity-100"
-              : "text-ink-3 opacity-0 group-hover/row:opacity-100 hover:opacity-100",
-          )}
-        >
-          <StarIcon
-            className={cn("size-4", starred && "fill-current")}
-            strokeWidth={2}
-          />
-        </button>
-      )}
     </li>
   );
 }

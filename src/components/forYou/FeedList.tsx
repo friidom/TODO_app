@@ -1,9 +1,4 @@
-import {
-  CircleAlertIcon,
-  InboxIcon,
-  type LucideIcon,
-  StarIcon,
-} from "lucide-react";
+import { CircleAlertIcon, InboxIcon, type LucideIcon } from "lucide-react";
 
 import { groupFeed, type FeedItem, type ForYouTab } from "@/services/forYou/feed";
 import FeedRow from "./FeedRow";
@@ -32,11 +27,6 @@ const EMPTY: Record<ForYouTab, { icon: LucideIcon; title: string; hint: string }
       title: "Nothing assigned to you",
       hint: "Work items get here when someone sets you as the assignee — including you, from a card's assignee control.",
     },
-    starred: {
-      icon: StarIcon,
-      title: "No starred tasks",
-      hint: "Star a work item from this list or its detail view to keep it one click away.",
-    },
     workedon: {
       icon: InboxIcon,
       title: "You haven't worked on anything yet",
@@ -58,9 +48,7 @@ export default function FeedList({
   currentUserId,
   avatarUrl,
   initial,
-  starredIds,
   onOpen,
-  onToggleStar,
 }: {
   tab: ForYouTab;
   items: FeedItem[];
@@ -70,10 +58,7 @@ export default function FeedList({
   currentUserId?: string;
   avatarUrl?: string | null;
   initial: string;
-  /** Null while unknown — hides the star control rather than guessing. */
-  starredIds: Set<string> | null;
   onOpen: (item: FeedItem) => void;
-  onToggleStar: (item: FeedItem, starred: boolean) => void;
 }) {
   if (isLoading) return <Skeleton />;
 
@@ -122,13 +107,7 @@ export default function FeedList({
                 )}
                 avatarUrl={avatarUrl}
                 initial={initial}
-                starred={starredIds ? starredIds.has(item.todo.id) : null}
                 onOpen={() => onOpen(item)}
-                onToggleStar={
-                  starredIds
-                    ? () => onToggleStar(item, starredIds.has(item.todo.id))
-                    : undefined
-                }
               />
             ))}
           </ul>
