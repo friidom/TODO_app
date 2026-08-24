@@ -40,7 +40,7 @@ import { cn } from "@/utils/cn";
  * occupies.
  *
  * The trail reads the caller's own spaces (M15), so a board filed in *someone
- * else's* space shows "Not in a space" — not a bug, and not a leak either:
+ * else's* space shows "Unfiled" — not a bug, and not a leak either:
  * spaces are owner-only by RLS, so the row genuinely is not the caller's to
  * see. That is the same rule `groupBoardsBySpace` applies in the sidebar, and
  * both come out of the M15 decision that a space is filing rather than a
@@ -100,27 +100,32 @@ export default function BoardIdentity({
   const owned = board.owner_id === user?.id;
   const narrowed = visibleCount !== todoCount;
 
+  // The header wraps below `md`, and the `order-*` is what makes it work.
+  // Measured at 375px, the action cluster was 224px of a 283px content box,
+  // leaving 59px for the title and all four chips: the title truncated to three
+  // characters and every chip took a row of its own — 160px of a phone screen
+  // to say four things. Wrapping the cluster up beside the trigger gives the
+  // identity the full width on the row below, which is the standard app-bar
+  // shape: chrome, then content.
   return (
-    <header className="border-hairline flex items-start gap-3 border-b px-5 pt-3 pb-4 md:px-6">
+    <header className="border-hairline flex flex-wrap items-start gap-x-3 gap-y-2 border-b px-5 pt-3 pb-4 md:flex-nowrap md:gap-y-0 md:px-6">
       {/* The sidebar's only trigger, and it has to be out here: the sidebar is
           `collapsible="offcanvas"`, so a collapsed one has no width and a
           trigger inside it would vanish with it. */}
-      <SidebarTrigger className="text-ink-3 hover:text-ink mt-0.5 shrink-0" />
+      <SidebarTrigger className="coarse:size-9 text-ink-3 hover:text-ink order-1 mt-0.5 shrink-0" />
 
-      <div className="min-w-0 flex-1">
+      <div className="order-3 w-full min-w-0 md:order-2 md:w-auto md:flex-1">
         {/* The trail. Not a link yet — a space has no page of its own, and a
             crumb that navigates nowhere is worse than one that simply orients. */}
         <p className="text-ink-3 flex min-w-0 items-center gap-1 text-xs">
-          <span className="truncate">
-            {space ? space.title : "Not in a space"}
-          </span>
+          <span className="truncate">{space ? space.title : "Unfiled"}</span>
           <ChevronRightIcon className="size-3 shrink-0" />
           <span className="text-ink-2 truncate font-medium">
             {board.title || "Untitled board"}
           </span>
         </p>
 
-        <h1 className="text-ink mt-0.5 truncate text-[28px] leading-tight font-bold tracking-[-0.02em]">
+        <h1 className="text-ink mt-0.5 truncate text-xl leading-tight font-bold tracking-[-0.02em] sm:text-2xl md:text-[28px]">
           {board.title || "Untitled board"}
         </h1>
 
@@ -145,8 +150,13 @@ export default function BoardIdentity({
             <Chip icon={ClockIcon}>Last updated {lastActivity}</Chip>
           )}
 
+          {/* Hidden below `md`: `MemberStack` renders these same people as
+              avatars a few pixels away, so on a phone this chip spends a row
+              restating what is already on screen. */}
           {memberCount > 0 && (
-            <Chip icon={UsersIcon}>Viewers: {memberCount}</Chip>
+            <Chip icon={UsersIcon} className="max-md:hidden">
+              Viewers: {memberCount}
+            </Chip>
           )}
         </div>
       </div>
@@ -154,7 +164,7 @@ export default function BoardIdentity({
       {/* Level with the breadcrumb rather than centred against the whole block:
           the title and its metadata own the left column, and the actions read
           as page chrome rather than as part of the heading. */}
-      <div className="mt-0.5 flex shrink-0 items-center gap-1">
+      <div className="order-2 ml-auto flex shrink-0 items-center gap-1 md:order-3 md:mt-0.5">
         {/* Before the roster, because it is the more perishable fact: who is
             here now changes minute to minute, who is a member does not. */}
         <PresenceStack viewers={viewers} />
@@ -216,10 +226,12 @@ export default function BoardIdentity({
 function Chip({
   icon: Icon,
   tone = "muted",
+  className,
   children,
 }: {
   icon: LucideIcon;
   tone?: "muted" | "brand";
+  className?: string;
   children: ReactNode;
 }) {
   return (
@@ -232,6 +244,7 @@ function Chip({
         tone === "brand"
           ? "border-brand/25 text-brand font-medium"
           : "border-ink/[0.07] text-ink-3",
+        className,
       )}
     >
       <Icon className="size-3.5 shrink-0" />

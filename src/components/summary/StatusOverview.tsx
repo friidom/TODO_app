@@ -159,7 +159,7 @@ export default function StatusOverview({
                 <span className="text-ink text-xl leading-none font-semibold tabular-nums">
                   {total}
                 </span>
-                <span className="text-ink-3 mt-0.5 text-[10px]">
+                <span className="text-ink-3 text-micro mt-0.5">
                   {total === 1 ? "item" : "items"}
                 </span>
               </div>
@@ -204,7 +204,7 @@ export default function StatusOverview({
                       {slice.count}
                     </span>
 
-                    <span className="text-ink-3 w-8 shrink-0 text-right text-[11px] tabular-nums">
+                    <span className="text-ink-3 text-mini w-8 shrink-0 text-right tabular-nums">
                       {Math.round((slice.count / total) * 100)}%
                     </span>
                   </li>
@@ -225,7 +225,7 @@ export default function StatusOverview({
               is the one `summaryStats` already computes for the metric strip,
               passed in rather than recounted, so the two cannot disagree. */}
           <div className="border-hairline flex items-center gap-2.5 border-t pt-2.5">
-            <span className="text-ink-3 shrink-0 text-[11px]">Completed</span>
+            <span className="text-ink-3 text-mini shrink-0">Completed</span>
 
             <div className="bg-ink/[0.06] h-1 min-w-0 flex-1 overflow-hidden rounded-full">
               <div
@@ -234,11 +234,11 @@ export default function StatusOverview({
               />
             </div>
 
-            <span className="text-ink-2 shrink-0 text-[11px] tabular-nums">
+            <span className="text-ink-2 text-mini shrink-0 tabular-nums">
               {done} of {total}
             </span>
 
-            <span className="text-status-green w-8 shrink-0 text-right text-[11px] font-medium tabular-nums">
+            <span className="text-status-green text-mini w-8 shrink-0 text-right font-medium tabular-nums">
               {complete}%
             </span>
           </div>

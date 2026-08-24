@@ -161,7 +161,7 @@ export default function InviteeCombobox({
 
   return (
     <div ref={wrapRef} className="relative mb-6">
-      <div className="border-hairline focus-within:border-brand focus-within:ring-brand flex items-center gap-2 rounded-lg border px-3 focus-within:ring-1">
+      <div className="border-hairline focus-within:border-brand/50 focus-within:ring-brand/30 rounded-control flex items-center gap-2 border px-3 transition-colors focus-within:ring-2">
         <Search size={15} className="text-ink-3 shrink-0" />
 
         <input

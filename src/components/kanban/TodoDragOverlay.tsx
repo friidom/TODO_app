@@ -40,7 +40,7 @@ export default function TodoDragOverlay({
             )}
           >
             <h2
-              className="text-ink text-[15px] font-semibold"
+              className="text-ink text-sm font-semibold"
               style={
                 columnCollapsed ? { writingMode: "vertical-rl" } : undefined
               }

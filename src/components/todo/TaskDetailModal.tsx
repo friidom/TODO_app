@@ -304,7 +304,7 @@ function Body({
             )}
           />
 
-          <h3 className="text-ink-3 mb-2 text-[11px] font-semibold tracking-[0.08em] uppercase">
+          <h3 className="text-ink-3 text-mini mb-2 font-semibold tracking-[0.08em] uppercase">
             Description
           </h3>
 
@@ -318,7 +318,12 @@ function Body({
               canEditTodos ? "Add a description…" : "No description."
             }
             className={cn(
-              "border-hairline text-ink placeholder:text-ink-3 rounded-card w-full resize-y border bg-transparent px-3 py-2.5 text-sm leading-relaxed outline-none",
+              // `rows={12}` fills the left column on a desktop split, and on a
+              // 320px phone it is ~290px — 37% of the viewport reserved for an
+              // empty field, with the comments and every property below the
+              // fold. Capped below `md`; `resize-y` still lets it be dragged
+              // open, and `md:h-auto` gives the rows attribute back on desktop.
+              "border-hairline text-ink placeholder:text-ink-3 rounded-card h-36 w-full resize-y border bg-transparent px-3 py-2.5 text-sm leading-relaxed outline-none md:h-auto",
               canEditTodos &&
                 "focus:border-brand/60 focus:ring-brand/25 focus:ring-2",
             )}
@@ -360,7 +365,7 @@ function Body({
           </div>
 
           <div className="border-hairline rounded-card border">
-            <h3 className="text-ink-3 border-hairline border-b px-3.5 py-2 text-[11px] font-semibold tracking-[0.08em] uppercase">
+            <h3 className="text-ink-3 border-hairline text-mini border-b px-3.5 py-2 font-semibold tracking-[0.08em] uppercase">
               Details
             </h3>
 
@@ -428,7 +433,7 @@ function Body({
               `relativeTime` is the board header's own formatter, so "2m ago"
               means the same thing in both places. */}
           {(created || updated) && (
-            <p className="text-ink-3/80 mt-3 px-0.5 text-[11px] leading-relaxed">
+            <p className="text-ink-3/80 text-mini mt-3 px-0.5 leading-relaxed">
               {created && <span className="block">Created {created}</span>}
               {updated && <span className="block">Updated {updated}</span>}
             </p>
@@ -494,7 +499,7 @@ function Header({
         type="button"
         onClick={onClose}
         aria-label="Close task details"
-        className="text-ink-3 hover:bg-ink/10 hover:text-ink focus-visible:ring-brand rounded-control ml-auto grid size-7 shrink-0 place-items-center transition-colors outline-none focus-visible:ring-2"
+        className="text-ink-3 hover:bg-ink/10 hover:text-ink focus-visible:ring-brand rounded-control coarse:size-9 ml-auto grid size-7 shrink-0 place-items-center transition-colors outline-none focus-visible:ring-2"
       >
         <X size={16} />
       </button>

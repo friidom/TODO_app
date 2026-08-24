@@ -16,7 +16,9 @@ export default function RouteErrorPage() {
 
   return (
     <div className="bg-background text-foreground flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
-      <p className="text-2xl font-bold">This page stopped working.</p>
+      <p className="text-ink text-xl font-semibold tracking-tight">
+        This page stopped working.
+      </p>
 
       <p className="text-muted-foreground max-w-md wrap-break-word">{detail}</p>
 
@@ -24,7 +26,7 @@ export default function RouteErrorPage() {
         <button
           type="button"
           onClick={() => window.location.reload()}
-          className="border-border hover:bg-muted cursor-pointer rounded-lg border px-5 py-2.5 font-semibold transition"
+          className="border-hairline text-ink hover:bg-ink/[0.06] focus-visible:ring-brand rounded-control text-meta inline-flex h-9 cursor-pointer items-center border px-4 font-medium transition-colors outline-none focus-visible:ring-2"
         >
           Reload
         </button>

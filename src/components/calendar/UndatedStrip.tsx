@@ -71,7 +71,7 @@ export default function UndatedStrip({
           <CalendarOffIcon className="size-4" />
         </button>
 
-        <span className="text-ink-2 text-[11px] font-medium tabular-nums">
+        <span className="text-ink-2 text-mini font-medium tabular-nums">
           {todos.length}
         </span>
       </div>
@@ -89,11 +89,11 @@ export default function UndatedStrip({
       <header className="border-hairline flex items-center gap-2 border-b px-3 py-2">
         <CalendarOffIcon className="text-ink-3 size-3.5 shrink-0" />
 
-        <h3 className="text-ink min-w-0 flex-1 truncate text-[12px] font-semibold">
+        <h3 className="text-ink min-w-0 flex-1 truncate text-xs font-semibold">
           No due date
         </h3>
 
-        <span className="text-ink-3 shrink-0 text-[11px] tabular-nums">
+        <span className="text-ink-3 text-mini shrink-0 tabular-nums">
           {todos.length}
         </span>
 
@@ -109,7 +109,7 @@ export default function UndatedStrip({
 
       <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-1.5">
         {todos.length === 0 ? (
-          <p className="text-ink-3 px-2 py-8 text-center text-[11px]">
+          <p className="text-ink-3 text-mini px-2 py-8 text-center">
             {canEdit
               ? "Drag a work item here to clear its due date."
               : "Everything here has a due date."}

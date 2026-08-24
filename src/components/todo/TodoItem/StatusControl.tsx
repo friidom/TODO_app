@@ -48,7 +48,7 @@ export default function StatusControl({
         {...triggerProps}
         title={`Status: ${label}`}
         aria-label={`Status: ${label}`}
-        className="bg-ink/10 text-ink-2 hover:bg-ink/15 hover:text-ink flex min-w-0 shrink items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium transition-colors"
+        className="bg-ink/10 text-ink-2 hover:bg-ink/15 hover:text-ink text-mini flex min-w-0 shrink items-center gap-1 rounded px-1.5 py-0.5 font-medium transition-colors"
       >
         <span
           className={cn(
@@ -67,7 +67,7 @@ export default function StatusControl({
             aria-label="Status"
             className="border-hairline bg-elevated rounded-card z-50 max-h-64 w-48 overflow-y-auto border p-1 shadow-[0_8px_24px_rgba(0,0,0,0.24)]"
           >
-            <p className="text-ink-3 px-2 py-1.5 text-[11px] font-semibold tracking-wide uppercase">
+            <p className="text-ink-3 text-mini px-2 py-1.5 font-semibold tracking-wide uppercase">
               Status
             </p>
 

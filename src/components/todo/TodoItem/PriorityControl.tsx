@@ -85,7 +85,7 @@ export default function PriorityControl({
                 meta ? meta.tone : "text-ink-3/40 hover:text-ink-3",
               )
             : cn(
-                "px-1.5 py-0.5 text-[11px] font-semibold",
+                "text-mini px-1.5 py-0.5 font-semibold",
                 meta ? meta.chip : "bg-ink/10 text-ink-3 hover:text-ink-2",
               ),
           // Opacity, never `display` — the button stays in flow at zero, so a
@@ -93,7 +93,7 @@ export default function PriorityControl({
           // width whether or not the card has a priority.
           !meta &&
             !alwaysVisible &&
-            "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
+            "coarse:opacity-100 opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
         )}
       >
         <Icon className={bare ? "size-4" : "size-3"} />
@@ -108,7 +108,7 @@ export default function PriorityControl({
             aria-label="Priority"
             className="border-hairline bg-elevated rounded-card z-50 w-44 overflow-hidden border p-1 shadow-[0_8px_24px_rgba(0,0,0,0.24)]"
           >
-            <p className="text-ink-3 px-2 py-1.5 text-[11px] font-semibold tracking-wide uppercase">
+            <p className="text-ink-3 text-mini px-2 py-1.5 font-semibold tracking-wide uppercase">
               Priority
             </p>
 

@@ -83,7 +83,7 @@ export default function Swimlanes({
 
                 <LaneLabel group={group} lane={lane} members={members} />
 
-                <span className="bg-ink/10 text-ink-3 shrink-0 rounded px-1.5 py-0.5 text-[11px] font-semibold">
+                <span className="bg-ink/10 text-ink-3 text-mini shrink-0 rounded px-1.5 py-0.5 font-semibold">
                   {lane.todos.length}
                 </span>
               </header>

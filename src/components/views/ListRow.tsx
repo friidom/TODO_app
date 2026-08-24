@@ -135,12 +135,12 @@ export default function ListRow({ todo }: { todo: Todo }) {
             type="button"
             onClick={() => openTask(todo.id)}
             title={`Open ${key}`}
-            className="text-ink-3/80 hover:text-brand focus-visible:ring-brand block truncate rounded text-[11px] font-medium tabular-nums transition-colors outline-none focus-visible:ring-2"
+            className="text-ink-3/80 hover:text-brand focus-visible:ring-brand text-mini block truncate rounded font-medium tabular-nums transition-colors outline-none focus-visible:ring-2"
           >
             {key}
           </button>
         ) : (
-          <span className="text-ink-3/40 text-[11px]">—</span>
+          <span className="text-ink-3/40 text-mini">—</span>
         )}
       </div>
 
@@ -166,7 +166,7 @@ export default function ListRow({ todo }: { todo: Todo }) {
             type="button"
             onClick={() => setEditing(true)}
             title={todo.title ?? undefined}
-            className="text-ink hover:text-brand focus-visible:ring-brand block w-full truncate rounded text-left text-[13.5px] font-medium transition-colors outline-none focus-visible:ring-2"
+            className="text-ink hover:text-brand focus-visible:ring-brand text-meta block w-full truncate rounded text-left font-medium transition-colors outline-none focus-visible:ring-2"
           >
             {todo.title || <span className="text-ink-3/60">Untitled</span>}
           </button>
@@ -176,7 +176,7 @@ export default function ListRow({ todo }: { todo: Todo }) {
           // there is no chip to preserve — only the words.
           <span
             title={todo.title ?? undefined}
-            className="text-ink block w-full truncate text-[13.5px] font-medium"
+            className="text-ink text-meta block w-full truncate font-medium"
           >
             {todo.title || <span className="text-ink-3/60">Untitled</span>}
           </span>
@@ -222,7 +222,7 @@ export default function ListRow({ todo }: { todo: Todo }) {
           in place — it is in flow at `opacity-0`, so nothing reflows on hover. */}
       <div role="cell" className="flex justify-end">
         {canEditTodos && (
-          <div className="opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
+          <div className="coarse:opacity-100 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
             <TodoMenu todo={todo} onEdit={() => setEditing(true)} />
           </div>
         )}

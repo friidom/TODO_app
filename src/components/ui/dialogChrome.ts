@@ -23,7 +23,16 @@
 export const DIALOG_TITLE = "text-ink text-base font-semibold tracking-tight";
 
 /** Supporting text under the title: what this will do, or what it will cost. */
-export const DIALOG_BODY = "text-ink-2 text-[13px] leading-relaxed";
+export const DIALOG_BODY = "text-ink-2 text-meta leading-relaxed";
+
+/**
+ * The label above a field.
+ *
+ * `text-meta` rather than `text-sm`: a label is describing the control below
+ * it, so it should not be the same size as the value the user types into it.
+ * Every dialog had spelled this out as `mb-2 block text-sm font-medium`.
+ */
+export const DIALOG_LABEL = "text-ink-2 mb-1.5 block text-meta font-medium";
 
 /** The row the actions sit in. */
 export const DIALOG_ACTIONS = "mt-6 flex items-center justify-end gap-2";

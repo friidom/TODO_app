@@ -36,7 +36,7 @@ export default function CategorySelect({ value, onChange }: Props) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className="border-app flex w-full items-center gap-2 rounded-xl border bg-transparent px-4 py-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        className="border-hairline bg-canvas text-ink focus-visible:border-brand/50 focus-visible:ring-brand/30 rounded-control flex w-full items-center gap-2 border px-3 py-2 text-left text-sm transition-colors outline-none focus-visible:ring-2"
         aria-label="Status category"
       >
         <span className={cn("size-4 shrink-0 rounded-sm", selected.swatch)} />

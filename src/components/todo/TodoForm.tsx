@@ -24,12 +24,12 @@ export default function TodoForm({
         e.preventDefault();
         handleAddTodo();
       }}
-      className="flex h-9 w-full max-w-md items-center gap-2 rounded-lg border border-hairline bg-surface px-2"
+      className="border-hairline bg-surface focus-within:border-brand/50 focus-within:ring-brand/30 rounded-control flex h-9 w-full max-w-md items-center gap-2 border px-2 transition-colors focus-within:ring-2"
     >
       <button
         type="submit"
         disabled={disabled}
-        className="flex size-6 shrink-0 items-center justify-center rounded-md bg-ink/10 text-ink-2 hover:bg-ink/20 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-ink/10"
+        className="bg-ink/10 text-ink-2 hover:bg-ink/20 focus-visible:ring-brand rounded-control flex size-6 shrink-0 items-center justify-center transition-colors outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-ink/10"
       >
         <Plus size={16} />
       </button>

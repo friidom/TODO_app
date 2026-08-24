@@ -96,7 +96,7 @@ export default function TimelineBar({
         <span
           aria-hidden
           className={cn(
-            "pointer-events-none absolute -inset-1 rounded-[6px] opacity-25",
+            "pointer-events-none absolute -inset-1 rounded-sm opacity-25",
             tone,
           )}
         />
@@ -140,7 +140,7 @@ export default function TimelineBar({
           // promises four directions the timeline does not have.
           interactive && "cursor-pointer",
           dragging
-            ? "cursor-grabbing shadow-md ring-white/40"
+            ? "cursor-grabbing shadow-[0_8px_20px_-8px_rgb(0_0_0/0.6)] ring-white/40"
             : "group-hover:ring-white/25",
         )}
       >
@@ -201,7 +201,7 @@ export function DatePill({
         // `pointer-events-none` is load-bearing, not tidiness: the pill sits
         // directly where the pointer travels during a resize, and a chip that
         // could swallow a pointer event would end the gesture it is describing.
-        "bg-ink text-canvas pointer-events-none absolute top-1/2 z-5 -translate-y-1/2 rounded-md px-2 py-1 text-[11px] leading-none font-medium whitespace-nowrap tabular-nums transition-opacity duration-150",
+        "bg-ink text-canvas text-mini pointer-events-none absolute top-1/2 z-5 -translate-y-1/2 rounded-md px-2 py-1 leading-none font-medium whitespace-nowrap tabular-nums transition-opacity duration-150",
         side === "start" ? "right-full mr-1.5" : "left-full ml-1.5",
         show ? "opacity-100" : "opacity-0 group-hover:opacity-100",
       )}
@@ -233,15 +233,17 @@ function Handle({
         onGrab(event, side);
       }}
       className={cn(
-        "absolute inset-y-0 z-10 flex w-2 cursor-ew-resize items-center justify-center transition-opacity duration-150",
+        "coarse:w-4 absolute inset-y-0 z-10 flex w-2 cursor-ew-resize touch-none items-center justify-center transition-opacity duration-150",
         side === "start" ? "left-0" : "right-0",
-        dragging ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+        dragging
+          ? "opacity-100"
+          : "coarse:opacity-100 opacity-0 group-hover:opacity-100",
       )}
     >
       {/* Darkened fill rather than a white line: on a pale Done bar a white
           grip disappears, while a shade of the bar's own colour reads on all
           three tones. */}
-      <span className="h-2.5 w-0.75 rounded-full bg-black/30" />
+      <span className="coarse:h-4 coarse:w-1 h-2.5 w-0.75 rounded-full bg-black/30" />
     </span>
   );
 }

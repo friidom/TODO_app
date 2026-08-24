@@ -37,7 +37,7 @@ export default function ViewToolbar({ view }: { view: BoardView }) {
     <div className="border-hairline flex min-h-12 flex-wrap items-stretch gap-x-5 gap-y-2 border-b px-5 md:px-6">
       <ViewTabs view={view} />
 
-      <div className="ml-auto flex flex-wrap items-center gap-2 self-center py-2">
+      <div className="ml-auto flex w-full flex-wrap items-center gap-2 self-center py-2 md:w-auto">
         <BoardSearch view={view} />
         <BoardFilters view={view} />
         {canGroup && <BoardGroup view={view} />}

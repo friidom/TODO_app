@@ -82,7 +82,7 @@ export default function TimelineCreateRow({
 
   return (
     <Row>
-      <div className="border-hairline bg-surface group-hover:bg-elevated sticky left-0 z-10 flex w-60 shrink-0 items-center gap-1.5 border-r px-3 transition-colors">
+      <div className="border-hairline bg-surface group-hover:bg-elevated sticky left-0 z-10 flex w-40 shrink-0 items-center gap-1.5 border-r px-3 transition-colors md:w-60">
         {pending ? (
           <>
             <input
@@ -102,10 +102,10 @@ export default function TimelineCreateRow({
                 if (!event.currentTarget.value.trim()) onCancel();
               }}
               placeholder="What needs to be done?"
-              className="text-ink placeholder:text-ink-3 min-w-0 flex-1 bg-transparent text-[12.5px] outline-none"
+              className="text-ink placeholder:text-ink-3 min-w-0 flex-1 bg-transparent text-xs outline-none"
             />
 
-            <span className="text-ink-3/70 shrink-0 text-[10px] tabular-nums">
+            <span className="text-ink-3/70 text-micro shrink-0 tabular-nums">
               {rangeLabel(pending, today, locale)}
             </span>
           </>
@@ -117,7 +117,7 @@ export default function TimelineCreateRow({
             // that would have to invent a default period.
             onPointerDown={interactive ? onBegin : undefined}
             disabled={!interactive}
-            className="text-ink-3 hover:text-ink focus-visible:ring-brand -mx-1 flex min-w-0 flex-1 items-center gap-1.5 rounded px-1 text-left text-[11px] font-medium transition-colors outline-none focus-visible:ring-2 disabled:opacity-50"
+            className="text-ink-3 hover:text-ink focus-visible:ring-brand text-mini -mx-1 flex min-w-0 flex-1 items-center gap-1.5 rounded px-1 text-left font-medium transition-colors outline-none focus-visible:ring-2 disabled:opacity-50"
           >
             <PlusIcon className="size-3.5 shrink-0" />
             <span className="truncate">Create task</span>

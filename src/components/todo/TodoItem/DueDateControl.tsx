@@ -110,7 +110,7 @@ export default function DueDateControl({
         title={label}
         aria-label={label}
         className={cn(
-          "flex shrink-0 items-center gap-1 rounded text-[11px] font-medium transition-colors",
+          "text-mini flex shrink-0 items-center gap-1 rounded font-medium transition-colors",
           bare ? "hover:bg-ink/10 px-1 py-0.5" : "px-1.5 py-0.5",
           dueDate
             ? bare
@@ -122,7 +122,7 @@ export default function DueDateControl({
               ),
           !dueDate &&
             !alwaysVisible &&
-            "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
+            "coarse:opacity-100 opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
         )}
       >
         {/* The icon takes the chip's own colour rather than a fixed red. A red

@@ -2,6 +2,15 @@ import { useState, useEffect } from "react";
 import { useCreateColumn } from "@/services/columns/useCreateColumn";
 import { DEFAULT_CATEGORY, type ColumnCategory } from "@/constants/columns";
 import CategorySelect from "./CategorySelect";
+import {
+  DIALOG_ACTIONS,
+  DIALOG_CANCEL,
+  DIALOG_CONFIRM,
+  DIALOG_ERROR,
+  DIALOG_LABEL,
+  DIALOG_TITLE,
+} from "@/components/ui/dialogChrome";
+import { FIELD_INPUT } from "@/components/ui/fieldInput";
 
 interface CreateColumnModalProps {
   open: boolean;
@@ -62,47 +71,41 @@ function CreateColumnDialog({ onClose }: { onClose: () => void }) {
     >
       <form
         onSubmit={handleSubmit}
-        className="bg-card max-h-full w-[420px] max-w-full overflow-y-auto rounded-2xl p-6 shadow-2xl"
+        className="border-hairline bg-surface rounded-surface max-h-full w-[420px] max-w-full overflow-y-auto border p-5 shadow-[0_16px_40px_-16px_rgba(0,0,0,0.5)] sm:p-6"
       >
-        <h2 className="mb-6 text-2xl font-bold">Create column</h2>
+        <h2 className={`${DIALOG_TITLE} mb-5`}>Create column</h2>
 
-        <label className="mb-2 block text-sm font-medium">Name</label>
+        <label className={DIALOG_LABEL}>Name</label>
 
         <input
           autoFocus
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="border-app focus:ring-brand mb-6 w-full rounded-xl border bg-transparent px-4 py-3 outline-none focus:ring-2"
+          className={`${FIELD_INPUT} mb-6`}
           placeholder="Column name..."
         />
 
-        <label className="mb-2 block text-sm font-medium">
-          Status category
-        </label>
+        <label className={DIALOG_LABEL}>Status category</label>
 
         <div className="mb-8">
           <CategorySelect value={category} onChange={setCategory} />
         </div>
 
         {createColumnMutation.error && (
-          <p className="bg-status-red/15 text-status-red mb-4 rounded-xl px-4 py-3 text-sm">
+          <p className={`${DIALOG_ERROR} mt-0 mb-4`}>
             {createColumnMutation.error.message}
           </p>
         )}
 
-        <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="hover:bg-muted rounded-xl px-4 py-2"
-          >
+        <div className={DIALOG_ACTIONS}>
+          <button type="button" onClick={onClose} className={DIALOG_CANCEL}>
             Cancel
           </button>
 
           <button
             type="submit"
             disabled={!title.trim() || createColumnMutation.isPending}
-            className="bg-brand hover:bg-brand/90 text-brand-fg rounded-xl px-4 py-2 disabled:opacity-50"
+            className={DIALOG_CONFIRM}
           >
             {createColumnMutation.isPending ? "Creating..." : "Create"}
           </button>

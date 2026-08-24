@@ -5,6 +5,20 @@
 @import "@fontsource-variable/geist";
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Touch, as a first-class variant.
+   ---------------------------------------------------------------------------
+   The product hides a lot behind hover — a card's rename and menu, a column's
+   add/collapse/menu, a row's actions, the assignee and date controls. On a
+   mouse that is correct: the control is there when you reach for it and quiet
+   when you are reading. On a finger there is no hover, so every one of those
+   was simply *gone* — column management was unreachable on a phone entirely,
+   because the cluster is `pointer-events-none` until hovered.
+
+   Keyed on the pointing device rather than on a `max-md:` width, which is the
+   honest test: a narrow desktop window still has a mouse and should keep the
+   quiet behaviour, and an iPad at 1024px has a finger and should not. */
+@custom-variant coarse (@media (pointer: coarse));
+
 /* The UI renders in Geist (M17).
    ---------------------------------------------------------------------------
    `--font-sans` has been Geist since the tokens were written and `@layer base`
@@ -65,25 +79,40 @@ body,
   --radius-card-size: 0.625rem;
   --radius-control-size: 0.5rem;
 
-  --background: oklch(1 0 0);
-  --card: oklch(1 0 0);
-  --text: #494c6b;
-  --secondary-text: #9495a5;
-  --border: oklch(0.922 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
+  /* The wash a control takes on hover, and the stronger one a highlighted
+     menu row takes. Translucent ink rather than a fixed grey, which is what
+     lets one value work on the canvas, on a column and on a card — and it is
+     the `bg-ink/[0.06]` idiom the components already use, promoted to a token
+     so the vendored primitives can reach it too. */
+  --wash: oklch(0.15 0.02 260 / 5%);
+  --wash-strong: oklch(0.15 0.02 260 / 8%);
+
+  /* The shadcn tokens, aliased onto the shell — the same thing `.dark` has
+     always done, and the reason light mode looked like a different product.
+     Left as literals, this block was a SECOND palette: neutral greys
+     (`oklch(0.145 0 0)`, `#494c6b`) beside the shell's navy-tinted ones, so a
+     dropdown (`bg-popover`) and the card it opened over (`bg-surface`) were
+     mismatched whites with mismatched text. Dark mode never had the problem
+     because dark aliased from the start. */
+  --background: var(--canvas);
+  --card: var(--surface);
+  --text: var(--ink);
+  --secondary-text: var(--ink-2);
+  --border: var(--hairline);
+  --foreground: var(--ink);
+  --card-foreground: var(--ink);
+  --popover: var(--elevated);
+  --popover-foreground: var(--ink);
   --primary: var(--brand);
   --primary-foreground: var(--brand-fg);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --input: oklch(0.922 0 0);
+  --secondary: var(--wash-strong);
+  --secondary-foreground: var(--ink);
+  --muted: var(--wash);
+  --muted-foreground: var(--ink-3);
+  --accent: var(--wash-strong);
+  --accent-foreground: var(--ink);
+  --destructive: var(--status-red);
+  --input: var(--hairline);
   --ring: var(--brand);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
@@ -95,10 +124,10 @@ body,
   --sidebar-foreground: var(--ink-2);
   --sidebar-primary: oklch(0.205 0 0);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-accent: var(--wash);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--hairline);
+  --sidebar-ring: var(--brand);
 }
 
 .dark {
@@ -127,6 +156,9 @@ body,
   --status-green: oklch(0.72 0.16 152);
   --status-red: oklch(0.66 0.2 22);
 
+  --wash: oklch(1 0 0 / 6%);
+  --wash-strong: oklch(1 0 0 / 10%);
+
   --background: var(--canvas);
   --card: var(--surface);
   --text: var(--ink);
@@ -138,11 +170,15 @@ body,
   --popover-foreground: var(--ink);
   --primary: var(--brand);
   --primary-foreground: var(--brand-fg);
-  --secondary: var(--elevated);
+  --secondary: var(--wash-strong);
   --secondary-foreground: var(--ink);
-  --muted: var(--elevated);
+  --muted: var(--wash);
   --muted-foreground: var(--ink-3);
-  --accent: var(--elevated);
+  /* NOT `--elevated`, which is what `--popover` already is: a highlighted
+     dropdown row was being painted the exact colour of the popup behind it,
+     so every menu in the product — column, board, task, space, sort, filter —
+     had no visible hover or keyboard highlight in the theme the app opens in. */
+  --accent: var(--wash-strong);
   --accent-foreground: var(--ink);
   --destructive: var(--status-red);
   --input: oklch(1 0 0 / 12%);
@@ -156,7 +192,7 @@ body,
   --sidebar-foreground: var(--ink-2);
   --sidebar-primary: var(--brand);
   --sidebar-primary-foreground: var(--brand-fg);
-  --sidebar-accent: var(--elevated);
+  --sidebar-accent: var(--wash);
   --sidebar-accent-foreground: var(--ink);
   --sidebar-border: var(--hairline);
   --sidebar-ring: var(--brand);
@@ -221,6 +257,8 @@ html {
   --color-surface: var(--surface);
   --color-elevated: var(--elevated);
   --color-hairline: var(--hairline);
+  --color-wash: var(--wash);
+  --color-wash-strong: var(--wash-strong);
   --color-ink: var(--ink);
   --color-ink-2: var(--ink-2);
   --color-ink-3: var(--ink-3);
@@ -234,6 +272,15 @@ html {
   --radius-surface: var(--radius-surface-size);
   --radius-card: var(--radius-card-size);
   --radius-control: var(--radius-control-size);
+
+  /* The three steps below `text-xs` that this product genuinely uses and
+     Tailwind does not ship. Named rather than arbitrary so the next dense
+     surface reaches for a step instead of inventing `text-[12.5px]` — the
+     audit found 11.5, 12.5, 13.5, 14 and 17px all coexisting with the scale
+     they were rounding off. */
+  --text-micro: 0.625rem; /* 10px — card keys, counters */
+  --text-mini: 0.6875rem; /* 11px — metadata, chips, timestamps */
+  --text-meta: 0.8125rem; /* 13px — dialog body, secondary UI text */
 
   --font-heading: var(--font-sans);
   --font-sans: "Geist Variable", sans-serif;

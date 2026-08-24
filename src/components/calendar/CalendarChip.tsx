@@ -94,12 +94,12 @@ export default function CalendarChip({
       <TypeIcon className={cn("size-3 shrink-0", type.tone)} />
 
       {key && (
-        <span className="text-ink-3/80 shrink-0 text-[10px] font-medium tabular-nums">
+        <span className="text-ink-3/80 text-micro shrink-0 font-medium tabular-nums">
           {key}
         </span>
       )}
 
-      <span className="text-ink min-w-0 flex-1 truncate text-[11px]">
+      <span className="text-ink text-mini min-w-0 flex-1 truncate">
         {todo.title || <span className="text-ink-3/60">Untitled</span>}
       </span>
 
@@ -139,7 +139,7 @@ function ChipAvatar({ member }: { member: BoardMember }) {
   return (
     <span
       title={name}
-      className="bg-ink/10 text-ink-2 grid size-4 shrink-0 place-items-center rounded-full text-[8px] font-semibold"
+      className="bg-ink/10 text-ink-2 text-micro grid size-[18px] shrink-0 place-items-center rounded-full font-semibold"
     >
       {memberInitial(member)}
     </span>

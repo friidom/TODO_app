@@ -95,10 +95,10 @@ export default function NotificationsPanel({
   return (
     <div className="flex max-h-[min(30rem,70vh)] w-[min(24rem,calc(100vw-2rem))] flex-col">
       <div className="border-hairline flex items-center gap-2 border-b px-3 py-2.5">
-        <h2 className="text-ink text-[13px] font-semibold">Notifications</h2>
+        <h2 className="text-ink text-meta font-semibold">Notifications</h2>
 
         {unread > 0 && (
-          <span className="bg-brand text-brand-fg rounded px-1.5 text-[10px] leading-4 font-semibold tabular-nums">
+          <span className="bg-brand text-brand-fg text-micro rounded px-1.5 leading-4 font-semibold tabular-nums">
             {unread}
           </span>
         )}
@@ -107,7 +107,7 @@ export default function NotificationsPanel({
           <button
             type="button"
             onClick={() => markRead.mutate("all")}
-            className="text-ink-3 hover:text-ink focus-visible:ring-brand ml-auto flex items-center gap-1 rounded px-1 text-[11px] transition-colors outline-none focus-visible:ring-2"
+            className="text-ink-3 hover:text-ink focus-visible:ring-brand text-mini ml-auto flex items-center gap-1 rounded px-1 transition-colors outline-none focus-visible:ring-2"
           >
             <CheckCheckIcon className="size-3.5" />
             Mark all read
@@ -135,7 +135,7 @@ export default function NotificationsPanel({
               aria-selected={selected}
               onClick={() => setTab(value)}
               className={cn(
-                "flex items-center gap-1.5 rounded-[5px] px-2 text-[12px] leading-7 whitespace-nowrap transition-colors duration-150 outline-none",
+                "flex items-center gap-1.5 rounded-sm px-2 text-xs leading-7 whitespace-nowrap transition-colors duration-150 outline-none",
                 "focus-visible:ring-brand focus-visible:ring-2",
                 selected
                   ? HEADER_CONTROL_ACTIVE
@@ -147,7 +147,7 @@ export default function NotificationsPanel({
               {count > 0 && (
                 <span
                   className={cn(
-                    "rounded px-1 text-[10px] leading-4 font-semibold tabular-nums",
+                    "text-micro rounded px-1 leading-4 font-semibold tabular-nums",
                     selected
                       ? "bg-brand text-brand-fg"
                       : "bg-ink/[0.08] text-ink-3",
@@ -250,7 +250,7 @@ function Row({
         <span className="min-w-0 flex-1">
           <span
             className={cn(
-              "block text-[12.5px] leading-snug",
+              "text-meta block leading-snug",
               // Weight rather than colour carries unread: a coloured row would
               // compete with the type chip beside it, and dimming read rows
               // makes a caught-up inbox look broken.
@@ -260,7 +260,7 @@ function Row({
             {title}
           </span>
 
-          <span className="text-ink-3 mt-0.5 block truncate text-[11px]">
+          <span className="text-ink-3 text-mini mt-0.5 block truncate">
             {detail} · {relativeTime(notification.created_at)}
           </span>
         </span>
@@ -336,7 +336,7 @@ function State({
         <Icon className="size-4" />
       </span>
 
-      <p className="text-ink text-[13px] font-medium">{title}</p>
+      <p className="text-ink text-meta font-medium">{title}</p>
       <p className="text-ink-3 max-w-[16rem] text-xs leading-relaxed">{hint}</p>
     </div>
   );

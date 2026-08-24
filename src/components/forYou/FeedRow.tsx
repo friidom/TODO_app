@@ -67,13 +67,13 @@ export default function FeedRow({
         </span>
 
         <span className="min-w-0 flex-1">
-          <span className="text-ink block truncate text-[13.5px] font-medium">
+          <span className="text-ink block truncate text-meta font-medium">
             {todo.title || <span className="text-ink-3/70">Untitled</span>}
           </span>
 
           {/* Interpuncts between parts rather than around them, so a missing
               key does not leave a dangling separator. */}
-          <span className="text-ink-3 mt-0.5 block truncate text-[11.5px]">
+          <span className="text-ink-3 mt-0.5 block truncate text-mini">
             {meta.join(" · ")}
           </span>
         </span>
@@ -90,12 +90,12 @@ export default function FeedRow({
                 className="hidden size-6 rounded-full object-cover sm:block"
               />
             ) : (
-              <span className="bg-brand-soft text-brand hidden size-6 place-items-center rounded-full text-[10px] font-semibold sm:grid">
+              <span className="bg-brand-soft text-brand hidden size-6 place-items-center rounded-full text-micro font-semibold sm:grid">
                 {initial}
               </span>
             ))}
 
-          <span className="text-ink-3 text-[11.5px] tabular-nums">
+          <span className="text-ink-3 text-mini tabular-nums">
             {relativeTime(item.at, now)}
           </span>
         </span>

@@ -71,7 +71,7 @@ export default function HeaderTodoForm() {
         onClick={() => setOpen(true)}
         disabled={!targetColumn}
         title={t("createTodo")}
-        className="bg-brand text-brand-fg hover:bg-brand/90 focus-visible:ring-brand rounded-control flex h-9 shrink-0 items-center gap-1.5 px-3 text-[13px] font-medium shadow-sm transition-colors outline-none focus-visible:ring-2 disabled:cursor-default disabled:opacity-50"
+        className="bg-brand text-brand-fg hover:bg-brand/90 focus-visible:ring-brand rounded-control text-meta flex h-9 shrink-0 items-center gap-1.5 px-3 font-medium shadow-sm transition-colors outline-none focus-visible:ring-2 disabled:cursor-default disabled:opacity-50"
       >
         <PlusIcon className="size-4" />
         <span className="hidden sm:inline">New task</span>
@@ -111,7 +111,7 @@ export default function HeaderTodoForm() {
           if (e.key === "Escape") close();
         }}
         placeholder={t("createTodo")}
-        className="text-ink placeholder:text-ink-3 min-w-0 flex-1 bg-transparent text-[13px] outline-none"
+        className="text-ink placeholder:text-ink-3 text-meta min-w-0 flex-1 bg-transparent outline-none"
       />
     </form>
   );

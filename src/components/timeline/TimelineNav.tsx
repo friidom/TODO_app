@@ -63,7 +63,7 @@ export default function TimelineNav({
           // do nothing makes the row change width as you page, and it sits
           // between two arrows you are clicking repeatedly.
           disabled={view.isCurrent}
-          className={cn(STEP, "px-2.5 text-[12px] font-medium")}
+          className={cn(STEP, "px-2.5 text-xs font-medium")}
         >
           Today
         </button>
@@ -78,7 +78,7 @@ export default function TimelineNav({
         </button>
       </div>
 
-      <h2 className="text-ink min-w-0 text-[14px] font-semibold tracking-tight">
+      <h2 className="text-ink min-w-0 text-sm font-semibold tracking-tight">
         {windowLabel(ticks, view.scale, locale)}
       </h2>
 
@@ -107,7 +107,7 @@ export default function TimelineNav({
               onClick={() => view.setScale(scale)}
               aria-pressed={selected}
               className={cn(
-                "rounded-[5px] px-2.5 text-[12px] leading-6 capitalize transition-colors duration-150 outline-none",
+                "rounded-sm px-2.5 text-xs leading-6 capitalize transition-colors duration-150 outline-none",
                 "focus-visible:ring-brand focus-visible:ring-2",
                 selected
                   ? HEADER_CONTROL_ACTIVE

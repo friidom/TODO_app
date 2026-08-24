@@ -42,7 +42,7 @@ export default function MemberIdentity({
         <AvatarFallback
           className={cn(
             "bg-ink/10 text-ink-2 font-semibold",
-            size === "sm" ? "text-[10px]" : "text-xs",
+            size === "sm" ? "text-micro" : "text-xs",
           )}
         >
           {memberInitial(member)}
@@ -50,13 +50,13 @@ export default function MemberIdentity({
       </Avatar>
 
       <div className="min-w-0 flex-1 text-left">
-        <p className="text-ink truncate text-[13px] leading-tight font-medium">
+        <p className="text-ink text-meta truncate leading-tight font-medium">
           {primary}
           {suffix}
         </p>
 
         {secondary && (
-          <p className="text-ink-3 truncate text-[11px] leading-tight">
+          <p className="text-ink-3 text-mini truncate leading-tight">
             {secondary}
           </p>
         )}

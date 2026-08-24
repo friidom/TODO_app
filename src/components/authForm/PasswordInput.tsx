@@ -61,7 +61,7 @@ export default function PasswordInput({
       <div className="flex items-baseline justify-between gap-3">
         <label
           htmlFor={id}
-          className="text-ink-2 text-[13px] font-medium select-none"
+          className="text-ink-2 text-meta font-medium select-none"
         >
           {label}
         </label>

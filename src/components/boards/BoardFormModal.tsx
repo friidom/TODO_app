@@ -6,6 +6,15 @@ import { useCreateBoard } from "@/services/boards/useCreateBoard";
 import { useUpdateBoard } from "@/services/boards/useUpdateBoard";
 import { useSpaces } from "@/services/spaces/useSpaces";
 import type { IBoard } from "@/types/data";
+import {
+  DIALOG_ACTIONS,
+  DIALOG_CANCEL,
+  DIALOG_CONFIRM,
+  DIALOG_ERROR,
+  DIALOG_LABEL,
+  DIALOG_TITLE,
+} from "@/components/ui/dialogChrome";
+import { FIELD_INPUT } from "@/components/ui/fieldInput";
 
 /**
  * Create a board, or edit one. One component for the same reason
@@ -95,11 +104,11 @@ export default function BoardFormModal({
   return (
     <Modal title={board ? "Board settings" : "Create board"} onClose={onClose}>
       <form onSubmit={handleSubmit}>
-        <h2 className="mb-6 text-2xl font-bold">
+        <h2 className={`${DIALOG_TITLE} mb-5`}>
           {board ? "Board settings" : "Create board"}
         </h2>
 
-        <label htmlFor="board-title" className="mb-2 block text-sm font-medium">
+        <label htmlFor="board-title" className={DIALOG_LABEL}>
           Name
         </label>
 
@@ -108,14 +117,11 @@ export default function BoardFormModal({
           autoFocus
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="border-app focus:ring-brand mb-5 w-full rounded-xl border bg-transparent px-4 py-3 outline-none focus:ring-2"
+          className={`${FIELD_INPUT} mb-5`}
           placeholder="Board name..."
         />
 
-        <label
-          htmlFor="board-description"
-          className="mb-2 block text-sm font-medium"
-        >
+        <label htmlFor="board-description" className={DIALOG_LABEL}>
           Description <span className="text-ink-3 font-normal">(optional)</span>
         </label>
 
@@ -124,16 +130,13 @@ export default function BoardFormModal({
           rows={2}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          className="border-app focus:ring-brand mb-5 w-full resize-none rounded-xl border bg-transparent px-4 py-3 outline-none focus:ring-2"
+          className={`${FIELD_INPUT} mb-5 resize-none`}
           placeholder="What is this board for?"
         />
 
         {canFile && (
           <>
-            <label
-              htmlFor="board-space"
-              className="mb-2 block text-sm font-medium"
-            >
+            <label htmlFor="board-space" className={DIALOG_LABEL}>
               Space
             </label>
 
@@ -141,7 +144,7 @@ export default function BoardFormModal({
               id="board-space"
               value={space}
               onChange={(e) => setSpace(e.target.value)}
-              className="border-app focus:ring-brand mb-2 w-full rounded-xl border bg-transparent px-4 py-3 outline-none focus:ring-2"
+              className={`${FIELD_INPUT} mb-2`}
             >
               <option value="">No space</option>
               {spaces.map((option) => (
@@ -159,24 +162,20 @@ export default function BoardFormModal({
         )}
 
         {mutation.error && (
-          <p className="bg-status-red/15 text-status-red mb-4 rounded-xl px-4 py-3 text-sm">
+          <p className={`${DIALOG_ERROR} mt-0 mb-4`}>
             {mutation.error.message}
           </p>
         )}
 
-        <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="hover:bg-muted rounded-xl px-4 py-2"
-          >
+        <div className={DIALOG_ACTIONS}>
+          <button type="button" onClick={onClose} className={DIALOG_CANCEL}>
             Cancel
           </button>
 
           <button
             type="submit"
             disabled={!trimmed || mutation.isPending}
-            className="bg-brand hover:bg-brand/90 text-brand-fg rounded-xl px-4 py-2 disabled:opacity-50"
+            className={DIALOG_CONFIRM}
           >
             {mutation.isPending
               ? board

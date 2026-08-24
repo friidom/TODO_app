@@ -92,13 +92,13 @@ export default function ProfilePage() {
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="border-hairline text-ink-2 hover:bg-elevated hover:text-ink focus-visible:ring-brand rounded-control flex h-8 items-center gap-1.5 border px-2.5 text-[13px] transition-colors outline-none focus-visible:ring-2"
+            className="border-hairline text-ink-2 hover:bg-elevated hover:text-ink focus-visible:ring-brand rounded-control text-meta flex h-8 items-center gap-1.5 border px-2.5 transition-colors outline-none focus-visible:ring-2"
           >
             <ArrowLeftIcon className="size-4" />
             Back
           </button>
 
-          <h1 className="text-ink text-[15px] font-semibold tracking-tight">
+          <h1 className="text-ink text-base font-semibold tracking-tight">
             Profile
           </h1>
         </div>
@@ -121,7 +121,7 @@ export default function ProfilePage() {
                 )}
               />
 
-              <span className="absolute inset-0 grid place-items-center bg-black/55 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+              <span className="coarse:opacity-100 absolute inset-0 grid place-items-center bg-black/55 opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100">
                 {uploadAvatar.isPending ? (
                   <Loader2 className="size-5 animate-spin text-white" />
                 ) : (
@@ -204,7 +204,7 @@ export default function ProfilePage() {
                 type="button"
                 onClick={() => updateProfile.mutate(form)}
                 disabled={updateProfile.isPending}
-                className="bg-brand text-brand-fg hover:bg-brand/90 focus-visible:ring-brand rounded-control flex h-9 items-center gap-2 px-4 text-[13px] font-medium transition-colors outline-none focus-visible:ring-2 disabled:opacity-60"
+                className="bg-brand text-brand-fg hover:bg-brand/90 focus-visible:ring-brand rounded-control text-meta flex h-9 items-center gap-2 px-4 font-medium transition-colors outline-none focus-visible:ring-2 disabled:opacity-60"
               >
                 {updateProfile.isPending && (
                   <Loader2 className="size-4 animate-spin" />
@@ -234,7 +234,7 @@ export default function ProfilePage() {
                 type="button"
                 onClick={() => logout.mutate()}
                 disabled={logout.isPending}
-                className="border-status-red/30 text-status-red hover:bg-status-red/10 focus-visible:ring-status-red rounded-control flex h-9 items-center gap-2 border px-3 text-[13px] font-medium transition-colors outline-none focus-visible:ring-2 disabled:opacity-60"
+                className="border-status-red/30 text-status-red hover:bg-status-red/10 focus-visible:ring-status-red rounded-control text-meta flex h-9 items-center gap-2 border px-3 font-medium transition-colors outline-none focus-visible:ring-2 disabled:opacity-60"
               >
                 <LogOut className="size-4" />
                 Sign out
@@ -251,7 +251,7 @@ export default function ProfilePage() {
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="border-hairline bg-surface rounded-surface border">
-      <h2 className="border-hairline text-ink-3 border-b px-5 py-3 text-[11px] font-semibold tracking-[0.1em] uppercase">
+      <h2 className="border-hairline text-ink-3 text-mini border-b px-5 py-3 font-semibold tracking-[0.1em] uppercase">
         {title}
       </h2>
 
@@ -272,7 +272,7 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="text-ink-2 mb-1.5 block text-[13px] font-medium">
+      <span className="text-ink-2 text-meta mb-1.5 block font-medium">
         {label}
       </span>
       {children}

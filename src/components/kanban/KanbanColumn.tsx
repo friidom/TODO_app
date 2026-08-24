@@ -339,7 +339,7 @@ export default function KanbanColumn({
           <button
             type="button"
             onClick={() => openAt(todos.length)}
-            className="text-ink-3 border-ink/[0.09] hover:border-brand/40 hover:bg-brand-soft hover:text-brand rounded-card flex h-10 w-full items-center justify-center gap-1.5 border border-dashed text-[13px] font-medium transition-colors"
+            className="text-ink-3 border-ink/[0.09] hover:border-brand/40 hover:bg-brand-soft hover:text-brand rounded-card text-meta flex h-10 w-full items-center justify-center gap-1.5 border border-dashed font-medium transition-colors"
           >
             <Plus size={15} />
             Create
@@ -375,7 +375,7 @@ function LaneColumnHeader({
       <span className="text-ink-2 min-w-0 truncate text-xs font-semibold tracking-wide uppercase">
         {headerTitle}
       </span>
-      <span className="bg-ink/10 text-ink-3 ml-auto shrink-0 rounded px-1.5 text-[11px] font-semibold">
+      <span className="bg-ink/10 text-ink-3 text-mini ml-auto shrink-0 rounded px-1.5 font-semibold">
         {count}
       </span>
     </div>

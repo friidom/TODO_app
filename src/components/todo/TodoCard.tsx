@@ -207,12 +207,12 @@ export default function TodoCard({
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={onOpen}
                 title={`Open ${taskKey}`}
-                className="text-ink-3 hover:text-brand cursor-pointer text-[11px] font-semibold tracking-wide transition-colors"
+                className="text-ink-3 hover:text-brand text-mini cursor-pointer font-semibold tracking-wide transition-colors"
               >
                 {taskKey}
               </button>
             ) : (
-              <span className="text-ink-3 text-[11px] font-semibold tracking-wide">
+              <span className="text-ink-3 text-mini font-semibold tracking-wide">
                 {taskKey}
               </span>
             )}
@@ -223,13 +223,13 @@ export default function TodoCard({
             the cluster is hover-revealed anyway, so a viewer never sees one
             appear. */}
         {!editing && canEdit && (
-          <div className="-mr-1 flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+          <div className="coarse:opacity-100 -mr-1 flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
             <button
               type="button"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={onStartEdit}
               aria-label="Rename"
-              className="text-ink-3 hover:bg-ink/10 hover:text-ink rounded p-1 transition-colors"
+              className="text-ink-3 hover:bg-ink/10 hover:text-ink coarse:size-8 coarse:p-0 coarse:grid coarse:place-items-center rounded p-1 transition-colors"
             >
               <Pencil size={13} />
             </button>
@@ -264,7 +264,7 @@ export default function TodoCard({
           className="border-brand bg-surface text-ink rounded-control w-full border-2 px-2 py-1 text-sm outline-none"
         />
       ) : (
-        <p className="text-ink line-clamp-3 text-[14px] leading-[1.35] font-medium break-words">
+        <p className="text-ink line-clamp-3 text-sm leading-[1.35] font-medium break-words">
           {title}
         </p>
       )}
@@ -316,7 +316,7 @@ function PriorityBadge({ value }: { value: string | null }) {
   return (
     <span
       className={cn(
-        "flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-semibold",
+        "text-mini flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 font-semibold",
         meta.chip,
       )}
     >
@@ -334,7 +334,7 @@ function WorkTypeBadge({ type }: { type: string | null }) {
   return (
     <span
       className={cn(
-        "flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-semibold",
+        "text-mini flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 font-semibold",
         meta.chip,
       )}
     >

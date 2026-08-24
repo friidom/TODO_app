@@ -154,7 +154,7 @@ export default function ResetPasswordPage() {
         <PasswordInput
           id="reset-password"
           label="New password"
-          placeholder={`At least ${PASSWORD_MIN_LENGTH} characters`}
+          placeholder="••••••••"
           autoComplete="new-password"
           value={password}
           error={errors.password}

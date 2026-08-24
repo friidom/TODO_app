@@ -66,7 +66,7 @@ export default function NotificationsButton() {
               `ml-auto` rather than a corner dot: the rail has room for the
               number, and the number is the useful part. */}
           {unread > 0 && (
-            <span className="bg-brand text-brand-fg ml-auto rounded px-1.5 text-[10px] leading-4 font-semibold tabular-nums">
+            <span className="bg-brand text-brand-fg text-micro ml-auto rounded px-1.5 leading-4 font-semibold tabular-nums">
               {unread > 99 ? "99+" : unread}
             </span>
           )}

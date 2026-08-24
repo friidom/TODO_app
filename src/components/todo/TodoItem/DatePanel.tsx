@@ -158,7 +158,7 @@ export default function DatePanel({
         {weekdays.map((label, index) => (
           <span
             key={index}
-            className="text-ink-3 grid h-7 place-items-center text-[10px] font-semibold uppercase"
+            className="text-ink-3 text-micro grid h-7 place-items-center font-semibold uppercase"
           >
             {label}
           </span>
@@ -178,7 +178,7 @@ export default function DatePanel({
               aria-current={isToday ? "date" : undefined}
               aria-pressed={isSelected}
               className={cn(
-                "rounded-control grid h-8 place-items-center text-[13px] transition-colors",
+                "rounded-control text-meta grid h-8 place-items-center transition-colors",
                 isSelected
                   ? "bg-brand text-brand-fg font-semibold"
                   : inMonth

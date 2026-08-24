@@ -88,7 +88,7 @@ export default function TrendsChart({
           {SERIES.map((series) => (
             <span
               key={series.key}
-              className="text-ink-3 flex items-center gap-1.5 text-[11px]"
+              className="text-ink-3 text-mini flex items-center gap-1.5"
             >
               <span className={`size-1.5 rounded-full ${series.dot}`} />
               {series.label}
@@ -105,7 +105,7 @@ export default function TrendsChart({
               page's font and needs no transform to stay upright inside a
               stretched viewBox. Three readings — peak, half, zero — because a
               tick per unit is a ladder nobody climbs. */}
-          <div className="text-ink-3/70 flex w-6 shrink-0 flex-col justify-between py-px text-right text-[10px] tabular-nums">
+          <div className="text-ink-3/70 text-micro flex w-6 shrink-0 flex-col justify-between py-px text-right tabular-nums">
             <span>{peak}</span>
             <span>{Math.round(peak / 2)}</span>
             <span>0</span>
@@ -224,7 +224,7 @@ export default function TrendsChart({
               {points.map((point) => (
                 <span
                   key={point.day}
-                  className="text-ink-3/70 min-w-0 flex-1 truncate text-center text-[10px]"
+                  className="text-ink-3/70 text-micro min-w-0 flex-1 truncate text-center"
                 >
                   {dayLabel(point.day)}
                 </span>

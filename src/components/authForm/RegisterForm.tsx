@@ -146,7 +146,7 @@ export default function RegisterForm() {
       <PasswordInput
         id="register-password"
         label="Password"
-        placeholder={`At least ${PASSWORD_MIN_LENGTH} characters`}
+        placeholder="••••••••"
         autoComplete="new-password"
         value={password}
         error={errors.password}
