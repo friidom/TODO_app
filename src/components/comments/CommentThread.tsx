@@ -62,7 +62,7 @@ export default function CommentThread({ todoId }: { todoId: string }) {
 
   return (
     <section className="mt-8">
-      <h3 className="text-ink-3 mb-3 flex items-center gap-2 text-[11px] font-semibold tracking-[0.08em] uppercase">
+      <h3 className="text-ink-3 text-mini mb-3 flex items-center gap-2 font-semibold tracking-[0.08em] uppercase">
         Comments
         {/* The count only once there is one. A "0" beside the heading is a
             label for an absence the empty state below already explains. */}
@@ -171,7 +171,7 @@ function CommentRow({
     <article className="flex gap-2.5">
       <Avatar size="sm" className="mt-0.5 shrink-0">
         <AvatarImage src={author?.avatar_url ?? undefined} alt="" />
-        <AvatarFallback className="bg-elevated text-ink-2 text-[10px] font-semibold">
+        <AvatarFallback className="bg-elevated text-ink-2 text-micro font-semibold">
           {/* A dash rather than an invented initial for someone the roster has
               not caught up with — the same choice `PresenceStack` makes. */}
           {author ? memberInitial(author) : "–"}
@@ -381,7 +381,7 @@ function Composer({ todoId }: { todoId: string }) {
           {add.isPending ? "Posting…" : "Comment"}
         </button>
 
-        <span className="text-ink-3 hidden text-[11px] sm:inline">
+        <span className="text-ink-3 text-mini hidden sm:inline">
           ⌘↵ to post
         </span>
       </div>

@@ -50,7 +50,7 @@ function Subsection({
 }) {
   return (
     <div>
-      <p className="text-ink-3/80 mb-1.5 text-[10px] font-semibold tracking-[0.06em] uppercase">
+      <p className="text-ink-3/80 text-micro mb-1.5 font-semibold tracking-[0.06em] uppercase">
         {label}
       </p>
 
@@ -191,7 +191,7 @@ export function TeamWorkload({
       className={className}
       action={
         totalOpen > 0 ? (
-          <span className="text-ink-3 text-[11px] tabular-nums">
+          <span className="text-ink-3 text-mini tabular-nums">
             {totalOpen} open
           </span>
         ) : undefined
@@ -220,7 +220,7 @@ export function TeamWorkload({
                         src={member.avatar_url ?? undefined}
                         alt=""
                       />
-                      <AvatarFallback className="bg-ink/10 text-ink-2 text-[10px] font-semibold">
+                      <AvatarFallback className="bg-ink/10 text-ink-2 text-micro font-semibold">
                         {memberInitial(member)}
                       </AvatarFallback>
                     </Avatar>
@@ -267,7 +267,7 @@ export function TeamWorkload({
                     cell `DistributionRow` keeps for its share, and for the same
                     reason: a variable-width marker on some rows only would step
                     the counts out of one column. */}
-                <span className="text-status-red w-11 shrink-0 text-right text-[11px] font-medium tabular-nums">
+                <span className="text-status-red text-mini w-11 shrink-0 text-right font-medium tabular-nums">
                   {entry.overdue > 0 ? `${entry.overdue} late` : ""}
                 </span>
               </div>

@@ -79,7 +79,7 @@ export default function DayCell({
       <div className="flex items-center gap-1">
         <span
           className={cn(
-            "grid size-5 shrink-0 place-items-center rounded-full text-[11px] tabular-nums",
+            "text-mini grid size-5 shrink-0 place-items-center rounded-full tabular-nums",
             isToday && "bg-brand text-brand-fg font-semibold",
             !isToday && inMonth && "text-ink-2",
             !isToday && !inMonth && "text-ink-3/50",
@@ -91,7 +91,7 @@ export default function DayCell({
         {/* The count sits in the header rather than under the list, so a cell
             that is overflowing says so before you have finished reading it. */}
         {todos.length > 0 && (
-          <span className="text-ink-3/70 ml-auto shrink-0 text-[10px] tabular-nums">
+          <span className="text-ink-3/70 text-micro ml-auto shrink-0 tabular-nums">
             {todos.length}
           </span>
         )}
@@ -124,7 +124,7 @@ export default function DayCell({
           <button
             type="button"
             onClick={() => onOpenDay(day)}
-            className="text-ink-3 hover:text-brand hover:bg-ink/[0.05] focus-visible:ring-brand rounded-control h-5 px-1.5 text-left text-[10px] font-medium transition-colors outline-none focus-visible:ring-2"
+            className="text-ink-3 hover:text-brand hover:bg-ink/[0.05] focus-visible:ring-brand rounded-control text-micro h-5 px-1.5 text-left font-medium transition-colors outline-none focus-visible:ring-2"
           >
             +{hidden} more
           </button>

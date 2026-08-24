@@ -71,14 +71,14 @@ export default function SpaceFormModal({
           {space ? "Rename space" : "Create space"}
         </h2>
 
-        <p className="text-ink-3 mt-1 mb-5 text-[13px]">
+        <p className="text-ink-3 text-meta mt-1 mb-5">
           A space is a folder for your boards. It does not change who can see
           them.
         </p>
 
         <label
           htmlFor="space-title"
-          className="text-ink-2 mb-1.5 block text-[13px] font-medium"
+          className="text-ink-2 text-meta mb-1.5 block font-medium"
         >
           Name
         </label>

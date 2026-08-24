@@ -48,7 +48,7 @@ export default function MemberStack({ onOpen }: { onOpen: () => void }) {
         >
           <AvatarImage src={member.avatar_url ?? undefined} alt="" />
           <AvatarFallback
-            className="bg-elevated text-ink-2 text-[10px] font-semibold"
+            className="bg-elevated text-ink-2 text-micro font-semibold"
             title={memberName(member)}
           >
             {memberInitial(member)}
@@ -60,7 +60,7 @@ export default function MemberStack({ onOpen }: { onOpen: () => void }) {
         <span
           className={cn(
             "ring-canvas bg-elevated text-ink-2 grid size-6 shrink-0 place-items-center",
-            "rounded-full text-[10px] font-semibold ring-2",
+            "text-micro rounded-full font-semibold ring-2",
           )}
         >
           +{rest}

@@ -182,7 +182,7 @@ export default function ActivityFeed({
               definition and a mismatched one would read as a band. */}
           <h3
             className={cn(
-              "text-ink-3 px-2 text-[11px] font-semibold tracking-[0.04em] uppercase shadow-[inset_0_-1px_0_var(--hairline)]",
+              "text-ink-3 text-mini px-2 font-semibold tracking-[0.04em] uppercase shadow-[inset_0_-1px_0_var(--hairline)]",
               compact ? "bg-surface py-1" : "bg-rail sticky top-0 z-10 py-1.5",
             )}
           >
@@ -243,7 +243,7 @@ function ActivityRow({
   const when = relativeTime(activity.created_at, undefined, { short: compact });
 
   const chip = line.detail && (
-    <span className="border-hairline bg-ink/[0.04] inline-flex min-w-0 items-center gap-1 rounded-full border py-0.5 pr-2 pl-1.5 text-[11px]">
+    <span className="border-hairline bg-ink/[0.04] text-mini inline-flex min-w-0 items-center gap-1 rounded-full border py-0.5 pr-2 pl-1.5">
       <span className="text-ink-3 shrink-0">{line.detail.label}</span>
 
       <ArrowRightIcon className="text-ink-3/60 size-3 shrink-0" />
@@ -263,7 +263,7 @@ function ActivityRow({
   );
 
   const sentence = (
-    <p className="text-ink-2 min-w-0 text-[13px] leading-snug">
+    <p className="text-ink-2 text-meta min-w-0 leading-snug">
       {/* The actor is the only part rendered at full ink: the feed is scanned
           down the left edge for who, and the sentence is read only once a name
           is worth reading. A deleted account has no name left, and "Someone" is
@@ -286,7 +286,7 @@ function ActivityRow({
         className={cn("mt-0.5 shrink-0", compact && "data-[size=sm]:size-5")}
       >
         <AvatarImage src={actor?.avatar_url ?? undefined} alt="" />
-        <AvatarFallback className="bg-ink/10 text-ink-2 text-[10px] font-semibold">
+        <AvatarFallback className="bg-ink/10 text-ink-2 text-micro font-semibold">
           {actor ? memberInitial(actor) : "?"}
         </AvatarFallback>
       </Avatar>
@@ -304,7 +304,7 @@ function ActivityRow({
             {sentence}
 
             {when && (
-              <span className="text-ink-3/70 ml-auto shrink-0 text-[11px] whitespace-nowrap tabular-nums">
+              <span className="text-ink-3/70 text-mini ml-auto shrink-0 whitespace-nowrap tabular-nums">
                 {when}
               </span>
             )}
@@ -319,7 +319,7 @@ function ActivityRow({
             sentence to run its length, and a right-aligned column of ages there
             would be a rule with nothing to align to. */}
         {!compact && when && (
-          <p className="text-ink-3 mt-0.5 text-[11px] tabular-nums">{when}</p>
+          <p className="text-ink-3 text-mini mt-0.5 tabular-nums">{when}</p>
         )}
       </div>
     </>

@@ -61,7 +61,7 @@ export default function CalendarGrid({
           <div
             key={name}
             className={cn(
-              "text-ink-3/70 truncate px-2 py-1.5 text-[10px] font-medium tracking-[0.08em] uppercase",
+              "text-ink-3/70 text-micro truncate px-2 py-1.5 font-medium tracking-[0.08em] uppercase",
               // Saturday and Sunday, muted one more step. Not coloured — a
               // weekend is not a warning, and the semantic palette is reserved
               // for status.

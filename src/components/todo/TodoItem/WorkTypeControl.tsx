@@ -61,7 +61,7 @@ export default function WorkTypeControl({
           "flex shrink-0 items-center gap-1 rounded transition-colors",
           bare
             ? cn("hover:bg-ink/10 p-0.5", meta.tone)
-            : cn("px-1.5 py-0.5 text-[11px] font-semibold", meta.chip),
+            : cn("text-mini px-1.5 py-0.5 font-semibold", meta.chip),
         )}
       >
         <Icon className={bare ? "size-4" : "size-3"} />
@@ -76,7 +76,7 @@ export default function WorkTypeControl({
             aria-label="Work type"
             className="border-hairline bg-elevated rounded-card z-50 w-44 overflow-hidden border p-1 shadow-[0_8px_24px_rgba(0,0,0,0.24)]"
           >
-            <p className="text-ink-3 px-2 py-1.5 text-[11px] font-semibold tracking-wide uppercase">
+            <p className="text-ink-3 text-mini px-2 py-1.5 font-semibold tracking-wide uppercase">
               Work type
             </p>
 

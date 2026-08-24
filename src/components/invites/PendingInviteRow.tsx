@@ -29,7 +29,7 @@ export default function PendingInviteRow({ invite }: { invite: BoardInvite }) {
     <li className="border-hairline flex items-center gap-3 border-b px-3 py-2.5 last:border-b-0">
       <span
         className={cn(
-          "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase",
+          "text-micro shrink-0 rounded px-1.5 py-0.5 font-semibold tracking-wide uppercase",
           roleStyle(invite.role),
         )}
       >

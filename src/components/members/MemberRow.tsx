@@ -38,7 +38,7 @@ export default function MemberRow({
 
       <span
         className={cn(
-          "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase",
+          "text-micro shrink-0 rounded px-1.5 py-0.5 font-semibold tracking-wide uppercase",
           roleStyle(member.role),
         )}
       >

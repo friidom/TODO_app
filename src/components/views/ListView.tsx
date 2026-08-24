@@ -98,7 +98,7 @@ export default function ListView() {
               role="row"
               className={cn(
                 LIST_GRID,
-                "border-hairline text-ink-3/70 h-8 border-b text-[10px] font-medium tracking-[0.08em] uppercase",
+                "border-hairline text-ink-3/70 text-micro h-8 border-b font-medium tracking-[0.08em] uppercase",
               )}
             >
               {/* Four of the eight tracks are 20–24px of glyph or avatar, and
@@ -186,12 +186,12 @@ function GroupDivider({
     >
       <span role="rowheader" className="flex min-w-0 items-center gap-2">
         <span className={cn("size-1.5 shrink-0 rounded-full", dot)} />
-        <span className="text-ink-2 truncate text-[11px] font-semibold tracking-[0.04em] uppercase">
+        <span className="text-ink-2 text-mini truncate font-semibold tracking-[0.04em] uppercase">
           {label}
         </span>
       </span>
 
-      <span className="text-ink-3 ml-auto shrink-0 text-[11px] tabular-nums">
+      <span className="text-ink-3 text-mini ml-auto shrink-0 tabular-nums">
         {count} {count === 1 ? "task" : "tasks"}
       </span>
     </div>

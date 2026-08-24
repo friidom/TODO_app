@@ -41,7 +41,7 @@ export default function AuthField({
     <div className="flex flex-col gap-1.5">
       <label
         htmlFor={id}
-        className="text-ink-2 text-[13px] font-medium select-none"
+        className="text-ink-2 text-meta font-medium select-none"
       >
         {label}
       </label>

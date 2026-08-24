@@ -65,7 +65,7 @@ const ICONS: Record<ViewMode, LucideIcon> = {
  * sideways on a phone instead of squeezing the controls beside it.
  */
 const TAB =
-  "flex h-full min-h-12 shrink-0 items-center gap-1.5 border-b-2 px-2.5 text-[13px] transition-colors";
+  "flex h-full min-h-12 shrink-0 items-center gap-1.5 border-b-2 px-2.5 text-meta transition-colors";
 
 export default function ViewTabs({ view }: { view: BoardView }) {
   return (

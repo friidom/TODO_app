@@ -134,7 +134,7 @@ export default function BoardFilters({ view }: { view: BoardView }) {
                       type="button"
                       onClick={() => pickField(category)}
                       className={cn(
-                        "flex w-full items-center gap-2 rounded-[6px] px-2 py-1.5 text-left text-[13px] transition-colors",
+                        "text-meta flex w-full items-center gap-2 rounded-[6px] px-2 py-1.5 text-left transition-colors",
                         selected
                           ? "bg-ink/[0.07] text-ink font-medium"
                           : "text-ink-2 hover:bg-ink/[0.04] hover:text-ink",
@@ -145,7 +145,7 @@ export default function BoardFilters({ view }: { view: BoardView }) {
                       </span>
 
                       {count > 0 && (
-                        <span className="bg-brand text-brand-fg grid h-4 min-w-4 shrink-0 place-items-center rounded-full px-1 text-[10px] font-semibold">
+                        <span className="bg-brand text-brand-fg text-micro grid h-4 min-w-4 shrink-0 place-items-center rounded-full px-1 font-semibold">
                           {count}
                         </span>
                       )}
@@ -165,7 +165,7 @@ export default function BoardFilters({ view }: { view: BoardView }) {
                       onChange={(e) => setNeedle(e.target.value)}
                       placeholder={`Search ${FILTER_LABELS[field].toLowerCase()}…`}
                       aria-label={`Search ${FILTER_LABELS[field]}`}
-                      className="text-ink placeholder:text-ink-3 min-w-0 flex-1 bg-transparent text-[13px] outline-none"
+                      className="text-ink placeholder:text-ink-3 text-meta min-w-0 flex-1 bg-transparent outline-none"
                     />
                   </div>
                 )}
@@ -276,7 +276,7 @@ function OptionRow({
       onClick={onToggle}
       aria-pressed={checked}
       className={cn(
-        "flex w-full items-center gap-2 rounded-[6px] px-2 py-1.5 text-left text-[13px] transition-colors",
+        "text-meta flex w-full items-center gap-2 rounded-[6px] px-2 py-1.5 text-left transition-colors",
         checked ? "bg-brand-soft text-ink" : "text-ink-2 hover:bg-ink/[0.04]",
       )}
     >

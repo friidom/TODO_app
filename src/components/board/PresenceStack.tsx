@@ -67,7 +67,7 @@ export default function PresenceStack({ viewers }: { viewers: string[] }) {
         {shown.map(({ id, member }) => (
           <Avatar key={id} size="sm" className="ring-surface shrink-0 ring-2">
             <AvatarImage src={member?.avatar_url ?? undefined} alt="" />
-            <AvatarFallback className="bg-elevated text-ink-2 text-[10px] font-semibold">
+            <AvatarFallback className="bg-elevated text-ink-2 text-micro font-semibold">
               {/* A dash rather than a letter for someone the roster has not
                   caught up with: an initial invented from a uuid would be a
                   guess wearing the same shape as a fact. */}
@@ -78,7 +78,7 @@ export default function PresenceStack({ viewers }: { viewers: string[] }) {
       </div>
 
       {rest > 0 && (
-        <span className="text-ink-3 text-[11px] font-medium tabular-nums">
+        <span className="text-ink-3 text-mini font-medium tabular-nums">
           +{rest}
         </span>
       )}

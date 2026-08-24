@@ -53,7 +53,7 @@ export default function DueSoon({
       className={className}
       action={
         overdue > 0 ? (
-          <span className="text-status-red text-[11px] font-medium tabular-nums">
+          <span className="text-status-red text-mini font-medium tabular-nums">
             {overdue} overdue
           </span>
         ) : undefined
@@ -80,11 +80,11 @@ export default function DueSoon({
                       titles start on one edge — the same reason the list view's
                       key track is fixed. `tabular-nums` keeps KAN-9 and KAN-12
                       the same width. */}
-                  <span className="text-ink-3 w-14 shrink-0 truncate text-[11px] font-medium tabular-nums">
+                  <span className="text-ink-3 text-mini w-14 shrink-0 truncate font-medium tabular-nums">
                     {key ?? "—"}
                   </span>
 
-                  <span className="text-ink min-w-0 flex-1 truncate text-[13px]">
+                  <span className="text-ink text-meta min-w-0 flex-1 truncate">
                     {todo.title || (
                       <span className="text-ink-3/60">Untitled</span>
                     )}
@@ -96,7 +96,7 @@ export default function DueSoon({
                       past the first week. */}
                   <span
                     className={cn(
-                      "shrink-0 text-[11px] font-medium tabular-nums",
+                      "text-mini shrink-0 font-medium tabular-nums",
                       status === "overdue" && "text-status-red",
                       status === "today" && "text-status-orange",
                       status === "upcoming" && "text-ink-3",
