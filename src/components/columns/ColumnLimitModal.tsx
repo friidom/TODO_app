@@ -3,6 +3,13 @@ import { X } from "lucide-react";
 
 import { useUpdateColumn } from "@/services/columns/useUpdateColumn";
 import type { IColumn } from "@/types/data";
+import {
+  DIALOG_CANCEL,
+  DIALOG_CONFIRM,
+  DIALOG_LABEL,
+} from "@/components/ui/dialogChrome";
+import { DIALOG_TITLE } from "@/components/ui/dialogChrome";
+import { FIELD_INPUT } from "@/components/ui/fieldInput";
 
 interface Props {
   column: IColumn | null;
@@ -69,16 +76,16 @@ function ColumnLimitDialog({
     >
       <form
         onSubmit={handleSubmit}
-        className="bg-card max-h-full w-[480px] max-w-full overflow-y-auto rounded-2xl p-6 shadow-2xl"
+        className="border-hairline bg-surface rounded-surface max-h-full w-[480px] max-w-full overflow-y-auto border p-5 shadow-[0_16px_40px_-16px_rgba(0,0,0,0.5)] sm:p-6"
       >
         <div className="mb-4 flex items-start justify-between">
-          <h2 className="text-2xl font-bold">Column limit</h2>
+          <h2 className={DIALOG_TITLE}>Column limit</h2>
 
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="hover:bg-muted rounded-lg p-1"
+            className="text-ink-3 hover:bg-ink/[0.06] hover:text-ink focus-visible:ring-brand rounded-control grid size-8 shrink-0 place-items-center transition-colors outline-none focus-visible:ring-2"
           >
             <X size={20} />
           </button>
@@ -90,10 +97,7 @@ function ColumnLimitDialog({
 
         <div className="mb-2 grid grid-cols-2 gap-4">
           <div>
-            <label
-              htmlFor="column-min-limit"
-              className="mb-2 block text-sm font-medium"
-            >
+            <label htmlFor="column-min-limit" className={DIALOG_LABEL}>
               Minimum
             </label>
 
@@ -103,15 +107,12 @@ function ColumnLimitDialog({
               value={min}
               onChange={(e) => setMin(e.target.value)}
               placeholder="No limit set"
-              className="border-app focus:ring-brand w-full rounded-xl border bg-transparent px-4 py-3 outline-none focus:ring-2"
+              className={FIELD_INPUT}
             />
           </div>
 
           <div>
-            <label
-              htmlFor="column-max-limit"
-              className="mb-2 block text-sm font-medium"
-            >
+            <label htmlFor="column-max-limit" className={DIALOG_LABEL}>
               Maximum
             </label>
 
@@ -121,7 +122,7 @@ function ColumnLimitDialog({
               value={max}
               onChange={(e) => setMax(e.target.value)}
               placeholder="No limit set"
-              className="border-app focus:ring-brand w-full rounded-xl border bg-transparent px-4 py-3 outline-none focus:ring-2"
+              className={FIELD_INPUT}
             />
           </div>
         </div>
@@ -133,18 +134,14 @@ function ColumnLimitDialog({
         )}
 
         <div className="mt-8 flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="hover:bg-muted rounded-xl px-4 py-2"
-          >
+          <button type="button" onClick={onClose} className={DIALOG_CANCEL}>
             Cancel
           </button>
 
           <button
             type="submit"
             disabled={!!error || updateColumn.isPending}
-            className="bg-brand hover:bg-brand/90 text-brand-fg rounded-xl px-4 py-2 disabled:opacity-50"
+            className={DIALOG_CONFIRM}
           >
             {updateColumn.isPending ? "Saving..." : "Save"}
           </button>

@@ -112,7 +112,7 @@ export default function ForYouPage() {
           <header className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-3">
             {/* The sidebar's only way back on a narrow screen — the board's
                 copy lives in `BoardIdentity`, which this page does not have. */}
-            <SidebarTrigger className="text-ink-2 hover:bg-ink/[0.06] -ml-1 shrink-0 md:hidden" />
+            <SidebarTrigger className="coarse:size-9 text-ink-2 hover:bg-ink/[0.06] -ml-1 shrink-0 md:hidden" />
 
             <h1 className="text-ink text-xl font-semibold tracking-tight">
               For You
@@ -182,7 +182,7 @@ function NoBoards({ onCreate }: { onCreate: () => void }) {
         // `h-9 px-3.5`, matching every other primary action in the product
         // (M22) — it was `px-3 py-2`, which rendered a button a couple of
         // pixels shorter than the ones in the dialogs beside it.
-        className="bg-brand text-brand-fg hover:bg-brand/90 rounded-control focus-visible:ring-brand focus-visible:ring-offset-surface mt-4 inline-flex h-9 items-center gap-1.5 px-3.5 text-[13px] font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+        className="bg-brand text-brand-fg hover:bg-brand/90 rounded-control focus-visible:ring-brand focus-visible:ring-offset-surface text-meta mt-4 inline-flex h-9 items-center gap-1.5 px-3.5 font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
       >
         <PlusIcon className="size-4" />
         Create board

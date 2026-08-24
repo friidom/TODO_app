@@ -52,7 +52,7 @@ export default function ForYouTabs({
               aria-selected={selected}
               onClick={() => onChange(tab)}
               className={cn(
-                "flex shrink-0 items-center gap-1.5 rounded-[5px] px-2.5 text-[12.5px] leading-8 whitespace-nowrap transition-colors duration-150 outline-none",
+                "flex shrink-0 items-center gap-1.5 rounded-sm px-2.5 text-xs leading-8 whitespace-nowrap transition-colors duration-150 outline-none",
                 "focus-visible:ring-brand focus-visible:ring-2",
                 selected
                   ? HEADER_CONTROL_ACTIVE
@@ -64,7 +64,7 @@ export default function ForYouTabs({
               {count > 0 && (
                 <span
                   className={cn(
-                    "rounded px-1 text-[10px] leading-4 font-semibold tabular-nums",
+                    "rounded px-1 text-micro leading-4 font-semibold tabular-nums",
                     selected
                       ? "bg-brand text-brand-fg"
                       : "bg-ink/[0.08] text-ink-3",

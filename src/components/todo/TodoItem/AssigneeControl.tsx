@@ -65,13 +65,13 @@ export default function AssigneeControl({
           "shrink-0 rounded-full transition-opacity",
           !assigneeId &&
             !alwaysVisible &&
-            "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
+            "coarse:opacity-100 opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
         )}
       >
         {assignee ? (
           <Avatar size="sm">
             <AvatarImage src={assignee.avatar_url ?? undefined} alt="" />
-            <AvatarFallback className="bg-ink/10 text-ink-2 text-[10px] font-semibold">
+            <AvatarFallback className="bg-ink/10 text-ink-2 text-micro font-semibold">
               {memberInitial(assignee)}
             </AvatarFallback>
           </Avatar>
@@ -95,7 +95,7 @@ export default function AssigneeControl({
             {...panelProps}
             className="border-hairline bg-elevated rounded-card z-50 w-60 overflow-hidden border p-1 shadow-[0_8px_24px_rgba(0,0,0,0.24)]"
           >
-            <p className="text-ink-3 px-2 py-1.5 text-[11px] font-semibold tracking-wide uppercase">
+            <p className="text-ink-3 text-mini px-2 py-1.5 font-semibold tracking-wide uppercase">
               Assignee
             </p>
 

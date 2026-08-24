@@ -127,7 +127,7 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
         role="dialog"
         aria-modal="true"
         aria-label="Invite people"
-        className="bg-card max-h-full w-[560px] max-w-full overflow-y-auto rounded-2xl p-7 shadow-2xl"
+        className="border-hairline bg-surface rounded-surface max-h-full w-[560px] max-w-full overflow-y-auto border p-5 shadow-[0_16px_40px_-16px_rgba(0,0,0,0.5)] sm:p-6"
       >
         <div className="mb-1 flex items-start justify-between gap-4">
           <h2 className="text-ink text-xl font-bold">Invite people</h2>
@@ -299,7 +299,7 @@ function CreatedLink({ invite }: { invite: CreatedInvite }) {
           readOnly
           value={inviteUrl(invite.token, window.location.origin)}
           onFocus={(e) => e.currentTarget.select()}
-          className="border-hairline bg-card text-ink-2 min-w-0 flex-1 rounded-md border px-2.5 py-1.5 text-xs"
+          className="border-hairline bg-canvas text-ink-2 rounded-control min-w-0 flex-1 border px-2.5 py-1.5 text-xs"
         />
 
         <button

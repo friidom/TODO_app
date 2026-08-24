@@ -60,7 +60,7 @@ export default function InviteActions({
 
   if (!invite) {
     return (
-      <p className="text-ink-3 mt-1.5 text-[11px]">
+      <p className="text-ink-3 text-mini mt-1.5">
         This invitation is no longer available.
       </p>
     );
@@ -81,7 +81,7 @@ export default function InviteActions({
             });
           }}
           className={cn(
-            "bg-brand text-brand-fg hover:bg-brand/90 focus-visible:ring-brand rounded-control inline-flex h-7 items-center gap-1.5 px-2.5 text-[12px] font-medium transition-colors outline-none focus-visible:ring-2",
+            "bg-brand text-brand-fg hover:bg-brand/90 focus-visible:ring-brand rounded-control inline-flex h-7 items-center gap-1.5 px-2.5 text-xs font-medium transition-colors outline-none focus-visible:ring-2",
             "disabled:cursor-not-allowed disabled:opacity-60",
           )}
         >
@@ -101,7 +101,7 @@ export default function InviteActions({
           // it the destructive treatment would put it at the same weight as
           // deleting a board.
           className={cn(
-            "text-ink-2 hover:bg-ink/[0.06] hover:text-ink focus-visible:ring-brand rounded-control inline-flex h-7 items-center gap-1.5 px-2.5 text-[12px] font-medium transition-colors outline-none focus-visible:ring-2",
+            "text-ink-2 hover:bg-ink/[0.06] hover:text-ink focus-visible:ring-brand rounded-control inline-flex h-7 items-center gap-1.5 px-2.5 text-xs font-medium transition-colors outline-none focus-visible:ring-2",
             "disabled:cursor-not-allowed disabled:opacity-60",
           )}
         >
@@ -111,7 +111,7 @@ export default function InviteActions({
       </div>
 
       {error && (
-        <p role="alert" className="text-status-red mt-1.5 text-[11px]">
+        <p role="alert" className="text-status-red text-mini mt-1.5">
           {/* Mapped, never raw: `inviteErrorMessage` turns the RPC's SQLSTATE
               into a sentence and logs the code. It is the same mapper the
               /invite/:token page uses, so both doorways to one invitation

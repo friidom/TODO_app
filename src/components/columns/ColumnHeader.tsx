@@ -136,11 +136,11 @@ export default function ColumnHeader({
             still earns the weight: the transition state above. */}
         <span className={cn("size-2 shrink-0 rounded-full", category.dot)} />
 
-        <h2 className="text-ink truncate text-[12.5px] font-semibold tracking-[0.06em] uppercase">
+        <h2 className="text-ink truncate text-xs font-semibold tracking-[0.06em] uppercase">
           {headerTitle}
         </h2>
 
-        <span className="bg-ink/[0.08] text-ink-3 grid h-5 min-w-5 shrink-0 place-items-center rounded-full px-1.5 text-[11px] font-semibold">
+        <span className="bg-ink/[0.08] text-ink-3 text-mini grid h-5 min-w-5 shrink-0 place-items-center rounded-full px-1.5 font-semibold">
           {count}
         </span>
       </button>
@@ -160,7 +160,7 @@ export default function ColumnHeader({
             "flex items-center gap-1 transition-opacity duration-150",
             menuOpen
               ? "opacity-100"
-              : "pointer-events-none opacity-0 group-focus-within/header:pointer-events-auto group-focus-within/header:opacity-100 group-hover/header:pointer-events-auto group-hover/header:opacity-100",
+              : "coarse:pointer-events-auto coarse:opacity-100 pointer-events-none opacity-0 group-focus-within/header:pointer-events-auto group-focus-within/header:opacity-100 group-hover/header:pointer-events-auto group-hover/header:opacity-100",
           )}
         >
           {/* The same `openAt(todos.length)` the dashed button at the foot of
@@ -174,7 +174,7 @@ export default function ColumnHeader({
               onClick={onAdd}
               aria-label={`Add a card to ${headerTitle}`}
               title="Add a card"
-              className="text-ink-2 hover:bg-ink/10 hover:text-ink rounded p-1 transition-colors"
+              className="text-ink-2 hover:bg-ink/10 hover:text-ink coarse:size-8 coarse:p-0 coarse:grid coarse:place-items-center rounded p-1 transition-colors"
             >
               <Plus size={15} />
             </button>
@@ -185,7 +185,7 @@ export default function ColumnHeader({
             onClick={onCollapse}
             aria-label="Collapse column"
             title="Collapse column"
-            className="text-ink-2 hover:bg-ink/10 hover:text-ink rounded p-1 transition-colors"
+            className="text-ink-2 hover:bg-ink/10 hover:text-ink coarse:size-8 coarse:p-0 coarse:grid coarse:place-items-center rounded p-1 transition-colors"
           >
             <CollapseIcon />
           </button>

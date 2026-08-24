@@ -34,7 +34,7 @@ export default function ColumnMenu({
     <DropdownMenu open={open} onOpenChange={onOpenChange}>
       <DropdownMenuTrigger
         aria-label="Column actions"
-        className="rounded p-1 text-ink-2 outline-none hover:bg-ink/10 focus-visible:ring-2 focus-visible:ring-brand"
+        className="text-ink-2 hover:bg-ink/10 focus-visible:ring-brand coarse:size-8 coarse:p-0 coarse:grid coarse:place-items-center rounded p-1 outline-none focus-visible:ring-2"
       >
         <MoreHorizontal size={18} />
       </DropdownMenuTrigger>

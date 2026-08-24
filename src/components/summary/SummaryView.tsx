@@ -346,7 +346,7 @@ function Metric({
     <div className="bg-surface flex min-w-0 flex-col gap-1 px-3.5 py-2.5">
       <p
         className={cn(
-          "text-[20px] leading-none font-semibold tabular-nums",
+          "text-xl leading-none font-semibold tabular-nums",
           tone ? TONES[tone] : "text-ink",
         )}
       >
@@ -356,9 +356,7 @@ function Metric({
       <div className="text-ink-3 flex min-w-0 items-center gap-1.5">
         <Icon className="size-3 shrink-0" />
 
-        <span className="min-w-0 truncate text-[11px] font-medium">
-          {label}
-        </span>
+        <span className="text-mini min-w-0 truncate font-medium">{label}</span>
       </div>
     </div>
   );

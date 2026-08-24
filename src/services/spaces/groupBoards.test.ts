@@ -123,4 +123,64 @@ describe("groupBoardsBySpace", () => {
 
     expect(groups[0].boards.map((b) => b.id)).toEqual(["1", "2"]);
   });
+  it("puts a new account's board in its real default space, not the synthetic group", () => {
+    // M23: `provision_user` creates a real `spaces` row ("My Space", M23-02)
+    // and files the new board into it. The contract this pins is the one that
+    // makes the ⋯ menu possible at all — the group must carry a space object,
+    // because Rename and Delete need a row to target. Before M23 the default
+    // board was `space_id: null` and landed in the synthetic group, which has
+    // no row and therefore no menu.
+    const mine = space("dddddddd-dddd-4ddd-8ddd-dddddddddddd", "My Space");
+
+    const groups = groupBoardsBySpace(
+      [board("1", "My Board", mine.id)],
+      [mine],
+    );
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].space).not.toBeNull();
+    expect(groups[0].space?.id).toBe(mine.id);
+    expect(groups[0].boards.map((b) => b.title)).toEqual(["My Board"]);
+  });
+
+  it("returns the default space's boards to unfiled when it is deleted", () => {
+    // `boards.space_id` is `on delete set null`, so deleting a space unfiles
+    // its boards rather than cascading to them. That is what makes Delete safe
+    // to offer on the default space: it is precisely reversible, and no board
+    // is lost.
+    const mine = space("dddddddd-dddd-4ddd-8ddd-dddddddddddd", "My Space");
+    const boards = [
+      board("1", "My Board", mine.id),
+      board("2", "Notes", mine.id),
+    ];
+
+    const before = groupBoardsBySpace(boards, [mine]);
+    expect(before[0].boards).toHaveLength(2);
+
+    // What the client sees after the delete: the space row is gone and the
+    // rows come back with a null space_id.
+    const after = groupBoardsBySpace(
+      boards.map((b) => ({ ...b, space_id: null })),
+      [],
+    );
+
+    expect(after).toHaveLength(1);
+    expect(after[0].space).toBeNull();
+    expect(after[0].boards.map((b) => b.title)).toEqual(["My Board", "Notes"]);
+  });
+
+  it("gives the default space no special ordering", () => {
+    // It is a space like any other once it exists — renameable, deletable, and
+    // sorted by title. Pinning this stops anyone reintroducing a "default is
+    // always first" rule that would then disagree with the user's own rename.
+    const mine = space("dddddddd-dddd-4ddd-8ddd-dddddddddddd", "My Space");
+
+    const groups = groupBoardsBySpace([], [mine, work, personal]);
+
+    expect(groups.map((g) => g.space?.title)).toEqual([
+      "My Space",
+      "Personal",
+      "Work",
+    ]);
+  });
 });

@@ -5,6 +5,16 @@ import Modal from "@/components/ui/Modal";
 import { useDeleteBoard } from "@/services/boards/useDeleteBoard";
 import { confirmLabel, confirmMatches } from "@/services/boards/deleteConfirm";
 import type { IBoard } from "@/types/data";
+import {
+  DIALOG_ACTIONS,
+  DIALOG_BODY,
+  DIALOG_CANCEL,
+  DIALOG_DANGER,
+  DIALOG_ERROR,
+  DIALOG_LABEL,
+  DIALOG_TITLE,
+} from "@/components/ui/dialogChrome";
+import { FIELD_INPUT } from "@/components/ui/fieldInput";
 
 /**
  * Delete a board, behind a typed confirmation (M8-03).
@@ -54,21 +64,16 @@ export default function DeleteBoardModal({
   return (
     <Modal title="Delete board" onClose={onClose} width="w-[480px]">
       <form onSubmit={handleSubmit}>
-        <h2 className="text-status-red mb-4 text-2xl font-bold">
-          Delete this board?
-        </h2>
+        <h2 className={`${DIALOG_TITLE} mb-3`}>Delete this board?</h2>
 
-        <p className="text-ink-2 mb-5 text-[15px]">
+        <p className={`${DIALOG_BODY} mb-5`}>
           <span className="text-ink font-semibold">{label}</span> and everything
           in it — every column, every work item, every membership and every
           pending invitation — is deleted for everyone on it. This cannot be
           undone.
         </p>
 
-        <label
-          htmlFor="board-confirm"
-          className="mb-2 block text-sm font-medium"
-        >
+        <label htmlFor="board-confirm" className={DIALOG_LABEL}>
           Type <span className="text-ink font-semibold">{label}</span> to
           confirm
         </label>
@@ -79,29 +84,25 @@ export default function DeleteBoardModal({
           value={typed}
           onChange={(e) => setTyped(e.target.value)}
           autoComplete="off"
-          className="border-app focus:ring-status-red mb-6 w-full rounded-xl border bg-transparent px-4 py-3 outline-none focus:ring-2"
+          className={`${FIELD_INPUT} focus:border-status-red/60 focus:ring-status-red/25 mb-6`}
           placeholder={label}
         />
 
         {deleteBoard.error && (
-          <p className="bg-status-red/15 text-status-red mb-4 rounded-xl px-4 py-3 text-sm">
+          <p className={`${DIALOG_ERROR} mt-0 mb-4`}>
             {deleteBoard.error.message}
           </p>
         )}
 
-        <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="hover:bg-muted rounded-xl px-4 py-2"
-          >
+        <div className={DIALOG_ACTIONS}>
+          <button type="button" onClick={onClose} className={DIALOG_CANCEL}>
             Cancel
           </button>
 
           <button
             type="submit"
             disabled={!matches || deleteBoard.isPending}
-            className="bg-status-red rounded-xl px-4 py-2 text-white hover:opacity-90 disabled:opacity-50"
+            className={DIALOG_DANGER}
           >
             {deleteBoard.isPending ? "Deleting..." : "Delete board"}
           </button>

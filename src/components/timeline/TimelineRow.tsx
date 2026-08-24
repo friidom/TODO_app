@@ -235,22 +235,22 @@ export function RowRail({
       type="button"
       onClick={onOpen}
       title={todo.title ?? undefined}
-      className="border-hairline bg-surface group-hover:bg-elevated focus-visible:ring-brand sticky left-0 z-10 flex w-60 shrink-0 items-center gap-1.5 border-r px-3 text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset"
+      className="border-hairline bg-surface group-hover:bg-elevated focus-visible:ring-brand sticky left-0 z-10 flex w-40 shrink-0 items-center gap-1.5 border-r px-3 text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset md:w-60"
     >
       <TypeIcon className={cn("size-3.5 shrink-0", type.tone)} />
 
       {key && (
-        <span className="text-ink-3/80 shrink-0 text-[10px] font-medium tabular-nums">
+        <span className="text-ink-3/80 text-micro shrink-0 font-medium tabular-nums">
           {key}
         </span>
       )}
 
-      <span className="text-ink min-w-0 flex-1 truncate text-[12.5px]">
+      <span className="text-ink min-w-0 flex-1 truncate text-xs">
         {todo.title || <span className="text-ink-3/60">Untitled</span>}
       </span>
 
       {hint ? (
-        <span className="text-ink-3/70 hidden shrink-0 text-[10px] group-hover:inline">
+        <span className="text-ink-3/70 text-micro hidden shrink-0 group-hover:inline">
           {hint}
         </span>
       ) : (

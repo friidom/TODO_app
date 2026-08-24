@@ -60,12 +60,12 @@ export default function SummaryCard({
     >
       <header className="flex items-baseline gap-3 px-3.5 pt-2.5 pb-2">
         <div className="min-w-0 flex-1">
-          <h2 className="text-ink truncate text-[12px] font-semibold tracking-tight">
+          <h2 className="text-ink truncate text-xs font-semibold tracking-tight">
             {title}
           </h2>
 
           {hint && (
-            <p className="text-ink-3 mt-0.5 truncate text-[11px]">{hint}</p>
+            <p className="text-ink-3 text-mini mt-0.5 truncate">{hint}</p>
           )}
         </div>
 
@@ -151,7 +151,7 @@ export function DistributionRow({
 
       {/* Fixed width whether or not it is filled, so the counts stay in one
           column across widgets that do and do not report a share. */}
-      <span className="text-ink-3 w-8 shrink-0 text-right text-[11px] tabular-nums">
+      <span className="text-ink-3 text-mini w-8 shrink-0 text-right tabular-nums">
         {share === undefined ? "" : `${Math.round(share)}%`}
       </span>
     </div>

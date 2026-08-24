@@ -106,7 +106,7 @@ export default function BoardsSection() {
               aria-expanded={sectionOpen}
             />
           }
-          className="text-ink-3 hover:text-ink-2 group/label flex w-full items-center gap-1 text-[10px] font-semibold tracking-[0.12em] uppercase transition-colors"
+          className="text-ink-3 hover:text-ink-2 group/label text-micro flex w-full items-center gap-1 font-semibold tracking-[0.12em] uppercase transition-colors"
         >
           <ChevronRightIcon
             className={cn(
@@ -125,9 +125,7 @@ export default function BoardsSection() {
         >
           {isPending && (
             <SidebarMenuItem>
-              <span className="text-ink-3 px-2 py-1.5 text-[13px]">
-                Loading…
-              </span>
+              <span className="text-ink-3 text-meta px-2 py-1.5">Loading…</span>
             </SidebarMenuItem>
           )}
 
@@ -164,7 +162,7 @@ export default function BoardsSection() {
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={() => setDialog({ kind: "create-board", spaceId: null })}
-              className="text-ink-3 hover:text-ink h-8 text-[13px]"
+              className="text-ink-3 hover:text-ink text-meta h-8"
             >
               <PlusIcon className="size-4 shrink-0" />
               <span>New board</span>
@@ -174,7 +172,7 @@ export default function BoardsSection() {
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={() => setDialog({ kind: "create-space" })}
-              className="text-ink-3 hover:text-ink h-8 text-[13px]"
+              className="text-ink-3 hover:text-ink text-meta h-8"
             >
               <FolderPlusIcon className="size-4 shrink-0" />
               <span>Create space</span>
@@ -215,12 +213,12 @@ export default function BoardsSection() {
 /**
  * One space heading and the boards under it.
  *
- * `space === null` is the synthetic group — the boards that are in no space of
- * *yours*. Since M23 that no longer means "your default folder": every account
- * gets a real space called Unfiled, so what falls through to here is a board
- * you cannot file, which in practice means one shared with you (its `space_id`
- * names its owner's space, which your RLS cannot read). It is labelled for what
- * it now is, and it has no ⋯ because there is still no row behind it.
+ * `space === null` is the synthetic group, and since M23 it means exactly what
+ * it says: unfiled. Every account gets a real default space called "My Space"
+ * (M23-02 renamed it from "Unfiled" precisely so the two could not be confused
+ * in the same list), so what falls through to here is a board you cannot file —
+ * in practice one shared with you, whose `space_id` names its owner's space and
+ * your RLS cannot read that row. No ⋯, because there is no row behind it.
  */
 function SpaceRow({
   space,
@@ -245,8 +243,8 @@ function SpaceRow({
             type="button"
             onClick={onToggle}
             aria-expanded={!collapsed}
-            aria-label={`${collapsed ? "Expand" : "Collapse"} ${space?.title ?? "Not in a space"}`}
-            className="hover:text-ink shrink-0 rounded p-0.5 transition-colors duration-150"
+            aria-label={`${collapsed ? "Expand" : "Collapse"} ${space?.title ?? "Unfiled"}`}
+            className="hover:text-ink coarse:size-8 coarse:p-0 coarse:grid coarse:place-items-center shrink-0 rounded p-0.5 transition-colors duration-150"
           >
             <ChevronRightIcon
               className={cn(
@@ -261,22 +259,20 @@ function SpaceRow({
               that, and it stays on-palette — the reference's per-space colours
               would mean inventing a colour assignment the data does not carry. */}
           {space ? (
-            <span className="bg-brand-soft text-brand grid size-4.5 shrink-0 place-items-center rounded text-[10px] font-bold">
+            <span className="bg-brand-soft text-brand text-micro grid size-4.5 shrink-0 place-items-center rounded font-bold">
               {space.title.trim().charAt(0).toUpperCase()}
             </span>
           ) : (
             <FolderIcon className="text-ink-3 size-3.5 shrink-0" />
           )}
 
-          <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">
-            {space ? space.title : "Not in a space"}
+          <span className="text-meta min-w-0 flex-1 truncate font-semibold">
+            {space ? space.title : "Unfiled"}
           </span>
 
           <button
             type="button"
-            title={
-              space ? `New board in ${space.title}` : "New board, in no space"
-            }
+            title={space ? `New board in ${space.title}` : "New board, unfiled"}
             onClick={() =>
               onDialog({ kind: "create-board", spaceId: space?.id ?? null })
             }
@@ -284,11 +280,11 @@ function SpaceRow({
             // pointer-only affordance is unreachable on a touch screen — there
             // is no hover to trigger it — so the only way to add a board inside
             // a space on a phone was not to.
-            className="hover:text-ink rounded p-0.5 transition-opacity duration-150 max-md:opacity-100 md:opacity-0 md:group-focus-within/space:opacity-100 md:group-hover/space:opacity-100"
+            className="hover:text-ink coarse:size-8 coarse:p-0 coarse:grid coarse:place-items-center rounded p-0.5 transition-opacity duration-150 max-md:opacity-100 md:opacity-0 md:group-focus-within/space:opacity-100 md:group-hover/space:opacity-100"
           >
             <PlusIcon className="size-3.5" />
             <span className="sr-only">
-              {space ? `New board in ${space.title}` : "New board, in no space"}
+              {space ? `New board in ${space.title}` : "New board, unfiled"}
             </span>
           </button>
 
@@ -307,7 +303,7 @@ function SpaceRow({
                   // board row, where the list is long and the menu is a
                   // repeat-per-item; a space heading appears a handful of times
                   // and its menu is the only way to manage the space at all.
-                  className="hover:text-ink hover:bg-ink/[0.06] rounded p-0.5 transition-colors duration-150"
+                  className="hover:text-ink hover:bg-ink/[0.06] coarse:size-8 coarse:p-0 coarse:grid coarse:place-items-center rounded p-0.5 transition-colors duration-150"
                 >
                   <MoreHorizontalIcon className="size-3.5" />
                 </DropdownMenuTrigger>
@@ -347,7 +343,7 @@ function SpaceRow({
         <div className="border-hairline motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-1 ml-[1.1rem] border-l pl-1 motion-safe:duration-150">
           {boards.length === 0 ? (
             <SidebarMenuItem>
-              <span className="text-ink-3 block px-2 py-1 pl-3 text-[13px] italic">
+              <span className="text-ink-3 text-meta block px-2 py-1 pl-3 italic">
                 {space ? "No boards" : "Nothing here"}
               </span>
             </SidebarMenuItem>

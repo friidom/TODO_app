@@ -52,7 +52,7 @@ export default function CollapsedColumn({
         className="flex min-h-0 cursor-grab touch-none flex-col items-center gap-3 select-none active:cursor-grabbing"
       >
         <h2
-          className="text-ink truncate text-[15px] font-semibold"
+          className="text-ink truncate text-sm font-semibold"
           style={{ writingMode: "vertical-rl" }}
         >
           {headerTitle}

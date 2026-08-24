@@ -68,7 +68,7 @@ export default function TodoMenu({
         type="button"
         {...triggerProps}
         aria-label="Card actions"
-        className="text-ink-3 hover:bg-ink/10 hover:text-ink rounded-md p-1 transition-colors"
+        className="text-ink-3 hover:bg-ink/10 hover:text-ink coarse:size-8 coarse:p-0 coarse:grid coarse:place-items-center rounded-md p-1 transition-colors"
       >
         <MoreHorizontal size={15} />
       </button>

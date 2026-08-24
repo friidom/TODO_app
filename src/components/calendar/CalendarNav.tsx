@@ -79,7 +79,7 @@ export default function CalendarNav({
       {/* `min-w-0` and no truncation: the label is short in every locale the
           product ships, and reserving nothing for it lets the segmented control
           sit immediately after rather than at a fixed offset. */}
-      <h2 className="text-ink min-w-0 text-[15px] font-semibold tracking-tight">
+      <h2 className="text-ink min-w-0 text-sm font-semibold tracking-tight">
         {label}
       </h2>
 
@@ -101,7 +101,7 @@ export default function CalendarNav({
               onClick={() => view.setLayout(layout)}
               aria-pressed={selected}
               className={cn(
-                "rounded-[6px] px-2.5 py-1 text-[13px] capitalize transition-colors duration-150 outline-none",
+                "text-meta rounded-[6px] px-2.5 py-1 capitalize transition-colors duration-150 outline-none",
                 "focus-visible:ring-brand focus-visible:ring-2",
                 selected
                   ? HEADER_CONTROL_ACTIVE

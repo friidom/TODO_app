@@ -69,13 +69,13 @@ export default function StartDateControl({
         title={label}
         aria-label={label}
         className={cn(
-          "flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium transition-colors",
+          "text-mini flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 font-medium transition-colors",
           startDate
             ? "text-ink-2 hover:bg-ink/10"
             : "text-ink-3 hover:bg-ink/10 hover:text-ink-2",
           !startDate &&
             !alwaysVisible &&
-            "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
+            "coarse:opacity-100 opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
         )}
       >
         {/* The glyph stays even once a date is set, unlike the due date's: this

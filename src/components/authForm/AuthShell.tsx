@@ -41,7 +41,7 @@ export default function AuthShell({
             <SquareKanbanIcon className="size-[18px]" />
           </span>
           <span className="text-ink font-wordmark text-xl font-semibold tracking-tight">
-            KAN
+            Veylo
           </span>
         </div>
 

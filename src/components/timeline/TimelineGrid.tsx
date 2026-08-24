@@ -209,7 +209,7 @@ export default function TimelineGrid({
                       gridColumn: `${band.index + 1} / span ${band.span}`,
                     }}
                     className={cn(
-                      "border-hairline flex items-center truncate border-l px-2 text-[11px] tracking-tight first:border-l-0",
+                      "border-hairline text-mini flex items-center truncate border-l px-2 tracking-tight first:border-l-0",
                       // The month you are in, named louder than the ones you
                       // are looking towards. One weight change, no fill — a
                       // tinted band across six columns would compete with the
@@ -243,7 +243,7 @@ export default function TimelineGrid({
                     <div
                       key={day}
                       className={cn(
-                        "flex items-center justify-center text-[10px] tabular-nums",
+                        "text-micro flex items-center justify-center tabular-nums",
                         monthStarts.has(index) && index > 0
                           ? "border-hairline border-l"
                           : "",
@@ -356,7 +356,7 @@ export default function TimelineGrid({
  */
 function HeaderRail() {
   return (
-    <div className="border-hairline bg-canvas sticky left-0 z-10 w-60 shrink-0 border-r" />
+    <div className="border-hairline bg-canvas sticky left-0 z-10 w-40 shrink-0 border-r md:w-60" />
   );
 }
 
@@ -424,7 +424,7 @@ function Undated({
           type="button"
           onClick={() => setOpen((it) => !it)}
           aria-expanded={open}
-          className="text-ink-2 hover:text-ink focus-visible:ring-brand sticky left-0 flex w-60 shrink-0 items-center gap-1.5 px-3 text-left text-[11px] font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset"
+          className="text-ink-2 hover:text-ink focus-visible:ring-brand text-mini sticky left-0 flex w-40 shrink-0 items-center gap-1.5 px-3 text-left font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset md:w-60"
         >
           <ChevronRightIcon
             className={cn(

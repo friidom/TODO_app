@@ -82,7 +82,7 @@ function NavItem({ item }: { item: Item }) {
         >
           <Icon className="size-[18px] shrink-0" />
           <span>{item.label}</span>
-          <span className="bg-elevated text-ink-3/80 ml-auto rounded px-1.5 py-0.5 text-[10px] font-medium">
+          <span className="bg-elevated text-ink-3/80 text-micro ml-auto rounded px-1.5 py-0.5 font-medium">
             Soon
           </span>
         </SidebarMenuButton>
@@ -132,7 +132,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           {/* The one place Josefin Sans survives (M17): a display face belongs
               on a logotype and nowhere near 12px board text. */}
           <span className="text-ink font-wordmark text-base font-semibold tracking-tight">
-            KAN
+            Veylo
           </span>
         </div>
 
@@ -183,10 +183,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             )}
 
             <span className="min-w-0 flex-1">
-              <span className="text-ink block truncate text-[13px] font-medium">
+              <span className="text-ink text-meta block truncate font-medium">
                 {profile?.username || "Account"}
               </span>
-              <span className="text-ink-3 block truncate text-[11px]">
+              <span className="text-ink-3 text-mini block truncate">
                 {profile?.email}
               </span>
             </span>

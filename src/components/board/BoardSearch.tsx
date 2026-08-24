@@ -74,7 +74,7 @@ export default function BoardSearch({ view }: { view: BoardView }) {
         // of a query makes you re-read what you typed. It keeps growing past
         // `lg` because the toolbar's other four controls are fixed-width, so
         // every pixel a wide screen adds would otherwise become empty gap.
-        "w-44 md:w-56 lg:w-72 2xl:w-96",
+        "min-w-0 flex-1 md:w-56 md:flex-none lg:w-72 2xl:w-96",
         // Once it is holding a query it is a decision like the others, so it
         // takes the same active treatment they do.
         active && HEADER_CONTROL_ACTIVE,

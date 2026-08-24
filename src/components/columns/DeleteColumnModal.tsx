@@ -12,6 +12,14 @@ import { useDeleteColumn } from "@/services/columns/useDeleteColumn";
 import { categoryOf, columnTitle } from "@/constants/columns";
 import { cn } from "@/utils/cn";
 import type { IColumn } from "@/types/data";
+import {
+  DIALOG_ACTIONS,
+  DIALOG_BODY,
+  DIALOG_CANCEL,
+  DIALOG_DANGER,
+  DIALOG_ERROR,
+  DIALOG_TITLE,
+} from "@/components/ui/dialogChrome";
 
 const PILL =
   "truncate rounded px-1.5 py-0.5 text-xs font-bold tracking-wide uppercase";
@@ -73,10 +81,10 @@ function DeleteColumnDialog({
     >
       <form
         onSubmit={handleSubmit}
-        className="bg-card max-h-full w-[640px] max-w-full overflow-y-auto rounded-2xl p-8 shadow-2xl"
+        className="border-hairline bg-surface rounded-surface max-h-full w-[640px] max-w-full overflow-y-auto border p-5 shadow-[0_16px_40px_-16px_rgba(0,0,0,0.5)] sm:p-6"
       >
         <div className="mb-5 flex items-start justify-between gap-4">
-          <h2 className="text-ink flex items-center gap-4 text-2xl font-bold">
+          <h2 className={`${DIALOG_TITLE} flex items-center gap-2.5`}>
             <DangerDiamond />
             Move work from {columnTitle(column.title)} column
           </h2>
@@ -91,78 +99,93 @@ function DeleteColumnDialog({
           </button>
         </div>
 
-        <p className="text-ink-2 mb-8 text-[15px]">
+        <p className={`${DIALOG_BODY} mb-6`}>
           Select a new home for any work with the &quot;
           {columnTitle(column.title)}&quot; status.
         </p>
 
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-x-5 gap-y-3">
-          <p className="text-ink text-sm font-semibold">
-            This status will be deleted
-          </p>
+        {/* Each side is a labelled cell rather than two rows of a 3x2 grid, so
+            the stacked layout below `sm` reads "from -> to" instead of putting
+            both labels together and both values together. */}
+        <div className="grid grid-cols-1 gap-y-4 sm:grid-cols-[1fr_auto_1fr] sm:items-end sm:gap-x-5 sm:gap-y-0">
+          <div className="min-w-0">
+            <p className="text-ink text-meta mb-2 font-semibold">
+              This status will be deleted
+            </p>
 
-          <span aria-hidden="true" />
+            <span
+              className={cn(
+                PILL,
+                "inline-block max-w-full",
+                categoryOf(column.category).pill,
+              )}
+            >
+              {columnTitle(column.title)}
+            </span>
+          </div>
 
-          <p className="text-ink text-sm font-semibold">
-            Work will be moved to
-          </p>
+          <ArrowRight
+            className="text-ink-3 shrink-0 justify-self-center max-sm:rotate-90 sm:mb-1"
+            size={20}
+            aria-hidden="true"
+          />
 
-          <span
-            className={cn(
-              PILL,
-              "justify-self-start",
-              categoryOf(column.category).pill,
-            )}
-          >
-            {columnTitle(column.title)}
-          </span>
+          <div className="min-w-0">
+            <p className="text-ink text-meta mb-2 font-semibold">
+              Work will be moved to
+            </p>
 
-          <ArrowRight className="text-ink shrink-0" size={22} />
+            <DropdownMenu>
+              <DropdownMenuTrigger className="border-hairline bg-canvas focus-visible:border-brand focus-visible:ring-brand/30 data-[popup-open]:border-brand rounded-control flex w-full items-center gap-2 border px-3 py-2 text-left outline-none focus-visible:ring-2">
+                <span
+                  className={cn(
+                    PILL,
+                    "min-w-0",
+                    categoryOf(selected.category).pill,
+                  )}
+                >
+                  {columnTitle(selected.title)}
+                </span>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger className="border-hairline focus-visible:border-brand focus-visible:ring-brand data-[popup-open]:border-brand data-[popup-open]:ring-brand flex w-full items-center gap-2 rounded-md border bg-transparent px-3 py-3.5 text-left outline-none focus-visible:ring-1 data-[popup-open]:ring-1">
-              <span className={cn(PILL, categoryOf(selected.category).pill)}>
-                {columnTitle(selected.title)}
-              </span>
+                <ChevronDown
+                  size={16}
+                  className="text-ink-3 ml-auto shrink-0"
+                />
+              </DropdownMenuTrigger>
 
-              <ChevronDown size={18} className="text-ink-2 ml-auto shrink-0" />
-            </DropdownMenuTrigger>
-
-            <DropdownMenuContent>
-              <DropdownMenuRadioGroup value={target} onValueChange={setTarget}>
-                {destinations.map((option) => (
-                  <DropdownMenuRadioItem key={option.id} value={option.id}>
-                    <span
-                      className={cn(PILL, categoryOf(option.category).pill)}
-                    >
-                      {columnTitle(option.title)}
-                    </span>
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              <DropdownMenuContent>
+                <DropdownMenuRadioGroup
+                  value={target}
+                  onValueChange={setTarget}
+                >
+                  {destinations.map((option) => (
+                    <DropdownMenuRadioItem key={option.id} value={option.id}>
+                      <span
+                        className={cn(PILL, categoryOf(option.category).pill)}
+                      >
+                        {columnTitle(option.title)}
+                      </span>
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
         {deleteColumn.error && (
-          <p className="bg-status-red/15 text-status-red mt-6 rounded-md px-4 py-3 text-sm">
-            {deleteColumn.error.message}
-          </p>
+          <p className={DIALOG_ERROR}>{deleteColumn.error.message}</p>
         )}
 
-        <div className="mt-10 flex items-center justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-ink hover:bg-ink/10 rounded-md px-4 py-2.5 text-[17px]"
-          >
+        <div className={DIALOG_ACTIONS}>
+          <button type="button" onClick={onClose} className={DIALOG_CANCEL}>
             Cancel
           </button>
 
           <button
             type="submit"
             disabled={deleteColumn.isPending}
-            className="bg-status-red hover:bg-status-red/85 rounded-md px-5 py-2.5 text-[17px] font-medium text-white disabled:opacity-50"
+            className={DIALOG_DANGER}
           >
             {deleteColumn.isPending ? "Deleting..." : "Delete"}
           </button>
