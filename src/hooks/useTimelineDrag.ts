@@ -15,55 +15,40 @@ import {
 } from "@/services/views/timelineDrag";
 
 /**
- * Planning gestures on the axis: move a bar, drag an end, draw a new range
- * (M20-B).
+ * Planning gestures on the axis: move a bar, drag an end, draw a new range.
  *
- * **Pointer events rather than `@dnd-kit`, and the reason is what the two
- * libraries answer.** The board's DnD resolves *which gap between which two
- * cards*; the calendar's resolves *which day cell*. Both are discrete drop
- * targets, and a droppable is the right shape for them. A Gantt gesture is not
- * discrete: the bar's **width** has to follow the pointer, which means the
- * answer is a continuous position on one axis rather than a target that was
- * hit. Expressing it as droppables would mean 42 of them per row, measured on
- * every drag, to recover a number that is one division of the track.
+ * Pointer events rather than @dnd-kit, because a Gantt gesture isn't discrete.
+ * The board's DnD resolves which gap between two cards, the calendar's resolves
+ * which day cell — both are drop targets. Here the bar's *width* follows the
+ * pointer, so the answer is a continuous position on one axis. Droppables would
+ * mean 42 per row, measured every drag, to recover one division of the track.
  *
- * So this is the timeline's own gesture layer — but it is *not* a second
- * drag-and-drop architecture, because it introduces no drop targets, no
- * collision detection and no overlay. It reads the axis this view already
- * defines (`timelineTicks`, `TIMELINE_WINDOW`) and commits through the mutation
- * hook every other date control already uses.
+ * Not a second DnD architecture though: no drop targets, no collision
+ * detection, no overlay. It reads the axis this view already defines and commits
+ * through the same mutation hook every other date control uses.
  *
- * ## Why this does not re-render the board on every pointer move
+ * Why this doesn't re-render the board on every pointer move: raw pointer data
+ * lives in a ref and never renders. State holds only the snapped result, written
+ * through an equality check. Snapping is what makes that cheap — the output is a
+ * column index, so dragging 200px across five columns produces five values, not
+ * two hundred. TimelineRow is memoised and every other row keeps `draft: null`.
  *
- * Raw pointer data lives in a ref and never causes a render. React state holds
- * only the **snapped** result, and it is written through an equality check, so
- * a render happens exactly when the bar would actually look different.
- *
- * Snapping is what makes that cheap rather than merely careful: the gesture's
- * output is a column index, so dragging 200px across five columns produces five
- * distinct values, not two hundred. `TimelineRow` is memoised and every row but
- * the dragged one receives `draft: null` unchanged, so those five renders reach
- * one row.
- *
- * The track is measured **once per gesture**, on pointerdown. A
- * `getBoundingClientRect()` in the move handler would be a forced layout on
- * every frame, which is the actual cost people mean by "expensive drag".
+ * The track is measured once per gesture, on pointerdown. A
+ * getBoundingClientRect() in the move handler would be a forced layout per
+ * frame, which is the actual cost people mean by "expensive drag".
  */
 
 /** The create row's draft is keyed by this, since it has no todo id yet. */
 export const CREATE_KEY = "__create__";
 
 /**
- * How far a *move* must travel before it stops being a click.
+ * How far a *move* must travel before it stops being a click. 8px, matching the
+ * board's and the calendar's PointerSensor exactly — a bar is also a click
+ * target, so this is the line between "I tapped this" and "I am moving this".
  *
- * 8px, which is the board's and the calendar's `PointerSensor` distance
- * exactly. A bar is also a click target — it opens the task — so this is the
- * line between "I tapped this" and "I am moving this", and a product with two
- * answers to that question feels like two products.
- *
- * **Only `move` uses it.** A resize edge and the create row are not click
- * targets, and making someone travel 8px before a handle they deliberately
- * grabbed responds is latency with nothing bought.
+ * Only `move` uses it. A resize edge and the create row aren't click targets,
+ * and making someone travel 8px before a handle responds is latency with
+ * nothing bought.
  */
 const MOVE_THRESHOLD = 8;
 
@@ -128,11 +113,10 @@ export function useTimelineDrag({
   );
 
   /**
-   * A gesture is in flight. Distinct from `dragging`, which is the narrower
-   * "it has travelled far enough to count", and it exists because the window
-   * listeners have to be attached the moment a pointer goes down — including
-   * for a move that has not yet cleared its threshold and may still turn out to
-   * be a click. Holding that in the ref alone would never re-run the effect.
+   * A gesture is in flight. Distinct from `dragging`, which is the narrower "it
+   * has travelled far enough to count". Window listeners have to attach the
+   * moment a pointer goes down, including for a move that may still turn out to
+   * be a click, and the ref alone would never re-run the effect.
    */
   const [active, setActive] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -140,14 +124,13 @@ export function useTimelineDrag({
   /**
    * The axis and the commit callbacks as they are *now*.
    *
-   * The window listeners are attached once per gesture, so closing over these
-   * directly would pin them to the render that started it — a paging step
-   * mid-drag would snap against the previous window, and a stale `onSchedule`
-   * would commit through a mutation object that had moved on.
+   * Listeners attach once per gesture, so closing over these directly would pin
+   * them to the render that started it: a paging step mid-drag would snap
+   * against the previous window, and a stale onSchedule would commit through a
+   * mutation object that had moved on.
    *
-   * Written in an effect with no dependency array rather than during render:
-   * it runs after every commit, which is the earliest a ref may be touched, and
-   * a gesture can only begin from an event handler that runs later still.
+   * Written in an effect with no dependency array rather than during render —
+   * that runs after every commit, the earliest a ref may be touched.
    */
   const latest = useRef({ ticks, scale, onSchedule, onDraw });
 
@@ -195,12 +178,10 @@ export function useTimelineDrag({
   /**
    * The gesture is now real: dress the whole document for it.
    *
-   * On the body rather than on the bar, because the pointer spends most of a
-   * drag somewhere else — over the rail, over another row, past the edge of the
-   * window — and a cursor that reverts the moment it leaves the 16px bar reads
-   * as the drag having been dropped. `user-select` is the same argument: a
-   * sweep across the track passes over every task title in the rail, and
-   * without this it selects all of them.
+   * On the body rather than the bar, because the pointer spends most of a drag
+   * elsewhere and a cursor reverting the moment it leaves the 16px bar reads as
+   * the drag having been dropped. Same for user-select: a sweep across the track
+   * passes over every task title in the rail.
    */
   const engage = useCallback((mode: DragMode | "draw") => {
     document.body.style.setProperty(
@@ -264,15 +245,13 @@ export function useTimelineDrag({
 
     const settled = () => {
       // Only if this row's draft is still the one this gesture wrote. A second
-      // drag started before the first write landed owns the bar now, and
-      // clearing it here would snap that one back mid-gesture.
+      // drag started before the first write landed owns the bar now.
       //
-      // **By value, not by identity.** The move handler keeps the *previous*
-      // draft object whenever the snapped result is unchanged — that is the
-      // render gate — so by the end of a drag the gesture and the draft
-      // routinely hold equal ranges in different objects. A reference check
-      // would fail there and leave the draft pinned forever, freezing the bar
-      // at the position it was dropped in even after the row moved on.
+      // Compared by value, not identity: the move handler keeps the previous
+      // draft object whenever the snapped result is unchanged (that's the render
+      // gate), so by the end of a drag the two routinely hold equal ranges in
+      // different objects. A reference check would leave the draft pinned
+      // forever, freezing the bar where it was dropped.
       setDraft((current) =>
         current?.key === gesture.key &&
         current.range.start === committed.start &&
@@ -294,12 +273,10 @@ export function useTimelineDrag({
       // Left button only, and never a second gesture on top of a live one.
       if (!enabled || event.button !== 0 || gestureRef.current) return;
 
-      // A resize or a sweep sets the suppression flag but produces no click on
-      // the bar to spend it — the handles are siblings of the button, not
-      // inside it. Left alone it would survive and swallow the *next* genuine
-      // click, so a task would refuse to open once after every resize. Clearing
-      // it as each gesture starts bounds its life to the click that immediately
-      // follows, which is the only one it was ever meant to catch.
+      // A resize or sweep sets the suppression flag but produces no click on the
+      // bar to spend it — the handles are siblings of the button, not inside it.
+      // Left alone it would swallow the *next* genuine click, so a task would
+      // refuse to open once after every resize.
       suppressClickRef.current = false;
 
       const track = trackRef.current;
@@ -352,8 +329,7 @@ export function useTimelineDrag({
   );
 
   // Bound to the window rather than the bar, so a pointer that outruns the
-  // element still steers the gesture. Attached only while one is in flight —
-  // an idle timeline listens to nothing.
+  // element still steers the gesture. Attached only while one is in flight.
   useEffect(() => {
     if (!active) return;
 

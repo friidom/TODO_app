@@ -29,22 +29,22 @@ export const WORK_TYPES = {
     /** Icon tint on the card and in the menu. */
     tone: "text-status-red",
     /** Icon plus a soft background, for the compact card chip. */
-    chip: "bg-status-red/15 text-status-red",
+    chip: "bg-status-red/15 text-status-red hover:bg-status-red/25",
   },
   Task: {
     icon: SquareCheckIcon,
     tone: "text-status-blue",
-    chip: "bg-status-blue/15 text-status-blue",
+    chip: "bg-status-blue/15 text-status-blue hover:bg-status-blue/25",
   },
   Story: {
     icon: BookOpenIcon,
     tone: "text-status-green",
-    chip: "bg-status-green/15 text-status-green",
+    chip: "bg-status-green/15 text-status-green hover:bg-status-green/25",
   },
   Feature: {
     icon: LightbulbIcon,
     tone: "text-brand",
-    chip: "bg-brand-soft text-brand",
+    chip: "bg-brand-soft text-brand hover:bg-brand/20",
   },
 } as const satisfies Record<
   string,
@@ -72,7 +72,5 @@ export function workTypeOf(value?: string | null) {
 
 /** The stored value, narrowed, or the default. */
 export function toWorkType(value?: string | null): WorkType {
-  return value && value in WORK_TYPES
-    ? (value as WorkType)
-    : DEFAULT_WORK_TYPE;
+  return value && value in WORK_TYPES ? (value as WorkType) : DEFAULT_WORK_TYPE;
 }

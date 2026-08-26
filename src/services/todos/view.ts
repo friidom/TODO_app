@@ -15,21 +15,18 @@ import { byRank } from "@/utils/rank";
 /**
  * Filtering, sorting and grouping, as pure functions over the board array.
  *
- * They live beside the feature they serve and outside any hook, the same
- * arrangement `cache.ts`, `insertDense.ts` and `limitBreach.ts` use, and for the
- * same two reasons: they are the part worth testing, and both views need them.
- * The board and the list run this identical pipeline — filter, then sort, then
- * group — so the two can never disagree about what "assigned to me, by due
- * date" means.
+ * Beside the feature they serve and outside any hook, like cache.ts and
+ * limitBreach.ts, for the same two reasons: they're the part worth testing, and
+ * both views need them. The board and the list run this identical pipeline —
+ * filter, sort, group — so the two can't disagree about what "assigned to me, by
+ * due date" means.
  *
- * **None of them touches the database.** A view is a view: `todos.position` is
- * the board's real order and stays exactly as the user dragged it, whatever this
- * file is asked to show. `sortTodos` under `"manual"` is the identity function,
- * which is what makes switching back free.
+ * None of it touches the database. todos.position stays exactly as the user
+ * dragged it, whatever this file is asked to show, and sortTodos under "manual"
+ * is the identity function, which is what makes switching back free.
  *
- * `docs/IMPLEMENTATION_PLAN.md` M12 settled where this runs: *"Start client-side
- * over the existing `["todos", boardId]` cache."* Every function here takes the
- * already-loaded array and returns a new one; nothing re-queries.
+ * Everything takes the already-loaded array and returns a new one; nothing
+ * re-queries.
  */
 
 // ---------------------------------------------------------------------------
@@ -48,12 +45,9 @@ export const FILTER_CATEGORIES = [
 export type FilterCategory = (typeof FILTER_CATEGORIES)[number];
 
 /**
- * What each category is called on screen.
- *
- * Here rather than in the panel, beside `SORT_LABELS` and `GROUP_LABELS`, for
- * the reason those two are: a control's vocabulary belongs with the values it
- * names, so a category added to `FILTER_CATEGORIES` is a compile error until it
- * has a label.
+ * What each category is called on screen. Here rather than in the panel, beside
+ * SORT_LABELS and GROUP_LABELS: a control's vocabulary belongs with the values
+ * it names, so a new category is a compile error until it has a label.
  */
 export const FILTER_LABELS: Record<FilterCategory, string> = {
   assignee: "Assignee",
@@ -66,9 +60,9 @@ export const FILTER_LABELS: Record<FilterCategory, string> = {
 /**
  * The selected values per category.
  *
- * **An empty array means the category is off, not that it excludes everything.**
- * That is the only reading that makes a filter panel usable: unchecking your
- * last work type should show every card again, not none of them.
+ * An empty array means the category is off, not that it excludes everything.
+ * That's the only reading that makes a filter panel usable: unchecking your last
+ * work type should show every card again, not none.
  */
 export type TodoFilters = Record<FilterCategory, string[]>;
 
@@ -161,11 +155,11 @@ function matchesStatus(todo: Todo, selected: string[]) {
 /**
  * The cards that survive every active category.
  *
- * **AND between categories, OR within one.** "Bug or Story, assigned to me" is
- * the question a filter panel is asked; "Bug and Story" would always be empty.
+ * AND between categories, OR within one. "Bug or Story, assigned to me" is what
+ * a filter panel is asked; "Bug and Story" would always be empty.
  *
  * Returns the input array itself when nothing is filtered, so an unfiltered
- * board hands the same reference to `useMemo` downstream and re-renders nothing.
+ * board hands the same reference to useMemo downstream and re-renders nothing.
  */
 export function filterTodos(
   todos: Todo[],
@@ -192,25 +186,15 @@ export function filterTodos(
 /**
  * A query that names a work item by its key: `KAN-12`, `ops-7`, or just `12`.
  *
- * The prefix is captured and **thrown away**. It belongs to the board
- * (`boards.key_prefix`, M14) and a view may span several boards with different
- * prefixes, so matching on the number is the answer that works in every scope.
- * Typing `KAN-12` on a board whose prefix is `OPS` finding `OPS-12` is a little
- * generous and never wrong — the alternative is a search box that silently
- * fails because the user remembered the number but not the prefix.
- */
-/**
- * A query that names a work item by its key: `KAN-12`, `ops-7`, or just `12`.
- *
- * The prefix is captured and **thrown away**. It belongs to the board
- * (`boards.key_prefix`, M14) and a view may span several boards with different
- * prefixes, so matching on the number is the answer that works in every scope.
- * Typing `KAN-12` on a board whose prefix is `OPS` finding `OPS-12` is a little
- * generous and never wrong — the alternative is a search box that silently
- * fails because the user remembered the number but not the prefix.
+ * The prefix is captured and thrown away. It belongs to the board
+ * (boards.key_prefix) and a view may span several boards with different
+ * prefixes, so matching on the number works in every scope. Typing `KAN-12` on
+ * an `OPS` board and finding `OPS-12` is generous and never wrong; the
+ * alternative is a search that fails because you remembered the number but not
+ * the prefix.
  *
  * The prefix group is optional, so this also matches a bare number — see
- * `searchTodos` for why the two are then treated differently.
+ * searchTodos for why the two are then treated differently.
  */
 const KEY_QUERY = /^\s*(?:([a-z][a-z0-9]*)-)?(\d+)\s*$/i;
 
@@ -220,29 +204,23 @@ function normalise(value: string): string {
 }
 
 /**
- * The cards matching a free-text query.
+ * The cards matching a free-text query. Three shapes, chosen by the query rather
+ * than by a toggle:
  *
- * **Three shapes, chosen by the query rather than by a toggle.**
- *
- * - `KAN-12`, `ops-7` — a *prefixed* key. Key only: writing the prefix is an
- *   explicit statement that you mean the key, so a card titled "12" is not what
- *   was asked for.
- * - `12` — a bare number. **Key OR title**, unioned. This is the case that was
- *   wrong: it used to mean key-only, so on a board whose cards are titled `123`,
- *   `3231` and `123123` — which is exactly what this project's own board holds —
- *   typing `123` returned nothing at all while three matching cards sat on
- *   screen. A number is the most ambiguous thing a user can type and the
- *   cheapest to answer generously.
+ * - `KAN-12`, `ops-7` — a prefixed key. Key only: writing the prefix is an
+ *   explicit statement that you mean the key.
+ * - `12` — a bare number. Key OR title, unioned. This one used to be key-only,
+ *   so on a board whose cards are titled `123`, `3231` and `123123` — which is
+ *   what this project's own board holds — typing `123` returned nothing while
+ *   three matching cards sat on screen.
  * - anything else — a case-insensitive substring of the title.
  *
- * **Titles only, and the reason is a decision recorded in M5-07.** The board
- * query fetches thirteen columns and `description` is not among them, so there
- * is nothing here to search — a description search is a server-side query or a
- * widened select, not a free extension of this function.
+ * Titles only: the board query doesn't fetch `description`, so there's nothing
+ * here to search. A description search is a server-side query or a widened
+ * select, not a free extension of this function.
  *
- * Returns the input array when the query is empty, so an unsearched board hands
- * the same reference downstream and re-renders nothing — the rule `filterTodos`
- * already follows.
+ * Returns the input array when the query is empty, same reference rule as
+ * filterTodos.
  */
 export function searchTodos(todos: Todo[], query: string): Todo[] {
   const needle = normalise(query);
@@ -288,9 +266,9 @@ export type SortKey = (typeof SORT_KEYS)[number];
 export type SortDir = "asc" | "desc";
 
 /**
- * How each key is named in the menu, in the trigger, and in the hint strip that
- * explains why dragging is off. One map rather than three, so the reason the
- * board gives can never name a sort differently from the menu that set it.
+ * How each key is named in the menu, the trigger, and the hint strip explaining
+ * why dragging is off. One map rather than three, so the reason the board gives
+ * can't name a sort differently from the menu that set it.
  */
 export const SORT_LABELS: Record<SortKey, string> = {
   manual: "Manual",
@@ -302,11 +280,11 @@ export const SORT_LABELS: Record<SortKey, string> = {
 };
 
 /**
- * What a card is worth under one sort key, or `null` when it has no answer.
+ * What a card is worth under one sort key, or null when it has no answer.
  *
- * Due dates compare as `YYYY-MM-DD` strings, which is correct because the format
- * is fixed-width and big-endian — the reason `dueDate.ts` slices rather than
- * parses. Priority compares by rank, never by spelling.
+ * Due dates compare as `YYYY-MM-DD` strings, which works because the format is
+ * fixed-width and big-endian — the reason dueDate.ts slices rather than parses.
+ * Priority compares by rank, never by spelling.
  */
 function sortValue(todo: Todo, key: SortKey): string | number | null {
   switch (key) {
@@ -328,17 +306,15 @@ function sortValue(todo: Todo, key: SortKey): string | number | null {
 }
 
 /**
- * The cards in view order. **Never written back.**
+ * The cards in view order. Never written back.
  *
  * `manual` returns the input untouched — not a copy, not a re-sort — so the
- * board's stored `position` order survives a round trip through the sort control
- * unchanged, and `byRank` remains the only thing that decides it.
+ * board's stored order survives a round trip through the sort control and
+ * byRank stays the only thing that decides it.
  *
- * **Cards with no value sort last in both directions.** A card with no due date
- * is not the most overdue one, and flipping to descending should not promote
- * every unanswered card to the top; the direction orders the answers, not the
- * absence of them. `Array.prototype.sort` is stable, so cards that tie keep
- * their board order.
+ * Cards with no value sort last in both directions: a card with no due date
+ * isn't the most overdue one, and flipping to descending shouldn't promote every
+ * unanswered card to the top. Sort is stable, so ties keep their board order.
  */
 export function sortTodos(
   todos: Todo[],
@@ -366,19 +342,17 @@ export function sortTodos(
 }
 
 /**
- * The board's own order, as one flat list: columns left to right, `position`
- * top to bottom inside each.
+ * The board's own order as one flat list: columns left to right, position top to
+ * bottom inside each.
  *
- * This is what `manual` means, and it has to be stated once. The cache does not
- * hold it — `applyTodoMoved` returns `[...untouched, ...source, ...destination]`,
- * so array order stops matching board order the first time anything is dragged,
- * and both views have to reconstruct it. They used to reconstruct it separately:
- * the Kanban sorted each column bucket, the list sorted by column-then-position
- * of its own. Two implementations of one rule, and only one of them would have
- * been fixed by the next change to it.
+ * This is what `manual` means, and it has to be stated once. The cache doesn't
+ * hold it — applyTodoMoved returns `[...untouched, ...source, ...destination]`,
+ * so array order stops matching board order the first time anything is dragged.
+ * Both views used to reconstruct it separately, which was two implementations of
+ * one rule and only one of them would get fixed.
  *
- * Applied in `useVisibleTodos`, so the array both views render is already in
- * display order and neither of them sorts again.
+ * Applied in useVisibleTodos, so the array both views render is already in
+ * display order and neither sorts again.
  */
 export function orderByBoard(todos: Todo[], columns: IColumn[]): Todo[] {
   const rank = new Map(
@@ -421,10 +395,9 @@ export const GROUP_LABELS: Record<GroupKey, string> = {
 /**
  * Grouping the board can render as swimlanes.
  *
- * `status` is missing on purpose, and so is `none`: the columns already *are*
- * the statuses, so grouping by status is the identity and the board it produces
- * is the board that was already there. Nothing has to be rendered differently
- * for it, which is the cheapest possible implementation of a feature.
+ * `status` is missing on purpose, and so is `none`: the columns already are the
+ * statuses, so grouping by status is the identity and produces the board that
+ * was already there.
  */
 export function isSwimlaneGroup(group: GroupKey): boolean {
   return group !== "none" && group !== "status";
@@ -433,10 +406,9 @@ export function isSwimlaneGroup(group: GroupKey): boolean {
 export interface TodoGroup {
   /**
    * Identifies the group and decorates it: a column id under `status`, a profile
-   * id under `assignee`, a `WorkType` or `Priority` otherwise, and `UNSET` for
-   * the cards with no value. The renderer already knows which dimension is
-   * active, so it can look up a dot or an avatar from this without the group
-   * having to carry one.
+   * id under `assignee`, a WorkType or Priority otherwise, and UNSET for cards
+   * with no value. The renderer knows which dimension is active, so it can look
+   * up a dot or an avatar without the group carrying one.
    */
   key: string;
   label: string;
@@ -471,14 +443,13 @@ function bucketBy(
 /**
  * The cards split along one dimension, in an order that means something.
  *
- * Runs **last**, on the already-filtered and already-sorted array, so grouping
- * composes with both rather than competing with them: each group holds the cards
- * that survived the filter, in the order the sort put them.
+ * Runs last, on the already-filtered and already-sorted array, so grouping
+ * composes with both rather than competing: each group holds the cards that
+ * survived the filter, in the order the sort put them.
  *
- * **Empty groups are dropped, except under `status`.** A lane for an assignee
- * with no cards is a band of whitespace saying nothing; an empty column is part
- * of the board whether or not anything is in it, and hiding it would make the
- * board's shape depend on its contents.
+ * Empty groups are dropped, except under `status`. A lane for an assignee with
+ * no cards is whitespace saying nothing; an empty column is part of the board
+ * whether or not anything is in it.
  */
 export function groupTodos(
   todos: Todo[],
@@ -513,11 +484,10 @@ export function groupTodos(
   if (group === "assignee") {
     const buckets = bucketBy(todos, (todo) => todo.assignee_id ?? UNSET);
 
-    // `memberName` rather than a second `full_name || username` chain — the
-    // roster's display rules live in one place and the picker, the rail and this
-    // must agree on what a member is called. It sits under `components/` only
-    // because react-refresh cannot handle a module mixing a component with other
-    // exports; it is a pure function.
+    // memberName rather than a second `full_name || username` chain — the
+    // roster's display rules live in one place. It sits under components/ only
+    // because react-refresh can't handle a module mixing a component with other
+    // exports; it's a pure function.
     const named = members
       .filter((member) => buckets.has(member.id))
       .map((member) => ({

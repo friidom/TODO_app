@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
-import { Pencil, User } from "lucide-react";
+import { Pencil, SignalIcon, User } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 import DueDateControl from "./TodoItem/DueDateControl";
 import PriorityControl from "./TodoItem/PriorityControl";
 import WorkTypeControl from "./TodoItem/WorkTypeControl";
-import { PRIORITIES, toPriority, type Priority } from "@/constants/priorities";
+import { priorityOf, type Priority } from "@/constants/priorities";
 import { workTypeOf, type WorkType } from "@/constants/workTypes";
 import { cn } from "@/utils/cn";
 import type { TodoCardContent, TodoViewState } from "@/types/data";
@@ -140,7 +140,7 @@ export default function TodoCard({
         // card is found by its surface being one step above the column, which
         // is what the tightened token ladder is for. A border and a shadow on
         // top of that is the "developer dashboard" look.
-        "group border-ink/[0.06] bg-elevated hover:border-ink/15 hover:bg-ink/[0.02] rounded-card relative flex touch-none flex-col gap-2 border p-3 transition-[background-color,border-color,opacity] duration-150 select-none",
+        "group border-ink/[0.06] bg-elevated hover:border-ink/15 hover:bg-ink/[0.02] rounded-card relative flex touch-none flex-col gap-1.5 border p-2.5 transition-[background-color,border-color,opacity] duration-150 select-none",
         // The pointer cursor is earned by opening rather than by dragging now,
         // which is why the `dragDisabled` branch is gone: a card on a grouped
         // board cannot be dragged and still opens, so a default cursor there
@@ -157,13 +157,21 @@ export default function TodoCard({
       {/* ROW 1 — what kind of work this is, and how urgent.
           Leads the card (M17) because those two answer "should I read this?"
           faster than the title does, and the reference proves the pattern: a
-          scannable column is chips first, prose second.
+          scannable column is metadata first, prose second.
+
+          **`bare`, not chips.** Two filled, tinted, labelled chips opened every
+          card with the loudest thing on it being the least important thing on
+          it — the title had to compete with them, and a column of ten cards was
+          twenty coloured blocks. The colour is what carries "Bug" or "Highest"
+          at a glance; the box and the word around it were carrying nothing the
+          glyph was not already carrying. This is the same call `ListRow` made
+          for the same reason, so a card and a row now agree about what a type
+          and a priority look like. Both keep their word in `title`/`aria-label`.
 
           Both are live controls, not badges — the same popovers the detail
           panel uses, so a priority is set from the board without opening
-          anything. Each renders nothing until hover when its value is unset,
-          which is what keeps a bare card free of chrome. */}
-      <div className="flex items-center gap-1.5">
+          anything. */}
+      <div className="flex items-center gap-1">
         {overlay ? (
           <>
             <PriorityBadge value={priority} />
@@ -171,14 +179,10 @@ export default function TodoCard({
           </>
         ) : (
           <>
-            {/* Labelled only when there is a priority to name. Unset, the
-                control renders "No priority", which would put those two words
-                on every card of a board nobody has prioritised — so it stays a
-                small muted icon there, discoverable without shouting. */}
             <PriorityControl
+              bare
               value={priority}
               onChange={onPriorityChange}
-              showLabel={toPriority(priority) !== null}
               // The card keeps its placeholder. A board is scanned by moving
               // between cards rather than by resting on one, so a control that
               // only appears under the cursor is a control most people never
@@ -187,9 +191,9 @@ export default function TodoCard({
               alwaysVisible
             />
             <WorkTypeControl
+              bare
               value={workType}
               onChange={onWorkTypeChange}
-              showLabel
             />
           </>
         )}
@@ -198,26 +202,32 @@ export default function TodoCard({
             has. The action cluster is editor-only, and the menu inside it was
             the only way in — so reading a description required permission to
             write one. Reading is not editing. Null only while a freshly created
-            card is in flight. */}
-        {taskKey !== null && (
-          <span className="ml-auto shrink-0">
-            {onOpen ? (
+            card is in flight.
+
+            **The slot is always rendered, only its contents are conditional.**
+            `ml-auto` lives on it, and it was the only thing pushing the action
+            cluster to the right edge — so on a card whose key had not been
+            allocated yet, the pencil and the menu sat jammed against the type
+            glyph and then jumped right the moment the insert came back. The
+            empty span holds the gap open. */}
+        <span className="ml-auto shrink-0">
+          {taskKey !== null &&
+            (onOpen ? (
               <button
                 type="button"
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={onOpen}
                 title={`Open ${taskKey}`}
-                className="text-ink-3 hover:text-brand text-mini cursor-pointer font-semibold tracking-wide transition-colors"
+                className="text-ink-3 hover:text-brand text-mini cursor-pointer font-semibold tracking-wide tabular-nums transition-colors duration-150"
               >
                 {taskKey}
               </button>
             ) : (
-              <span className="text-ink-3 text-mini font-semibold tracking-wide">
+              <span className="text-ink-3 text-mini font-semibold tracking-wide tabular-nums">
                 {taskKey}
               </span>
-            )}
-          </span>
-        )}
+            ))}
+        </span>
 
         {/* Hidden entirely below editor: every action behind them writes, and
             the cluster is hover-revealed anyway, so a viewer never sees one
@@ -304,41 +314,41 @@ export default function TodoCard({
   );
 }
 
-/** The overlay's copy of the priority chip: the same look, no popover. */
+/**
+ * The overlay's copy of the priority glyph: the same look, no popover.
+ *
+ * "The same look" is the whole job — these mirror the `bare` controls above
+ * pixel for pixel, including the padding, so lifting a card does not change
+ * what the card looks like. When they were filled chips and the controls were
+ * not, picking one up visibly re-drew its top row.
+ */
 function PriorityBadge({ value }: { value: string | null }) {
-  const priority = toPriority(value);
+  const meta = priorityOf(value);
 
-  if (!priority) return null;
-
-  const meta = PRIORITIES[priority];
-  const Icon = meta.icon;
+  // Matches `PriorityControl`'s unset placeholder rather than collapsing, so
+  // the overlay's row is the width the card's row was.
+  const Icon = meta?.icon ?? SignalIcon;
 
   return (
     <span
       className={cn(
-        "text-mini flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 font-semibold",
-        meta.chip,
+        "flex shrink-0 items-center rounded p-0.5",
+        meta ? meta.tone : "text-ink-3/40",
       )}
     >
-      <Icon className="size-3" />
-      {meta.label}
+      <Icon className="size-3.5" />
     </span>
   );
 }
 
-/** The overlay's copy of the work-type chip: the same look, no popover. */
+/** The overlay's copy of the work-type glyph: the same look, no popover. */
 function WorkTypeBadge({ type }: { type: string | null }) {
   const meta = workTypeOf(type);
   const Icon = meta.icon;
 
   return (
-    <span
-      className={cn(
-        "text-mini flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 font-semibold",
-        meta.chip,
-      )}
-    >
-      <Icon className="size-3" />
+    <span className={cn("flex shrink-0 items-center rounded p-0.5", meta.tone)}>
+      <Icon className="size-3.5" />
     </span>
   );
 }

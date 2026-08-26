@@ -272,7 +272,11 @@ function RenameField({
 
           if (e.key === "Escape") onDone();
         }}
-        className="border-brand bg-elevated text-ink w-full rounded-md border-2 px-2 py-1 text-lg font-semibold outline-none"
+        // `text-sm`, near the 12px uppercase title it replaces. At `text-lg` the
+        // field opened at 18px — half again the size of the heading, in a header
+        // fixed at h-12 — so starting a rename visibly enlarged the column's
+        // title and crowded the row it sits in.
+        className="border-brand bg-elevated text-ink rounded-control w-full border-2 px-2 py-1 text-sm font-semibold outline-none"
       />
 
       <div className="absolute top-full right-0 z-10 mt-1 flex gap-1">

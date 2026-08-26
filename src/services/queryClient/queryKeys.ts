@@ -1,11 +1,8 @@
-// The one place a query key is spelled out.
+// The one place a query key is spelled out. Every hook imports from here, so
+// the shape of a key changes in this file instead of in a grep across a dozen
+// call sites.
 //
-// Every hook imports from here, so the shape of a key can change in this file
-// instead of in a grep across a dozen call sites. That is what M2 needs: the
-// board-scoped keys become `todos(boardId)` / `columns(boardId)` by adding the
-// argument here and letting the compiler point at every caller.
-//
-// Keys are returned from functions, not held as constants, so a caller cannot
+// Keys are returned from functions, not held as constants, so a caller can't
 // mutate one that another query is already keyed by.
 
 const PROFILE_ROOT = ["profile"] as const;
@@ -18,13 +15,12 @@ const NOTIFICATION_ROOT = ["notifications"] as const;
 
 export const queryKeys = {
   /**
-   * Every todo on one board as a flat array — not one entry per column.
+   * Every todo on one board as a flat array, not one entry per column.
    *
-   * `boardId` is a required argument even though it may be undefined. That is
-   * the point: making it required is what turned "find every place that reads
-   * the board" into a compiler error rather than a grep. Undefined is a real
-   * state — the route param before it resolves — and it keys an entry the
-   * matching query is disabled for, so it never fills.
+   * boardId stays required even though it may be undefined: that's what turns
+   * "find every place that reads the board" into a compile error rather than a
+   * grep. undefined is a real state (the route param before it resolves) and it
+   * keys an entry whose query is disabled, so it never fills.
    */
   todos: (boardId: string | undefined) => ["todos", boardId] as const,
 
@@ -34,48 +30,46 @@ export const queryKeys = {
   boards: () => ["boards"] as const,
 
   /**
-   * The caller's own spaces (M15).
+   * The caller's own spaces. No argument, for the same reason `boards()` has
+   * none: a space belongs to a person and RLS returns only theirs.
    *
-   * Takes no argument for the same reason `boards()` does not: a space belongs
-   * to a person, and RLS returns only theirs. It is deliberately not a child of
-   * `boards()` — the sidebar reads both, and invalidating the board list must
-   * not throw away the folders it groups them under.
+   * Deliberately not a child of `boards()` — the sidebar reads both, and
+   * invalidating the board list must not throw away the folders it groups them
+   * under.
    */
   spaces: () => ["spaces"] as const,
 
   /**
-   * One board's own row. Deliberately `["board", id]` rather than a child of
-   * `boards()`, per docs/API.md — invalidating the list must not throw away
-   * each board's detail entry, and the two are fetched independently.
+   * One board's own row. `["board", id]` rather than a child of `boards()`:
+   * invalidating the list must not throw away each board's detail entry, and
+   * the two are fetched independently.
    */
   board: (boardId: string | undefined) => ["board", boardId] as const,
 
   /**
    * One board's roster, as returned by the `board_roster` RPC.
    *
-   * Board-scoped like `todos`/`columns`, and named for the concept rather than
-   * the table: the data never comes from `board_members`, which is self-read
-   * only and would return exactly one row.
+   * Named for the concept rather than the table: the data never comes from
+   * `board_members`, which is self-read only and would return exactly one row.
    */
   members: (boardId: string | undefined) => ["members", boardId] as const,
 
   /**
    * One board's pending invitations.
    *
-   * Board-scoped like `members`, and it holds only what the list query returns
-   * — accepted and expired invites are filtered out before they reach the
-   * cache (M4-07), so this entry is "what can still be copied or revoked"
-   * rather than every invite row that exists.
+   * Holds only what the list query returns — accepted and expired invites are
+   * filtered out before they reach the cache, so this is "what can still be
+   * copied or revoked" rather than every invite row that exists.
    */
   invites: (boardId: string | undefined) => ["invites", boardId] as const,
 
   /**
-   * Autocomplete results for the invite field (M4-08).
+   * Autocomplete results for the invite field.
    *
-   * Keyed by the query text as well as the board, so each distinct search is
-   * its own entry and typing backwards re-reads the cache instead of the
-   * network. Short-lived by nature — the roster it describes changes the moment
-   * an invite is sent, which is why `useCreateInvite` invalidates the prefix.
+   * Keyed by the query text as well as the board, so each search is its own
+   * entry and typing backwards re-reads the cache instead of the network.
+   * Short-lived by nature, which is why `useCreateInvite` invalidates the
+   * prefix below.
    */
   inviteeSearch: (boardId: string | undefined, query: string) =>
     ["invitee-search", boardId, query] as const,
@@ -85,77 +79,68 @@ export const queryKeys = {
     ["invitee-search", boardId] as const,
 
   /**
-   * Invitations addressed to the signed-in user (M4-08).
-   *
-   * Not board-scoped — it is the cross-board question "what am I being asked to
-   * join", and the answer is keyed to the person, not to any one board.
+   * Invitations addressed to the signed-in user. Not board-scoped: it's the
+   * cross-board question "what am I being asked to join".
    */
   myInvites: () => ["my-invites"] as const,
 
   /**
-   * One board's activity history (M18).
+   * One board's activity history.
    *
-   * Board-scoped like `members` and `invites`, and deliberately **not** a child
-   * of `todos(boardId)`: the log outlives the rows it describes, so
-   * invalidating the board's cards must not throw away the record of what
-   * happened to them.
+   * Deliberately not a child of `todos(boardId)`: the log outlives the rows it
+   * describes, so invalidating the board's cards must not throw away the record
+   * of what happened to them.
    *
    * Nothing invalidates this entry today — the table is trigger-written, so no
    * client mutation knows an entry appeared. `useActivities` explains why that
-   * gap is left for M6-B rather than papered over with a refetch per drag.
+   * gap is left rather than papered over with a refetch per drag.
    */
   activities: (boardId: string | undefined) => ["activities", boardId] as const,
 
   /**
-   * One work item's complete row, for the detail panel (M5-06).
+   * One work item's complete row, for the detail panel.
    *
-   * Deliberately its own entry rather than a slice of `todos(boardId)`: that
-   * one holds the twelve columns the board reads (M5-07), and the panel is the
-   * only screen that needs `description`. Keying it separately is what lets the
-   * full row be fetched when the panel opens and dropped when it closes,
-   * instead of widening every card on the board to serve one of them.
+   * Its own entry rather than a slice of `todos(boardId)`, which holds only the
+   * twelve columns the board reads. Keying it separately is what lets the full
+   * row be fetched when the panel opens and dropped when it closes, instead of
+   * widening every card on the board to serve one of them.
    */
   todo: (todoId: string | undefined) => ["todo", todoId] as const,
 
   /**
-   * One work item's comment thread (M7-02).
-   *
-   * **Keyed by the work item, not the board**, which is the shape M7-02
-   * specifies and the same reasoning `todo(todoId)` above follows: the thread
-   * is fetched when a task opens and dropped when it closes, and a board-scoped
-   * entry would mean holding every thread on the board to render one of them.
-   * A work item id belongs to exactly one board, so nothing collides.
+   * One work item's comment thread. Keyed by the work item, not the board, for
+   * the same reason as `todo(todoId)`: the thread is fetched when a task opens
+   * and dropped when it closes, and a board-scoped entry would mean holding
+   * every thread on the board to render one. A work item id belongs to exactly
+   * one board, so nothing collides.
    */
   comments: (todoId: string | undefined) => [...COMMENT_ROOT, todoId] as const,
 
   /**
-   * Prefix covering every comment thread in the cache (M7-04).
+   * Prefix covering every comment thread in the cache.
    *
-   * Shaped like `profiles()` above, and it exists for one reason: a realtime
-   * DELETE payload is the primary key and nothing else, so the thread a
-   * removed comment belonged to has to be *found* rather than read off the
-   * row. This is what the realtime handler matches on to search them.
+   * It exists for one reason: a realtime DELETE payload is the primary key and
+   * nothing else, so the thread a removed comment belonged to has to be *found*
+   * rather than read off the row. This is what the realtime handler matches on.
    */
   commentThreads: () => COMMENT_ROOT,
 
   /**
-   * The personal hub's entries (M21).
+   * The personal hub's entries.
    *
-   * **Not board-scoped, and that is the whole shape of this page.** Every other
-   * key here answers "what is on this board"; these answer "what is mine",
-   * across every board RLS lets the caller reach. Keying them by board would be
+   * Not board-scoped, and that's the whole shape of this page. Every other key
+   * here answers "what is on this board"; these answer "what is mine", across
+   * every board RLS lets the caller reach. Keying them by board would be
    * meaningless — the query has no board filter, because the policy already is
    * one.
    *
-   * Under one `["for-you", …]` root so the page's whole cache can be dropped
-   * with a single prefix invalidation, rather than enumerating four entries at
-   * a call site that would then have to be kept in step with the tabs.
+   * Under one root so the page's whole cache drops with a single prefix
+   * invalidation, rather than enumerating four entries at a call site that
+   * would then have to be kept in step with the tabs.
    *
-   * `recent` takes no argument for the same reason `boards()` does not — the
-   * answer is already the caller's own, decided by RLS rather than by a filter
-   * this key could name. The rest carry the user id explicitly, so signing in
-   * as somebody else on the same tab cannot read the previous person's feed out
-   * of the cache.
+   * `recent` takes no argument for the same reason `boards()` doesn't. The rest
+   * carry the user id explicitly, so signing in as somebody else on the same tab
+   * can't read the previous person's feed out of the cache.
    */
   forYou: () => FOR_YOU_ROOT,
 
@@ -168,25 +153,21 @@ export const queryKeys = {
     [...FOR_YOU_ROOT, "worked-on", userId] as const,
 
   /**
-   * Work items resolved from a list of ids — Worked on and Viewed both end in
-   * one of these.
+   * Work items resolved from a list of ids — Worked on and Viewed both end here.
    *
-   * Keyed by the ids themselves, sorted and joined, so the entry changes
-   * exactly when the set does and two tabs asking for the same rows share one
-   * request. Sorted because the *set* is the question; the caller re-orders by
-   * its own timestamps afterwards.
+   * Keyed by the ids themselves, sorted and joined, so the entry changes exactly
+   * when the set does and two tabs asking for the same rows share one request.
+   * Sorted because the *set* is the question; the caller re-orders afterwards.
    */
   forYouByIds: (ids: string[]) =>
     [...FOR_YOU_ROOT, "by-ids", [...ids].sort().join(",")] as const,
 
   /**
-   * The caller's inbox and its unread count (M22).
+   * The caller's inbox and its unread count. Not board-scoped, like the For You
+   * keys and for the same reason.
    *
-   * Not board-scoped, like the For You keys and for the same reason: the
-   * question is "what is mine", answered by RLS rather than by a filter the key
-   * could name. Under one root so marking something read can drop the list and
-   * the badge together — they are two views of one table and must never
-   * disagree about it.
+   * Under one root so marking something read drops the list and the badge
+   * together — they're two views of one table and must never disagree about it.
    */
   notifications: () => NOTIFICATION_ROOT,
 
@@ -200,15 +181,14 @@ export const queryKeys = {
   profile: (userId: string | undefined) => [...PROFILE_ROOT, userId] as const,
 
   /**
-   * Whether one username is free (M10-01).
+   * Whether one username is free.
    *
-   * Not board-scoped and not user-scoped, because the question is not: a
-   * username is unique across the product, and the answer is the same for
-   * whoever is asking — including the signed-out visitor on the registration
-   * form, who is the main caller.
+   * Neither board- nor user-scoped, because the question isn't: a username is
+   * unique across the product and the answer is the same for whoever is asking,
+   * including the signed-out visitor on the registration form.
    *
-   * Keyed by the *normalised* name, so `Ada` and `ada` share one cache entry
-   * and one request, exactly as they share one row in `profiles`.
+   * Keyed by the *normalised* name, so `Ada` and `ada` share one cache entry and
+   * one request, exactly as they share one row in `profiles`.
    */
   usernameAvailability: (username: string) =>
     ["username-availability", username] as const,

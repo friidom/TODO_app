@@ -7,8 +7,11 @@ import WorkTypeControl from "@/components/todo/TodoItem/WorkTypeControl";
 import { DEFAULT_WORK_TYPE, type WorkType } from "@/constants/workTypes";
 
 /** Card shell — shared so the skeleton and the form are the same box. */
+// `rounded-card`, not `rounded-xl`: this box sits in the column between real
+// cards, and at `rounded-xl` (14px against their 10px) it was visibly a
+// different shape from its neighbours.
 const CARD =
-  "mb-2 rounded-xl border-2 border-brand bg-elevated px-3 py-2 shadow-sm";
+  "mb-2 rounded-card border-2 border-brand bg-elevated px-2.5 py-2 shadow-sm";
 
 /** What the form collected besides the title. */
 export interface CreateDraft {
@@ -82,12 +85,12 @@ export default function TodoCreateForm({
     return (
       <div ref={ref} className={CARD}>
         <div className="animate-pulse">
-          <div className="bg-ink/10 h-10 w-full rounded-md" />
+          <div className="bg-ink/10 h-5 w-full rounded-md" />
 
-          <div className="mt-3 flex items-center gap-1">
-            <div className="bg-ink/10 size-7 rounded-md" />
-            <div className="bg-ink/10 size-7 rounded-md" />
-            <div className="bg-ink/10 size-7 rounded-md" />
+          <div className="mt-2.5 flex items-center gap-1">
+            <div className="bg-ink/10 size-6 rounded-md" />
+            <div className="bg-ink/10 size-6 rounded-md" />
+            <div className="bg-ink/10 size-6 rounded-md" />
 
             <div className="bg-ink/10 ml-auto size-7 rounded-md" />
           </div>
@@ -114,7 +117,12 @@ export default function TodoCreateForm({
         className="text-ink placeholder:text-ink-3 w-full bg-transparent text-sm outline-none"
       />
 
-      <div className="mt-8 flex items-center gap-1">
+      {/* `mt-2.5`, matching the skeleton above exactly. It was `mt-8` against
+          the skeleton's `mt-3` — 32px of dead air under the caret, sized to
+          cancel out an `h-10` placeholder standing in for a 20px input. The two
+          errors summed to the same total height, so the swap did not visibly
+          jump; both are gone rather than balanced. */}
+      <div className="mt-2.5 flex items-center gap-1">
         <WorkTypeControl value={type} onChange={setType} showLabel />
 
         <DueDateControl value={dueDate} onChange={setDueDate} alwaysVisible />

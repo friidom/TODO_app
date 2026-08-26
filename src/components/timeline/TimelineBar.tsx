@@ -137,8 +137,11 @@ export default function TimelineBar({
           place.openStart ? "rounded-l-none" : "rounded-l-[3px]",
           place.openEnd ? "rounded-r-none" : "rounded-r-[3px]",
           // `grab` rather than `move`: the bar travels on one axis, and `move`
-          // promises four directions the timeline does not have.
-          interactive && "cursor-pointer",
+          // promises four directions the timeline does not have. It said
+          // `pointer` — which is not a state `grabbing` below can be the
+          // pressed half of, and which described opening the task rather than
+          // the gesture this view exists for.
+          interactive && "cursor-grab",
           dragging
             ? "cursor-grabbing shadow-[0_8px_20px_-8px_rgb(0_0_0/0.6)] ring-white/40"
             : "group-hover:ring-white/25",

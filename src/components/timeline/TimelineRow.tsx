@@ -136,7 +136,8 @@ const TimelineRow = memo(function TimelineRow({
             style={{ gridColumn: `${shown.index + 1} / span ${shown.span}` }}
             className={cn(
               "focus-visible:ring-brand relative flex items-center justify-center outline-none focus-visible:ring-2",
-              interactive && "cursor-pointer",
+              // Matches the bar: `grab` at rest, `grabbing` while held.
+              interactive && "cursor-grab",
               dragging && "cursor-grabbing",
             )}
           >
@@ -235,7 +236,7 @@ export function RowRail({
       type="button"
       onClick={onOpen}
       title={todo.title ?? undefined}
-      className="border-hairline bg-surface group-hover:bg-elevated focus-visible:ring-brand sticky left-0 z-10 flex w-40 shrink-0 items-center gap-1.5 border-r px-3 text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset md:w-60"
+      className="border-hairline bg-surface group-hover:bg-elevated focus-visible:ring-brand sticky left-0 z-10 flex w-(--timeline-rail) shrink-0 items-center gap-1.5 border-r px-3 text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset"
     >
       <TypeIcon className={cn("size-3.5 shrink-0", type.tone)} />
 

@@ -23,8 +23,8 @@ import { ROW_HEIGHT, trackColumns } from "./timelineAxis";
  * **The title input lives in the rail, not floating over the range.** A form
  * anchored to the drawn columns would be a 28px-wide box at the `weeks` scale
  * and would hang off the right edge of the window for anything planned late in
- * the period. The rail is a fixed 15rem, is already sticky, and is where the
- * reference puts it — so the range stays legible as a ghost bar on the track
+ * the period. The rail is a known width (`--timeline-rail`), is already sticky,
+ * and is where the reference puts it — so the range stays legible as a ghost bar on the track
  * while you type its name beside it.
  *
  * It collects a title and nothing else. Status is which column a card is in and
@@ -82,7 +82,7 @@ export default function TimelineCreateRow({
 
   return (
     <Row>
-      <div className="border-hairline bg-surface group-hover:bg-elevated sticky left-0 z-10 flex w-40 shrink-0 items-center gap-1.5 border-r px-3 transition-colors md:w-60">
+      <div className="border-hairline bg-surface group-hover:bg-elevated sticky left-0 z-10 flex w-(--timeline-rail) shrink-0 items-center gap-1.5 border-r px-3 transition-colors">
         {pending ? (
           <>
             <input
@@ -142,7 +142,9 @@ export default function TimelineCreateRow({
             aria-hidden
             style={{ gridColumn: `${place.index + 1} / span ${place.span}` }}
             className={cn(
-              "border-brand bg-brand/25 mx-px flex h-4 items-center rounded-[3px] border border-dashed",
+              // `h-5` and `rounded-[3px]` are `TimelineBar`'s own geometry: what you
+              // sweep is exactly the size and shape of the bar it turns into.
+              "border-brand bg-brand/25 mx-px flex h-5 items-center rounded-[3px] border border-dashed",
               // Solid once it is committed and waiting for a name: dashed says
               // "still being drawn", and it is no longer being drawn.
               pending && "border-solid",

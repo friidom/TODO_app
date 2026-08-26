@@ -13,8 +13,22 @@ import type { TimelineScale } from "@/services/views/timeline";
  * case-insensitive filesystem, and refuses the program outright (TS1149).
  */
 
-/** The row label column. `w-60` is this value — keep the two in step. */
-export const RAIL_WIDTH = "15rem";
+/**
+ * The row label column, as a CSS variable rather than a literal.
+ *
+ * **It has to be a variable, and that is a bug fix rather than a preference.**
+ * The rails are sticky flex children and were sized `w-40 md:w-60`; this
+ * constant is only ever used in an *inline style* — the axis layer's
+ * `paddingLeft`, the today marker's `left`, the scroller's min-width — and an
+ * inline style cannot carry a breakpoint. Held at a flat `15rem` it agreed with
+ * the rails above `md` and was 80px wrong below it, which put the whole grid,
+ * the weekend shading and the today line to the right of the bars on every
+ * narrow window.
+ *
+ * Declared in `global.css`, where the breakpoint lives. Rails wear
+ * `w-(--timeline-rail)`, so there is now one value and nothing to keep in step.
+ */
+export const RAIL_WIDTH = "var(--timeline-rail)";
 
 /**
  * The narrowest a column may be before the track starts scrolling sideways.
