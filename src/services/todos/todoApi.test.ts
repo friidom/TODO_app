@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { TODO_LIST_FIELDS } from "./todoApi";
+import { TODO_LIST_FIELDS, type TodoPatch } from "./todoApi";
 import { TODO_FIELDS } from "@/types/data";
 
 /**
@@ -42,5 +42,41 @@ describe("TODO_LIST_FIELDS", () => {
     ]) {
       expect(TODO_FIELDS).toContain(field);
     }
+  });
+
+  it("carries estimate (M24), so a written value survives in the board cache", () => {
+    // Regression guard for the M5-07 exclusion this reverses for one field:
+    // `estimate` was dropped as "a number rendered by nothing" and stays
+    // dropped for `description`, `archived`, `creator_id`, `status` and
+    // `previous_status`. Only `estimate` came back, once M24 gave it a reader,
+    // and this pins that it does not silently fall out of the shared row again.
+    expect(TODO_FIELDS).toContain("estimate");
+  });
+});
+
+describe("TodoPatch", () => {
+  it("admits estimate as a writable field", () => {
+    // Type-level: this only needs to compile. `estimate` joining the allow-list
+    // is M24's other required edit — `TodoPatch` is a narrow `Pick`, so leaving
+    // a field out of it is a control that can never write that column, caught
+    // here at compile time rather than by a control silently doing nothing.
+    const patch: TodoPatch = {
+      id: "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+      board_id: "11111111-1111-4111-8111-111111111111",
+      estimate: 5,
+    };
+
+    expect(patch.estimate).toBe(5);
+  });
+
+  it("keeps null distinct from a written zero", () => {
+    // The distinction M24 requires every rollup to preserve: unestimated and
+    // estimated-at-zero are different facts, and `TodoPatch` has to be able to
+    // state either explicitly rather than collapsing one into the other.
+    const unset: TodoPatch = { id: "x", board_id: "y", estimate: null };
+    const zero: TodoPatch = { id: "x", board_id: "y", estimate: 0 };
+
+    expect(unset.estimate).toBeNull();
+    expect(zero.estimate).toBe(0);
   });
 });

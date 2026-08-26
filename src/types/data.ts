@@ -40,12 +40,17 @@ export type TodoRow = Row<"todos">;
  * type-check and be `undefined` at runtime, and the first screen to read it
  * would fail silently rather than at the query.
  *
- * Six columns are deliberately absent. `description` and `estimate` are the
- * ones the plan names — fetched for every card on every board load and rendered
- * by nothing. `archived`, `creator_id`, `status` and `previous_status` join
- * them: `status`/`previous_status` are dead columns kept by the schema (doneness
- * is the column's category, never a field), and neither `archived` nor
+ * Five columns are deliberately absent. `description` is the one the plan
+ * names — fetched for every card on every board load and rendered by nothing.
+ * `archived`, `creator_id`, `status` and `previous_status` join it:
+ * `status`/`previous_status` are dead columns kept by the schema (doneness is
+ * the column's category, never a field), and neither `archived` nor
  * `creator_id` has a reader anywhere in the app.
+ *
+ * `estimate` was the sixth until M24 (2026-08-26) gave it a meaning — story
+ * points — and a reader. It is in `TODO_FIELDS` now for the same reason
+ * `priority` is: a control that can set it needs the board's own cache to
+ * hold the value it just wrote, not just the detail panel's `select("*")`.
  *
  * **This is the row shape every view reads** (M16) — the board, the list, and
  * the date-based views when they arrive. Widening it for a new view happens
@@ -88,6 +93,10 @@ export const TODO_FIELDS = [
   "start_date",
   "due_date",
   "assignee_id",
+  // Story points (M24). `null` means unestimated, not zero — see
+  // `20260826090000_todos_estimate_check.sql` for the constraint that keeps
+  // the column from meaning "points or hours" depending on who filled it in.
+  "estimate",
   "created_at",
   "updated_at",
 ] as const satisfies readonly (keyof TodoRow)[];

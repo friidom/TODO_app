@@ -9,10 +9,11 @@ import { supabase } from "../api/supabase";
  * The columns the board and the list actually read (M5-07).
  *
  * **Replaces `select("*")`.** Every card on every board load used to carry
- * `description` and `estimate` — a free-text column and a number rendered by
- * nothing on either view — plus four more with no reader at all: `archived`,
- * `creator_id`, `status` and `previous_status`. On a 200-card board that is
- * 1,200 values fetched, parsed and held in the cache to be ignored.
+ * `description` — a free-text column rendered by nothing on either view —
+ * plus four more with no reader at all: `archived`, `creator_id`, `status`
+ * and `previous_status`. On a 200-card board that is bytes fetched, parsed
+ * and held in the cache to be ignored. `estimate` rejoined the list at M24,
+ * once it had a reader.
  *
  * **Still a string literal, and it has to be** — `supabase-js` infers the shape
  * of the returned row from this exact literal type, so a value of type `string`
@@ -31,7 +32,7 @@ import { supabase } from "../api/supabase";
  * make the cache heterogeneous.
  */
 export const TODO_LIST_FIELDS =
-  "id, board_id, column_id, position, rank, board_key, title, type, priority, start_date, due_date, assignee_id, created_at, updated_at";
+  "id, board_id, column_id, position, rank, board_key, title, type, priority, start_date, due_date, assignee_id, estimate, created_at, updated_at";
 
 //!get
 /**
@@ -306,9 +307,15 @@ export async function reorderTodos(todos: Todo[], boardId: string) {
  * thing standing between them and the UI, which is why that feature needed no
  * migration. `description` joined it for the same reason at M5-06.
  *
- * Picked from `TodoRow`, not `Todo`: `description` is not one of the twelve
- * columns the board fetches (M5-07), so the narrowed type cannot name it. What
- * may be *written* and what the board *reads* are different questions.
+ * `estimate` joined at M24, backed by `todos_estimate_check`
+ * (`is null or >= 0`). No control writes it yet — this is the allow-list
+ * half of the milestone, ahead of the UI half by design.
+ *
+ * Picked from `TodoRow`, not `Todo`: `description` is not one of the columns
+ * the board fetches (M5-07), so the narrowed type cannot name it. What may be
+ * *written* and what the board *reads* are different questions — `estimate`
+ * happens to answer both the same way after M24 widened `TODO_FIELDS`, but
+ * the two lists still serve different purposes and are kept separate here.
  */
 export type TodoPatch = { id: string; board_id: string } & Partial<
   Pick<
@@ -321,6 +328,7 @@ export type TodoPatch = { id: string; board_id: string } & Partial<
     | "type"
     | "priority"
     | "description"
+    | "estimate"
   >
 >;
 

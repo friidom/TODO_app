@@ -196,9 +196,12 @@ allowed — a one-day task. The constraint is the reason both columns share a
 type: comparing a `date` with a `timestamptz` depends on the session's TimeZone
 and so is not immutable, which a CHECK constraint may not be.
 
-`estimate` is **not** a duration and nothing derives a range from it. It is a
-number meaning points or hours depending on who filled it in, and M20 records
-that leaving it alone was a decision.
+`estimate` is **not** a duration and nothing derives a range from it. It meant
+points or hours depending on who filled it in until M24 resolved that: it is
+**story points**. `todos_estimate_check` (`is null or >= 0`) is the only
+constraint on it; `null` means unestimated and is distinct from `0`, and no
+scale is enforced in the database — a Fibonacci-style quick-pick, if one is
+built, is a UI opinion, not a CHECK.
 
 ---
 

@@ -124,6 +124,9 @@ export function useAddTodo() {
         assignee_id,
         type,
         priority: null,
+        // No create surface sets an estimate; the field is set from the
+        // detail panel after the card exists (M24).
+        estimate: null,
         // Carried, since M20-B. It is still null from every other create
         // surface — the column's create card and the header form ask for a due
         // date and nothing asks for a start, so a card made there is a point on
