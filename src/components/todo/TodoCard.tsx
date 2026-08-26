@@ -3,6 +3,7 @@ import { Pencil, User } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 import DueDateControl from "./TodoItem/DueDateControl";
+import EstimateControl from "./TodoItem/EstimateControl";
 import PriorityControl from "./TodoItem/PriorityControl";
 import WorkTypeControl from "./TodoItem/WorkTypeControl";
 import { PRIORITIES, toPriority, type Priority } from "@/constants/priorities";
@@ -26,6 +27,7 @@ export interface TodoCardProps extends TodoCardContent, TodoViewState {
   onWorkTypeChange: (value: WorkType) => void;
   onPriorityChange: (value: Priority | null) => void;
   onDueDateChange: (value: string | null) => void;
+  onEstimateChange: (value: number | null) => void;
 
   /** Opens the detail panel. Absent on the drag overlay, which has no chrome. */
   onOpen?: () => void;
@@ -66,6 +68,7 @@ export default function TodoCard({
   workType,
   priority,
   dueDate,
+  estimate,
   draft,
   editing,
   canEdit,
@@ -83,6 +86,7 @@ export default function TodoCard({
   onWorkTypeChange,
   onPriorityChange,
   onDueDateChange,
+  onEstimateChange,
   onOpen,
   assignee,
   menu,
@@ -269,35 +273,40 @@ export default function TodoCard({
         </p>
       )}
 
-      {/* ROW 3 — whose it is, then when it is due.
+      {/* ROW 3 — whose it is, then when it is due and how big it is.
           Assignee first (M17 pass 3): a face is a fixed-width object and a date
-          is not, so anchoring the faces left and letting the date sit against
+          is not, so anchoring the faces left and letting the rest sit against
           the right edge keeps a column of cards aligned down both sides.
 
-          Both are invisible until hover when unset, so a bare card carries no
-          chrome. There is still no status chip — status is which column the
-          card is in, and the column says so above every card in it. */}
+          Assignee and due date are invisible until hover when unset, so a
+          bare card carries no chrome. There is still no status chip — status
+          is which column the card is in, and the column says so above every
+          card in it. */}
       {/* Always in flow, never toggled. A previous pass collapsed this row on
           cards with no assignee and no date and brought it back on hover — which
           changed the card's height under the cursor and shoved every card below
           it down the column. Reserving the row is the rule: a control that
-          appears on hover keeps its space when it is invisible. Both controls
-          fade in place, so a bare card still carries no chrome. */}
-      <div className="flex min-h-6 items-center gap-1.5">
-        <div className="flex shrink-0 items-center">
-          {overlay ? (
-            <span className="border-hairline text-ink-3 grid size-6 place-items-center rounded-full border border-dashed">
-              <User size={12} />
-            </span>
-          ) : (
-            assignee
-          )}
-        </div>
-
-        {!overlay && (
-          <span className="ml-auto shrink-0">
-            <DueDateControl value={dueDate} onChange={onDueDateChange} />
+          appears on hover keeps its space when it is invisible. Every control
+          here fades in place, so a bare card still carries no chrome. */}
+      <div className="flex min-h-6 items-center justify-between gap-1.5">
+        {overlay ? (
+          <span className="border-hairline text-ink-3 grid size-6 shrink-0 place-items-center rounded-full border border-dashed">
+            <User size={12} />
           </span>
+        ) : (
+          assignee
+        )}
+
+        {/* Estimate and due date share the right edge (M24-B) rather than
+            estimate sitting beside the assignee: both answer "what does this
+            card cost to read", one in points and one in time, so grouping
+            them is what keeps the row scannable as one cluster rather than
+            three unrelated facts. */}
+        {!overlay && (
+          <div className="flex shrink-0 items-center gap-1.5">
+            <EstimateControl value={estimate} onChange={onEstimateChange} />
+            <DueDateControl value={dueDate} onChange={onDueDateChange} />
+          </div>
         )}
       </div>
     </div>

@@ -33,6 +33,7 @@ describe("toCardContent", () => {
       workType: "task",
       priority: "high",
       dueDate: "2026-08-20T00:00:00.000Z",
+      estimate: null,
     });
   });
 
@@ -47,11 +48,11 @@ describe("toCardContent", () => {
       unknown
     >;
 
-    // The board fetches thirteen columns (M5-07, widened by M6-A's `rank`);
-    // the card renders five since M17 gave it `priority`. These are the other
-    // eight — `id`/`board_id`/`column_id` because M5-02 left identity with the
-    // container, the rest because they drive filtering, sorting and ordering
-    // rather than the card's own markup.
+    // The board fetches fourteen columns (M5-07, widened by M6-A's `rank` and
+    // M24's `estimate`); the card renders six since M24-B gave it `estimate`.
+    // These are the other eight — `id`/`board_id`/`column_id` because M5-02
+    // left identity with the container, the rest because they drive
+    // filtering, sorting and ordering rather than the card's own markup.
     for (const column of [
       "id",
       "board_id",
@@ -102,6 +103,7 @@ describe("TodoCardProps", () => {
       workType: "bug",
       priority: null,
       dueDate: null,
+      estimate: null,
       draft: "A card with no row behind it",
       editing: false,
       canEdit: true,
@@ -112,6 +114,7 @@ describe("TodoCardProps", () => {
       onWorkTypeChange: noop,
       onPriorityChange: noop,
       onDueDateChange: noop,
+      onEstimateChange: noop,
     };
 
     expect(props.title).toBe("A card with no row behind it");

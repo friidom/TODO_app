@@ -37,5 +37,6 @@ export function toCardContent(
     workType: todo.type,
     priority: todo.priority,
     dueDate: todo.due_date,
+    estimate: todo.estimate,
   };
 }

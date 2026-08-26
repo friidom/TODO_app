@@ -225,6 +225,7 @@ const TodoContainer = memo(function TodoContainer({
       onWorkTypeChange={(type) => patch({ type })}
       onPriorityChange={(priority) => patch({ priority })}
       onDueDateChange={(due_date) => patch({ due_date })}
+      onEstimateChange={(estimate) => patch({ estimate })}
       // Not gated on canEditTodos: opening the panel is a read, and the menu
       // that used to be the only way in is editor-only. Withheld on the drag
       // overlay, which is a picture of a card rather than one.

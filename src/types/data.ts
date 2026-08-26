@@ -211,4 +211,14 @@ export interface TodoCardContent {
    */
   priority: string | null;
   dueDate: string | null;
+  /**
+   * Story points (M24-B). Reused straight off `TodoRow` rather than renamed
+   * — unlike `taskKey`/`workType`/`dueDate`, there is no column-name-versus-
+   * product-word gap here to cross.
+   *
+   * `null` means unestimated, distinct from a written `0` (M24-A). The card's
+   * `EstimateControl` is the only reader; nothing here converts one into the
+   * other.
+   */
+  estimate: number | null;
 }
