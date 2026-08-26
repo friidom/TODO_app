@@ -271,7 +271,15 @@ export default function KanbanColumn({
       {/* TODO LIST */}
       <div
         ref={listRef}
-        className="min-h-0 flex-1 overflow-y-auto px-2 pt-2 pb-1"
+        // `overflow-x-hidden` is load-bearing, not tidiness. `overflow-y-auto`
+        // alone leaves `overflow-x` at `visible`, and CSS promotes a `visible`
+        // axis to `auto` whenever the other axis is not `visible` — so the list
+        // silently gained a horizontal scrollbar. Anything overflowing by a
+        // sub-pixel then showed a thin sideways scroll inside the column: the
+        // vertical scrollbar eating width mid-drag, a focus ring, the gap's
+        // `-left-2` `+`. A column never scrolls sideways, so the x-axis is
+        // clipped and the promotion has nothing to act on.
+        className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-2 pt-2 pb-1"
       >
         {/* Scoped to the cards: a card that throws costs this column its list,
             not the header, the Create button, or the rest of the board. */}

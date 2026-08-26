@@ -225,10 +225,30 @@ body,
   background: color-mix(in oklab, var(--ink-3) 60%, transparent);
 }
 
-/* Firefox. Both properties are inherited, so the root is the only place they
-   need saying. */
-html {
+/* The standard properties — and the reason the block above never ran.
+   ---------------------------------------------------------------------------
+   The old comment here claimed "both properties are inherited, so the root is
+   the only place they need saying". Half of that is true and it is the wrong
+   half: `scrollbar-color` inherits, `scrollbar-width` does NOT. So the root was
+   exactly the wrong place to say it — `<html>` got a thin bar and every inner
+   scroller that actually matters (each column's card list, the board's own
+   horizontal track, the drawers) computed `scrollbar-width: auto` and rendered
+   the full 16px native bar, arrows and all. Measured in the running app: 16px.
+
+   And because `scrollbar-color` DID reach those elements, Chrome switched them
+   onto the standard scrollbar path, where `::-webkit-scrollbar` is ignored — so
+   the 8px above was dead code on every scroller in the product. Measured: with
+   `scrollbar-width: thin` the same element renders a 10px bar; with the webkit
+   rule alone it renders 15px, i.e. the webkit rule does nothing here.
+
+   Saying it on `*` is what makes the pair actually apply together. The webkit
+   block stays for Safari before 18.2, which has no standard properties at all;
+   Chrome and Firefox never reach it. */
+* {
   scrollbar-width: thin;
+}
+
+html {
   scrollbar-color: color-mix(in oklab, var(--ink-3) 35%, transparent)
     transparent;
 }
