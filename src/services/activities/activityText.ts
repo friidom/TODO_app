@@ -89,8 +89,15 @@ export type ActivityContext = {
   liveTaskIds: ReadonlySet<string>;
 };
 
-/** Reads a string out of the jsonb payload, or null for anything else. */
-function str(payload: Activity["payload"], key: string): string | null {
+/**
+ * Reads a string out of the jsonb payload, or null for anything else.
+ *
+ * **Exported (M25).** `historyText.ts` reads the same payloads for the
+ * per-item History tab and needs the identical typed access — two readers
+ * agreeing on one function rather than on the shape of `Activity["payload"]`
+ * twice.
+ */
+export function str(payload: Activity["payload"], key: string): string | null {
   if (
     typeof payload !== "object" ||
     payload === null ||
@@ -104,8 +111,9 @@ function str(payload: Activity["payload"], key: string): string | null {
   return typeof value === "string" ? value : null;
 }
 
-/** Reads a number out of the jsonb payload, or null. */
-function num(payload: Activity["payload"], key: string): number | null {
+/** Reads a number out of the jsonb payload, or null. Exported for the same
+ * reason `str` is. */
+export function num(payload: Activity["payload"], key: string): number | null {
   if (
     typeof payload !== "object" ||
     payload === null ||
@@ -281,6 +289,27 @@ export function describeActivity(
         // that is red for Bug beside a red Highest priority chip would read as
         // one severity signal in two places.
         detail: to ? { label: "Type", value: to } : null,
+      };
+    }
+
+    case "todo.description_changed":
+      // No detail chip and no old/new value at all — the migration's header
+      // records why: description is unbounded free text with no compact chip
+      // to render a diff in, so the payload only ever carries `title` and
+      // `board_key`, which is why this case reads neither `from` nor `to`.
+      return {
+        text: `changed the description of ${item}`,
+        taskId,
+        detail: null,
+      };
+
+    case "todo.estimate_changed": {
+      const to = num(activity.payload, "to");
+
+      return {
+        text: `changed the estimate of ${item}`,
+        taskId,
+        detail: { label: "Estimate", value: to === null ? "None" : String(to) },
       };
     }
 

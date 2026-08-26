@@ -139,6 +139,18 @@ export function useTodoDrop() {
       queryClient.setQueryData<Todo[]>(queryKeys.todos(boardId), (old) =>
         old ? applyTodoMoved(old, activeTodo, columnId, rank) : old,
       );
+
+      // The History/All tab's entry, if this item's modal is open (M25) — the
+      // same reasoning `useUpdateTodo` follows, for the one other path that
+      // changes a `todos` row: `StatusControl`'s picker moves a card through
+      // this same mutation, so its history entry needs the same refetch. A
+      // no-op for the overwhelmingly common case, a board drag with no modal
+      // open on the card being moved: `invalidateQueries` only refetches a
+      // query that is currently observed, and nothing observes this item's
+      // history while its panel is closed.
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.todoActivities(activeTodo.id),
+      });
     },
 
     // Restore only. The message comes from the MutationCache handler in

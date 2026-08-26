@@ -107,6 +107,25 @@ export const queryKeys = {
   activities: (boardId: string | undefined) => ["activities", boardId] as const,
 
   /**
+   * One work item's own history (M25).
+   *
+   * A different root from `activities(boardId)` rather than a filtered read of
+   * it — the two are separate queries against separate scopes
+   * (`fetchTodoActivities` adds `entity_id`/`entity_type` predicates the board
+   * feed does not have), so they are separate cache entries rather than one
+   * list sliced two ways.
+   *
+   * **Unlike its board-scoped sibling, this one is invalidated** — by
+   * `useUpdateTodo` and `useTodoDrop`, the only two mutations that ever change
+   * a `todos` row. Both can run while this item's History tab is open (a field
+   * edit, or a status change via `StatusControl`), and a history tab that
+   * never refreshes after the edit it is showing would be the same silent gap
+   * M18 exists to avoid, one screen over.
+   */
+  todoActivities: (todoId: string | undefined) =>
+    ["todo-activities", todoId] as const,
+
+  /**
    * One work item's complete row, for the detail panel (M5-06).
    *
    * Deliberately its own entry rather than a slice of `todos(boardId)`: that

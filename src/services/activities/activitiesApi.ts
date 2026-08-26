@@ -47,3 +47,35 @@ export async function fetchActivities(boardId: string) {
 
   return data;
 }
+
+/**
+ * One work item's own history, newest first (M25).
+ *
+ * **No `limit`, unlike the board feed.** One item's lifetime of activity is far
+ * smaller than a board's — the same bound `ACTIVITY_PAGE` exists for — so the
+ * trigger that made a page number necessary there does not apply here.
+ *
+ * `board_id` is in the predicate deliberately, not just `entity_id` — it is
+ * what lets this query use `activities_board_entity_idx`
+ * `(board_id, entity_id)` as a range scan rather than a full-index scan on
+ * `entity_id` alone, which Postgres cannot do efficiently without it (the
+ * column is not the index's leading one). `entity_type = 'todo'` is there for
+ * correctness rather than selectivity — a work item's uuid will never collide
+ * with a column's or a member's, but the filter states the assumption instead
+ * of relying on it.
+ */
+export async function fetchTodoActivities(boardId: string, todoId: string) {
+  const { data, error } = await supabase
+    .from("activities")
+    .select(
+      "id, board_id, actor_id, entity_type, entity_id, action, payload, created_at",
+    )
+    .eq("board_id", boardId)
+    .eq("entity_type", "todo")
+    .eq("entity_id", todoId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+
+  return data;
+}

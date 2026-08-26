@@ -261,6 +261,61 @@ describe("describeActivity — field changes", () => {
     expect(line.text).toBe("changed the type of KAN-23");
     expect(line.detail).toEqual({ label: "Type", value: "Bug" });
   });
+
+  it("reads a description change with no value in the detail (M25)", () => {
+    // The migration's own rule: description carries no from/to, so there is
+    // nothing to put in a chip even though the sentence is a real event.
+    const line = describeActivity(
+      entry({
+        action: "description_changed",
+        payload: { board_key: 23 },
+      }),
+      CTX,
+    );
+
+    expect(line.text).toBe("changed the description of KAN-23");
+    expect(line.detail).toBeNull();
+  });
+
+  it("reads an estimate change (M25)", () => {
+    const line = describeActivity(
+      entry({
+        action: "estimate_changed",
+        payload: { board_key: 23, from: null, to: 5 },
+      }),
+      CTX,
+    );
+
+    expect(line.text).toBe("changed the estimate of KAN-23");
+    expect(line.detail).toEqual({ label: "Estimate", value: "5" });
+  });
+
+  it("reads an estimate cleared to null as None (M25)", () => {
+    // The null-vs-zero distinction M24-A's constraint protects has to survive
+    // the trip through the payload too: a cleared estimate reads "None", not
+    // "0" and not a blank chip.
+    const line = describeActivity(
+      entry({
+        action: "estimate_changed",
+        payload: { board_key: 23, from: 5, to: null },
+      }),
+      CTX,
+    );
+
+    expect(line.detail).toEqual({ label: "Estimate", value: "None" });
+  });
+
+  it("reads a written zero estimate as 0, not as None (M25)", () => {
+    const line = describeActivity(
+      entry({
+        action: "estimate_changed",
+        payload: { board_key: 23, from: null, to: 0 },
+      }),
+      CTX,
+    );
+
+    expect(line.detail).toEqual({ label: "Estimate", value: "0" });
+  });
 });
 
 describe("describeActivity — columns", () => {

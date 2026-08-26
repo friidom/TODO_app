@@ -285,8 +285,12 @@ Fields
 
 ## activities
 
-Board history. **Shipped in M18** — `20260815090000_create_activities.sql` and
-`20260816090000_activity_field_events.sql`.
+Board history and per-item History. **Shipped in M18** —
+`20260815090000_create_activities.sql` and
+`20260816090000_activity_field_events.sql` — and extended in **M25** —
+`20260827090000_todo_history_fields.sql` — to also watch `description` and
+`estimate`, and to serve a per-item history tab rather than only the
+board-wide feed.
 
 The shape below replaces the `todo_id` / `author_id` / `old_value` / `new_value`
 sketch this document carried before it was built. Two things changed and both
@@ -311,14 +315,23 @@ writes and no reader can render cannot be stored:
 
 | entity_type | actions |
 | --- | --- |
-| `todo` | `created`, `moved`, `assigned`, `retitled`, `priority_changed`, `due_changed`, `type_changed`, `deleted` |
+| `todo` | `created`, `moved`, `assigned`, `retitled`, `priority_changed`, `due_changed`, `type_changed`, `description_changed`, `estimate_changed`, `deleted` |
 | `column` | `created`, `renamed`, `deleted` |
 | `member` | `added`, `role_changed`, `removed` |
 
 The logged set of todo fields is exactly the set the UI can write — column,
-assignee, title, priority, due date, type. `rank` and `position` are **not** in
-it: a drag upserts a whole column's worth of rows to renumber them, and logging
-that would fill the feed in a day.
+assignee, title, priority, due date, type, description, estimate. `rank` and
+`position` are **not** in it: a drag upserts a whole column's worth of rows to
+renumber them, and logging that would fill the feed in a day.
+
+**`description_changed` carries no `from`/`to` in its payload** — only that it
+changed, plus `title`/`board_key` to name the card. Every other action's
+payload is a short scalar and is genuinely the whole explanation a reader
+needs; `description` is unbounded free text with no compact chip to render a
+diff in, and doubling a large edit's size into a permanent, unprunable-by-size
+log for a value no reader displays inline was not a trade worth making.
+`estimate_changed` gets the ordinary treatment — it is a short `numeric`
+scalar, same as `priority`/`type`.
 
 ### Two rules this table exists to keep
 

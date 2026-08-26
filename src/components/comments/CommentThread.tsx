@@ -51,7 +51,22 @@ import { relativeTime } from "@/utils/relativeTime";
  * refused anyway. What it buys is honesty: an edit button that always fails
  * reads as a broken product rather than as somebody else's comment.
  */
-export default function CommentThread({ todoId }: { todoId: string }) {
+export default function CommentThread({
+  todoId,
+  hideHeading = false,
+}: {
+  todoId: string;
+  /**
+   * Skip the "Comments" heading below (M25).
+   *
+   * Additive, defaulted off so every existing call site is unaffected. The
+   * one caller that sets it is `ActivitySection`'s "Comments" tab — the tab
+   * bar above this component already says "Comments," and a second heading
+   * repeating the word directly under it would be a Jira-reference mismatch
+   * of the tidying kind, not a redesign of anything this component does.
+   */
+  hideHeading?: boolean;
+}) {
   const boardId = useBoardId();
 
   const { data: comments, isPending, error } = useComments(todoId);
@@ -61,15 +76,17 @@ export default function CommentThread({ todoId }: { todoId: string }) {
   const count = comments?.length ?? 0;
 
   return (
-    <section className="mt-8">
-      <h3 className="text-ink-3 text-mini mb-3 flex items-center gap-2 font-semibold tracking-[0.08em] uppercase">
-        Comments
-        {/* The count only once there is one. A "0" beside the heading is a
-            label for an absence the empty state below already explains. */}
-        {count > 0 && (
-          <span className="text-ink-3/70 tabular-nums">{count}</span>
-        )}
-      </h3>
+    <section className={hideHeading ? undefined : "mt-8"}>
+      {!hideHeading && (
+        <h3 className="text-ink-3 text-mini mb-3 flex items-center gap-2 font-semibold tracking-[0.08em] uppercase">
+          Comments
+          {/* The count only once there is one. A "0" beside the heading is a
+              label for an absence the empty state below already explains. */}
+          {count > 0 && (
+            <span className="text-ink-3/70 tabular-nums">{count}</span>
+          )}
+        </h3>
+      )}
 
       {isPending ? (
         <div className="space-y-4" aria-busy>
@@ -125,8 +142,14 @@ export default function CommentThread({ todoId }: { todoId: string }) {
 /**
  * One comment: who, when, what, and — only for the people entitled to them —
  * the two controls that change it.
+ *
+ * **Exported (M25).** `ActivitySection`'s "All" tab interleaves comments with
+ * history and renders each comment through this exact function — reusing it
+ * rather than hand-rolling a second, read-only comment row is what "use the
+ * existing comments implementation... do not redesign it" means in practice.
+ * No change to the component itself was needed for that reuse to work.
  */
-function CommentRow({
+export function CommentRow({
   comment,
   author,
   todoId,

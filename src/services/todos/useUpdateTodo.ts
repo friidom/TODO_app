@@ -26,6 +26,16 @@ export function useUpdateTodo() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.todo(updatedTodo.id),
       });
+
+      // The History/All tab's entry, if this item's modal is open (M25). The
+      // trigger that turns this write into an activity row runs inside the
+      // same statement, so by the time this callback fires the row already
+      // exists — refetching now, rather than waiting on a poll, is what makes
+      // an edit's own history entry appear without reopening the panel. A
+      // no-op when the tab is closed or on a different item.
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.todoActivities(updatedTodo.id),
+      });
     },
   });
 }

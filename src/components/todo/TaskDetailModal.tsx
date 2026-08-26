@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 
+import ActivitySection from "./ActivitySection";
 import AssigneeControl from "./TodoItem/AssigneeControl";
 import DueDateControl from "./TodoItem/DueDateControl";
 import PriorityControl from "./TodoItem/PriorityControl";
 import StartDateControl from "./TodoItem/StartDateControl";
 import StatusControl from "./TodoItem/StatusControl";
 import WorkTypeControl from "./TodoItem/WorkTypeControl";
-import CommentThread from "@/components/comments/CommentThread";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useKeyPrefix } from "@/hooks/useKeyPrefix";
 import { useOpenTask } from "@/hooks/useOpenTask";
@@ -329,18 +329,21 @@ function Body({
             )}
           />
 
-          {/* M7-03. In the left column and below the description, because a
-              comment is what somebody wrote rather than what the system knows
-              — and because it is the one section that grows without bound, so
-              it belongs under a field of fixed height inside the column that
+          {/* M7-03, folded into M25's Activity tabs. In the left column and
+              below the description, because this is what someone wrote and
+              what happened rather than what the system currently knows — and
+              because it is the one section that grows without bound, so it
+              belongs under a field of fixed height inside the column that
               already scrolls.
 
               Outside the `pointer-events-none` the rail carries for a viewer,
               deliberately: commenting is participation, not content, so a
               viewer's discussion controls stay live while their status picker
               does not. That is M7-01's decision, and this is the one place in
-              the UI where the two rules visibly differ. */}
-          <CommentThread todoId={todo.id} />
+              the UI where the two rules visibly differ — `ActivitySection`
+              inherits it unchanged, since only its Comments tab writes
+              anything. */}
+          <ActivitySection todoId={todo.id} boardId={todo.board_id} />
         </div>
 
         {/* THE DETAILS RAIL — what the system knows, as against what someone
