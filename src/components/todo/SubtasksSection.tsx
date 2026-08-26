@@ -36,11 +36,12 @@ const SUBTASK_GRID =
  * One task's subtasks (M27) — the section the Jira reference puts between the
  * description and Activity, and where this one goes too.
  *
- * **It renders nothing for a subtask.** Two levels is the whole hierarchy, so
- * a subtask has no children and must not be offered any: the caller decides
- * that with `canHaveSubtasks`, and this component is simply not mounted. The
- * database refuses the write regardless (`enforce_subtask_depth`), which is
- * what makes the UI's job "do not offer" rather than "do not allow".
+ * **It renders nothing for a genuine subtask.** A subtask is always the
+ * bottom of the hierarchy — Epic → Task → Subtask, three levels since M28-A —
+ * so it has no children and must not be offered any: the caller decides that
+ * with `canHaveSubtasks`, and this component is simply not mounted. The
+ * database refuses the write regardless (`enforce_work_item_hierarchy`),
+ * which is what makes the UI's job "do not offer" rather than "do not allow".
  *
  * **Progress is the existing status system, not a second one.** A subtask is
  * done when its column's category is `done` — M2-15's rule, which deleted

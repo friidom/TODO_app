@@ -472,11 +472,14 @@ describe("typeDistribution", () => {
   it("lists every type even at zero", () => {
     const slices = typeDistribution([]);
 
+    // Epic is a work type like any other (M28-A), so it gets its own bar —
+    // at zero, same as every other type with no cards yet.
     expect(slices.map((slice) => slice.key)).toEqual([
       "Task",
       "Bug",
       "Story",
       "Feature",
+      "Epic",
     ]);
   });
 
@@ -484,12 +487,12 @@ describe("typeDistribution", () => {
     const slices = typeDistribution([
       todo({ type: "Bug" }),
       todo({ type: "Bug" }),
-      todo({ type: "Epic" }),
+      todo({ type: "Chore" }),
     ]);
 
     expect(slices.find((slice) => slice.key === "Bug")?.count).toBe(2);
-    // 'Epic' does not exist in this product; `toWorkType` resolves it to the
-    // default rather than inventing a fifth bar.
+    // 'Chore' does not exist in this product; `toWorkType` resolves it to
+    // the default rather than inventing a new bar.
     expect(slices.find((slice) => slice.key === "Task")?.count).toBe(1);
   });
 });

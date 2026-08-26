@@ -460,3 +460,113 @@ describe("describeActivity — subtasks (M27)", () => {
     expect(line.text).toBe("made KAN-23 a top-level work item");
   });
 });
+
+describe("describeActivity — epics (M28-A)", () => {
+  it("reads a task added to an epic, naming the task", () => {
+    const line = describeActivity(
+      entry({ action: "task_added_to_epic", payload: { board_key: 78 } }),
+      CTX,
+    );
+
+    expect(line.text).toBe("added KAN-78 to this epic");
+    expect(line.detail).toBeNull();
+  });
+
+  it("reads a task removed from an epic", () => {
+    const line = describeActivity(
+      entry({ action: "task_removed_from_epic", payload: { board_key: 78 } }),
+      CTX,
+    );
+
+    expect(line.text).toBe("removed KAN-78 from this epic");
+  });
+
+  it("reads a task assigned to an epic, naming the epic by key", () => {
+    const line = describeActivity(
+      entry({
+        action: "parent_changed",
+        payload: {
+          board_key: 23,
+          from: null,
+          to: "epic-1",
+          to_type: "Epic",
+          to_key: 5,
+        },
+      }),
+      CTX,
+    );
+
+    expect(line.text).toBe("assigned KAN-23 to KAN-5");
+  });
+
+  it("falls back to a vague epic when the payload has no key", () => {
+    const line = describeActivity(
+      entry({
+        action: "parent_changed",
+        payload: { board_key: 23, from: null, to: "epic-1", to_type: "Epic" },
+      }),
+      CTX,
+    );
+
+    expect(line.text).toBe("assigned KAN-23 to an epic");
+  });
+
+  it("reads a task removed from its epic", () => {
+    const line = describeActivity(
+      entry({
+        action: "parent_changed",
+        payload: {
+          board_key: 23,
+          from: "epic-1",
+          to: null,
+          from_type: "Epic",
+        },
+      }),
+      CTX,
+    );
+
+    expect(line.text).toBe("removed KAN-23 from its epic");
+  });
+
+  it("still reads becoming a subtask when the new parent is a task", () => {
+    const line = describeActivity(
+      entry({
+        action: "parent_changed",
+        payload: {
+          board_key: 23,
+          from: null,
+          to: "task-1",
+          to_type: "Task",
+          to_key: 9,
+        },
+      }),
+      CTX,
+    );
+
+    expect(line.text).toBe("made KAN-23 a subtask");
+  });
+
+  it("renders a pre-M28-A row exactly as before (no type fields at all)", () => {
+    // The backward-compatibility case: rows written before this migration
+    // have `from`/`to` only, and could never have had an Epic parent.
+    const gained = describeActivity(
+      entry({
+        action: "parent_changed",
+        payload: { board_key: 23, from: null, to: "task-1" },
+      }),
+      CTX,
+    );
+
+    expect(gained.text).toBe("made KAN-23 a subtask");
+
+    const cleared = describeActivity(
+      entry({
+        action: "parent_changed",
+        payload: { board_key: 23, from: "task-1", to: null },
+      }),
+      CTX,
+    );
+
+    expect(cleared.text).toBe("made KAN-23 a top-level work item");
+  });
+});

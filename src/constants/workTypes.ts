@@ -4,10 +4,11 @@ import {
   type LucideIcon,
   SquareCheckIcon,
   BookOpenIcon,
+  ZapIcon,
 } from "lucide-react";
 
 /**
- * The four work types a card can be.
+ * The five work types a card can be.
  *
  * A fixed set the user picks from and never defines, so it is a CHECK
  * constraint on `todos.type` rather than a table — the same shape
@@ -21,6 +22,16 @@ import {
  * Each class is a whole literal string on purpose — Tailwind scans source text,
  * so a composed `text-${token}` would emit no CSS and the icons would render
  * with no colour at all.
+ *
+ * **`Epic` joined the other four in M28-A.** It is a work type like the rest —
+ * same column, same CHECK, same control — and not a second model: the thing
+ * that makes a row an Epic is `type = 'Epic'`, and the thing that makes it a
+ * *container* is every other row's `parent_id` pointing at it, which is
+ * `enforce_work_item_hierarchy`'s job, not this file's. `tone`/`chip` reuse
+ * `status-orange` rather than a sixth colour: this app's card chips draw from
+ * four theme-aware status tones plus `brand`, all five already spoken for by
+ * priority and the other four types, and introducing a raw Tailwind colour
+ * here would not repaint itself in dark mode the way these tokens do.
  */
 
 export const WORK_TYPES = {
@@ -46,6 +57,11 @@ export const WORK_TYPES = {
     tone: "text-brand",
     chip: "bg-brand-soft text-brand",
   },
+  Epic: {
+    icon: ZapIcon,
+    tone: "text-status-orange",
+    chip: "bg-status-orange/15 text-status-orange",
+  },
 } as const satisfies Record<
   string,
   { icon: LucideIcon; tone: string; chip: string }
@@ -53,8 +69,18 @@ export const WORK_TYPES = {
 
 export type WorkType = keyof typeof WORK_TYPES;
 
-/** Menu order. Task first, because it is the default and the common case. */
-export const WORK_TYPE_OPTIONS = ["Task", "Bug", "Story", "Feature"] as const;
+/**
+ * Menu order. Task first, because it is the default and the common case.
+ * Epic last — it is the one type that is also a container, and the menu
+ * lists what a card commonly *is* before what it also *does*.
+ */
+export const WORK_TYPE_OPTIONS = [
+  "Task",
+  "Bug",
+  "Story",
+  "Feature",
+  "Epic",
+] as const;
 
 /** Matches the column's default, so the create form opens on the same value. */
 export const DEFAULT_WORK_TYPE: WorkType = "Task";
@@ -72,7 +98,5 @@ export function workTypeOf(value?: string | null) {
 
 /** The stored value, narrowed, or the default. */
 export function toWorkType(value?: string | null): WorkType {
-  return value && value in WORK_TYPES
-    ? (value as WorkType)
-    : DEFAULT_WORK_TYPE;
+  return value && value in WORK_TYPES ? (value as WorkType) : DEFAULT_WORK_TYPE;
 }

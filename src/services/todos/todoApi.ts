@@ -156,15 +156,18 @@ export async function addTodo({
   /** Omitted falls through to the column's own 'Task' default. */
   type?: string;
   /**
-   * The task this one is a subtask of (M27). Null — the default, and what
-   * every create surface but the parent panel sends — is a normal top-level
-   * card.
+   * This row's parent (M27; widened to Epics in M28-A). Null — the default,
+   * and what every create surface but the subtask panel and `EpicTasksSection`
+   * send — is a normal top-level card. A non-null value makes this either a
+   * Subtask (parent is a Task) or a Task under an Epic (parent is an Epic),
+   * decided entirely by the parent's own type — never by which create surface
+   * sent it.
    *
    * The database is what enforces the shape: `todos_parent_id_fkey` refuses a
-   * parent on another board, and `enforce_subtask_depth` refuses a parent
-   * that is itself a subtask. Nothing here re-checks either, because a client
-   * check that disagreed with the trigger would be the more dangerous of the
-   * two.
+   * parent on another board, and `enforce_work_item_hierarchy` refuses an
+   * invalid pairing (an Epic with a parent, a Subtask under a Subtask, and so
+   * on). Nothing here re-checks either, because a client check that disagreed
+   * with the trigger would be the more dangerous of the two.
    */
   parent_id?: string | null;
 }) {
@@ -176,16 +179,23 @@ export async function addTodo({
   if (!user) throw new Error("Not authenticated");
 
   //get count of todos
+  //
+  // No `parent_id` predicate, deliberately (M27 added one; M28-A removes it).
+  // This is an APPEND — `rankForAppend` always places the new row after
+  // whatever the highest rank in the column already is — and appending after
+  // the highest rank in the column, whatever row it belongs to, still places
+  // the new card after every *visible* card, because every visible card's own
+  // rank is itself ≤ that same maximum. A Subtask's or a Task-under-Epic's
+  // rank is just a number in the same space; it is never rendered, so it
+  // never causes a misplacement, only ever a correct append. Filtering it out
+  // would only be needed for an index-based *insert-between*, which this is
+  // not — see `useAddTodo`'s optimistic filter for where that distinction
+  // actually matters and is actually applied.
   const { data: lastTodo, error: lastTodoError } = await supabase
     .from("todos")
     .select("position, rank")
     .eq("column_id", column_id)
     .eq("board_id", board_id)
-    // Cards only (M27). A subtask carries a real `column_id` — that is what
-    // gives it a status — so without this the highest-ranked *subtask* in the
-    // column could decide where the next card lands. Subtasks are not on the
-    // board and must not vote on its order.
-    .is("parent_id", null)
     .order("rank", { ascending: false, nullsFirst: false })
     .limit(1)
     .maybeSingle();

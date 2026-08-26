@@ -168,6 +168,7 @@ Fields
 - assignee_id
 - title
 - description
+- type
 - priority
 - start_date
 - due_date
@@ -182,35 +183,63 @@ Fields
 
 Hierarchy
 
-`parent_id` is a nullable self-reference added by M27. `null` is a normal
-top-level work item — what every row was before it existed. Anything else
-makes the row a **subtask** of that work item.
+`parent_id` is a nullable self-reference added by M27 and widened to a third
+level by **M28-A**. A row's ROLE in the hierarchy — Epic, a top-level Task, a
+Task under an Epic, or a Subtask — is never stored as its own column: it is
+derived from two facts already on the row, its own `type` and its parent's
+`type`, the same two facts `enforce_work_item_hierarchy` reads.
 
-The hierarchy is exactly two levels: `Task → Subtask`, never
-`Task → Subtask → Subtask`. Three things enforce that, each doing the part
-the cheaper tool cannot:
+- `type = 'Epic'` → an **Epic**. An Epic never has a parent (`parent_id` must
+  be `null`).
+- `parent_id is null` and `type <> 'Epic'` → a top-level **Task**.
+- `parent_id` names a row whose `type = 'Epic'` → a **Task under that Epic**.
+  Still a real board card in a real column, exactly like a top-level Task —
+  organised under an Epic, not demoted by it.
+- `parent_id` names anything else (any Task, top-level or itself under an
+  Epic) → a **Subtask**. `Epic → Task → Subtask` is the only legal chain:
+  a Subtask may not have children of its own, and nothing may sit directly
+  under an Epic except a Task.
 
+Four things enforce that shape, each doing the part the cheaper tool cannot:
+
+- `todos_type_check` is the CHECK that makes `'Epic'` a legal value at all —
+  a fifth value beside `'Bug' | 'Task' | 'Story' | 'Feature'`, not a second
+  mechanism. Epic needed no new table for the same reason Subtask didn't in
+  M27: it needs a key, a title, an assignee, comments and activity, and
+  `todos` already gives every row all five.
 - `todos_parent_id_fkey` is composite — `(parent_id, board_id)` references
   `todos (id, board_id)` — so a parent on another board is unrepresentable,
   the same idiom `todos_column_id_fkey` uses. **`on delete cascade`**:
-  deleting a task deletes its subtasks, because unlike a column's cards a
-  subtask has nowhere to be rehomed to.
+  deleting a work item deletes its children, because unlike a column's cards
+  a child has nowhere to be rehomed to — deleting an Epic cascades through
+  its Tasks to their Subtasks in one statement.
 - `todos_parent_not_self` is the one depth rule a CHECK can state.
-- `enforce_subtask_depth` is a `before insert or update of parent_id`
-  trigger, and holds the two halves needing a subquery: a parent must itself
-  be top level, and a row that already has children may not become a child.
+- `enforce_work_item_hierarchy` — M27's `enforce_subtask_depth`, renamed and
+  widened — is a `before insert or update of parent_id, type` trigger; it now
+  also watches `type` because changing a row's type to or from `'Epic'` can
+  break the hierarchy without `parent_id` itself changing. It holds every
+  rule needing a subquery: an Epic may not have a parent, a parent must
+  resolve to a row on the same board, a Subtask's parent must itself be a
+  Task rather than another Subtask, a row with children may not become a
+  Subtask, and a row may not stop being an Epic while one of its Tasks still
+  has a Subtask attached (that would silently create a fourth level).
 
-A subtask **carries a real `column_id`**, which is what gives it a status and
+A Subtask **carries a real `column_id`**, which is what gives it a status and
 therefore what makes `1 of 3 done` answerable — doneness is the column's
 `category`, never a field (M2-15). It also gets a `board_key` like any other
-row, so a subtask is `KAN-78` under `KAN-9`.
+row, so a subtask is `KAN-78` under `KAN-9`. An Epic and a Task under an Epic
+carry one too, and draw on the board exactly like any other card.
 
-Subtasks are fetched with the board (`fetchTodos` has no `parent_id`
-predicate) and filtered out client-side in `useVisibleTodos`, so the one
-cached array answers both "what cards are on this board" and "what are
-KAN-9's children". `position` and `rank` are meaningless for a subtask —
-nothing orders them by either — and the three places that reason about a
-*column's* contents say `parent_id === null` out loud.
+Every row is fetched with the board (`fetchTodos` has no `parent_id`
+predicate); the client decides what to hide. `useVisibleTodos` filters out
+only genuine Subtasks — `isGenuineSubtask` (in `subtasks.ts`, alongside the
+rest of this module), a row whose parent's `type` is not `'Epic'` — so the
+one cached array answers "what cards are on this board", "what are KAN-9's
+subtasks" and "what Tasks does this Epic own" at once. `position` and `rank`
+are meaningless for a Subtask — nothing orders them by either — but **are**
+meaningful for a Task under an Epic, which is a normal board card; every
+place that reasons about a column's contents therefore checks
+`isGenuineSubtask`, never a bare `parent_id === null`.
 
 ---
 
@@ -274,7 +303,7 @@ find one, on every row. It cannot drift — `(todo_id, board_id)` references
 Any board member may post, including a viewer. An author may edit only their own
 comment and only its `content` (a column-level grant, not just a policy); an
 author may delete their own, and admins and owners may delete any. See
-*Permission Model* in `docs/IMPLEMENTATION_PLAN.md`.
+_Permission Model_ in `docs/IMPLEMENTATION_PLAN.md`.
 
 ---
 
@@ -328,10 +357,22 @@ Board history and per-item History. **Shipped in M18** —
 board-wide feed. **M27** — `20260828090000_todo_parent_id.sql` — added
 `parent_changed` on the child, plus `subtask_added` / `subtask_removed`
 written against the **parent**, so a task's own History shows its subtasks
-appearing and going. In those two the payload describes the *child* while
-`entity_id` names the *parent*; a subtask's own create, delete and status
+appearing and going. In those two the payload describes the _child_ while
+`entity_id` names the _parent_; a subtask's own create, delete and status
 change need no new vocabulary, because a subtask is a row and `created`,
 `deleted` and `moved` already fire for every row.
+
+**M28-A** — `20260829090000_todo_epic_hierarchy.sql` — added
+`task_added_to_epic` / `task_removed_from_epic`, the same parent-side shape
+as `subtask_added` / `subtask_removed`, chosen by looking up the _parent's_
+type rather than assumed: attaching a child to an Epic writes the former,
+attaching it to a Task writes the latter. `parent_changed`'s payload also
+grew `from_type` / `from_key` / `to_type` / `to_key` — the old and new
+parent's type and key, snapshotted at write time — so a reader can tell
+"became a Subtask" from "assigned to an Epic" without looking either parent
+up. And `log_todo_activity` now writes the parent-side entry on **UPDATE**
+too, not only INSERT/DELETE: assigning an _existing_ Task to an Epic is a
+reparent, and without this the Epic's own History would never mention it.
 
 The shape below replaces the `todo_id` / `author_id` / `old_value` / `new_value`
 sketch this document carried before it was built. Two things changed and both
@@ -354,16 +395,18 @@ Fields
 `(entity_type, action)` is checked as a **pair**, so a combination no trigger
 writes and no reader can render cannot be stored:
 
-| entity_type | actions |
-| --- | --- |
-| `todo` | `created`, `moved`, `assigned`, `retitled`, `priority_changed`, `due_changed`, `type_changed`, `description_changed`, `estimate_changed`, `parent_changed`, `subtask_added`, `subtask_removed`, `deleted` |
-| `column` | `created`, `renamed`, `deleted` |
-| `member` | `added`, `role_changed`, `removed` |
+| entity_type | actions                                                                                                                                                                                                                                                   |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `todo`      | `created`, `moved`, `assigned`, `retitled`, `priority_changed`, `due_changed`, `type_changed`, `description_changed`, `estimate_changed`, `parent_changed`, `subtask_added`, `subtask_removed`, `task_added_to_epic`, `task_removed_from_epic`, `deleted` |
+| `column`    | `created`, `renamed`, `deleted`                                                                                                                                                                                                                           |
+| `member`    | `added`, `role_changed`, `removed`                                                                                                                                                                                                                        |
 
 The logged set of todo fields is exactly the set the UI can write — column,
-assignee, title, priority, due date, type, description, estimate. `rank` and
-`position` are **not** in it: a drag upserts a whole column's worth of rows to
-renumber them, and logging that would fill the feed in a day.
+assignee, title, priority, due date, type, description, estimate, and, since
+M28-A's `EpicParentControl` gave `parent_id` its first UI path that patches an
+_existing_ row, parent. `rank` and `position` are **not** in it: a drag
+upserts a whole column's worth of rows to renumber them, and logging that
+would fill the feed in a day.
 
 **`description_changed` carries no `from`/`to` in its payload** — only that it
 changed, plus `title`/`board_key` to name the card. Every other action's
@@ -435,6 +478,9 @@ todos.creator_id
 todos.assignee_id
 → profiles.id
 
+todos.(parent_id, board_id)
+→ todos.(id, board_id) — composite, on delete cascade (M27)
+
 comments.(todo_id, board_id)
 → todos.(id, board_id) — composite, on delete cascade
 
@@ -490,6 +536,9 @@ columns(board_id, position)
 todos(column_id, position)
 
 todos(board_id)
+
+todos(parent_id) where parent_id is not null — a work item's children (M27):
+subtasks, an Epic's Tasks, and the count behind `1 of 3 done`
 
 comments(todo_id, created_at) — one thread, in posting order, no sort node
 

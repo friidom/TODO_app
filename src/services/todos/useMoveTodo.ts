@@ -4,6 +4,7 @@ import { queryKeys } from "@/services/queryClient/queryKeys";
 import type { IColumn, Todo } from "@/types/data";
 import { useBoardId } from "@/hooks/useBoardId";
 import { useDoneFlash } from "@/stores/doneFlash";
+import { isGenuineSubtask } from "./subtasks";
 import { useTodoDrop } from "./useTodoDrop";
 
 /**
@@ -53,14 +54,16 @@ export function useMoveTodo(todoId: string) {
     // current column; this is the same guard where the caller is not looking.
     if (!activeTodo || activeTodo.column_id === column.id) return;
 
-    // Cards only (M27). The cache holds subtasks too and they carry a real
-    // column, so counting them here would append the card past the end of the
-    // visible column — a gap index pointing at rows the board never drew.
+    // Visible cards only (M27, widened for Epics in M28-A). The cache holds
+    // genuine Subtasks too, and they carry a real column, so counting them
+    // here would append the card past the end of the visible column — a gap
+    // index pointing at rows the board never drew. A Task under an Epic is
+    // counted normally: it IS one of those rows.
     const index = todos.filter(
       (todo) =>
         todo.column_id === column.id &&
         todo.id !== todoId &&
-        todo.parent_id === null,
+        !isGenuineSubtask(todos, todo),
     ).length;
 
     drop.mutate({ todos, activeTodo, columnId: column.id, index });

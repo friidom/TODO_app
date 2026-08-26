@@ -96,11 +96,15 @@ describe("filterOptions", () => {
   });
 
   it("offers every work type", () => {
+    // Generic over `WORK_TYPE_OPTIONS` — Epic is a work type like any other
+    // (M28-A), so filtering the board down to just its Epics needs no case
+    // of its own here.
     expect(values(filterOptions("type", ctx))).toEqual([
       "Task",
       "Bug",
       "Story",
       "Feature",
+      "Epic",
     ]);
   });
 

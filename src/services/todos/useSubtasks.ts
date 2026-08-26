@@ -1,13 +1,19 @@
 import { useMemo } from "react";
 
 import { useColumns } from "@/services/columns/useColumnsApi";
-import type { IColumn } from "@/types/data";
+import type { IColumn, Todo } from "@/types/data";
 import { useTodos } from "./useTodos";
 import {
+  canHaveSubtasks,
+  canPickEpicParent,
+  childrenOf,
   doneColumnIds,
+  epicsOf,
+  isEpic,
+  isGenuineSubtask,
+  parentOf,
   subtaskProgress,
   subtaskProgressByParent,
-  subtasksOf,
   type SubtaskProgress,
 } from "./subtasks";
 
@@ -32,7 +38,7 @@ export function useSubtasks(parentId: string) {
   const { data: columns = EMPTY_COLUMNS } = useColumns();
 
   const subtasks = useMemo(
-    () => subtasksOf(todos, parentId),
+    () => childrenOf(todos, parentId),
     [todos, parentId],
   );
 
@@ -42,6 +48,77 @@ export function useSubtasks(parentId: string) {
   );
 
   return { subtasks, progress, isPending, error };
+}
+
+/**
+ * One Epic's own Tasks, oldest first (M28-A).
+ *
+ * The identical fold `useSubtasks` runs — `childrenOf` does not care whether
+ * the parent is a Task or an Epic — kept as a separate hook rather than a
+ * second call site for the same one, because the two callers want different
+ * things back: a Task's own Subtasks come with a done/total count, and an
+ * Epic's Tasks do not (M31, not this milestone).
+ */
+export function useEpicTasks(epicId: string) {
+  const { data: todos = [], isPending, error } = useTodos();
+
+  const tasks = useMemo(() => childrenOf(todos, epicId), [todos, epicId]);
+
+  return { tasks, isPending, error };
+}
+
+/**
+ * Every Epic on the board, for the Parent selector's candidate list (M28-A).
+ *
+ * No `boardId` parameter, matching `useTodos()` itself — the board comes
+ * from the route, and this hook is only ever mounted inside a panel already
+ * open on one.
+ */
+export function useEpics() {
+  const { data: todos = [], isPending, error } = useTodos();
+
+  const epics = useMemo(() => epicsOf(todos), [todos]);
+
+  return { epics, isPending, error };
+}
+
+export interface TodoHierarchy {
+  /** The full board array this classification was resolved from. */
+  todos: Todo[];
+  /** This item's parent row, or null if it has none (or the array does not
+   * yet hold it). */
+  parent: Todo | null;
+  isEpic: boolean;
+  /** Parented by a Task, not an Epic — the M27 "Subtask" role. */
+  isGenuineSubtask: boolean;
+  canHaveSubtasks: boolean;
+  canPickEpicParent: boolean;
+}
+
+/**
+ * One work item's role in the hierarchy — Epic, Task, Task-under-Epic, or
+ * genuine Subtask — resolved from the board's own cached array (M28-A).
+ *
+ * The single place `TaskDetailModal` asks "what should this panel show":
+ * the Subtasks section, the Epic Parent field, both, or neither. Each of the
+ * three UI decisions reads one field off this object instead of repeating
+ * `subtasks.ts`'s classification logic at each call site.
+ */
+export function useTodoHierarchy(todo: Todo): TodoHierarchy {
+  const { data: todos = [] } = useTodos();
+
+  return useMemo(() => {
+    const parent = parentOf(todos, todo);
+
+    return {
+      todos,
+      parent,
+      isEpic: isEpic(todo),
+      isGenuineSubtask: isGenuineSubtask(todos, todo),
+      canHaveSubtasks: canHaveSubtasks(todos, todo),
+      canPickEpicParent: canPickEpicParent(todos, todo),
+    };
+  }, [todos, todo]);
 }
 
 /**

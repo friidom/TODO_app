@@ -320,3 +320,84 @@ describe("describeHistoryChange — subtasks (M27)", () => {
     expect(change?.to).toBeNull();
   });
 });
+
+describe("describeHistoryChange — epics (M28-A)", () => {
+  it("names a task added to an epic, from the epic's own history", () => {
+    const change = describeHistoryChange(
+      entry("task_added_to_epic", { board_key: 45, title: "Ship it" }),
+      NAMES,
+    );
+
+    expect(change).toEqual({
+      verb: "added task",
+      field: "#45",
+      from: null,
+      to: null,
+    });
+  });
+
+  it("names a task removed from an epic the same way", () => {
+    const change = describeHistoryChange(
+      entry("task_removed_from_epic", { board_key: 45, title: "Ship it" }),
+      NAMES,
+    );
+
+    expect(change?.verb).toBe("removed task");
+    expect(change?.field).toBe("#45");
+  });
+
+  it("renders Parent as a chip once from_key/to_key are on the payload", () => {
+    const change = describeHistoryChange(
+      entry("parent_changed", {
+        from: null,
+        to: "epic-1",
+        to_type: "Epic",
+        to_key: 5,
+      }),
+      NAMES,
+    );
+
+    expect(change).toEqual({
+      verb: "changed",
+      field: "Parent",
+      from: "None",
+      to: "#5",
+    });
+  });
+
+  it("renders the epic side cleared, keeping the old key as `from`", () => {
+    const change = describeHistoryChange(
+      entry("parent_changed", {
+        from: "epic-1",
+        to: null,
+        from_type: "Epic",
+        from_key: 5,
+      }),
+      NAMES,
+    );
+
+    expect(change).toEqual({
+      verb: "changed",
+      field: "Parent",
+      from: "#5",
+      to: "None",
+    });
+  });
+
+  it("still falls back to the plain sentence for a pre-M28-A row", () => {
+    // No `from_key`/`to_key` at all — the shape every row had before this
+    // migration, and the only shape a genuine subtask reparenting can ever
+    // produce today, since that path has no UI to drive it.
+    const change = describeHistoryChange(
+      entry("parent_changed", { from: null, to: "task-1" }),
+      NAMES,
+    );
+
+    expect(change).toEqual({
+      verb: "made this a subtask",
+      field: null,
+      from: null,
+      to: null,
+    });
+  });
+});

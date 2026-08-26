@@ -5,6 +5,7 @@ import { queryKeys } from "@/services/queryClient/queryKeys";
 import type { Todo } from "../../types/data";
 import { useBoardId } from "@/hooks/useBoardId";
 import { DEFAULT_WORK_TYPE } from "@/constants/workTypes";
+import { isGenuineSubtask } from "./subtasks";
 import { rankForAppend, rankForDrop } from "@/utils/rank";
 
 interface AddTodoVars {
@@ -27,6 +28,18 @@ interface AddTodoVars {
   due_date?: string | null;
   /** Defaults to the column's own default, so untouched behaves as before. */
   type?: string;
+  /**
+   * The Epic this card belongs to, when it is created from
+   * `EpicTasksSection`'s "New task" flow (M28-A). Null everywhere else — a
+   * card made from the column's own create form or the header's quick-add
+   * has no Epic to inherit, exactly as it had no assignee or due date to
+   * inherit before this field existed.
+   *
+   * Unlike a Subtask (`useAddSubtask`, a separate mutation entirely), a Task
+   * under an Epic is a real board card in a real column — this is the
+   * ordinary create path with one more field riding along, not a second one.
+   */
+  parent_id?: string | null;
 }
 
 /** `AddTodoVars` once the hook has stamped the client-minted id on. */
@@ -45,6 +58,7 @@ export function useAddTodo() {
       start_date = null,
       due_date = null,
       type = DEFAULT_WORK_TYPE,
+      parent_id = null,
     }: AddTodoInput) => {
       if (!boardId) throw new Error("useAddTodo ran without a board");
 
@@ -57,6 +71,7 @@ export function useAddTodo() {
         start_date,
         due_date,
         type,
+        parent_id,
       });
     },
 
@@ -71,6 +86,7 @@ export function useAddTodo() {
       start_date = null,
       due_date = null,
       type = DEFAULT_WORK_TYPE,
+      parent_id = null,
     }) => {
       // A todo cannot exist without a board — `board_id` is NOT NULL as of
       // M2-07. Refusing here states that requirement instead of inventing a
@@ -96,12 +112,19 @@ export function useAddTodo() {
       // always appends server-side, so a card created at a chosen gap keeps
       // this value through `applyTodoConfirmed` and the correction below writes
       // it back — the same slot-keeping the dense position already did.
-      // Cards only (M27). The cache holds subtasks too, and a subtask carries
-      // a real `column_id` — so without the second predicate the optimistic
-      // rank would be computed against rows that are not on the board, and a
-      // new card could land above or below a neighbour nobody can see.
+      // Visible cards only (M27, widened for Epics in M28-A). The cache
+      // holds Subtasks too, and a Subtask carries a real `column_id` — so
+      // without the second predicate the optimistic rank would be computed
+      // against rows that are not on the board, and a new card could land
+      // above or below a neighbour nobody can see. A Task under an Epic is
+      // NOT excluded here: it is a real card in this same column, and a
+      // plain `parent_id === null` check would wrongly treat it the same as
+      // a hidden Subtask — `isGenuineSubtask` is the fix, asking "is the
+      // parent a Task", not "is there a parent at all".
       const destination = previousTodos.filter(
-        (todo) => todo.column_id === column_id && todo.parent_id === null,
+        (todo) =>
+          todo.column_id === column_id &&
+          !isGenuineSubtask(previousTodos, todo),
       );
 
       const optimisticRank =
@@ -131,11 +154,12 @@ export function useAddTodo() {
         // No create surface sets an estimate; the field is set from the
         // detail panel after the card exists (M24).
         estimate: null,
-        // Always a top-level card. A subtask is created by `useAddSubtask`,
-        // which is a separate mutation precisely because this one renumbers
-        // a column's dense positions around the new row and a subtask has no
-        // place in that sequence (M27).
-        parent_id: null,
+        // Null for every ordinary card. Set only by `EpicTasksSection`'s
+        // "New task" flow (M28-A) — a Task under an Epic is still a real
+        // card in this same column, unlike a Subtask, which is created by
+        // the separate `useAddSubtask` mutation precisely because IT has no
+        // place in this column's dense-position sequence at all.
+        parent_id,
         // Carried, since M20-B. It is still null from every other create
         // surface — the column's create card and the header form ask for a due
         // date and nothing asks for a start, so a card made there is a point on
@@ -210,12 +234,14 @@ export function useAddTodo() {
       // complete. Before M2-14 they had to be filtered out, because upserting
       // a `Date.now()` id would have created a blank row that nothing owned.
       reorderTodos(
-        // Cards only, matching the optimistic filter above (M27). A subtask
-        // has no place in the board's dense position sequence, and sending
-        // one here would write it a `position` that competes with the cards'.
+        // Visible cards only, matching the optimistic filter above (M27,
+        // widened for Epics in M28-A). A genuine Subtask has no place in the
+        // board's dense position sequence; a Task under an Epic does, since
+        // it is a real card in this column.
         todos.filter(
           (todo) =>
-            todo.column_id === serverTodo.column_id && todo.parent_id === null,
+            todo.column_id === serverTodo.column_id &&
+            !isGenuineSubtask(todos, todo),
         ),
         boardId,
       ).catch(() =>

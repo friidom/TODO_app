@@ -47,8 +47,10 @@ export interface HistoryChange {
 }
 
 /**
- * How a `subtask_added` / `subtask_removed` row names the child it is about
- * (M27).
+ * How a `subtask_added` / `subtask_removed` / `task_added_to_epic` /
+ * `task_removed_from_epic` row names the child it is about (M27, widened for
+ * Epics in M28-A — all four share the same payload shape: the CHILD's title
+ * and key, on a row that lives in the PARENT's history).
  *
  * Prefers the key, because that is what the subtasks table above it shows.
  * Falls back to the title for a child deleted before its key was allocated,
@@ -56,7 +58,7 @@ export interface HistoryChange {
  * fallback `itemLabel` in `activityText.ts` makes, minus the board prefix,
  * which this module is not given.
  */
-function subtaskLabel(activity: Activity): string {
+function childLabel(activity: Activity): string {
   const boardKey = num(activity.payload, "board_key");
 
   if (boardKey !== null) return `#${boardKey}`;
@@ -169,7 +171,7 @@ export function describeHistoryChange(
       // The payload names the child; this row lives in the parent's history.
       return {
         verb: "added subtask",
-        field: subtaskLabel(activity),
+        field: childLabel(activity),
         from: null,
         to: null,
       };
@@ -177,16 +179,49 @@ export function describeHistoryChange(
     case "subtask_removed":
       return {
         verb: "removed subtask",
-        field: subtaskLabel(activity),
+        field: childLabel(activity),
         from: null,
         to: null,
       };
 
-    case "parent_changed":
-      // No chip: both sides are raw work-item uuids, and this list has no way
-      // to resolve one into a key without the board's array — which the
-      // renderer deliberately does not take. The sentence carries the whole
-      // fact, and re-parenting has no UI in M27 anyway.
+    case "task_added_to_epic":
+      // Same shape as `subtask_added` above (M28-A): the payload names the
+      // task that was attached, and this row lives in the EPIC's own
+      // history.
+      return {
+        verb: "added task",
+        field: childLabel(activity),
+        from: null,
+        to: null,
+      };
+
+    case "task_removed_from_epic":
+      return {
+        verb: "removed task",
+        field: childLabel(activity),
+        from: null,
+        to: null,
+      };
+
+    case "parent_changed": {
+      // M28-A snapshots the parent's own key as `from_key`/`to_key`, so a
+      // chip is possible without this renderer resolving anything itself —
+      // unlike `subtask_added`'s child, the parent here is exactly what
+      // changed, so "Parent: None → #5" is the more informative rendering
+      // now that the data exists to show it. A row written before this
+      // migration has neither key and falls back to M27's plain sentence.
+      const fromKey = num(activity.payload, "from_key");
+      const toKey = num(activity.payload, "to_key");
+
+      if (fromKey !== null || toKey !== null) {
+        return {
+          verb: "changed",
+          field: "Parent",
+          from: fromKey !== null ? `#${fromKey}` : "None",
+          to: toKey !== null ? `#${toKey}` : "None",
+        };
+      }
+
       return {
         verb: str(activity.payload, "to")
           ? "made this a subtask"
@@ -195,6 +230,7 @@ export function describeHistoryChange(
         from: null,
         to: null,
       };
+    }
 
     case "description_changed":
       // No chip — see `20260827090000_todo_history_fields.sql`'s header for

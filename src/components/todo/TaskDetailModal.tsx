@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 
 import ActivitySection from "./ActivitySection";
+import EpicTasksSection from "./EpicTasksSection";
 import ParentLine from "./ParentLine";
 import SubtasksSection from "./SubtasksSection";
 import AssigneeControl from "./TodoItem/AssigneeControl";
 import DueDateControl from "./TodoItem/DueDateControl";
+import EpicParentControl from "./TodoItem/EpicParentControl";
 import PriorityControl from "./TodoItem/PriorityControl";
 import StartDateControl from "./TodoItem/StartDateControl";
 import StatusControl from "./TodoItem/StatusControl";
@@ -21,6 +23,7 @@ import {
   titleValue,
 } from "@/services/todos/taskDraft";
 import { useTodo } from "@/services/todos/useTodo";
+import { useTodoHierarchy } from "@/services/todos/useSubtasks";
 import type { TodoRow } from "@/types/data";
 import { cn } from "@/utils/cn";
 import { relativeTime } from "@/utils/relativeTime";
@@ -223,6 +226,12 @@ function Body({
   const { canEditTodos } = usePermissions();
   const key = taskKey(useKeyPrefix(), todo.board_key);
 
+  // Which of the hierarchy-dependent sections this panel shows (M28-A) — the
+  // Subtasks table, the Epic's own Tasks table, and the Parent field are
+  // mutually exclusive by construction (an Epic cannot have subtasks, a
+  // genuine Subtask cannot pick an Epic), so one lookup answers all three.
+  const hierarchy = useTodoHierarchy(todo);
+
   const [title, setTitle] = useState(todo.title ?? "");
   const [description, setDescription] = useState(todo.description ?? "");
 
@@ -353,11 +362,17 @@ function Body({
               inherits it unchanged, since only its Comments tab writes
               anything. */}
           {/* Between the description and Activity, exactly where the
-              reference puts it — and only for a task that may have children.
-              A subtask renders no Subtasks section at all: two levels is the
-              whole hierarchy, so offering the action on a subtask would be
-              offering a write `enforce_subtask_depth` refuses. */}
-          {todo.parent_id === null && <SubtasksSection todo={todo} />}
+              reference puts it — and only for a Task that may have children,
+              whether top level or already under an Epic (M28-A). A genuine
+              Subtask renders no Subtasks section at all: it is the leaf of a
+              three-level hierarchy, so offering the action there would be
+              offering a write `enforce_work_item_hierarchy` refuses. */}
+          {hierarchy.canHaveSubtasks && <SubtasksSection todo={todo} />}
+
+          {/* An Epic's own analogue (M28-A): its Tasks, not its Subtasks —
+              an Epic never has subtasks directly, so this and the section
+              above never both render for the same item. */}
+          {hierarchy.isEpic && <EpicTasksSection epic={todo} />}
 
           <ActivitySection todoId={todo.id} boardId={todo.board_id} />
         </div>
@@ -417,6 +432,19 @@ function Body({
                   alwaysVisible
                 />
               </Field>
+
+              {/* The Epic this item belongs to (M28-A). Absent for an Epic
+                  itself (never has one) and for a genuine Subtask (its
+                  parent is its Task, shown as the breadcrumb above the
+                  title instead — a Subtask cannot select an Epic). */}
+              {hierarchy.canPickEpicParent && (
+                <Field label="Parent">
+                  <EpicParentControl
+                    value={todo.parent_id}
+                    onChange={(epicId) => patch({ parent_id: epicId })}
+                  />
+                </Field>
+              )}
 
               {/* The range, and the only place either end of it is editable
                   (M20). The plan put start date here rather than on the card:

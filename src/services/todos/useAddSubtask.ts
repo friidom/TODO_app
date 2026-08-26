@@ -38,11 +38,11 @@ export interface AddSubtaskVars {
  *
  * What it does share is the write itself: `addTodo`, one upsert, one
  * client-minted uuid, so the optimistic row and the stored row are the same
- * row. The depth rule is not checked here at all — `enforce_subtask_depth`
- * refuses a parent that is itself a subtask, and a client-side copy of that
- * rule that ever disagreed with the trigger would be the more dangerous of
- * the two. The UI's job is only to not *offer* the illegal action, which
- * `canHaveSubtasks` does.
+ * row. The hierarchy rule is not checked here at all — `enforce_work_item_
+ * hierarchy` refuses a parent that is itself a genuine subtask, and a
+ * client-side copy of that rule that ever disagreed with the trigger would be
+ * the more dangerous of the two. The UI's job is only to not *offer* the
+ * illegal action, which `canHaveSubtasks` does.
  *
  * It writes into `["todos", boardId]` — the board's own entry — because that
  * is where subtasks live. `fetchTodos` returns them, `useVisibleTodos` gates
@@ -98,7 +98,7 @@ export function useAddSubtask() {
         start_date: null,
         due_date: null,
         // Both meaningless for a subtask: nothing orders this list by either,
-        // and `subtasksOf` sorts by `created_at`. Null rather than a fabricated
+        // and `childrenOf` sorts by `created_at`. Null rather than a fabricated
         // number, so no reader can mistake them for an order somebody chose.
         position: null,
         rank: null,

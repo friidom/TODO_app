@@ -6,10 +6,10 @@ import { formatDue } from "@/utils/dueDate";
  * What one activity entry says, as text (M18).
  *
  * **Pure, and separate from the row that renders it**, for the reason every
- * pure module here is separate: this is the part with branches. Fourteen event
- * shapes, each with a payload that may be missing a field because the row was
- * written by an older trigger or because the value genuinely was null — that is
- * logic worth a test, and `activityText.test.ts` is it.
+ * pure module here is separate: this is the part with branches. Twenty-one
+ * event shapes, each with a payload that may be missing a field because the row
+ * was written by an older trigger or because the value genuinely was null —
+ * that is logic worth a test, and `activityText.test.ts` is it.
  *
  * **It reads the payload and never the database.** The trigger snapshots
  * whatever the sentence needs at write time (column titles, the old and new
@@ -323,16 +323,54 @@ export function describeActivity(
     case "todo.subtask_removed":
       return { text: `removed subtask ${item}`, taskId, detail: null };
 
+    case "todo.task_added_to_epic":
+      // Same asymmetry as `subtask_added` above, and for the same reason
+      // (M28-A): `item` names the TASK that was attached, while `entity_id`
+      // — and so `taskId` — is the EPIC whose history this entry belongs to.
+      return { text: `added ${item} to this epic`, taskId, detail: null };
+
+    case "todo.task_removed_from_epic":
+      return { text: `removed ${item} from this epic`, taskId, detail: null };
+
     case "todo.parent_changed": {
+      // `from`/`to` alone (M27) only ever say WHETHER a parent exists, not
+      // what kind — so the null-check still keys off them, unchanged, and a
+      // row written before M28-A (no `from_type`/`to_type` at all) renders
+      // exactly as it did before this case grew Epic-awareness.
       const to = str(activity.payload, "to");
 
-      return {
-        text: to
-          ? `made ${item} a subtask`
-          : `made ${item} a top-level work item`,
-        taskId,
-        detail: null,
-      };
+      if (to === null) {
+        // Parent cleared. `from_type` distinguishes "removed from an epic"
+        // from "un-subtasked"; absent on older rows, which could only ever
+        // mean the latter.
+        const fromType = str(activity.payload, "from_type");
+
+        return {
+          text:
+            fromType === "Epic"
+              ? `removed ${item} from its epic`
+              : `made ${item} a top-level work item`,
+          taskId,
+          detail: null,
+        };
+      }
+
+      // Gained a parent. `to_type` decides which sentence: an Epic parent
+      // reads as an assignment, anything else (a Task, or an older row with
+      // no `to_type` at all) reads as becoming a subtask, same as M27.
+      const toType = str(activity.payload, "to_type");
+
+      if (toType === "Epic") {
+        const toKey = num(activity.payload, "to_key");
+
+        return {
+          text: `assigned ${item} to ${toKey !== null ? `${keyPrefix}-${toKey}` : "an epic"}`,
+          taskId,
+          detail: null,
+        };
+      }
+
+      return { text: `made ${item} a subtask`, taskId, detail: null };
     }
 
     case "column.created": {

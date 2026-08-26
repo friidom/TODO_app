@@ -5,6 +5,7 @@ import { queryKeys } from "@/services/queryClient/queryKeys";
 import type { Todo } from "@/types/data";
 import { rankForDrop } from "@/utils/rank";
 import { applyTodoMoved } from "./cache";
+import { isGenuineSubtask } from "./subtasks";
 import { useBoardId } from "@/hooks/useBoardId";
 
 export interface TodoDropVars {
@@ -60,9 +61,11 @@ export function useTodoDrop() {
       (todo) =>
         todo.column_id === columnId &&
         todo.id !== activeTodo.id &&
-        // Cards only (M27) — a subtask carries a column but is not a
-        // neighbour on the board, so it must not shape a drop rank.
-        todo.parent_id === null,
+        // Visible cards only (M27, widened for Epics in M28-A) — a genuine
+        // Subtask carries a column but is not a neighbour on the board, so
+        // it must not shape a drop rank. A Task under an Epic is a real
+        // neighbour and stays included.
+        !isGenuineSubtask(todos, todo),
     );
 
     const rank = rankForDrop(destination, index);
@@ -83,9 +86,7 @@ export function useTodoDrop() {
       (todo) =>
         todo.column_id === columnId &&
         todo.id !== activeTodo.id &&
-        // Cards only (M27) — a subtask carries a column but is not a
-        // neighbour on the board, so it must not shape a drop rank.
-        todo.parent_id === null,
+        !isGenuineSubtask(fresh, todo),
     );
 
     const retried = rankForDrop(respaced, index);
@@ -126,14 +127,16 @@ export function useTodoDrop() {
       // for the moment it takes the rebalance to run, then `onSuccess` writes
       // it where it landed. Rare enough to be invisible, and the alternative is
       // an optimistic position the server may not honour.
+      const all = todos ?? [];
       const rank = rankForDrop(
-        (todos ?? []).filter(
+        all.filter(
           (todo) =>
             todo.column_id === columnId &&
             todo.id !== activeTodo.id &&
-            // Cards only (M27) — a subtask carries a column but is not a
-            // neighbour on the board, so it must not shape a drop rank.
-            todo.parent_id === null,
+            // Visible cards only (M27, widened for Epics in M28-A) — see
+            // `resolveRank` above for why a Task under an Epic must stay in
+            // this set while a genuine Subtask must not.
+            !isGenuineSubtask(all, todo),
         ),
         index,
       );
