@@ -313,6 +313,28 @@ export function describeActivity(
       };
     }
 
+    case "todo.subtask_added":
+      // `item` here names the SUBTASK — the payload carries the child's title
+      // and key, while `entity_id` is the parent. That asymmetry is the whole
+      // shape of the event: the row belongs to the parent's history, the
+      // sentence is about the child.
+      return { text: `added subtask ${item}`, taskId, detail: null };
+
+    case "todo.subtask_removed":
+      return { text: `removed subtask ${item}`, taskId, detail: null };
+
+    case "todo.parent_changed": {
+      const to = str(activity.payload, "to");
+
+      return {
+        text: to
+          ? `made ${item} a subtask`
+          : `made ${item} a top-level work item`,
+        taskId,
+        detail: null,
+      };
+    }
+
     case "column.created": {
       const title = str(activity.payload, "title");
 

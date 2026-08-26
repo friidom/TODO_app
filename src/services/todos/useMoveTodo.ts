@@ -53,8 +53,14 @@ export function useMoveTodo(todoId: string) {
     // current column; this is the same guard where the caller is not looking.
     if (!activeTodo || activeTodo.column_id === column.id) return;
 
+    // Cards only (M27). The cache holds subtasks too and they carry a real
+    // column, so counting them here would append the card past the end of the
+    // visible column — a gap index pointing at rows the board never drew.
     const index = todos.filter(
-      (todo) => todo.column_id === column.id && todo.id !== todoId,
+      (todo) =>
+        todo.column_id === column.id &&
+        todo.id !== todoId &&
+        todo.parent_id === null,
     ).length;
 
     drop.mutate({ todos, activeTodo, columnId: column.id, index });

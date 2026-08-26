@@ -48,23 +48,48 @@ const TodoItem = memo(function TodoItem({
   todo,
   overlay = false,
   dragDisabled = false,
-}: { todo: Todo } & TodoViewState) {
+  subtaskDone = 0,
+  subtaskTotal = 0,
+}: { todo: Todo } & TodoViewState & SubtaskCounts) {
   // Split so hooks are never called conditionally: the overlay copy is a plain
   // card with no drag registration, the one in the column is draggable.
   if (overlay) return <TodoContainer todo={todo} overlay />;
 
-  return <DraggableTodo todo={todo} dragDisabled={dragDisabled} />;
+  return (
+    <DraggableTodo
+      todo={todo}
+      dragDisabled={dragDisabled}
+      subtaskDone={subtaskDone}
+      subtaskTotal={subtaskTotal}
+    />
+  );
 });
+
+/**
+ * Handed down rather than looked up (M27).
+ *
+ * The board computes every parent's progress once, in one pass, and passes
+ * two numbers per card. A hook here instead would mean one subscription per
+ * card over an array the board already holds — and, worse, a fresh object per
+ * render, which would break the memo on `TodoContainer` that stops a drag
+ * re-rendering all ~200 cards (M9-05). Primitives compare by value.
+ */
+export interface SubtaskCounts {
+  subtaskDone?: number;
+  subtaskTotal?: number;
+}
 
 export default TodoItem;
 
 function DraggableTodo({
   todo,
   dragDisabled,
+  subtaskDone,
+  subtaskTotal,
 }: {
   todo: Todo;
   dragDisabled?: boolean;
-}) {
+} & SubtaskCounts) {
   const keyPrefix = useKeyPrefix();
 
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -143,6 +168,8 @@ function DraggableTodo({
       todo={todo}
       dragging={isDragging}
       dragDisabled={dragDisabled}
+      subtaskDone={subtaskDone}
+      subtaskTotal={subtaskTotal}
       setNodeRef={setNodeRef}
       handleProps={handleProps}
     />
@@ -166,9 +193,12 @@ const TodoContainer = memo(function TodoContainer({
   overlay = false,
   dragging = false,
   dragDisabled = false,
+  subtaskDone = 0,
+  subtaskTotal = 0,
   setNodeRef,
   handleProps,
-}: { todo: Todo } & TodoViewState & {
+}: { todo: Todo } & TodoViewState &
+  SubtaskCounts & {
     setNodeRef?: (element: HTMLElement | null) => void;
     handleProps?: Record<string, unknown>;
   }) {
@@ -226,6 +256,8 @@ const TodoContainer = memo(function TodoContainer({
       onPriorityChange={(priority) => patch({ priority })}
       onDueDateChange={(due_date) => patch({ due_date })}
       onEstimateChange={(estimate) => patch({ estimate })}
+      subtaskDone={subtaskDone}
+      subtaskTotal={subtaskTotal}
       // Not gated on canEditTodos: opening the panel is a read, and the menu
       // that used to be the only way in is editor-only. Withheld on the drag
       // overlay, which is a picture of a card rather than one.

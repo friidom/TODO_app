@@ -32,16 +32,39 @@ import { supabase } from "../api/supabase";
  * make the cache heterogeneous.
  */
 export const TODO_LIST_FIELDS =
-  "id, board_id, column_id, position, rank, board_key, title, type, priority, start_date, due_date, assignee_id, estimate, created_at, updated_at";
+  "id, board_id, column_id, position, rank, board_key, title, type, priority, start_date, due_date, assignee_id, estimate, parent_id, created_at, updated_at";
 
 //!get
 /**
- * Every todo on one board.
+ * Every todo on one board — **cards and subtasks alike** (M27).
  *
  * Scoped by `board_id`, not `user_id`. RLS is the boundary and this filter is
  * defense in depth, but the two are not interchangeable: once M3 shares a
  * board, a `user_id` filter would hide every card a teammate created — from
  * someone allowed to see them.
+ *
+ * **No `parent_id` predicate, deliberately.** M27 could have filtered
+ * subtasks out here and kept the board's cache meaning exactly "cards", which
+ * was the plan's first instinct. Two things argued the other way and both are
+ * load-bearing:
+ *
+ *   · The parent panel's list of children, and the `0/3` count on a card,
+ *     would each need their own query and their own invalidation. Reading
+ *     them out of the array the board already holds means a subtask created,
+ *     renamed, moved or deleted updates every one of those surfaces through
+ *     the cache writes that already exist.
+ *   · Realtime would need a guard. `applyTodoEvent` inserts any INSERT it has
+ *     not seen; with subtasks excluded from the fetch, a subtask arriving
+ *     over the socket — including the echo of *this* client's own create —
+ *     would be inserted into a cache that had filtered it out, and land on
+ *     the board as a card. Keeping the fetch wide makes that event correct
+ *     rather than something to defend against.
+ *
+ * The gate is therefore one client-side predicate in `useVisibleTodos`, which
+ * every view already funnels through. What that costs is care in the three
+ * places that reason about a *column's* contents — the rank probe below,
+ * `useAddTodo`'s optimistic index and `useTodoDrop`'s neighbours — each of
+ * which now says `parent_id === null` out loud.
  */
 export async function fetchTodos(boardId: string) {
   const { data, error } = await supabase
@@ -109,6 +132,7 @@ export async function addTodo({
   start_date = null,
   due_date = null,
   type = DEFAULT_WORK_TYPE,
+  parent_id = null,
 }: {
   id: string;
   title: string;
@@ -131,6 +155,18 @@ export async function addTodo({
   due_date?: string | null;
   /** Omitted falls through to the column's own 'Task' default. */
   type?: string;
+  /**
+   * The task this one is a subtask of (M27). Null — the default, and what
+   * every create surface but the parent panel sends — is a normal top-level
+   * card.
+   *
+   * The database is what enforces the shape: `todos_parent_id_fkey` refuses a
+   * parent on another board, and `enforce_subtask_depth` refuses a parent
+   * that is itself a subtask. Nothing here re-checks either, because a client
+   * check that disagreed with the trigger would be the more dangerous of the
+   * two.
+   */
+  parent_id?: string | null;
 }) {
   //get current user
   const {
@@ -145,6 +181,11 @@ export async function addTodo({
     .select("position, rank")
     .eq("column_id", column_id)
     .eq("board_id", board_id)
+    // Cards only (M27). A subtask carries a real `column_id` — that is what
+    // gives it a status — so without this the highest-ranked *subtask* in the
+    // column could decide where the next card lands. Subtasks are not on the
+    // board and must not vote on its order.
+    .is("parent_id", null)
     .order("rank", { ascending: false, nullsFirst: false })
     .limit(1)
     .maybeSingle();
@@ -176,6 +217,7 @@ export async function addTodo({
         start_date,
         due_date,
         type,
+        parent_id,
       },
       { onConflict: "id" },
     )
@@ -329,6 +371,13 @@ export type TodoPatch = { id: string; board_id: string } & Partial<
     | "priority"
     | "description"
     | "estimate"
+    // M27. **No control writes this yet** — re-parenting has no UI in this
+    // milestone, by its own scope. It is admitted because the column, its
+    // constraints and its `parent_changed` activity branch all exist, and a
+    // field the database can change while the allow-list refuses it is the
+    // shape that makes the next person add a second write path. `null`
+    // promotes a subtask back to a top-level card.
+    | "parent_id"
   >
 >;
 

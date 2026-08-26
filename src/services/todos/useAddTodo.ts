@@ -96,8 +96,12 @@ export function useAddTodo() {
       // always appends server-side, so a card created at a chosen gap keeps
       // this value through `applyTodoConfirmed` and the correction below writes
       // it back — the same slot-keeping the dense position already did.
+      // Cards only (M27). The cache holds subtasks too, and a subtask carries
+      // a real `column_id` — so without the second predicate the optimistic
+      // rank would be computed against rows that are not on the board, and a
+      // new card could land above or below a neighbour nobody can see.
       const destination = previousTodos.filter(
-        (todo) => todo.column_id === column_id,
+        (todo) => todo.column_id === column_id && todo.parent_id === null,
       );
 
       const optimisticRank =
@@ -127,6 +131,11 @@ export function useAddTodo() {
         // No create surface sets an estimate; the field is set from the
         // detail panel after the card exists (M24).
         estimate: null,
+        // Always a top-level card. A subtask is created by `useAddSubtask`,
+        // which is a separate mutation precisely because this one renumbers
+        // a column's dense positions around the new row and a subtask has no
+        // place in that sequence (M27).
+        parent_id: null,
         // Carried, since M20-B. It is still null from every other create
         // surface — the column's create card and the header form ask for a due
         // date and nothing asks for a start, so a card made there is a point on
@@ -201,7 +210,13 @@ export function useAddTodo() {
       // complete. Before M2-14 they had to be filtered out, because upserting
       // a `Date.now()` id would have created a blank row that nothing owned.
       reorderTodos(
-        todos.filter((todo) => todo.column_id === serverTodo.column_id),
+        // Cards only, matching the optimistic filter above (M27). A subtask
+        // has no place in the board's dense position sequence, and sending
+        // one here would write it a `position` that competes with the cards'.
+        todos.filter(
+          (todo) =>
+            todo.column_id === serverTodo.column_id && todo.parent_id === null,
+        ),
         boardId,
       ).catch(() =>
         queryClient.invalidateQueries({ queryKey: queryKeys.todos(boardId) }),

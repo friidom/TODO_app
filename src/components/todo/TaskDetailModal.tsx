@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 
 import ActivitySection from "./ActivitySection";
+import ParentLine from "./ParentLine";
+import SubtasksSection from "./SubtasksSection";
 import AssigneeControl from "./TodoItem/AssigneeControl";
 import DueDateControl from "./TodoItem/DueDateControl";
 import PriorityControl from "./TodoItem/PriorityControl";
@@ -287,6 +289,13 @@ function Body({
           status control off the screen. */}
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto md:flex-row md:overflow-hidden">
         <div className="min-w-0 flex-1 px-5 py-5 md:overflow-y-auto md:px-6">
+          {/* Which task this one belongs to, when it belongs to one (M27).
+              Above the title because that is what a breadcrumb is — the thing
+              you were looking at before this — and because a subtask's own
+              title means less without it. Renders nothing at all for a
+              top-level card, which is most of them. */}
+          <ParentLine parentId={todo.parent_id} boardId={todo.board_id} />
+
           <textarea
             value={title}
             readOnly={!canEditTodos}
@@ -343,6 +352,13 @@ function Body({
               the UI where the two rules visibly differ — `ActivitySection`
               inherits it unchanged, since only its Comments tab writes
               anything. */}
+          {/* Between the description and Activity, exactly where the
+              reference puts it — and only for a task that may have children.
+              A subtask renders no Subtasks section at all: two levels is the
+              whole hierarchy, so offering the action on a subtask would be
+              offering a write `enforce_subtask_depth` refuses. */}
+          {todo.parent_id === null && <SubtasksSection todo={todo} />}
+
           <ActivitySection todoId={todo.id} boardId={todo.board_id} />
         </div>
 

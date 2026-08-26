@@ -172,10 +172,45 @@ Fields
 - start_date
 - due_date
 - estimate
+- parent_id
 - position
 - archived
 - created_at
 - updated_at
+
+---
+
+Hierarchy
+
+`parent_id` is a nullable self-reference added by M27. `null` is a normal
+top-level work item — what every row was before it existed. Anything else
+makes the row a **subtask** of that work item.
+
+The hierarchy is exactly two levels: `Task → Subtask`, never
+`Task → Subtask → Subtask`. Three things enforce that, each doing the part
+the cheaper tool cannot:
+
+- `todos_parent_id_fkey` is composite — `(parent_id, board_id)` references
+  `todos (id, board_id)` — so a parent on another board is unrepresentable,
+  the same idiom `todos_column_id_fkey` uses. **`on delete cascade`**:
+  deleting a task deletes its subtasks, because unlike a column's cards a
+  subtask has nowhere to be rehomed to.
+- `todos_parent_not_self` is the one depth rule a CHECK can state.
+- `enforce_subtask_depth` is a `before insert or update of parent_id`
+  trigger, and holds the two halves needing a subquery: a parent must itself
+  be top level, and a row that already has children may not become a child.
+
+A subtask **carries a real `column_id`**, which is what gives it a status and
+therefore what makes `1 of 3 done` answerable — doneness is the column's
+`category`, never a field (M2-15). It also gets a `board_key` like any other
+row, so a subtask is `KAN-78` under `KAN-9`.
+
+Subtasks are fetched with the board (`fetchTodos` has no `parent_id`
+predicate) and filtered out client-side in `useVisibleTodos`, so the one
+cached array answers both "what cards are on this board" and "what are
+KAN-9's children". `position` and `rank` are meaningless for a subtask —
+nothing orders them by either — and the three places that reason about a
+*column's* contents say `parent_id === null` out loud.
 
 ---
 
@@ -290,7 +325,13 @@ Board history and per-item History. **Shipped in M18** —
 `20260816090000_activity_field_events.sql` — and extended in **M25** —
 `20260827090000_todo_history_fields.sql` — to also watch `description` and
 `estimate`, and to serve a per-item history tab rather than only the
-board-wide feed.
+board-wide feed. **M27** — `20260828090000_todo_parent_id.sql` — added
+`parent_changed` on the child, plus `subtask_added` / `subtask_removed`
+written against the **parent**, so a task's own History shows its subtasks
+appearing and going. In those two the payload describes the *child* while
+`entity_id` names the *parent*; a subtask's own create, delete and status
+change need no new vocabulary, because a subtask is a row and `created`,
+`deleted` and `moved` already fire for every row.
 
 The shape below replaces the `todo_id` / `author_id` / `old_value` / `new_value`
 sketch this document carried before it was built. Two things changed and both
@@ -315,7 +356,7 @@ writes and no reader can render cannot be stored:
 
 | entity_type | actions |
 | --- | --- |
-| `todo` | `created`, `moved`, `assigned`, `retitled`, `priority_changed`, `due_changed`, `type_changed`, `description_changed`, `estimate_changed`, `deleted` |
+| `todo` | `created`, `moved`, `assigned`, `retitled`, `priority_changed`, `due_changed`, `type_changed`, `description_changed`, `estimate_changed`, `parent_changed`, `subtask_added`, `subtask_removed`, `deleted` |
 | `column` | `created`, `renamed`, `deleted` |
 | `member` | `added`, `role_changed`, `removed` |
 

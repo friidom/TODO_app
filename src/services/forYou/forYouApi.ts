@@ -46,6 +46,12 @@ export async function fetchAssignedTodos(userId: string, limit = FEED_PAGE) {
     .from("todos")
     .select(TODO_LIST_FIELDS)
     .eq("assignee_id", userId)
+    // Top-level work only (M27). A subtask has no standalone context — the
+    // feed renders a row as a board plus a title, and "KAN-78 · 123" tells
+    // you nothing without the task it belongs to. Surfacing subtasks here
+    // needs a parent column on the row, which is a feature this milestone
+    // does not build; until then this page stays a list of tasks.
+    .is("parent_id", null)
     .order("updated_at", { ascending: false, nullsFirst: false })
     .limit(limit);
 
@@ -65,6 +71,11 @@ export async function fetchRecentTodos(limit = FEED_PAGE) {
   const { data, error } = await supabase
     .from("todos")
     .select(TODO_LIST_FIELDS)
+    // Top-level work only (M27), and here the filter does more than tidy the
+    // list: the `limit` below is applied by Postgres *after* the rows are
+    // chosen, so without this a busy task's subtasks would crowd real work
+    // out of the page entirely.
+    .is("parent_id", null)
     .order("updated_at", { ascending: false, nullsFirst: false })
     .limit(limit);
 
@@ -132,7 +143,12 @@ export async function fetchTodosByIds(ids: string[]) {
   const { data, error } = await supabase
     .from("todos")
     .select(TODO_LIST_FIELDS)
-    .in("id", ids);
+    .in("id", ids)
+    // Top-level work only (M27), matching the two queries above. The ids
+    // reaching here come from the activity log and from `localStorage`, so
+    // this also quietly drops a remembered id that has since become a
+    // subtask — a row the caller would otherwise render with no context.
+    .is("parent_id", null);
 
   if (error) throw error;
 

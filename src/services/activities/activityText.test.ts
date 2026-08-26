@@ -415,3 +415,48 @@ describe("describeActivity — unknown events", () => {
     expect(line.text).toBe("created a work item");
   });
 });
+
+describe("describeActivity — subtasks (M27)", () => {
+  it("reads a subtask added, naming the child", () => {
+    const line = describeActivity(
+      entry({ action: "subtask_added", payload: { board_key: 78 } }),
+      CTX,
+    );
+
+    expect(line.text).toBe("added subtask KAN-78");
+    expect(line.detail).toBeNull();
+  });
+
+  it("reads a subtask removed", () => {
+    const line = describeActivity(
+      entry({ action: "subtask_removed", payload: { board_key: 78 } }),
+      CTX,
+    );
+
+    expect(line.text).toBe("removed subtask KAN-78");
+  });
+
+  it("reads a work item becoming a subtask", () => {
+    const line = describeActivity(
+      entry({
+        action: "parent_changed",
+        payload: { board_key: 23, from: null, to: "task-1" },
+      }),
+      CTX,
+    );
+
+    expect(line.text).toBe("made KAN-23 a subtask");
+  });
+
+  it("reads a subtask promoted back to top level", () => {
+    const line = describeActivity(
+      entry({
+        action: "parent_changed",
+        payload: { board_key: 23, from: "task-1", to: null },
+      }),
+      CTX,
+    );
+
+    expect(line.text).toBe("made KAN-23 a top-level work item");
+  });
+});

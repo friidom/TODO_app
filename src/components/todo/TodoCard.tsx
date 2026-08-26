@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Pencil, User } from "lucide-react";
+import { ListTree, Pencil, User } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 import DueDateControl from "./TodoItem/DueDateControl";
@@ -28,6 +28,20 @@ export interface TodoCardProps extends TodoCardContent, TodoViewState {
   onPriorityChange: (value: Priority | null) => void;
   onDueDateChange: (value: string | null) => void;
   onEstimateChange: (value: number | null) => void;
+
+  /**
+   * How many of this card's subtasks are done, and how many there are (M27).
+   *
+   * Two numbers rather than an object, deliberately: `TodoContainer` is
+   * memoised and that memo is what stops a drag re-rendering every card on
+   * the board (M9-05). A fresh `{done, total}` object per render would break
+   * it for all of them; two primitives compare by value and cost nothing.
+   *
+   * `subtaskTotal === 0` means "no subtasks", which draws no indicator at all
+   * — as against "no subtasks done", which draws `0/3`.
+   */
+  subtaskDone?: number;
+  subtaskTotal?: number;
 
   /** Opens the detail panel. Absent on the drag overlay, which has no chrome. */
   onOpen?: () => void;
@@ -87,6 +101,8 @@ export default function TodoCard({
   onPriorityChange,
   onDueDateChange,
   onEstimateChange,
+  subtaskDone = 0,
+  subtaskTotal = 0,
   onOpen,
   assignee,
   menu,
@@ -309,6 +325,35 @@ export default function TodoCard({
           </div>
         )}
       </div>
+
+      {/* ROW 4 — how far this card's subtasks have got (M27).
+          Rendered only when there are any, which is not a hover condition and
+          so does not break ROW 3's rule about reserving space: a card with no
+          subtasks never has this row at all, and one with subtasks always
+          does. Non-interactive on purpose — the whole card already opens the
+          panel where they can be read, and a button here would be a second
+          target inside a card that is itself one. */}
+      {subtaskTotal > 0 && (
+        <div
+          className="flex items-center gap-1.5"
+          title={`${subtaskDone} of ${subtaskTotal} subtasks done`}
+        >
+          <ListTree className="text-ink-3 size-3 shrink-0" />
+
+          <span className="text-ink-3 text-micro shrink-0 font-medium tabular-nums">
+            {subtaskDone}/{subtaskTotal}
+          </span>
+
+          <div className="bg-ink/[0.06] h-1 min-w-0 flex-1 overflow-hidden rounded-full">
+            <div
+              style={{
+                width: `${Math.round((subtaskDone / subtaskTotal) * 100)}%`,
+              }}
+              className="bg-status-green h-full rounded-full transition-[width] duration-300"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

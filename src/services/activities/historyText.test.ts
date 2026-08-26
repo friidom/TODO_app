@@ -254,3 +254,69 @@ describe("describeHistoryChange — unrenderable actions", () => {
     expect(describeHistoryChange(entry("something_new"), NAMES)).toBeNull();
   });
 });
+
+describe("describeHistoryChange — subtasks (M27)", () => {
+  it("names an added subtask by its key", () => {
+    // This row lives in the PARENT's history: `entity_id` is the parent, and
+    // the payload describes the child.
+    const change = describeHistoryChange(
+      entry("subtask_added", { board_key: 78, title: "123" }),
+      NAMES,
+    );
+
+    expect(change).toEqual({
+      verb: "added subtask",
+      field: "#78",
+      from: null,
+      to: null,
+    });
+  });
+
+  it("names a removed subtask the same way", () => {
+    const change = describeHistoryChange(
+      entry("subtask_removed", { board_key: 78, title: "123" }),
+      NAMES,
+    );
+
+    expect(change?.verb).toBe("removed subtask");
+    expect(change?.field).toBe("#78");
+  });
+
+  it("falls back to the title for a child that never got a key", () => {
+    // `board_key` is allocated by a trigger, so a subtask deleted while its
+    // insert was still in flight has a title and no key.
+    const change = describeHistoryChange(
+      entry("subtask_added", { title: "Write the migration" }),
+      NAMES,
+    );
+
+    expect(change?.field).toBe("Write the migration");
+  });
+
+  it("reads becoming a subtask", () => {
+    const change = describeHistoryChange(
+      entry("parent_changed", { from: null, to: "task-1" }),
+      NAMES,
+    );
+
+    expect(change).toEqual({
+      verb: "made this a subtask",
+      field: null,
+      from: null,
+      to: null,
+    });
+  });
+
+  it("reads being promoted back to a top-level work item", () => {
+    const change = describeHistoryChange(
+      entry("parent_changed", { from: "task-1", to: null }),
+      NAMES,
+    );
+
+    expect(change?.verb).toBe("made this a top-level work item");
+    // No chip: both sides are raw uuids this renderer cannot resolve into
+    // keys, and the sentence already carries the whole fact.
+    expect(change?.from).toBeNull();
+    expect(change?.to).toBeNull();
+  });
+});

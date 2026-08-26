@@ -57,7 +57,12 @@ export function useTodoDrop() {
     // The card cannot be its own neighbour: leaving it in would make a
     // same-column move compute the midpoint of the gap it already occupies.
     const destination = todos.filter(
-      (todo) => todo.column_id === columnId && todo.id !== activeTodo.id,
+      (todo) =>
+        todo.column_id === columnId &&
+        todo.id !== activeTodo.id &&
+        // Cards only (M27) — a subtask carries a column but is not a
+        // neighbour on the board, so it must not shape a drop rank.
+        todo.parent_id === null,
     );
 
     const rank = rankForDrop(destination, index);
@@ -75,7 +80,12 @@ export function useTodoDrop() {
       })) ?? [];
 
     const respaced = fresh.filter(
-      (todo) => todo.column_id === columnId && todo.id !== activeTodo.id,
+      (todo) =>
+        todo.column_id === columnId &&
+        todo.id !== activeTodo.id &&
+        // Cards only (M27) — a subtask carries a column but is not a
+        // neighbour on the board, so it must not shape a drop rank.
+        todo.parent_id === null,
     );
 
     const retried = rankForDrop(respaced, index);
@@ -118,7 +128,12 @@ export function useTodoDrop() {
       // an optimistic position the server may not honour.
       const rank = rankForDrop(
         (todos ?? []).filter(
-          (todo) => todo.column_id === columnId && todo.id !== activeTodo.id,
+          (todo) =>
+            todo.column_id === columnId &&
+            todo.id !== activeTodo.id &&
+            // Cards only (M27) — a subtask carries a column but is not a
+            // neighbour on the board, so it must not shape a drop rank.
+            todo.parent_id === null,
         ),
         index,
       );

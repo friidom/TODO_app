@@ -5,6 +5,7 @@ import type { IColumn, Todo } from "../../types/data";
 import { Plus } from "lucide-react";
 import React, { useCallback, useState, useRef, useEffect } from "react";
 import { useAddTodo } from "@/services/todos/useAddTodo";
+import { useSubtaskProgressByParent } from "@/services/todos/useSubtasks";
 import DropZone from "./DropZone";
 import TodoCreateForm, { type CreateDraft } from "./TodoCreateForm";
 import ColumnHeader, { type TransitionPill } from "../columns/ColumnHeader";
@@ -92,6 +93,17 @@ export default function KanbanColumn({
     data: { type: "column", columnId: id },
     disabled: dragDisabled,
   });
+
+  /**
+   * Every parent's subtask progress, for the card indicator (M27).
+   *
+   * Resolved here rather than per card: a board has a handful of columns and
+   * hundreds of cards, so this is a few observers over an array the board
+   * already holds instead of one per card — and the values handed down are
+   * primitives, which is what keeps `TodoContainer`'s memo intact during a
+   * drag (M9-05).
+   */
+  const subtaskProgress = useSubtaskProgressByParent();
 
   // Creating work is editor and above (M3-05). Gates the Create button, the
   // hover-`+` on every gap, and the form itself — a viewer can still read the
@@ -316,7 +328,15 @@ export default function KanbanColumn({
 
             {todos.map((todo, index) => (
               <React.Fragment key={todo.id}>
-                <TodoItem todo={todo} dragDisabled={dragDisabled} />
+                <TodoItem
+                  todo={todo}
+                  dragDisabled={dragDisabled}
+                  // Two primitives, not the object (M27) — `TodoContainer` is
+                  // memoised and a fresh `{done,total}` per render would
+                  // break it for every card on the board.
+                  subtaskDone={subtaskProgress.get(todo.id)?.done ?? 0}
+                  subtaskTotal={subtaskProgress.get(todo.id)?.total ?? 0}
+                />
 
                 {!dragDisabled && (
                   <DropZone

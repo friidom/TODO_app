@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Todo } from "../../types/data";
 import { RANK_GAP, byRank } from "../../utils/rank";
 import {
+  applySubtaskInserted,
   applyTodoConfirmed,
   applyTodoDeleted,
   applyTodoInserted,
@@ -305,5 +306,119 @@ describe("applyTodoMoved", () => {
         expect(todos.some((original) => original === row)).toBe(true);
       }
     });
+  });
+});
+
+/**
+ * M27. Subtasks live in the same `["todos", boardId]` array as cards — that is
+ * what lets the parent panel and the card indicator read them without a second
+ * query — so the cache functions have to hold up with both kinds in one array.
+ */
+describe("applySubtaskInserted", () => {
+  const subtask = (id: number, parent: string): Todo =>
+    ({
+      id: String(id),
+      parent_id: parent,
+      column_id: "a",
+      title: `subtask ${id}`,
+      position: null,
+      rank: null,
+    }) as unknown as Todo;
+
+  it("appends the subtask without touching the cards", () => {
+    const todos = board();
+    const result = applySubtaskInserted(todos, subtask(99, "1"));
+
+    expect(result).toHaveLength(todos.length + 1);
+    expect(result.at(-1)?.id).toBe("99");
+  });
+
+  it("does NOT renumber the cards in the column the subtask sits in", () => {
+    // The whole reason this is not `applyTodoInserted`: that one buckets by
+    // `column_id` and hands the bucket to `insertDense`, which rewrites the
+    // position of every card in it. A subtask shares a column with cards —
+    // that is what gives it a status — but occupies no slot among them.
+    const todos = board();
+    const before = positions(todos, "a");
+
+    const result = applySubtaskInserted(todos, subtask(99, "1"));
+
+    // Cards only. The subtask's own position stays null, which is the other
+    // half of the same point: it was never given a slot to hold.
+    const cards = result.filter((row) => row.parent_id == null);
+
+    expect(positions(cards, "a")).toEqual(before);
+    expect(result.find((row) => row.id === "99")?.position).toBeNull();
+  });
+
+  it("passes every existing row through by reference", () => {
+    const todos = board();
+    const result = applySubtaskInserted(todos, subtask(99, "1"));
+
+    for (const original of todos) {
+      expect(result).toContain(original);
+    }
+  });
+
+  it("ignores an id it already holds — the echo rule", () => {
+    // The client mints the uuid, so a realtime insert caused by this client
+    // arrives carrying the id already in the array.
+    const mine = subtask(99, "1");
+    const todos = applySubtaskInserted(board(), mine);
+
+    const result = applySubtaskInserted(todos, { ...mine, title: "echo" });
+
+    expect(result).toBe(todos);
+    expect(result.filter((row) => row.id === "99")).toHaveLength(1);
+  });
+
+  it("does not mutate its input", () => {
+    const todos = board();
+    const length = todos.length;
+
+    applySubtaskInserted(todos, subtask(99, "1"));
+
+    expect(todos).toHaveLength(length);
+  });
+});
+
+describe("applyTodoDeleted — with subtasks in the array", () => {
+  const subtask = (id: number, parent: string): Todo =>
+    ({
+      id: String(id),
+      parent_id: parent,
+      column_id: "a",
+      title: `subtask ${id}`,
+      position: null,
+      rank: null,
+    }) as unknown as Todo;
+
+  it("removes one subtask and leaves its siblings", () => {
+    const todos = [
+      ...board(),
+      subtask(97, "1"),
+      subtask(98, "1"),
+      subtask(99, "2"),
+    ];
+
+    const result = applyTodoDeleted(todos, "97");
+
+    expect(result.map((row) => row.id)).not.toContain("97");
+    expect(result.map((row) => row.id)).toContain("98");
+    expect(result.map((row) => row.id)).toContain("99");
+  });
+
+  it("leaves a deleted parent's children behind, which is why the delete refetches", () => {
+    // The database cascades (`todos_parent_id_fkey`), but this function
+    // removes exactly one id — it cannot know what the server also deleted.
+    // `useDeleteTodo`'s `onSettled` invalidate is what repairs the array, and
+    // this test pins that the optimistic frame genuinely needs it rather than
+    // leaving a future reader to assume the cascade is mirrored here.
+    const todos = [...board(), subtask(98, "1")];
+
+    const result = applyTodoDeleted(todos, "1");
+
+    expect(result.map((row) => row.id)).not.toContain("1");
+    expect(result.map((row) => row.id)).toContain("98");
   });
 });

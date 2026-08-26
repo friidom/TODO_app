@@ -46,6 +46,24 @@ export interface HistoryChange {
   to: string | null;
 }
 
+/**
+ * How a `subtask_added` / `subtask_removed` row names the child it is about
+ * (M27).
+ *
+ * Prefers the key, because that is what the subtasks table above it shows.
+ * Falls back to the title for a child deleted before its key was allocated,
+ * and to a bare word when the payload has neither — the same three-step
+ * fallback `itemLabel` in `activityText.ts` makes, minus the board prefix,
+ * which this module is not given.
+ */
+function subtaskLabel(activity: Activity): string {
+  const boardKey = num(activity.payload, "board_key");
+
+  if (boardKey !== null) return `#${boardKey}`;
+
+  return truncateTitle(str(activity.payload, "title"));
+}
+
 /** Longer titles are truncated so the chip stays one line, matching the
  * reference's compact spacing. */
 function truncateTitle(value: string | null): string {
@@ -145,6 +163,37 @@ export function describeHistoryChange(
         field: "Work type",
         from: str(activity.payload, "from") ?? "None",
         to: str(activity.payload, "to") ?? "None",
+      };
+
+    case "subtask_added":
+      // The payload names the child; this row lives in the parent's history.
+      return {
+        verb: "added subtask",
+        field: subtaskLabel(activity),
+        from: null,
+        to: null,
+      };
+
+    case "subtask_removed":
+      return {
+        verb: "removed subtask",
+        field: subtaskLabel(activity),
+        from: null,
+        to: null,
+      };
+
+    case "parent_changed":
+      // No chip: both sides are raw work-item uuids, and this list has no way
+      // to resolve one into a key without the board's array — which the
+      // renderer deliberately does not take. The sentence carries the whole
+      // fact, and re-parenting has no UI in M27 anyway.
+      return {
+        verb: str(activity.payload, "to")
+          ? "made this a subtask"
+          : "made this a top-level work item",
+        field: null,
+        from: null,
+        to: null,
       };
 
     case "description_changed":

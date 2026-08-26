@@ -97,6 +97,14 @@ export const TODO_FIELDS = [
   // `20260826090000_todos_estimate_check.sql` for the constraint that keeps
   // the column from meaning "points or hours" depending on who filled it in.
   "estimate",
+  // The hierarchy, and the one field here the board deliberately does not
+  // render (M27). `null` is a normal top-level card; anything else is a
+  // subtask, which must not be drawn as a card. It is fetched anyway because
+  // this cache is the only source both questions are answered from:
+  // `useVisibleTodos` filters subtasks out for every view, and the parent
+  // panel reads the very same array to list its children and count how many
+  // are done. A second query would be a second thing to keep invalidated.
+  "parent_id",
   "created_at",
   "updated_at",
 ] as const satisfies readonly (keyof TodoRow)[];

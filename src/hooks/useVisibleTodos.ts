@@ -8,6 +8,7 @@ import {
   searchTodos,
   sortTodos,
 } from "@/services/todos/view";
+import { topLevelTodos } from "@/services/todos/subtasks";
 import type { ViewScope } from "@/services/views/scope";
 import type { IColumn } from "@/types/data";
 import { useBoardId } from "./useBoardId";
@@ -48,7 +49,7 @@ export function useVisibleTodos(scope?: ViewScope) {
   const boardId = useBoardId();
 
   const {
-    todos: all,
+    todos: rows,
     isLoading,
     error,
   } = useScopedTodos(scope ?? { kind: "board", boardId });
@@ -56,6 +57,25 @@ export function useVisibleTodos(scope?: ViewScope) {
   const { data: columns = EMPTY_COLUMNS } = useColumns();
   const { filters, query, sort, dir } = useBoardView();
   const { user } = useAuth();
+
+  /**
+   * **The one gate that keeps subtasks off every view** (M27).
+   *
+   * `fetchTodos` returns cards and subtasks alike, deliberately — the parent
+   * panel and the card's `0/3` indicator both read their children out of that
+   * same array, so a second query and a second thing to invalidate were not
+   * worth buying. The cost of that choice is exactly this line, and it sits
+   * here for the reason the rest of this hook exists: the board, the list,
+   * the calendar, the timeline and the summary are five renderings of one
+   * answer, so the place that decides what is *in* the answer must be one
+   * place. Filtering in `KanbanBoard` would mean the list disagreed with it
+   * the first time either changed.
+   *
+   * Before the filter, not after: `total` and `hidden` below describe how the
+   * *view* narrowed the board, and a subtask counted into `total` would make
+   * "3 of 5 tasks" a sentence about rows nobody can see.
+   */
+  const all = useMemo(() => topLevelTodos(rows), [rows]);
 
   const todos = useMemo(() => {
     // Filter before search, and both before sort. Filter and search commute —

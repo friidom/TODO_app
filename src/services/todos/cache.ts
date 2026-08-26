@@ -38,6 +38,29 @@ export function applyTodoInserted(
 }
 
 /**
+ * The board with a subtask added (M27).
+ *
+ * **Appended, never bucketed.** `applyTodoInserted` above splits the array by
+ * `column_id` and hands the destination to `insertDense`, which renumbers
+ * every card in that column so the dense positions stay dense. A subtask
+ * carries a real `column_id` — that is what gives it a status — but it is not
+ * *in* the column in the sense that renumbering means: it is never drawn
+ * there, never dragged there, and its position competes with nothing. Sending
+ * it through the same function would rewrite the positions of every card
+ * around it to make room for a row the board does not show.
+ *
+ * The echo rule is the same one `applyCommentInserted` follows and for the
+ * same reason: the client mints the uuid, so a realtime insert caused by this
+ * client carries an id already here, and adding it twice is what the identity
+ * check prevents.
+ */
+export function applySubtaskInserted(todos: Todo[], subtask: Todo): Todo[] {
+  if (todos.some((todo) => todo.id === subtask.id)) return todos;
+
+  return [...todos, subtask];
+}
+
+/**
  * The board with the pending row replaced by the row the server wrote back.
  *
  * Since M2-14 the client mints the uuid, so this matches on `serverTodo.id`
