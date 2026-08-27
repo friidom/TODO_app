@@ -53,6 +53,22 @@ import {
 /** The create row's draft is keyed by this, since it has no todo id yet. */
 export const CREATE_KEY = "__create__";
 
+/** The "+ Create Epic" row's own key (M28-B) — a sibling of `CREATE_KEY`,
+ * distinct so the two create forms can never be confused with one gesture
+ * answering both. */
+export const CREATE_EPIC_KEY = "__create-epic__";
+
+/**
+ * One Epic group's own "add a Task" row (M28-B). Every expanded group mounts
+ * its own `TimelineCreateRow`, and each needs a key the drag hook and the
+ * pending-title state can tell apart — otherwise drawing a range in one
+ * Epic's row would show its ghost, and its title form, under a different
+ * Epic's.
+ */
+export function createTaskKey(epicId: string): string {
+  return `__create-task__:${epicId}`;
+}
+
 /**
  * How far a *move* must travel before it stops being a click.
  *
@@ -116,8 +132,15 @@ export function useTimelineDrag({
   enabled: boolean;
   /** Commit for an existing item. Resolves once the write has settled. */
   onSchedule: (todo: Schedulable, range: DayRange) => Promise<unknown>;
-  /** The create row swept out a range — open the title form on it. */
-  onDraw: (range: DayRange) => void;
+  /**
+   * A create row swept out a range — open its title form on it.
+   *
+   * The key is `gesture.key` unchanged (M28-B): with one create row this was
+   * always `CREATE_KEY` and the caller could assume it, but with one row per
+   * Epic group as well, the caller needs to know *which* row just drew a
+   * range before it can decide where the pending form belongs.
+   */
+  onDraw: (key: string, range: DayRange) => void;
 }): TimelineDrag {
   const trackRef = useRef<HTMLDivElement | null>(null);
   const gestureRef = useRef<Gesture | null>(null);
@@ -246,10 +269,12 @@ export function useTimelineDrag({
     }
 
     if (gesture.mode === "draw" && !gesture.todo) {
-      // The create row: no row to write yet, so the range becomes the form's
-      // opening value and the draft is handed over with it.
+      // A create row: no row to write yet, so the range becomes the form's
+      // opening value and the draft is handed over with it. `gesture.key`
+      // says which create row this was, so the caller can route the pending
+      // title to the same one.
       setDraft(null);
-      latest.current.onDraw(gesture.range);
+      latest.current.onDraw(gesture.key, gesture.range);
 
       return;
     }

@@ -6,6 +6,7 @@ import {
   childrenOf,
   doneColumnIds,
   epicsOf,
+  epicTaskProgress,
   isEpic,
   isGenuineSubtask,
   NO_SUBTASKS,
@@ -418,5 +419,66 @@ describe("subtaskProgressByParent", () => {
 
     expect(progress.get("t")).toEqual({ done: 1, total: 2, percent: 50 });
     expect(progress.has("e")).toBe(false);
+  });
+});
+
+describe("epicTaskProgress", () => {
+  it("omits an Epic with no Tasks", () => {
+    const todos = [epic({ id: "e" })];
+
+    expect(epicTaskProgress(todos, COLUMNS).size).toBe(0);
+  });
+
+  it("counts 2 of 4, matching the milestone's own example", () => {
+    const todos = [
+      epic({ id: "e" }),
+      todo({ id: "t1", parent_id: "e", column_id: "col-done" }),
+      todo({ id: "t2", parent_id: "e", column_id: "col-done" }),
+      todo({ id: "t3", parent_id: "e", column_id: "col-doing" }),
+      todo({ id: "t4", parent_id: "e", column_id: "col-todo" }),
+    ];
+
+    expect(epicTaskProgress(todos, COLUMNS).get("e")).toEqual({
+      done: 2,
+      total: 4,
+      percent: 50,
+    });
+  });
+
+  it("does not count a Task's own genuine subtasks toward its Epic", () => {
+    // The mirror of `subtaskProgressByParent`'s own Task-under-Epic test: a
+    // Subtask's parent is a Task, never an Epic, so it must not feed this map.
+    const todos = [
+      epic({ id: "e" }),
+      todo({ id: "t", parent_id: "e", column_id: "col-todo" }),
+      todo({ id: "s", parent_id: "t", column_id: "col-done" }),
+    ];
+
+    expect(epicTaskProgress(todos, COLUMNS).get("e")).toEqual({
+      done: 0,
+      total: 1,
+      percent: 0,
+    });
+  });
+
+  it("counts each Epic's own Tasks separately", () => {
+    const todos = [
+      epic({ id: "e1" }),
+      epic({ id: "e2" }),
+      todo({ id: "a1", parent_id: "e1", column_id: "col-done" }),
+      todo({ id: "a2", parent_id: "e1", column_id: "col-todo" }),
+      todo({ id: "b1", parent_id: "e2", column_id: "col-todo" }),
+    ];
+
+    const progress = epicTaskProgress(todos, COLUMNS);
+
+    expect(progress.get("e1")).toEqual({ done: 1, total: 2, percent: 50 });
+    expect(progress.get("e2")).toEqual({ done: 0, total: 1, percent: 0 });
+  });
+
+  it("does not count a top-level Task toward any Epic", () => {
+    const todos = [epic({ id: "e" }), todo({ id: "solo" })];
+
+    expect(epicTaskProgress(todos, COLUMNS).size).toBe(0);
   });
 });

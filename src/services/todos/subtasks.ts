@@ -267,3 +267,62 @@ export function subtaskProgressByParent(
 
   return progress;
 }
+
+/**
+ * Progress for every Epic on the board, counting its own Tasks (M28-B) — the
+ * Timeline's group header badge, not the board card's subtask indicator.
+ *
+ * **The mirror image of `subtaskProgressByParent`.** That one excludes a
+ * child whose parent is an Epic, because a Task under an Epic is not a
+ * Subtask and does not belong in a Task's own subtask count. This function
+ * exists *for* that excluded relationship: an Epic's progress is "how many of
+ * its Tasks are done", the identical done-column rule, counted over the one
+ * set of rows the other function deliberately skips. Kept as its own small
+ * function rather than a shared parametrised helper — the two answer
+ * different questions for different UI, and three similar lines are cheaper
+ * to read than a fourth argument threading the difference through one.
+ *
+ * Counts every child, dated or not: completion is a status question — which
+ * column a card sits in — and has nothing to do with whether that card has
+ * been scheduled on the Timeline yet.
+ */
+export function epicTaskProgress(
+  todos: Todo[],
+  columns: IColumn[],
+): Map<string, SubtaskProgress> {
+  const doneColumns = doneColumnIds(columns);
+  const byId = new Map(todos.map((todo) => [todo.id, todo]));
+  const counts = new Map<string, { done: number; total: number }>();
+
+  for (const todo of todos) {
+    if (todo.parent_id === null) continue;
+
+    const parent = byId.get(todo.parent_id);
+
+    // Unknown parent (transient cache gap), or a parent that is not an Epic:
+    // not an Epic→Task relationship, so it does not feed this badge.
+    if (parent === undefined || !isEpic(parent)) continue;
+
+    const entry = counts.get(todo.parent_id) ?? { done: 0, total: 0 };
+
+    entry.total += 1;
+
+    if (todo.column_id !== null && doneColumns.has(todo.column_id)) {
+      entry.done += 1;
+    }
+
+    counts.set(todo.parent_id, entry);
+  }
+
+  const progress = new Map<string, SubtaskProgress>();
+
+  for (const [epicId, { done, total }] of counts) {
+    progress.set(epicId, {
+      done,
+      total,
+      percent: Math.round((done / total) * 100),
+    });
+  }
+
+  return progress;
+}

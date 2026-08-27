@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import ViewNotice from "@/components/board/ViewNotice";
@@ -10,16 +10,20 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useTimelineView } from "@/hooks/useTimelineView";
 import { useVisibleTodos } from "@/hooks/useVisibleTodos";
 import { useColumns } from "@/services/columns/useColumnsApi";
+import { epicTaskProgress } from "@/services/todos/subtasks";
 import { useAddTodo } from "@/services/todos/useAddTodo";
 import { useTimelineSchedule } from "@/services/todos/useTimelineSchedule";
+import { timelineTicks } from "@/services/views/timeline";
 import {
-  placeItems,
-  timelineItems,
-  timelineTicks,
-  unscheduledTodos,
-} from "@/services/views/timeline";
+  buildTimelineHierarchy,
+  countHierarchyItems,
+  countPlacedHierarchyItems,
+  placeTimelineHierarchy,
+  undatedTimelineTodos,
+} from "@/services/views/timelineHierarchy";
 import type { DayRange } from "@/services/views/timelineDrag";
 import { fromCalendarDay, todayISO } from "@/utils/dueDate";
+import type { CreateOptions } from "./TimelineGrid";
 import TimelineGrid from "./TimelineGrid";
 import TimelineNav from "./TimelineNav";
 
@@ -57,6 +61,15 @@ import TimelineNav from "./TimelineNav";
  * The sort control is hidden for this view (`canSort: false` in the registry),
  * because time is the axis — a "sort by priority" has nothing to reorder when
  * the rows are laid out by when they happen.
+ *
+ * **Grouped by Epic since M28-B, on top of everything above rather than
+ * instead of it.** `buildTimelineHierarchy`/`placeTimelineHierarchy`
+ * (`timelineHierarchy.ts`) sit between `useVisibleTodos()` and the grid: they
+ * decide which Task nests under which Epic and what an Epic's own bar shows,
+ * and every rule this comment already states — one write path, no stored
+ * order, the existing create flow — still governs the row underneath. Adding
+ * an Epic's own row and its Tasks' rows is widening what gets drawn, not a
+ * second axis or a second gesture layer.
  */
 export default function TimelineView() {
   const view = useBoardView();
@@ -79,12 +92,33 @@ export default function TimelineView() {
     [timeline.scale, timeline.anchor],
   );
 
-  const items = useMemo(() => timelineItems(todos), [todos]);
+  const hierarchy = useMemo(() => buildTimelineHierarchy(todos), [todos]);
 
-  const rows = useMemo(
-    () => placeItems(items, ticks, timeline.scale),
-    [items, ticks, timeline.scale],
+  const placed = useMemo(
+    () => placeTimelineHierarchy(hierarchy, ticks, timeline.scale),
+    [hierarchy, ticks, timeline.scale],
   );
+
+  const epicProgress = useMemo(
+    () => epicTaskProgress(todos, columns),
+    [todos, columns],
+  );
+
+  // Client-only, like `KanbanBoard`'s own collapsed columns — a layout
+  // preference for this session, not data worth a round trip to persist.
+  const [collapsedEpics, setCollapsedEpics] = useState<Set<string>>(
+    () => new Set(),
+  );
+
+  const toggleEpic = (epicId: string) =>
+    setCollapsedEpics((current) => {
+      const next = new Set(current);
+
+      if (next.has(epicId)) next.delete(epicId);
+      else next.add(epicId);
+
+      return next;
+    });
 
   const columnById = useMemo(
     () => new Map(columns.map((column) => [column.id, column])),
@@ -94,9 +128,13 @@ export default function TimelineView() {
   // Two different absences, reported separately because they have two different
   // answers: an undated item needs a date, an off-window one needs paging to.
   // The undated ones are listed under the axis as well as counted — see the
-  // grid's `Undated` section.
-  const undated = useMemo(() => unscheduledTodos(todos), [todos]);
-  const offWindow = items.length - rows.length;
+  // grid's `Undated` section. Epics are excluded from `undated` (M28-B): one
+  // with no dates of its own already has a row — the bare header
+  // `buildTimelineHierarchy` still gives it — so it is never "off the
+  // timeline" the way a dateless Task is.
+  const undated = useMemo(() => undatedTimelineTodos(todos), [todos]);
+  const totalDated = countHierarchyItems(hierarchy);
+  const offWindow = totalDated - countPlacedHierarchyItems(placed);
 
   /**
    * Where a task drawn on the axis lands.
@@ -111,7 +149,7 @@ export default function TimelineView() {
    */
   const createColumnId = columns[0]?.id ?? null;
 
-  function create(title: string, range: DayRange) {
+  function create(title: string, range: DayRange, options?: CreateOptions) {
     if (!createColumnId) return;
 
     addTodo.mutate({
@@ -123,6 +161,13 @@ export default function TimelineView() {
       // knew.
       start_date: fromCalendarDay(range.start),
       due_date: fromCalendarDay(range.end),
+      // Epic, when the "+ Create epic" row swept this range (M28-B); the
+      // Task under that Epic's own row, when it did instead. Omitted — the
+      // grid's plain "Create task" row — falls through to `useAddTodo`'s own
+      // defaults, exactly as every create surface behaved before this
+      // milestone.
+      type: options?.type,
+      parent_id: options?.parentId ?? null,
     });
   }
 
@@ -145,7 +190,10 @@ export default function TimelineView() {
       />
 
       <TimelineGrid
-        rows={rows}
+        hierarchy={placed}
+        epicProgress={epicProgress}
+        collapsedEpics={collapsedEpics}
+        onToggleEpic={toggleEpic}
         undated={undated}
         ticks={ticks}
         scale={timeline.scale}
@@ -160,12 +208,17 @@ export default function TimelineView() {
         onSchedule={schedule}
         onCreate={create}
         emptyReason={
-          rows.length > 0
+          // A bare Epic (no dates anywhere) still survives
+          // `placeTimelineHierarchy`'s own filter unconditionally, so
+          // "nothing placed" and "nothing to show" are no longer the same
+          // question (M28-B) — the grid only reads as empty when there is
+          // neither a group nor a top-level row for this page to draw.
+          placed.epics.length > 0 || placed.topLevel.length > 0
             ? null
-            : items.length > 0
+            : totalDated > 0
               ? {
                   title: "Nothing scheduled in this range",
-                  hint: `${items.length} dated ${items.length === 1 ? "item is" : "items are"} outside it. Page through the dates, or jump back to today.`,
+                  hint: `${totalDated} dated ${totalDated === 1 ? "item is" : "items are"} outside it. Page through the dates, or jump back to today.`,
                 }
               : {
                   title: "No work item has dates yet",

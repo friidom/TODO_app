@@ -51,6 +51,7 @@ const TimelineRow = memo(function TimelineRow({
   dragging,
   onOpenTask,
   onGrab,
+  rail,
 }: {
   item: TimelineItem;
   /** Where the stored dates put it. Superseded by `draft` mid-gesture. */
@@ -73,6 +74,15 @@ const TimelineRow = memo(function TimelineRow({
    * target itself — it is the thing that knows which item this is.
    */
   onGrab: (event: React.PointerEvent, target: DragTarget) => void;
+  /**
+   * Replaces the default `RowRail` (M28-B) — an Epic's header (chevron,
+   * progress badge) and an indented Task nested under one both need a rail
+   * the plain one does not draw, and this is the one thing about either that
+   * differs from an ordinary row. Everything to the right — placement, the
+   * point diamond, the bar, the drag handles — is unchanged and shared,
+   * because none of it has any reason to know what kind of row it is under.
+   */
+  rail?: React.ReactNode;
 }) {
   const { todo } = item;
 
@@ -111,7 +121,7 @@ const TimelineRow = memo(function TimelineRow({
 
   return (
     <Row>
-      <RowRail todo={todo} keyPrefix={keyPrefix} onOpen={open} />
+      {rail ?? <RowRail todo={todo} keyPrefix={keyPrefix} onOpen={open} />}
 
       <div
         className="grid flex-1 items-center"
@@ -214,12 +224,18 @@ export function RowRail({
   keyPrefix,
   onOpen,
   hint,
+  indent,
 }: {
   todo: Todo;
   keyPrefix: string;
   onOpen: () => void;
   /** Shown on hover in place of the priority icon — the undated rows' nudge. */
   hint?: string;
+  /** Extra left padding for a Task nested under an Epic (M28-B) — the visual
+   * cue for "this belongs to the group above it", contained entirely inside
+   * the rail's own fixed width so it can never touch the date grid beside
+   * it. */
+  indent?: boolean;
 }) {
   const type = workTypeOf(todo.type);
   const TypeIcon = type.icon;
@@ -235,7 +251,10 @@ export function RowRail({
       type="button"
       onClick={onOpen}
       title={todo.title ?? undefined}
-      className="border-hairline bg-surface group-hover:bg-elevated focus-visible:ring-brand sticky left-0 z-10 flex w-40 shrink-0 items-center gap-1.5 border-r px-3 text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset md:w-60"
+      className={cn(
+        "border-hairline bg-surface group-hover:bg-elevated focus-visible:ring-brand sticky left-0 z-10 flex w-40 shrink-0 items-center gap-1.5 border-r px-3 text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset md:w-60",
+        indent && "pl-7",
+      )}
     >
       <TypeIcon className={cn("size-3.5 shrink-0", type.tone)} />
 

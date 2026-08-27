@@ -1,7 +1,13 @@
 import { useCallback, useState } from "react";
 import { CalendarRangeIcon, ChevronRightIcon } from "lucide-react";
 
-import { useTimelineDrag, CREATE_KEY } from "@/hooks/useTimelineDrag";
+import {
+  useTimelineDrag,
+  createTaskKey,
+  CREATE_EPIC_KEY,
+  CREATE_KEY,
+} from "@/hooks/useTimelineDrag";
+import { NO_SUBTASKS, type SubtaskProgress } from "@/services/todos/subtasks";
 import type { Schedulable } from "@/services/todos/useTimelineSchedule";
 import { monthLabel } from "@/services/views/calendar";
 import {
@@ -10,14 +16,14 @@ import {
   placeItem,
   tickIndexOf,
   tickLabel,
-  type placeItem as placeItemType,
-  type TimelineItem,
   type TimelineScale,
 } from "@/services/views/timeline";
+import type { PlacedTimelineHierarchy } from "@/services/views/timelineHierarchy";
 import type { DayRange, DragMode } from "@/services/views/timelineDrag";
 import type { IColumn, Todo } from "@/types/data";
 import { cn } from "@/utils/cn";
 import TimelineCreateRow from "./TimelineCreateRow";
+import TimelineEpicGroup from "./TimelineEpicGroup";
 import TimelineRow, { Row, RowRail } from "./TimelineRow";
 import {
   HEADER_HEIGHT,
@@ -27,7 +33,10 @@ import {
   trackMinWidth,
 } from "./timelineAxis";
 
-type Placement = NonNullable<ReturnType<typeof placeItemType>>;
+/** What a create gesture is for — threaded through to `useAddTodo` unchanged
+ * (M28-B). Omitted fields keep `useAddTodo`'s own defaults: a plain Task with
+ * no parent, exactly as every create surface behaved before this milestone. */
+export type CreateOptions = { type?: string; parentId?: string | null };
 
 /**
  * The axis and everything on it (M20, planning gestures M20-B).
@@ -59,7 +68,10 @@ type Placement = NonNullable<ReturnType<typeof placeItemType>>;
  * sideways as a single object.
  */
 export default function TimelineGrid({
-  rows,
+  hierarchy,
+  epicProgress,
+  collapsedEpics,
+  onToggleEpic,
   undated,
   ticks,
   scale,
@@ -73,7 +85,13 @@ export default function TimelineGrid({
   onCreate,
   emptyReason,
 }: {
-  rows: { item: TimelineItem; place: Placement }[];
+  hierarchy: PlacedTimelineHierarchy;
+  /** One entry per Epic that has at least one Task — the header badge (M28-B). */
+  epicProgress: Map<string, SubtaskProgress>;
+  /** Epic ids whose Tasks are hidden. Client-only, like the board's own
+   * collapsed columns — a layout preference, not data worth persisting. */
+  collapsedEpics: Set<string>;
+  onToggleEpic: (epicId: string) => void;
   /** Items with no date at all — listed below the axis, and schedulable there. */
   undated: Todo[];
   ticks: string[];
@@ -86,7 +104,7 @@ export default function TimelineGrid({
   interactive: boolean;
   onOpenTask: (id: string) => void;
   onSchedule: (todo: Schedulable, range: DayRange) => Promise<unknown>;
-  onCreate: (title: string, range: DayRange) => void;
+  onCreate: (title: string, range: DayRange, options?: CreateOptions) => void;
   /** What to say when there is nothing to draw. Null when there is. */
   emptyReason: { title: string; hint: string } | null;
 }) {
@@ -94,8 +112,13 @@ export default function TimelineGrid({
   const todayIndex = tickIndexOf(today, ticks, scale);
   const columns = trackColumns(ticks.length, scale);
 
-  /** A swept range waiting for a title. Null whenever the form is closed. */
-  const [pending, setPending] = useState<DayRange | null>(null);
+  /** A swept range waiting for a title, keyed by which create row drew it —
+   * there are now several (M28-B), and only one may be filling in a title at
+   * once. */
+  const [pending, setPending] = useState<{
+    key: string;
+    range: DayRange;
+  } | null>(null);
 
   // Destructured rather than kept as one object: `trackRef` is a ref, and
   // reaching the rest of the result through the same binding reads to the
@@ -105,7 +128,7 @@ export default function TimelineGrid({
     scale,
     enabled: interactive,
     onSchedule,
-    onDraw: setPending,
+    onDraw: (key, range) => setPending({ key, range }),
   });
 
   // Stable, so `TimelineRow`'s memo holds — a fresh closure per render would
@@ -265,10 +288,101 @@ export default function TimelineGrid({
             </div>
           </div>
 
-          {emptyReason ? (
-            <Empty {...emptyReason} />
-          ) : (
-            rows.map(({ item, place }) => {
+          {emptyReason && <Empty {...emptyReason} />}
+
+          {/* EPIC GROUPS. Rendered before every top-level Task, matching the
+              reference: the hierarchy is the primary sort, time is the
+              secondary one within it. Hidden behind `emptyReason` like the
+              top-level rows below — but the two create rows just past them
+              are not, for the same reason the original single create row
+              never was. */}
+          {!emptyReason &&
+            hierarchy.epics.map((group) => {
+              const epicId = group.group.epic.id;
+              const createKey = createTaskKey(epicId);
+
+              return (
+                <TimelineEpicGroup
+                  key={epicId}
+                  placed={group}
+                  ticks={ticks}
+                  scale={scale}
+                  columnById={columnById}
+                  keyPrefix={keyPrefix}
+                  locale={locale}
+                  today={today}
+                  interactive={interactive}
+                  progress={epicProgress.get(epicId) ?? NO_SUBTASKS}
+                  collapsed={collapsedEpics.has(epicId)}
+                  onToggleCollapse={() => onToggleEpic(epicId)}
+                  draft={draft}
+                  dragging={dragging}
+                  onOpenTask={open}
+                  onGrab={begin}
+                  pending={pending}
+                  onBeginCreate={(event) =>
+                    begin(event, {
+                      key: createKey,
+                      todo: null,
+                      mode: "draw",
+                      base: null,
+                    })
+                  }
+                  onSubmitCreate={(title, range) => {
+                    onCreate(title, range, { parentId: epicId });
+                    setPending(null);
+                  }}
+                  onCancelCreate={() =>
+                    setPending((current) =>
+                      current?.key === createKey ? null : current,
+                    )
+                  }
+                />
+              );
+            })}
+
+          {/* Offered even while the axis is empty — an empty timeline is
+              precisely when you most want to put something on it. Its own
+              type, `Epic`, is the one thing that distinguishes it from the
+              plain "Create task" row below; the gesture underneath — sweep a
+              range, type a name — is the identical one. */}
+          <TimelineCreateRow
+            ticks={ticks}
+            scale={scale}
+            draft={draft?.key === CREATE_EPIC_KEY ? draft.range : null}
+            pending={pending?.key === CREATE_EPIC_KEY ? pending.range : null}
+            today={today}
+            locale={locale}
+            interactive={interactive}
+            label="Create epic"
+            placeholder="Epic name"
+            onBegin={(event) =>
+              begin(event, {
+                key: CREATE_EPIC_KEY,
+                todo: null,
+                mode: "draw",
+                base: null,
+              })
+            }
+            onSubmit={(title) => {
+              if (pending?.key === CREATE_EPIC_KEY) {
+                onCreate(title, pending.range, { type: "Epic" });
+              }
+
+              setPending(null);
+            }}
+            onCancel={() =>
+              setPending((current) =>
+                current?.key === CREATE_EPIC_KEY ? null : current,
+              )
+            }
+          />
+
+          {/* TOP-LEVEL TASKS. An Epic's own Tasks never reach this list —
+              `buildTimelineHierarchy` already routed them into their group,
+              whether or not it is currently expanded. */}
+          {!emptyReason &&
+            hierarchy.topLevel.map(({ item, place }) => {
               const active = draft?.key === item.todo.id;
 
               return (
@@ -301,17 +415,15 @@ export default function TimelineGrid({
                   onGrab={begin}
                 />
               );
-            })
-          )}
+            })}
 
-          {/* Offered even while the axis is empty — an empty timeline is
-              precisely when you most want to put something on it, and the
-              empty state's own advice is to go and set a date elsewhere. */}
+          {/* The original create row, unchanged: a plain, top-level Task with
+              no parent — `onCreate`'s own default. */}
           <TimelineCreateRow
             ticks={ticks}
             scale={scale}
             draft={draft?.key === CREATE_KEY ? draft.range : null}
-            pending={pending}
+            pending={pending?.key === CREATE_KEY ? pending.range : null}
             today={today}
             locale={locale}
             interactive={interactive}
@@ -324,10 +436,15 @@ export default function TimelineGrid({
               })
             }
             onSubmit={(title) => {
-              if (pending) onCreate(title, pending);
+              if (pending?.key === CREATE_KEY) onCreate(title, pending.range);
+
               setPending(null);
             }}
-            onCancel={() => setPending(null)}
+            onCancel={() =>
+              setPending((current) =>
+                current?.key === CREATE_KEY ? null : current,
+              )
+            }
           />
 
           <Undated

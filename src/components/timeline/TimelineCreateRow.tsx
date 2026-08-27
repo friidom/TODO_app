@@ -43,6 +43,9 @@ export default function TimelineCreateRow({
   onBegin,
   onSubmit,
   onCancel,
+  label = "Create task",
+  placeholder = "What needs to be done?",
+  indent = false,
 }: {
   ticks: string[];
   scale: TimelineScale;
@@ -56,6 +59,17 @@ export default function TimelineCreateRow({
   onBegin: (event: React.PointerEvent) => void;
   onSubmit: (title: string) => void;
   onCancel: () => void;
+  /**
+   * The affordance's own wording (M28-B) — "Create task" for the board's
+   * default row and each Epic's own nested one, "Create epic" for the one row
+   * that mints a new Epic instead. The gesture underneath is identical either
+   * way: sweep a range, type a name, commit through the same `onCreate`.
+   */
+  label?: string;
+  placeholder?: string;
+  /** Matches `RowRail`'s own `indent` — a Task created from inside an
+   * expanded Epic group is a nested row, and its create form is one too. */
+  indent?: boolean;
 }) {
   const range = pending ?? draft;
 
@@ -82,7 +96,12 @@ export default function TimelineCreateRow({
 
   return (
     <Row>
-      <div className="border-hairline bg-surface group-hover:bg-elevated sticky left-0 z-10 flex w-40 shrink-0 items-center gap-1.5 border-r px-3 transition-colors md:w-60">
+      <div
+        className={cn(
+          "border-hairline bg-surface group-hover:bg-elevated sticky left-0 z-10 flex w-40 shrink-0 items-center gap-1.5 border-r px-3 transition-colors md:w-60",
+          indent && "pl-7",
+        )}
+      >
         {pending ? (
           <>
             <input
@@ -101,7 +120,7 @@ export default function TimelineCreateRow({
               onBlur={(event) => {
                 if (!event.currentTarget.value.trim()) onCancel();
               }}
-              placeholder="What needs to be done?"
+              placeholder={placeholder}
               className="text-ink placeholder:text-ink-3 min-w-0 flex-1 bg-transparent text-xs outline-none"
             />
 
@@ -120,7 +139,7 @@ export default function TimelineCreateRow({
             className="text-ink-3 hover:text-ink focus-visible:ring-brand text-mini -mx-1 flex min-w-0 flex-1 items-center gap-1.5 rounded px-1 text-left font-medium transition-colors outline-none focus-visible:ring-2 disabled:opacity-50"
           >
             <PlusIcon className="size-3.5 shrink-0" />
-            <span className="truncate">Create task</span>
+            <span className="truncate">{label}</span>
           </button>
         )}
       </div>
