@@ -5,7 +5,6 @@ import {
   useTimelineDrag,
   createTaskKey,
   CREATE_EPIC_KEY,
-  CREATE_KEY,
 } from "@/hooks/useTimelineDrag";
 import { NO_SUBTASKS, type SubtaskProgress } from "@/services/todos/subtasks";
 import type { Schedulable } from "@/services/todos/useTimelineSchedule";
@@ -24,7 +23,7 @@ import type { IColumn, Todo } from "@/types/data";
 import { cn } from "@/utils/cn";
 import TimelineCreateRow from "./TimelineCreateRow";
 import TimelineEpicGroup from "./TimelineEpicGroup";
-import TimelineRow, { Row, RowRail } from "./TimelineRow";
+import { Row, RowRail } from "./TimelineRow";
 import {
   HEADER_HEIGHT,
   RAIL_WIDTH,
@@ -290,12 +289,11 @@ export default function TimelineGrid({
 
           {emptyReason && <Empty {...emptyReason} />}
 
-          {/* EPIC GROUPS. Rendered before every top-level Task, matching the
-              reference: the hierarchy is the primary sort, time is the
-              secondary one within it. Hidden behind `emptyReason` like the
-              top-level rows below — but the two create rows just past them
-              are not, for the same reason the original single create row
-              never was. */}
+          {/* EPIC GROUPS — the only rows this Timeline draws (M28-B,
+              corrected same milestone: see `timelineHierarchy.ts` on why a
+              Task with no Epic has no row of its own here). Hidden behind
+              `emptyReason`, but the create-epic row just past it is not, for
+              the same reason the original single create row never was. */}
           {!emptyReason &&
             hierarchy.epics.map((group) => {
               const epicId = group.group.epic.id;
@@ -342,10 +340,9 @@ export default function TimelineGrid({
             })}
 
           {/* Offered even while the axis is empty — an empty timeline is
-              precisely when you most want to put something on it. Its own
-              type, `Epic`, is the one thing that distinguishes it from the
-              plain "Create task" row below; the gesture underneath — sweep a
-              range, type a name — is the identical one. */}
+              precisely when you most want to put something on it. This is
+              the Timeline's only top-level create affordance now: every
+              other "Create task" row belongs to one Epic group, above. */}
           <TimelineCreateRow
             ticks={ticks}
             scale={scale}
@@ -374,75 +371,6 @@ export default function TimelineGrid({
             onCancel={() =>
               setPending((current) =>
                 current?.key === CREATE_EPIC_KEY ? null : current,
-              )
-            }
-          />
-
-          {/* TOP-LEVEL TASKS. An Epic's own Tasks never reach this list —
-              `buildTimelineHierarchy` already routed them into their group,
-              whether or not it is currently expanded. */}
-          {!emptyReason &&
-            hierarchy.topLevel.map(({ item, place }) => {
-              const active = draft?.key === item.todo.id;
-
-              return (
-                <TimelineRow
-                  key={item.todo.id}
-                  item={item}
-                  place={place}
-                  // Null for every row but the dragged one, and null is the
-                  // same value every render — which is what lets the memo stop
-                  // the other rows re-rendering mid-gesture.
-                  draft={active ? draft!.range : null}
-                  ticks={ticks}
-                  scale={scale}
-                  column={
-                    item.todo.column_id
-                      ? columnById.get(item.todo.column_id)
-                      : undefined
-                  }
-                  keyPrefix={keyPrefix}
-                  locale={locale}
-                  today={today}
-                  interactive={interactive}
-                  dragging={active && dragging}
-                  onOpenTask={open}
-                  // `begin` itself, not a closure over this row. A fresh
-                  // function per row per render would fail the memo comparison
-                  // on every row and put all of them back into the drag's
-                  // render path — undoing the exact thing the memo is for. The
-                  // row builds its own target: it already holds the item.
-                  onGrab={begin}
-                />
-              );
-            })}
-
-          {/* The original create row, unchanged: a plain, top-level Task with
-              no parent — `onCreate`'s own default. */}
-          <TimelineCreateRow
-            ticks={ticks}
-            scale={scale}
-            draft={draft?.key === CREATE_KEY ? draft.range : null}
-            pending={pending?.key === CREATE_KEY ? pending.range : null}
-            today={today}
-            locale={locale}
-            interactive={interactive}
-            onBegin={(event) =>
-              begin(event, {
-                key: CREATE_KEY,
-                todo: null,
-                mode: "draw",
-                base: null,
-              })
-            }
-            onSubmit={(title) => {
-              if (pending?.key === CREATE_KEY) onCreate(title, pending.range);
-
-              setPending(null);
-            }}
-            onCancel={() =>
-              setPending((current) =>
-                current?.key === CREATE_KEY ? null : current,
               )
             }
           />
@@ -497,6 +425,11 @@ function HeaderRail() {
  * Collapsed by default, because on a young board this is most of the items and
  * an expanded list of forty would bury the four rows that are actually
  * scheduled. The count is on the summary row either way.
+ *
+ * **`todos` is already narrowed to Epic-owned Tasks by the time it reaches
+ * here** (`undatedTimelineTodos` in `timelineHierarchy.ts`, M28-B) — an
+ * unparented Task has no row anywhere on this screen, dated or not, so this
+ * is not a catch-all for "everything without a date" the way it first was.
  */
 function Undated({
   todos,

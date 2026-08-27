@@ -52,7 +52,21 @@ describe("buildTimelineHierarchy — grouping", () => {
     expect(hierarchy.epics[0].item).toBeNull();
   });
 
-  it("nests a Task under its Epic rather than listing it top-level", () => {
+  it("shows multiple Epics, each with its own group", () => {
+    const a = epic({ id: "e-1" });
+    const b = epic({ id: "e-2" });
+    const c = epic({ id: "e-3" });
+
+    const hierarchy = buildTimelineHierarchy([a, b, c]);
+
+    expect(hierarchy.epics.map((group) => group.epic.id)).toEqual([
+      "e-1",
+      "e-2",
+      "e-3",
+    ]);
+  });
+
+  it("nests a Task under its Epic", () => {
     const e = epic({ id: "e-1" });
     const task = todo({
       id: "t-1",
@@ -66,10 +80,14 @@ describe("buildTimelineHierarchy — grouping", () => {
     expect(hierarchy.epics[0].tasks.map((item) => item.todo.id)).toEqual([
       "t-1",
     ]);
-    expect(hierarchy.topLevel).toHaveLength(0);
   });
 
-  it("keeps an unparented Task top-level", () => {
+  it("does not give a Task with dates but no Epic any row at all", () => {
+    // The correction this milestone makes: this view's top-level rows are
+    // Epics only. A dated, unparented Task belongs to the Board and the
+    // List, never to this screen — it is not "top-level" here, it is simply
+    // out of scope, so there is nowhere in the returned hierarchy it could
+    // appear.
     const solo = todo({
       id: "t-1",
       start_date: at("2026-08-10"),
@@ -78,14 +96,25 @@ describe("buildTimelineHierarchy — grouping", () => {
 
     const hierarchy = buildTimelineHierarchy([solo]);
 
-    expect(hierarchy.topLevel.map((item) => item.todo.id)).toEqual(["t-1"]);
     expect(hierarchy.epics).toHaveLength(0);
+
+    const everyTaskId = hierarchy.epics.flatMap((group) =>
+      group.tasks.map((item) => item.todo.id),
+    );
+
+    expect(everyTaskId).not.toContain("t-1");
   });
 
-  it("does not let a genuine Subtask surface as a top-level row", () => {
+  it("never appears — a genuine Subtask does not surface as its Task's row nor nested under any Epic", () => {
     // Defence in depth: `useVisibleTodos` already drops these before this
-    // module sees the array, but the invariant is stated here too.
-    const parent = todo({ id: "t-1" });
+    // module sees the array (M27), but the invariant is stated here too.
+    const e = epic({ id: "e-1" });
+    const task = todo({
+      id: "t-1",
+      parent_id: "e-1",
+      start_date: at("2026-08-10"),
+      due_date: at("2026-08-12"),
+    });
     const subtask = todo({
       id: "s-1",
       parent_id: "t-1",
@@ -93,16 +122,23 @@ describe("buildTimelineHierarchy — grouping", () => {
       due_date: at("2026-08-10"),
     });
 
-    const hierarchy = buildTimelineHierarchy([parent, subtask]);
+    const hierarchy = buildTimelineHierarchy([e, task, subtask]);
 
-    expect(hierarchy.topLevel.some((item) => item.todo.id === "s-1")).toBe(
-      false,
-    );
+    expect(hierarchy.epics[0].tasks.map((item) => item.todo.id)).toEqual([
+      "t-1",
+    ]);
+    // Only the Task is a direct child of the Epic — the Subtask is a child
+    // of the Task, two levels down, and must not inflate the Epic's own
+    // count of Tasks it directly owns.
+    expect(hierarchy.epics[0].taskCount).toBe(1);
   });
 
-  it("treats a Task orphaned by a filtered-out Epic as top-level, not missing", () => {
+  it("drops a Task whose Epic is not present, rather than making it top-level", () => {
     // The Epic itself is not in `todos` — filtered by search/type, or a
-    // transient cache gap. The Task must still render somewhere.
+    // transient cache gap. Membership is `childrenOf(todos, epic.id)` and
+    // nothing wider, so a Task naming an absent Epic has no group to join —
+    // the correction removed the old "fall back to top-level" rule along
+    // with the plain top-level row it fell back into.
     const orphan = todo({
       id: "t-1",
       parent_id: "epic-not-in-array",
@@ -112,7 +148,7 @@ describe("buildTimelineHierarchy — grouping", () => {
 
     const hierarchy = buildTimelineHierarchy([orphan]);
 
-    expect(hierarchy.topLevel.map((item) => item.todo.id)).toEqual(["t-1"]);
+    expect(hierarchy.epics).toHaveLength(0);
   });
 
   it("counts every child toward taskCount, dated or not", () => {
@@ -256,22 +292,17 @@ describe("placeTimelineHierarchy", () => {
     expect(placed.epics[0].tasks).toHaveLength(1);
   });
 
-  it("places top-level Tasks exactly as timeline.ts already does", () => {
-    const inWindow = todo({
+  it("never places a dated, unparented Task — there is no row for it to occupy", () => {
+    const solo = todo({
       id: "t-1",
       start_date: at("2026-08-18"),
       due_date: at("2026-08-19"),
     });
-    const outOfWindow = todo({
-      id: "t-2",
-      start_date: at("2026-01-01"),
-      due_date: at("2026-01-05"),
-    });
 
-    const hierarchy = buildTimelineHierarchy([inWindow, outOfWindow]);
+    const hierarchy = buildTimelineHierarchy([solo]);
     const placed = placeTimelineHierarchy(hierarchy, ticks, "weeks");
 
-    expect(placed.topLevel.map((row) => row.item.todo.id)).toEqual(["t-1"]);
+    expect(placed.epics).toHaveLength(0);
   });
 });
 
@@ -299,33 +330,46 @@ describe("countHierarchyItems / countPlacedHierarchyItems", () => {
   });
 
   it("differs by exactly what the window drops", () => {
-    const outside = todo({
-      id: "t-1",
-      start_date: at("2026-01-01"),
-      due_date: at("2026-01-05"),
-    });
-    const inside = todo({
-      id: "t-2",
+    // Two Epics, one dated this month and one dated back in January.
+    const here = epic({
+      id: "e-1",
       start_date: at("2026-08-18"),
       due_date: at("2026-08-19"),
     });
+    const gone = epic({
+      id: "e-2",
+      start_date: at("2026-01-01"),
+      due_date: at("2026-01-05"),
+    });
 
-    const hierarchy = buildTimelineHierarchy([outside, inside]);
+    const hierarchy = buildTimelineHierarchy([here, gone]);
     const placed = placeTimelineHierarchy(hierarchy, ticks, "weeks");
 
     expect(countHierarchyItems(hierarchy)).toBe(2);
     expect(countPlacedHierarchyItems(placed)).toBe(1);
+  });
+
+  it("never counts a dated, unparented Task in either total", () => {
+    const solo = todo({
+      id: "t-1",
+      start_date: at("2026-08-18"),
+      due_date: at("2026-08-19"),
+    });
+
+    const hierarchy = buildTimelineHierarchy([solo]);
+    const placed = placeTimelineHierarchy(hierarchy, ticks, "weeks");
+
+    expect(countHierarchyItems(hierarchy)).toBe(0);
+    expect(countPlacedHierarchyItems(placed)).toBe(0);
   });
 });
 
 describe("undatedTimelineTodos", () => {
   it("excludes Epics — they already have a header row regardless of dates", () => {
     const e = epic({ id: "e-1" });
-    const bareTask = todo({ id: "t-1" });
+    const child = todo({ id: "t-1", parent_id: "e-1" });
 
-    expect(undatedTimelineTodos([e, bareTask]).map((t) => t.id)).toEqual([
-      "t-1",
-    ]);
+    expect(undatedTimelineTodos([e, child]).map((t) => t.id)).toEqual(["t-1"]);
   });
 
   it("still lists a dateless Task that belongs to an Epic", () => {
@@ -335,11 +379,19 @@ describe("undatedTimelineTodos", () => {
     expect(undatedTimelineTodos([e, child]).map((t) => t.id)).toEqual(["t-1"]);
   });
 
-  it("agrees with `unscheduledTodos` on everything but Epics", () => {
-    const dated = todo({ id: "t-1", due_date: at("2026-08-10") });
-    const bareTask = todo({ id: "t-2" });
-    const e = epic({ id: "e-1" });
+  it("excludes a dateless, unparented Task — it is out of scope for this whole view", () => {
+    const orphan = todo({ id: "t-1" });
 
-    expect(undatedTimelineTodos([dated, bareTask, e])).toHaveLength(1);
+    expect(undatedTimelineTodos([orphan])).toHaveLength(0);
+  });
+
+  it("is narrower than `unscheduledTodos`, by exactly the unparented Tasks", () => {
+    const e = epic({ id: "e-1" });
+    const owned = todo({ id: "t-1", parent_id: "e-1" });
+    const orphan = todo({ id: "t-2" });
+
+    expect(undatedTimelineTodos([e, owned, orphan]).map((t) => t.id)).toEqual([
+      "t-1",
+    ]);
   });
 });

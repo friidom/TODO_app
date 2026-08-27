@@ -62,14 +62,17 @@ import TimelineNav from "./TimelineNav";
  * because time is the axis — a "sort by priority" has nothing to reorder when
  * the rows are laid out by when they happen.
  *
- * **Grouped by Epic since M28-B, on top of everything above rather than
- * instead of it.** `buildTimelineHierarchy`/`placeTimelineHierarchy`
- * (`timelineHierarchy.ts`) sit between `useVisibleTodos()` and the grid: they
- * decide which Task nests under which Epic and what an Epic's own bar shows,
- * and every rule this comment already states — one write path, no stored
- * order, the existing create flow — still governs the row underneath. Adding
- * an Epic's own row and its Tasks' rows is widening what gets drawn, not a
- * second axis or a second gesture layer.
+ * **Grouped by Epic since M28-B — and, since the same milestone's own
+ * correction, grouped by Epic ONLY.** `buildTimelineHierarchy`/
+ * `placeTimelineHierarchy` (`timelineHierarchy.ts`) sit between
+ * `useVisibleTodos()` and the grid, and every rule this comment already
+ * states — one write path, no stored order, the existing create flow — still
+ * governs each row. What changed after the first cut is *which* rows this
+ * view draws at all: an Epic and its own Tasks, and nothing else. A Task with
+ * no Epic — however many dates it carries — is in scope for the Board, the
+ * List and the Calendar, never for this screen; see `timelineHierarchy.ts`'s
+ * own header for why that line is drawn deliberately rather than left as a
+ * gap.
  */
 export default function TimelineView() {
   const view = useBoardView();
@@ -128,10 +131,12 @@ export default function TimelineView() {
   // Two different absences, reported separately because they have two different
   // answers: an undated item needs a date, an off-window one needs paging to.
   // The undated ones are listed under the axis as well as counted — see the
-  // grid's `Undated` section. Epics are excluded from `undated` (M28-B): one
-  // with no dates of its own already has a row — the bare header
-  // `buildTimelineHierarchy` still gives it — so it is never "off the
-  // timeline" the way a dateless Task is.
+  // grid's `Undated` section. Neither an Epic nor an unparented Task is in
+  // `undated` (M28-B, corrected same milestone): an Epic with no dates of
+  // its own already has a row — the bare header `buildTimelineHierarchy`
+  // still gives it — and a Task with no Epic is out of scope for this whole
+  // view, not merely "not yet dated". What is left is a Task that already
+  // belongs to an Epic and only needs its first range.
   const undated = useMemo(() => undatedTimelineTodos(todos), [todos]);
   const totalDated = countHierarchyItems(hierarchy);
   const offWindow = totalDated - countPlacedHierarchyItems(placed);
@@ -162,10 +167,8 @@ export default function TimelineView() {
       start_date: fromCalendarDay(range.start),
       due_date: fromCalendarDay(range.end),
       // Epic, when the "+ Create epic" row swept this range (M28-B); the
-      // Task under that Epic's own row, when it did instead. Omitted — the
-      // grid's plain "Create task" row — falls through to `useAddTodo`'s own
-      // defaults, exactly as every create surface behaved before this
-      // milestone.
+      // Task under that Epic's own row, when it did instead — those are the
+      // only two create rows this view has, so one of the two is always set.
       type: options?.type,
       parent_id: options?.parentId ?? null,
     });
@@ -210,10 +213,14 @@ export default function TimelineView() {
         emptyReason={
           // A bare Epic (no dates anywhere) still survives
           // `placeTimelineHierarchy`'s own filter unconditionally, so
-          // "nothing placed" and "nothing to show" are no longer the same
-          // question (M28-B) — the grid only reads as empty when there is
-          // neither a group nor a top-level row for this page to draw.
-          placed.epics.length > 0 || placed.topLevel.length > 0
+          // "nothing placed" and "nothing to show" are not the same
+          // question — the grid reads as empty only when there is no Epic
+          // group at all for this page to draw. `totalDated` below is
+          // Epic-owned dated rows only (M28-B correction) — a board full of
+          // dated, unparented Tasks is *not* "dated items outside this
+          // range" from this view's perspective, since none of them were
+          // ever in scope for it.
+          placed.epics.length > 0
             ? null
             : totalDated > 0
               ? {
@@ -221,8 +228,8 @@ export default function TimelineView() {
                   hint: `${totalDated} dated ${totalDated === 1 ? "item is" : "items are"} outside it. Page through the dates, or jump back to today.`,
                 }
               : {
-                  title: "No work item has dates yet",
-                  hint: "Drag across the row below to plan one, or open a task and set a start date, a due date, or both.",
+                  title: "No epics have dates yet",
+                  hint: "Create an epic below, or open one and set a start date, a due date, or both.",
                 }
         }
       />

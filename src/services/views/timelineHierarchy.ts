@@ -1,9 +1,4 @@
-import {
-  childrenOf,
-  epicsOf,
-  isEpic,
-  isGenuineSubtask,
-} from "@/services/todos/subtasks";
+import { childrenOf, epicsOf, isEpic } from "@/services/todos/subtasks";
 import type { Todo } from "@/types/data";
 import {
   placeItem,
@@ -15,7 +10,8 @@ import {
 } from "./timeline";
 
 /**
- * Epic groups, on top of `timeline.ts`'s flat rows (M28-B).
+ * Epic groups — the ONLY rows `timeline.ts`'s flat placement reaches the grid
+ * through (M28-B, corrected same milestone: see "no top-level Tasks" below).
  *
  * **A second pure module rather than widening `timeline.ts`.** That file's own
  * header names its job precisely — "work items as ranges over time" — and
@@ -39,6 +35,21 @@ import {
  * same fact as "this Epic does not exist". So an Epic with nothing to place
  * still gets a row, with no bar to draw underneath it, exactly the way a
  * board still shows an empty column.
+ *
+ * **A Task with no Epic never reaches this Timeline at all — not as a row,
+ * not in "Undated".** The first cut of this milestone gave every dated,
+ * unparented Task its own top-level row (a `topLevel: TimelineItem[]` field
+ * here, rendered by `TimelineGrid` below the Epic groups) on the reasoning
+ * that a Task should not vanish just because it has no Epic yet. The
+ * reference this milestone actually follows draws a stricter line: this view
+ * is the Epic breakdown, and a Task's place in it is always "under an Epic,
+ * once it has one" — never "on its own, because it happens to carry a date".
+ * A Task without a parent is not unfinished data here; it is simply out of
+ * scope for this screen, exactly as it was before this Timeline could show
+ * hierarchy at all, and the Board and List remain where every Task — parented
+ * or not — is always visible. So the pipeline is `todos → Epics → each
+ * Epic's own children`, full stop; nothing outside that shape is collected,
+ * let alone placed.
  */
 
 /**
@@ -66,11 +77,10 @@ export interface EpicGroup {
 
 export interface TimelineHierarchy {
   /** One entry per Epic on the board, in the order `epicsOf` returns them
-   * (creation order — the same order `useEpics()` already lists them in). */
+   * (creation order — the same order `useEpics()` already lists them in).
+   * This is the whole hierarchy — see the module doc on why an unparented
+   * Task has no row of its own here. */
   epics: EpicGroup[];
-  /** Dated, top-level Tasks — an Epic's own Tasks are never in this list,
-   * whether or not their group is expanded. */
-  topLevel: TimelineItem[];
 }
 
 /**
@@ -116,20 +126,19 @@ function epicItem(
 }
 
 /**
- * The board's work, grouped: every Epic with its own Tasks, and every
- * top-level Task on its own.
+ * The board's work, grouped: every Epic with its own Tasks.
  *
- * **Orphan-safe.** A Task whose `parent_id` names an Epic that is not in
- * `todos` — filtered out by search, by the type filter, or simply not (yet)
- * in a transient cache — renders top-level rather than vanishing. The same
- * rule `parentOf` states for a single lookup applies here to a whole list: a
- * gap in what is currently visible must never read as an invalid hierarchy,
- * and a real card must never disappear because the row that would have
- * explained where it sits happens not to be on screen right now.
+ * **Membership is `childrenOf(todos, epic.id)`, and nothing wider.** A Task
+ * whose `parent_id` names an Epic that is not in `todos` — filtered out by
+ * search, by the type filter, or simply not (yet) in a transient cache —
+ * therefore has no group to join and is not collected at all: it is not this
+ * function's job to decide where an orphaned Task should go, only to fold
+ * `todos` into the Epics that are actually present. A genuinely unparented
+ * Task (`parent_id === null`) is excluded the same way, on purpose — see the
+ * module doc.
  */
 export function buildTimelineHierarchy(todos: Todo[]): TimelineHierarchy {
   const epics = epicsOf(todos);
-  const epicIds = new Set(epics.map((epic) => epic.id));
 
   const groups: EpicGroup[] = epics.map((epic) => {
     const children = childrenOf(todos, epic.id);
@@ -139,30 +148,15 @@ export function buildTimelineHierarchy(todos: Todo[]): TimelineHierarchy {
     return { epic, item, isDerived, tasks, taskCount: children.length };
   });
 
-  // `!isGenuineSubtask` is a defensive second gate, not the first line of
-  // defence — `useVisibleTodos` has already dropped every genuine Subtask
-  // before this array reaches here (M27). It costs one more lookup per row to
-  // state the invariant this module also depends on, rather than trusting a
-  // caller three files away to have upheld it.
-  const topLevelTodos = todos.filter(
-    (todo) =>
-      !isEpic(todo) &&
-      !isGenuineSubtask(todos, todo) &&
-      (todo.parent_id === null || !epicIds.has(todo.parent_id)),
-  );
-
-  return { epics: groups, topLevel: timelineItems(topLevelTodos) };
+  return { epics: groups };
 }
 
 /** Total dated rows a hierarchy holds, window aside — the denominator behind
  * the nav's "N outside this range". */
 export function countHierarchyItems(hierarchy: TimelineHierarchy): number {
-  return (
-    hierarchy.topLevel.length +
-    hierarchy.epics.reduce(
-      (sum, group) => sum + (group.item ? 1 : 0) + group.tasks.length,
-      0,
-    )
+  return hierarchy.epics.reduce(
+    (sum, group) => sum + (group.item ? 1 : 0) + group.tasks.length,
+    0,
   );
 }
 
@@ -176,7 +170,6 @@ export interface PlacedEpicGroup {
 
 export interface PlacedTimelineHierarchy {
   epics: PlacedEpicGroup[];
-  topLevel: { item: TimelineItem; place: Placement }[];
 }
 
 /**
@@ -210,32 +203,37 @@ export function placeTimelineHierarchy(
         placed.tasks.length > 0,
     );
 
-  return { epics, topLevel: placeItems(hierarchy.topLevel, ticks, scale) };
+  return { epics };
 }
 
 /** Rows actually drawn this page — the numerator behind the nav's "N outside
  * this range", and what decides whether the grid has anything to show. */
 export function countPlacedHierarchyItems(placed: PlacedTimelineHierarchy) {
-  return (
-    placed.topLevel.length +
-    placed.epics.reduce(
-      (sum, group) => sum + (group.place ? 1 : 0) + group.tasks.length,
-      0,
-    )
+  return placed.epics.reduce(
+    (sum, group) => sum + (group.place ? 1 : 0) + group.tasks.length,
+    0,
   );
 }
 
 /**
- * Work items with no date at all, minus the Epics — the Timeline's own
- * narrowing of `unscheduledTodos` (M28-B).
+ * Epic-owned Tasks with no date at all — the Timeline's own narrowing of
+ * `unscheduledTodos` (M28-B, corrected same milestone).
  *
- * An Epic with no dates already has a row — the bare header
- * `buildTimelineHierarchy` still gives it — so listing it a second time here
- * would show the same absence twice. A dateless Task keeps appearing here
- * exactly as before this milestone, whether or not it belongs to an Epic:
- * this list is still the one place it can be given its first range, and
- * which Epic (if any) owns it is not a fact this flat list needs to state.
+ * **Neither Epics nor unparented Tasks belong here.** An Epic with no dates
+ * already has a row — the bare header `buildTimelineHierarchy` still gives
+ * it — so listing it a second time would show the same absence twice. An
+ * unparented Task is out of scope for this whole view (see the module doc);
+ * this list existing at all must not become a side door it reappears
+ * through. What is left, and the one case this still serves, is a Task that
+ * already belongs to an Epic but has not been scheduled yet — it needs
+ * somewhere to be given its first range, and this is that place. `parent_id
+ * !== null` is sufficient to mean "belongs to an Epic" rather than checking
+ * membership again: `useVisibleTodos` has already dropped every genuine
+ * Subtask (M27), so any non-Epic row with a parent left in this array is a
+ * Task under an Epic by construction.
  */
 export function undatedTimelineTodos(todos: Todo[]): Todo[] {
-  return unscheduledTodos(todos).filter((todo) => !isEpic(todo));
+  return unscheduledTodos(todos).filter(
+    (todo) => !isEpic(todo) && todo.parent_id !== null,
+  );
 }

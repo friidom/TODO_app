@@ -50,12 +50,10 @@ import {
  * every frame, which is the actual cost people mean by "expensive drag".
  */
 
-/** The create row's draft is keyed by this, since it has no todo id yet. */
-export const CREATE_KEY = "__create__";
-
-/** The "+ Create Epic" row's own key (M28-B) — a sibling of `CREATE_KEY`,
- * distinct so the two create forms can never be confused with one gesture
- * answering both. */
+/** The "+ Create Epic" row's own key (M28-B) — the Timeline's only top-level
+ * create gesture since the correction that removed plain top-level Task
+ * rows (see `timelineHierarchy.ts`); every other create row is one Epic's
+ * own, keyed by `createTaskKey` below. */
 export const CREATE_EPIC_KEY = "__create-epic__";
 
 /**
@@ -135,10 +133,10 @@ export function useTimelineDrag({
   /**
    * A create row swept out a range — open its title form on it.
    *
-   * The key is `gesture.key` unchanged (M28-B): with one create row this was
-   * always `CREATE_KEY` and the caller could assume it, but with one row per
-   * Epic group as well, the caller needs to know *which* row just drew a
-   * range before it can decide where the pending form belongs.
+   * The key is `gesture.key` unchanged (M28-B): there are several create
+   * rows now — the "+ Create epic" row and one per expanded Epic group — so
+   * the caller needs to know *which* one just drew a range before it can
+   * decide where the pending form belongs.
    */
   onDraw: (key: string, range: DayRange) => void;
 }): TimelineDrag {
