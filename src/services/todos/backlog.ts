@@ -17,19 +17,30 @@ import { isGenuineSubtask } from "./subtasks";
  * independent planning items" is satisfied by construction, the same way
  * the Timeline never had to filter one out either.
  *
- * **Board membership is "has a column AND belongs to the active Sprint" —
- * a deliberate product decision, not a fallback.** An earlier pass here made
- * "no active Sprint" fall back to plain Kanban (a column alone decides),
- * reasoning that a board which has never used Sprints should render exactly
- * as it always had. **That reasoning was overruled by product direction on
- * 2026-08-27**: once a board has Sprints at all, the Board is a view onto
- * the active Sprint's own committed work, full stop — with none active there
- * is nothing committed yet, and the Board shows nothing rather than quietly
- * reverting to a mode the product no longer offers. `isOnBoard` is the one
- * place that rule lives. `column_id` still answers "does this row have a
- * status to move through" — `start_sprint` still hands a Sprint's items one
- * — but a card having a column is no longer sufficient on its own; see
- * `useTodosByColumns` for where this gate is actually applied.
+ * **Board membership keeps the two axes independent, which is what the
+ * migration designed them to be.** `20260830090000_backlog_and_sprints.sql`
+ * states it in its own header: `column_id` answers *"is this on the
+ * Board?"*, `sprint_id` answers *"is this planned into a Sprint?"*, and
+ * conflating them *"would mean every pre-existing work item on every board
+ * drops off the Board the instant this ships"*.
+ *
+ * A pass on 2026-08-27 conflated them anyway — board membership became "has
+ * a column AND is in the active Sprint" — and produced exactly the outcome
+ * the migration had predicted and refused: every card that predated Sprints
+ * vanished, a board with no Sprint running rendered nothing at all, and
+ * every card created on the Board disappeared as it was typed (nothing on
+ * the create path set `sprint_id`). `isOnBoard` is the one place that rule
+ * lives, and it now reads:
+ *
+ * > on the Board when it has a column **and** it is not committed to some
+ * > *other* Sprint.
+ *
+ * That keeps the Sprint model doing real work — a future Sprint's planned
+ * items stay off the running board, and a completed Sprint's stay off it too
+ * — while an unplanned card is on the Board on its `column_id` alone, which
+ * is the only fact that has ever put a card in a column. See
+ * `useTodosByColumns` for where the gate is applied and `KanbanBoard` for
+ * the notice that names the state without replacing the board.
  */
 
 /** One Sprint section of the Backlog view: the sprint, and everything
@@ -43,25 +54,31 @@ export interface SprintSection {
 /**
  * Whether a work item should render on the Kanban Board.
  *
- * **`activeSprintId === null` is not "no Sprint rule applies" — it is "the
- * Board is empty".** No active Sprint means nothing is currently committed,
- * so nothing qualifies, regardless of `column_id`. This is the one place
- * that answer is allowed to differ from "no Sprint" meaning "read as
- * before" — see this module's own doc for why the alternative was tried and
- * reversed.
+ * **`column_id` is the necessary fact; `sprint_id` can only take a card
+ * away.** A row with no column is in the Backlog and has no status to move
+ * through, so it never qualifies — that half is unchanged and is what
+ * `start_sprint` writes when it hands a Sprint's items their first column.
  *
- * A qualifying row needs both facts at once: a `column_id` (a status to
- * move through) and a `sprint_id` matching the board's own active Sprint —
- * a card planned into a *different* Sprint keeps whatever column it already
- * has (nothing erases it) but does not render here until its own Sprint is
- * the active one.
+ * Given a column, the Sprint question is asked only to *exclude*:
+ *
+ * | `sprint_id`                | On the Board? | Why |
+ * |---|---|---|
+ * | `null`                     | yes | Unplanned work. It is in a column because someone put it there, and no Sprint has claimed it — including every card that predates Sprints entirely |
+ * | the active Sprint          | yes | Committed work in the running Sprint |
+ * | a future/completed Sprint  | no  | Committed *elsewhere*. It keeps its column (nothing erases it) and returns to the Board when its own Sprint is the running one |
+ *
+ * **`activeSprintId === null` is therefore not "the Board is empty".** With
+ * no Sprint running, every unplanned card in a column still shows and the
+ * Board is an ordinary Kanban; only work committed to a Sprint that is not
+ * running is withheld. See this module's own doc for the pass that answered
+ * this differently and what it broke.
  */
 export function isOnBoard(
   todo: Pick<Todo, "column_id" | "sprint_id">,
   activeSprintId: string | null,
 ): boolean {
-  if (activeSprintId === null) return false;
   if (todo.column_id === null) return false;
+  if (todo.sprint_id === null) return true;
 
   return todo.sprint_id === activeSprintId;
 }
@@ -118,7 +135,10 @@ export function buildBacklogBoard(
  * than a second "which column" decision that could drift from the RPC's.
  */
 export function firstTodoColumn(columns: IColumn[]): IColumn | null {
-  return columns.filter((column) => column.category === "todo").sort(byRank)[0] ?? null;
+  return (
+    columns.filter((column) => column.category === "todo").sort(byRank)[0] ??
+    null
+  );
 }
 
 /**
@@ -203,9 +223,11 @@ export function sprintAssignmentPatch(
   }
 
   if (targetSprintId === null) {
-    // See BacklogRow's own doc: the fallback Board reads when no Sprint is
-    // active would otherwise pull this card back onto it by its stale
-    // column value the moment the active Sprint completes.
+    // Dragging a card into the Backlog section is "take this off the Board",
+    // so the column goes with the Sprint. Under `isOnBoard`'s rule an
+    // unplanned card with a column is still ON the Board, so clearing it is
+    // what makes the gesture mean anything — leaving it would move the card
+    // in the Backlog view while it sat unmoved in its column behind you.
     return { sprint_id: null, column_id: null, backlog_rank };
   }
 

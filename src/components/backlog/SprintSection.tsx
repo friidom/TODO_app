@@ -5,6 +5,7 @@ import {
   ChevronRightIcon,
   PencilIcon,
   PlusIcon,
+  Trash2Icon,
 } from "lucide-react";
 
 import type { BacklogIndicator } from "@/hooks/useBacklogDnd";
@@ -49,6 +50,7 @@ export default function SprintSection({
   indicator,
   onEdit,
   onComplete,
+  onDelete,
 }: {
   section: SprintSectionData;
   /** Every open sprint on the board — threaded down to each row's own
@@ -62,6 +64,7 @@ export default function SprintSection({
   indicator: BacklogIndicator | null;
   onEdit: (sprint: Sprint) => void;
   onComplete: (sprint: Sprint) => void;
+  onDelete: (sprint: Sprint) => void;
 }) {
   const { sprint, items } = section;
   const { canEditTodos } = usePermissions();
@@ -128,6 +131,24 @@ export default function SprintSection({
                 className="text-ink-3 hover:text-ink hover:bg-ink/10 grid size-5 shrink-0 place-items-center rounded transition-colors"
               >
                 <PencilIcon className="size-3" />
+              </button>
+            )}
+
+            {/* Future sprints only. An active sprint's exit is "Complete
+                sprint" — it decides where unfinished work goes and keeps the
+                record of what shipped, which deleting would throw away — and
+                a completed one has no section here at all
+                (`buildBacklogBoard` filters it out). Same lifecycle shape
+                `start_sprint`/`complete_sprint` already enforce. */}
+            {canEditTodos && sprint.state === "future" && (
+              <button
+                type="button"
+                onClick={() => onDelete(sprint)}
+                aria-label="Delete sprint"
+                title="Delete sprint"
+                className="text-ink-3 hover:text-status-red hover:bg-status-red/10 grid size-5 shrink-0 place-items-center rounded transition-colors"
+              >
+                <Trash2Icon className="size-3" />
               </button>
             )}
           </div>
@@ -205,7 +226,9 @@ export default function SprintSection({
             <BacklogDropZone
               sectionKey={sprint.id}
               index={0}
-              active={indicator?.sectionKey === sprint.id && indicator.index === 0}
+              active={
+                indicator?.sectionKey === sprint.id && indicator.index === 0
+              }
               afterId={items[0]?.id}
             />
           )}

@@ -100,6 +100,30 @@ export async function updateSprint({
   return data;
 }
 
+/**
+ * Deletes a sprint. **Its work items are not deleted with it.**
+ *
+ * `todos.sprint_id` is declared `on delete set null` — never cascade — and
+ * the migration states why in its own words: *"the sprint is filing, the
+ * work item is content. Deleting a sprint must not delete the work planned
+ * into it."* So the database returns every item to the Backlog in the same
+ * statement, with no second write from here to get half-done.
+ *
+ * An ordinary `delete` rather than an RPC, which is the opposite of
+ * `start_sprint`/`complete_sprint` and for the reason stated at the top of
+ * this module: those are RPCs because each is *more than one write*. This is
+ * one, and the rehoming that would have been the second is the foreign key's
+ * own job. The existing `"Editors and above delete sprints"` policy is what
+ * authorises it, so there is nothing new to grant.
+ */
+export async function deleteSprint(sprintId: string): Promise<string> {
+  const { error } = await supabase.from("sprints").delete().eq("id", sprintId);
+
+  if (error) throw error;
+
+  return sprintId;
+}
+
 /** Moves a future sprint to active and bulk-assigns the board's first
  * `todo`-category column to every item of its that has none yet. */
 export async function startSprint(sprintId: string): Promise<void> {

@@ -15,8 +15,12 @@
  * recorded in the plan rather than here: `todos.position` is a dense integer,
  * so a *second* surface that writes order means two views renumbering one
  * column from two stale snapshots — silent data loss, and the whole reason
- * M6-A exists. `registry.test.ts` asserts that exactly one view reorders, so
- * adding a second is a failing test rather than a discovery in production.
+ * M6-A exists. `registry.test.ts` pins the exact set of views that reorder —
+ * `["board", "backlog"]` since M31-C — so adding a third is a failing test
+ * rather than a discovery in production. Two is safe here because the two
+ * order *different* fields (`rank` and `backlog_rank`); the hazard is two
+ * views renumbering the same one, which is what the test's own comment tells
+ * the next person to check.
  */
 
 /**

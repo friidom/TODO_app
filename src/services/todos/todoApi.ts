@@ -133,6 +133,7 @@ export async function addTodo({
   due_date = null,
   type = DEFAULT_WORK_TYPE,
   parent_id = null,
+  sprint_id = null,
 }: {
   id: string;
   title: string;
@@ -170,6 +171,28 @@ export async function addTodo({
    * with the trigger would be the more dangerous of the two.
    */
   parent_id?: string | null;
+  /**
+   * The sprint this card is created into — the board's *active* one, supplied
+   * by `useAddTodo` rather than by any create surface.
+   *
+   * **Why the create path writes it at all.** This function's callers all
+   * create a card straight into a board column, and a card in a board column
+   * while a sprint is running *is* that sprint's work. Leaving it null made
+   * every card created on the Board absent from the sprint it was plainly
+   * part of: missing from its section in the Backlog, missing from its
+   * points rollup, and — once `isOnBoard` began reading `sprint_id` — absent
+   * from the Board it had just been typed into.
+   *
+   * Null is still a real and ordinary value: it is what a board with no
+   * active sprint writes, and `isOnBoard` treats such a card as ad-hoc work
+   * that is on the Board on its `column_id` alone.
+   *
+   * Legal against `enforce_work_item_hierarchy` for everything this function
+   * creates. Only a *genuine* Subtask is barred from carrying a sprint of its
+   * own, and a Subtask is never created here — `useAddSubtask` is a separate
+   * mutation, and it sends nothing to this function.
+   */
+  sprint_id?: string | null;
 }) {
   //get current user
   const {
@@ -228,6 +251,7 @@ export async function addTodo({
         due_date,
         type,
         parent_id,
+        sprint_id,
       },
       { onConflict: "id" },
     )

@@ -1,1 +1,0 @@
-{"nodes": [{"id": "$graphify-root$_supabase_migrations_20260818110000_realtime_comments_sql", "label": "20260818110000_realtime_comments.sql", "file_type": "code", "source_file": "supabase/migrations/20260818110000_realtime_comments.sql", "source_location": null}], "edges": []}

@@ -25,6 +25,7 @@ import useTodosByColumns from "@/hooks/useTodosByColumns";
 import { useVisibleTodos } from "@/hooks/useVisibleTodos";
 import { useBoardMembers } from "@/services/members/useBoardMembers";
 import { groupTodos, isSwimlaneGroup } from "@/services/todos/view";
+import { isOnBoard } from "@/services/todos/backlog";
 
 import SortableColumn from "./SortableColumn";
 import ColumnDropZone from "./ColumnDropZone";
@@ -66,7 +67,8 @@ export default function KanbanBoard() {
 
   // Already in display order — `useVisibleTodos` filtered and ordered it, so
   // this only buckets. `activeSprintId === null` is this board's own "no
-  // Sprint is running" state — the empty-state branch below reads it.
+  // Sprint is running" state, and it is read here only to *name* that state
+  // in a notice above the board — never to decide whether the board renders.
   const { todosByColumn, columns, activeSprintId, sprintsPending } =
     useTodosByColumns(todos);
 
@@ -103,10 +105,22 @@ export default function KanbanBoard() {
 
   const orderedColumns = useMemo(() => columns.slice().sort(byRank), [columns]);
 
+  // Swimlanes render the same board, so they answer "what is on it" the same
+  // way. `Swimlanes` buckets a lane by `column_id` alone, which drops Backlog
+  // rows (no column matches) but would happily show work committed to a
+  // Sprint that is not running — the one thing `isOnBoard` exists to withhold.
+  // Filtering here rather than inside `Swimlanes` keeps the rule in one place
+  // and keeps that component about layout.
   const lanes = useMemo(
     () =>
-      swimlanes ? groupTodos(todos, view.group, { columns, members }) : [],
-    [swimlanes, todos, view.group, columns, members],
+      swimlanes
+        ? groupTodos(
+            todos.filter((todo) => isOnBoard(todo, activeSprintId)),
+            view.group,
+            { columns, members },
+          )
+        : [],
+    [swimlanes, todos, activeSprintId, view.group, columns, members],
   );
 
   const { moveColumn } = useColumnReorder(orderedColumns);
@@ -129,25 +143,14 @@ export default function KanbanBoard() {
     );
   }
 
-  // `sprintsPending` joins the gate rather than being read after it: without
-  // this, a board with an active Sprint would render `NoActiveSprintState`
-  // for one frame while `useSprints()` was still resolving, because
-  // `activeSprintId` defaults to `null` until it has data.
+  // `sprintsPending` still joins the loading gate. It no longer decides
+  // whether the board renders at all, but `isOnBoard` reads `activeSprintId`
+  // — so without this, a card committed to the running Sprint would flicker
+  // out of its column for one frame while `useSprints()` resolved and
+  // `activeSprintId` was still defaulting to null.
   if (isLoading || sprintsPending) return <Loading />;
 
   if (error) return <p>{error.message}</p>;
-
-  // **The Board is a view onto the active Sprint (product direction,
-  // 2026-08-27), not a fallback to plain Kanban when none is running.** See
-  // `backlog.ts`'s own module doc for why this reverses an earlier pass here.
-  // Nothing below this point — not `DndContext`, not a single column — is
-  // reachable without one; the data layer already enforces the same rule
-  // (`useTodosByColumns`'s `isOnBoard` filter), so this is belt-and-braces
-  // against a wall of columns that would otherwise all render empty, not the
-  // only place the rule lives.
-  if (activeSprintId === null) {
-    return <NoActiveSprintState onGoToBacklog={() => view.setMode("backlog")} />;
-  }
 
   /**
    * The board, said out loud (M9-02).
@@ -238,6 +241,10 @@ export default function KanbanBoard() {
       onDragCancel={resetDrag}
     >
       <div className="flex h-full min-h-0 flex-col">
+        {activeSprintId === null && (
+          <NoActiveSprintNotice onGoToBacklog={() => view.setMode("backlog")} />
+        )}
+
         <ViewNotice view={view} visibleCount={todos.length} showDragHint />
 
         {swimlanes ? (
@@ -371,46 +378,42 @@ export default function KanbanBoard() {
 }
 
 /**
- * The Board with no active Sprint — a full replacement for the columns, not
- * a notice above an empty one.
+ * No Sprint is running on this board — said in a strip above an otherwise
+ * completely normal board, not by replacing it.
  *
- * **Borrows `ListView.tsx`'s own `EmptyList` pattern rather than inventing a
- * new visual language for it** — same icon-in-a-circle-plus-title-plus-hint
- * shape, same tokens (`bg-ink/[0.06]`/`text-ink-3`/`text-ink`), same action
- * button classes. `ViewNotice` was not the fit: that is a strip *above* an
- * otherwise-normal board, for the case where the board's own columns are
- * still worth looking at (a filter matched nothing). Here there is nothing
- * to look at — no column has a card that qualifies while no Sprint is
- * active — so the whole area becomes the message, exactly the reasoning
- * `EmptyList` states for replacing `ViewNotice` on the List.
+ * **This is `ViewNotice`'s own case, and it used to be `EmptyList`'s.** An
+ * earlier pass made it a full-page takeover on the reasoning that there was
+ * nothing behind it worth looking at, because `isOnBoard` withheld every card
+ * while no Sprint was active. That rule is gone (see `backlog.ts`): unplanned
+ * work sits on the Board on its `column_id` alone, so behind this strip there
+ * are real columns with real cards — plus every column control, rename,
+ * reorder, limits, delete and Add column, which the takeover made unreachable
+ * on a board that had simply never started a Sprint.
+ *
+ * So it borrows `ViewNotice`'s shape rather than `EmptyList`'s: one line, an
+ * icon, and the single click that resolves it. Same `mb-3` rhythm and the same
+ * `text-brand` action button, so the two read as one row of chrome on the
+ * boards where a filter notice happens to be showing too.
  */
-function NoActiveSprintState({ onGoToBacklog }: { onGoToBacklog: () => void }) {
+function NoActiveSprintNotice({
+  onGoToBacklog,
+}: {
+  onGoToBacklog: () => void;
+}) {
   return (
-    // `h-full` matches every other view's own top-level wrapper (`KanbanBoard`'s
-    // normal return, `ListView`, `CalendarView`, `TimelineView`) — `ViewShell`'s
-    // content slot is a flex item, not a flex container, so a bare `flex-1` here
-    // has no flex parent to stretch within and the centering below would collapse
-    // to the content's own height instead of the page's.
-    <div className="flex h-full min-h-0 flex-col items-center justify-center gap-1 px-6 text-center">
-      <span className="bg-ink/[0.06] text-ink-3 mb-3 grid size-10 place-items-center rounded-full">
-        <RocketIcon className="size-4" />
+    <p className="text-ink-3 mb-3 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs">
+      <RocketIcon className="size-3.5 shrink-0" />
+      <span>
+        No sprint is running. Cards below are unplanned work — plan a sprint to
+        commit to a set of it.
       </span>
-
-      <p className="text-ink text-sm font-medium">
-        Start a sprint to begin working
-      </p>
-
-      <p className="text-ink-3 max-w-xs text-xs">
-        Plan your work in the Backlog and start a Sprint to see it here.
-      </p>
-
       <button
         type="button"
         onClick={onGoToBacklog}
-        className="text-brand hover:bg-brand-soft focus-visible:ring-brand rounded-control mt-3 px-2.5 py-1 text-xs font-medium transition-colors outline-none focus-visible:ring-2"
+        className="text-brand hover:bg-brand-soft focus-visible:ring-brand rounded px-1.5 py-0.5 font-medium transition-colors outline-none focus-visible:ring-2"
       >
         Go to Backlog
       </button>
-    </div>
+    </p>
   );
 }

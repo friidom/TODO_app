@@ -7,6 +7,7 @@ import type { Sprint } from "@/types/data";
 import {
   completeSprint,
   createSprint,
+  deleteSprint,
   fetchSprints,
   startSprint,
   updateSprint,
@@ -128,6 +129,35 @@ export function useStartSprint() {
   });
 }
 
+/**
+ * Deletes a sprint, and invalidates `todos` for the same reason
+ * `useStartSprint` does: the write moves an unbounded number of rows that
+ * this hook never sees. Here it is the `on delete set null` foreign key
+ * rather than an RPC body doing the moving — every item the sprint held has
+ * its `sprint_id` cleared server-side, so the cached array is stale in as
+ * many rows as the sprint was holding.
+ *
+ * The sprint list itself is patched rather than invalidated, matching every
+ * other mutation here: exactly one row leaves it, and which one is known.
+ */
+export function useDeleteSprint() {
+  const queryClient = useQueryClient();
+  const boardId = useBoardId();
+
+  return useMutation({
+    mutationFn: deleteSprint,
+
+    onSuccess: (sprintId) => {
+      queryClient.setQueryData<Sprint[]>(
+        queryKeys.sprints(boardId),
+        (old = []) => old.filter((sprint) => sprint.id !== sprintId),
+      );
+
+      queryClient.invalidateQueries({ queryKey: queryKeys.todos(boardId) });
+    },
+  });
+}
+
 /** Completes an active sprint, same reasoning as `useStartSprint` for why
  * `todos` is invalidated rather than patched. */
 export function useCompleteSprint() {
@@ -148,9 +178,7 @@ export function useCompleteSprint() {
         queryKeys.sprints(boardId),
         (old = []) =>
           old.map((sprint) =>
-            sprint.id === sprintId
-              ? { ...sprint, state: "completed" }
-              : sprint,
+            sprint.id === sprintId ? { ...sprint, state: "completed" } : sprint,
           ),
       );
 

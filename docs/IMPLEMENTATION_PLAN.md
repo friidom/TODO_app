@@ -1,10 +1,24 @@
 # Implementation Plan
 
-**Status:** Active — M0 → M23 shipped. Roadmap revised 2026-08-26 for the **Jira depth wave** (Part IV-C): estimates, issue history, hierarchy, epics, backlog and sprints. Previous revision 2026-08-14, for Spaces, a shared view model, the product redesign, Overview, Activity, Calendar and Timeline.
+**Status:** Active — M0 → M23 shipped, and the **Jira depth wave** is most of the way through: M24, M25, M27, M28, M29, M30 and M31 are built (2026-08-26 → 2026-08-28). **M26 and M32 are the two committed milestones still unbuilt.** Roadmap set 2026-08-26 (Part IV-C); previous revision 2026-08-14, for Spaces, a shared view model, the product redesign, Overview, Activity, Calendar and Timeline.
 **Owner:** Tech Lead
 **Source of truth:** the Architecture Review (2026-08-05) + `docs/ARCHITECTURE.md`, `docs/DATABASE.md`, `docs/FRONTEND.md`, `docs/API.md`, `docs/PRODUCT_SPEC.md`
 **Scope:** takes the codebase from its original state (single-user, user-owned board, broken build) to a collaborative, permissioned, realtime work-management product with Jira-level functional depth and its own product identity.
-**Last audited against the repository:** 2026-08-26 (previous audits 2026-08-14, 2026-08-10).
+**Last audited against the repository:** 2026-08-29 (previous audits 2026-08-26, 2026-08-14, 2026-08-10).
+
+> **What the 2026-08-29 audit found.** It read the source tree, the 63 migration files and the git history rather than trusting this document.
+>
+> **Seven milestone statuses were wrong, all in the same direction.** M24, M25, M27, M28, M29, M30 and M31 were each recorded ⬜ **Not started** while their code, their migrations and their commits were in the repository — the whole Jira depth wave except M26 and M32. M24's own section still read *"this is the next milestone"* three milestones after it shipped. Each is corrected below with the commit and the migration that carries it.
+>
+> **Two Board defects were found and fixed during this audit**, both consequences of one inverted assumption in M31 — see that milestone's own note and the risk register. **A third gap was closed:** a sprint could be created but never deleted.
+>
+> **What is still not built:** **M26** (comment improvements) and **M32** (attachments), the two remaining committed milestones. **M10-00** — the drop of the dead `todos.status` / `previous_status` columns — was carried into M27 and did **not** ship with it; it stands alongside **M6-05** (`todos.position`). Neither blocks anything; both are Tier B and both still wait on PH-01.
+>
+> **Honest partials, not claimed as done.** M24 shipped its control and its rollups but **not the `estimate` sort key** its own acceptance criteria named. M31 shipped four of its five candidates; dependency arrows still wait on `work_item_links` (M33), exactly as that row predicted.
+>
+> **What was in good order:** `npm run lint`, `npm run build` and `npm test` (923 tests, 54 files) are green; the generated types match the latest migration; there is no `TODO`/`FIXME` marker, no `any` and no lint suppression anywhere under `src/`.
+>
+> **Not re-verified this pass:** migration parity against the linked project. The 2026-08-26 audit ran `supabase migration list`; this one did not, so "63 local migrations" is a count of files, not a confirmation that all 63 are applied remotely.
 
 > **What the 2026-08-26 audit found.** It read the source tree, the 58 migration files and `supabase migration list` against the linked project rather than trusting this document.
 >
@@ -12,7 +26,7 @@
 >
 > **Three milestones had shipped without ever being written down at all** — M21 For You, M22 Accounts & Notifications, M23 Production Polish — and are now recorded retroactively in Part IV-B, from the code rather than from an intent that was never captured. That is the one process failure this document has had, and it is kept on the ledger rather than tidied away.
 >
-> **What was in good order:** local and remote migrations pair 58↔58 with nothing pending and nothing applied out of band; the generated types match the live schema; `npm run lint`, `npm run build` and `npm test` (678 tests, 46 files) are green. The standing debt is in the **Risk register** at the end of Part IV-C.
+> **What was in good order:** local and remote migrations pair 58↔58 with nothing pending and nothing applied out of band; the generated types match the live schema; `npm run lint`, `npm run build` and `npm test` (678 tests, 46 files) are green. The standing debt is in the **Risk register** at the end of Part IV-C (rewritten by the 2026-08-29 audit).
 
 This document is two things at once, and both matter:
 
@@ -564,7 +578,7 @@ Risk labels, applied to every task:
 | **MEDIUM RISK** | Touches shared state, the write path, or many files. Needs deliberate testing. |
 | **HIGH RISK** | Destructive, or changes the security boundary, or migrates data. Requires backup + rollback + migration strategy, documented per task below. |
 
-## Milestone status — as of 2026-08-26
+## Milestone status — as of 2026-08-29
 
 > **Milestone IDs are historical, not sequential.** M0–M9 were numbered in the order they were *planned* in during 2026-08. M10–M13 were roadmap sketches, M14–M20 were added by the 2026-08-14 revision, M21–M23 were built without being planned and are recorded retroactively, and M24–M33 are the 2026-08-26 Jira depth wave. The order to build in interleaves them, and it is the **Build order** table in Part IV-C — not this one.
 
@@ -595,7 +609,16 @@ Risk labels, applied to every task:
 | **M21 · For You** | ✅ **Built 2026-08-21 · recorded retroactively 2026-08-26** | The personal hub at `/`, four tabs over one row shape, no migration. Written up in Part IV-B. |
 | **M22 · Accounts & Notifications** | ✅ **Built 2026-08-21 · recorded retroactively 2026-08-26** | Unique usernames, username-or-email sign-in, email confirmation, password reset, and the `notifications` table + panel with invitations moved into it. Seven migrations. Written up in Part IV-B. |
 | **M23 · Production Polish** | ✅ **Built 2026-08-24 · recorded retroactively 2026-08-26** | Design tokens applied product-wide, mobile pass, unified dialog chrome, type scale. No schema. Four follow-up fixes were staged-but-uncommitted at audit time. |
-| **M24 → M33 · Jira depth wave** | ⬜ **Not started — Part IV-C** | Estimates → history → comments → hierarchy → epics → backlog → sprints → timeline → attachments. **M24 is the next milestone.** |
+| **M24 · Story Point Estimate** | ◑ **Built 2026-08-26 — one item short** | `20260826090000_todos_estimate_check.sql`, `EstimateControl` on the card and in the detail rail, and the rollups every container below reads (`services/todos/sprintPoints.ts`). **`estimate` is not in `SORT_KEYS`** — this milestone's own acceptance asked the board to sort by it, and that half did not ship. Cheap; not blocking anything. (`6463b40`, `58c9b85`) |
+| **M25 · Issue History** | ✅ **Built 2026-08-27** | `20260827090000_todo_history_fields.sql` widens the log to `description` and `estimate`; the detail panel's lower region is now the **All / Comments / History** tab bar this milestone existed to establish (`components/todo/ActivitySection.tsx`, `components/activity/TodoHistoryList.tsx`). Everything after it that wants a tab adds one. (`dfa1de1`) |
+| **M26 · Comments improvements** | ⬜ **Not started** | Unchanged. @mentions, resolve, and the rest. It has its tab region (M25) and `notifications` (M22) waiting for it; nothing depends on it. |
+| **M27 · Hierarchy — `parent_id` + Subtasks** | ◑ **Built 2026-08-28; M10-00 not done** | `20260828090000_todo_parent_id.sql` + `todos_enforce_subtask_depth`, `services/todos/subtasks.ts`, `SubtasksSection`, and `useVisibleTodos` dropping a genuine Subtask from every view. **M10-00 — dropping the dead `todos.status` / `previous_status` columns — was carried into this milestone and did not ship with it.** Tier B, still waiting on PH-01. (`4d0ca5b`) |
+| **M28 · Epics** | ✅ **Built 2026-08-28** | `20260829090000_todo_epic_hierarchy.sql` replaces the depth trigger with `enforce_work_item_hierarchy` — three roles, enforced in the database. `EpicTasksSection`, the Parent field, and M28-B's rebuild of the Timeline into an Epic-grouped Gantt with derived rollup bars (`services/views/timelineHierarchy.ts`). (`b8757be`, `7eeb7c9`, `a846b7e`) |
+| **M29 · Backlog** | ✅ **Built 2026-08-28** | `20260830090000_backlog_and_sprints.sql` (`todos.backlog_rank`), the Backlog view, and its own gap-precise drag reusing the Board's DnD shape against a second rank field. M11's three questions are answered in the migration header. (`f76a198`) |
+| **M30 · Sprints** | ✅ **Built 2026-08-28 · deletion added 2026-08-29** | Same migration: the `sprints` table, the future → active → completed lifecycle, `sprints_one_active_per_board`, and the `start_sprint` / `complete_sprint` RPCs. **Sprint deletion shipped 2026-08-29** — the gap the audit found: an ordinary `delete` under the existing policy, with `on delete set null` returning the sprint's work to the Backlog. (`f76a198`) |
+| **M31 · Timeline improvements** | ◑ **Four of five candidates built 2026-08-28** | Epic row grouping, derived Epic bars, Sprint bands (`TimelineSprintBand.tsx`) and M31-C's Board–Sprint integration all shipped. **Dependency arrows did not** — they need `work_item_links`, which is M33, exactly as the candidate table predicted. Subtask progress reaches the Epic row as a badge rather than as bar shading. **This milestone also shipped the product's two worst defects**, both fixed 2026-08-29 — see its own section. (`f76a198`, `0e93871`) |
+| **M32 · Attachments** | ⬜ **Not started — this is the next milestone** | Unchanged, and now genuinely next. Its tab region (M25) exists and its storage template (`20260814101000_avatar_storage_ownership.sql`) is unchanged. |
+| **M33 · Later** | 🗺 Roadmap | Labels, work item links, saved filters, the command palette. Re-costed when M32 lands. |
 
 M10–M13 were roadmap direction added in the 2026-08-10 audit; M14–M20 in the 2026-08-14 revision; M21–M23 were built unplanned and recorded on 2026-08-26; M24–M33 are that same audit's forward roadmap. Appendix E records what is deliberately out of scope — **and it changed twice**: on 2026-08-14 for Calendar and Timeline, and on 2026-08-26 for Sprints.
 
@@ -617,7 +640,7 @@ Dependencies, not preference. Each row states what would have to be **rebuilt** 
 | 10 | **M7 · Comments** · ✅ built 2026-08-18/19 | Wants M6-B for live threads and M17 for where a thread renders. Both were true when it ran. |
 | 11 | **M9 · Quality** · ✅ built 2026-08-19 (M9-06 deferred) | Accessibility, keyboard, mobile and performance across the final surface rather than across two. **Exception: pull M9-01 and M9-02 into M17** if the redesign rewrites the board's DOM — retrofitting accessibility is doing it twice, which is what M9's own dependency note already says. |
 | 12 | **M21 · For You**, **M22 · Accounts & Notifications**, **M23 · Production Polish** · ✅ built 2026-08-21/24 | **Not in this table when they were built** — they were added to the product without passing through the plan, and the 2026-08-26 audit is what recorded them. Kept in the ledger as evidence of the one process failure this document has had. |
-| 13 → 21 | **M24 → M32 · the Jira depth wave** | **Part IV-C has its own build order table**, because this one records a sequence that has finished. Start at M24. |
+| 13 → 21 | **M24 → M32 · the Jira depth wave** · M24–M31 built 2026-08-26 → 08-28 | **Part IV-C has its own build order table**, because this one records a sequence that has finished. **Start at M32** — M24 → M31 are built. |
 | — | M13 · Configurable Workflow | Unchanged roadmap. Not on the path to anything above; re-costed once the hierarchy exists (M28), because a transition rule that cannot mention an Epic is half a feature. |
 
 **What this order buys.** Every UI milestone (M17 → M20) runs after the two decisions that would otherwise force it to be rewritten: the hierarchy (M15) and the view model (M16). Every schema decision that a later view depends on is made in M14 or named in Appendix D before the view is built. Nothing in the new wave waits on realtime, and realtime waits on nothing in it.
@@ -3101,20 +3124,20 @@ Dependencies, not preference. Each row states what would have to be **rebuilt** 
 
 | # | Milestone | Why it sits here |
 |---|---|---|
-| 1 | **M24 · Story Point Estimate** | Needs nothing. `todos.estimate` has existed since M2-04 and has never been read, so this is a UI milestone with a one-line constraint, not a schema milestone. It sits first because **every container below rolls it up** — an Epic's points, a sprint's committed points, a burndown — and building the rollups before the number they roll up is building them twice |
-| 2 | **M25 · Issue History** | Builds the **tabbed lower region** the *Task Detail surface* section has reserved since 2026-08-14, with its one tab. Everything after it that wants a tab (comments, subtasks, attachments) adds one instead of re-laying out the panel — which is precisely the failure that section exists to prevent. Also widens trigger coverage before three new fields arrive that would otherwise change silently |
-| 3 | **M26 · Comments improvements** | Wants M25's tab region to live in, and `notifications` (M22) for @mentions to land in. Nothing below depends on it, so it is here rather than later only because it is cheap once M25 exists |
-| 4 | **M27 · Hierarchy — `parent_id` + Subtasks** | **The one-way door.** Appendix D: *"Epic/subtask hierarchy: `parent_id` in one table vs. a second table — must be made by M10, before subtasks are built."* Subtasks are the first consumer of the column and the cheapest way to prove the depth rule, which is why they are the same milestone rather than the one after it. Carries **M10-00** with it: the dead `todos.status` / `previous_status` columns must go *before* a fourth structural concept lands on this table |
-| 5 | **M28 · Epics** | The second application of M27's column, and it cannot precede it without inventing the same column twice. Needs the depth rule already enforced, or an Epic can be filed under a Task |
-| 6 | **M29 · Backlog** | Needs **M6-A** (shipped) because a backlog is a second ordered surface, and needs **M28** because an Epic belongs in a backlog exactly as a task does. This is where M11's three unanswered questions get answered |
-| 7 | **M30 · Sprints** | Needs a backlog to plan *from* and Epics to plan *with*. Building it before either means a sprint that can only be filled from the board, which is the assumption the containment model above refuses |
-| 8 | **M31 · Timeline improvements** | Needs M28 for epic swimlanes and M30 for sprint bands. Dependency arrows still need `work_item_links`, which is still M33 |
-| 9 | **M32 · Attachments** | Independent of everything above — a table and a storage bucket. Last of the committed work because it is the least structural, and its template (`20260814101000_avatar_storage_ownership.sql`) is not going anywhere |
+| 1 | **M24 · Story Point Estimate** · ◑ built 2026-08-26 | Needs nothing. `todos.estimate` has existed since M2-04 and has never been read, so this is a UI milestone with a one-line constraint, not a schema milestone. It sits first because **every container below rolls it up** — an Epic's points, a sprint's committed points, a burndown — and building the rollups before the number they roll up is building them twice |
+| 2 | **M25 · Issue History** · ✅ built 2026-08-27 | Builds the **tabbed lower region** the *Task Detail surface* section has reserved since 2026-08-14, with its one tab. Everything after it that wants a tab (comments, subtasks, attachments) adds one instead of re-laying out the panel — which is precisely the failure that section exists to prevent. Also widens trigger coverage before three new fields arrive that would otherwise change silently |
+| 3 | **M26 · Comments improvements** · ⬜ not started | Wants M25's tab region to live in, and `notifications` (M22) for @mentions to land in. Nothing below depends on it, so it is here rather than later only because it is cheap once M25 exists |
+| 4 | **M27 · Hierarchy — `parent_id` + Subtasks** · ◑ built 2026-08-28 | **The one-way door.** Appendix D: *"Epic/subtask hierarchy: `parent_id` in one table vs. a second table — must be made by M10, before subtasks are built."* Subtasks are the first consumer of the column and the cheapest way to prove the depth rule, which is why they are the same milestone rather than the one after it. Carries **M10-00** with it: the dead `todos.status` / `previous_status` columns must go *before* a fourth structural concept lands on this table |
+| 5 | **M28 · Epics** · ✅ built 2026-08-28 | The second application of M27's column, and it cannot precede it without inventing the same column twice. Needs the depth rule already enforced, or an Epic can be filed under a Task |
+| 6 | **M29 · Backlog** · ✅ built 2026-08-28 | Needs **M6-A** (shipped) because a backlog is a second ordered surface, and needs **M28** because an Epic belongs in a backlog exactly as a task does. This is where M11's three unanswered questions get answered |
+| 7 | **M30 · Sprints** · ✅ built 2026-08-28 | Needs a backlog to plan *from* and Epics to plan *with*. Building it before either means a sprint that can only be filled from the board, which is the assumption the containment model above refuses |
+| 8 | **M31 · Timeline improvements** · ◑ built 2026-08-28 | Needs M28 for epic swimlanes and M30 for sprint bands. Dependency arrows still need `work_item_links`, which is still M33 |
+| 9 | **M32 · Attachments** · ⬜ **next** | Independent of everything above — a table and a storage bucket. Last of the committed work because it is the least structural, and its template (`20260814101000_avatar_storage_ownership.sql`) is not going anywhere |
 | — | **M33 · Later** | Labels, work item links, saved filters, the command palette, and the standing debt. Re-costed when M32 lands |
 
 ---
 
-## Milestone 24 — Story Point Estimate · ⬜ **Not started — this is the next milestone**
+## Milestone 24 — Story Point Estimate · ◑ **Built 2026-08-26 — the sort key did not ship**
 
 **For.** A number on a work item saying how big it is, and the sums that number makes possible.
 
@@ -3136,9 +3159,23 @@ Dependencies, not preference. Each row states what would have to be **rebuilt** 
 
 **Acceptance.** A number set on the detail panel survives a refresh; the board sorts by it; an unestimated item sorts distinguishably from a zero-point one; `npm run build`, `npm run lint` and `npm test` are green.
 
+### As built — Milestone 24 · ◑ 2026-08-26
+
+| Task | Evidence |
+|---|---|
+| The constraint | `supabase/migrations/20260826090000_todos_estimate_check.sql` — `estimate is null or estimate >= 0`, Tier A, as specified |
+| The control | `src/components/todo/TodoItem/EstimateControl.tsx`, in the detail rail and as a compact chip on the card (`58c9b85`) |
+| The four edits | `TODO_FIELDS`, `TODO_LIST_FIELDS`, the `TodoPatch` admission and the control — all four, and `todoApi.test.ts` still asserts the first two agree |
+| The rollups | Built later and elsewhere, exactly as this milestone said they should be: `services/todos/sprintPoints.ts`, read by `SprintSection` (M30) |
+
+**What did not ship: the sort.** This milestone's acceptance reads *"the board sorts by it"*, and `SORT_KEYS` in `services/todos/view.ts` is still `manual | due | created | updated | priority | title`. Points are set, stored, rolled up and displayed, but no view can order by them. Recorded here rather than quietly dropped — it is a one-entry change whenever it is wanted.
+
+**Points, not hours**, and `null` is still distinct from `0`: `sprintPoints` counts unestimated items separately rather than summing them as zero, which is what this milestone asked for.
+
+
 ---
 
-## Milestone 25 — Issue History · ⬜ **Not started**
+## Milestone 25 — Issue History · ✅ **Built 2026-08-27**
 
 **For.** Reading what happened to *one* work item, in the panel where you are already looking at it.
 
@@ -3159,6 +3196,18 @@ Dependencies, not preference. Each row states what would have to be **rebuilt** 
 - **Nothing here becomes client-written.** `activities` has no insert grant and no insert policy, and that is what makes the log trustworthy. Every new action is a trigger.
 
 **Explicitly not.** Diff rendering of description changes, restore-from-history, and an audit export.
+
+### As built — Milestone 25 · ✅ 2026-08-27
+
+| Task | Evidence |
+|---|---|
+| Widened trigger coverage | `supabase/migrations/20260827090000_todo_history_fields.sql` — `description` and `estimate`, the last two fields the UI could write without logging |
+| The tabbed lower region | `src/components/todo/ActivitySection.tsx` — **All / Comments / History**, the region this milestone existed to establish |
+| The History tab | `src/components/activity/TodoHistoryList.tsx`, over `queryKeys.todoActivities(todoId)` |
+| Comments moved into it | `CommentThread` gained `hideHeading`, so the tab bar names the section instead of a second heading inside it |
+
+**The contract held.** M32's attachments now add a tab rather than re-laying out the panel, which is the whole reason this milestone preceded them.
+
 
 ---
 
@@ -3183,7 +3232,7 @@ Dependencies, not preference. Each row states what would have to be **rebuilt** 
 
 ---
 
-## Milestone 27 — Hierarchy · `parent_id` + Subtasks · ⬜ **Not started** · **HIGH RISK**
+## Milestone 27 — Hierarchy · `parent_id` + Subtasks · ◑ **Built 2026-08-28; M10-00 outstanding** · **HIGH RISK**
 
 **For.** Letting a work item contain work items. This is the one-way door of the whole wave.
 
@@ -3208,9 +3257,21 @@ Dependencies, not preference. Each row states what would have to be **rebuilt** 
 
 **Rollback.** The additive migration is Tier A and reverses by `drop column parent_id`. The M10-00 drop is Tier B and does not reverse — take the dump.
 
+### As built — Milestone 27 · ◑ 2026-08-28
+
+| Task | Evidence |
+|---|---|
+| The column | `supabase/migrations/20260828090000_todo_parent_id.sql` — one self-referencing `parent_id`, composite FK against `(id, board_id)` so a cross-board parent is refused |
+| The depth rule | `todos_enforce_subtask_depth`, replaced one migration later by `enforce_work_item_hierarchy` (M28) rather than duplicated |
+| Subtasks | `src/components/todo/SubtasksSection.tsx`, `services/todos/useAddSubtask.ts` (a separate mutation — the rank semantics genuinely differ), `services/todos/subtasks.ts` |
+| Hidden from every view | `useVisibleTodos` drops a genuine Subtask once, so the Board, List, Calendar, Timeline and Backlog each got it free |
+
+**M10-00 did not ship with it, and that was this milestone's job.** The dead `todos.status` and `todos.previous_status` columns are still on the table — confirmed in `src/types/database.ts`. The plan's reason for carrying M10-00 here was to clear them *before* a fourth structural concept landed on `todos`; `parent_id`, then `sprint_id` and `backlog_rank`, all landed first. It is Tier B and still blocked on **PH-01**, so it stays in the risk register rather than being reassigned to a milestone that would not be allowed to run it either.
+
+
 ---
 
-## Milestone 28 — Epics · ⬜ **Not started**
+## Milestone 28 — Epics · ✅ **Built 2026-08-28**
 
 **For.** A container for a body of work that spans columns and outlives a sprint.
 
@@ -3227,9 +3288,20 @@ Dependencies, not preference. Each row states what would have to be **rebuilt** 
 
 **Explicitly not.** Epic progress bars on the board (M31's), cross-board epics (Appendix E), and an epic-only view.
 
+### As built — Milestone 28 · ✅ 2026-08-28
+
+| Task | Evidence |
+|---|---|
+| The Epic type and its rule | `supabase/migrations/20260829090000_todo_epic_hierarchy.sql` — `enforce_work_item_hierarchy` replaces M27's narrower trigger: an Epic never has a parent, a row under an Epic is a Task whatever its own type, a row under anything else is a Subtask and may have no children |
+| Epic → Tasks | `src/components/todo/EpicTasksSection.tsx`, plus the Parent field on the detail panel |
+| M28-B · Epic-grouped Timeline | `services/views/timelineHierarchy.ts`, `components/timeline/TimelineEpicGroup.tsx` — top-level rows are Epics only (`a846b7e`), each bar derived from its children when the Epic has no dates of its own |
+
+**Three levels, enforced in the database rather than in React**, which is Part II rule 5. The trigger is the single place the shape lives, and M30 extended that same function rather than adding a second.
+
+
 ---
 
-## Milestone 29 — Backlog · ⬜ **Not started** · **MEDIUM RISK**
+## Milestone 29 — Backlog · ✅ **Built 2026-08-28** · **MEDIUM RISK**
 
 **For.** A place for work that is real but not yet on the board.
 
@@ -3250,9 +3322,21 @@ Dependencies, not preference. Each row states what would have to be **rebuilt** 
 
 **Explicitly not.** Backlog-only estimation ceremony, ranking by drag across the backlog/board boundary in the same gesture (two surfaces, one drop — reopen after the simple case works), and bulk move.
 
+### As built — Milestone 29 · ✅ 2026-08-28
+
+| Task | Evidence |
+|---|---|
+| "What is in the backlog?" | `column_id is null` — no `is_backlog` flag. The migration header argues it out |
+| Its own ordering | `todos.backlog_rank`, a second fractional-rank *value*, not a second scheme — `src/utils/backlogRank.ts` |
+| The view | `components/backlog/BacklogView.tsx` + `SprintSection` + `BacklogRow`, over `buildBacklogBoard` |
+| Its drag | `hooks/useBacklogDnd.ts` / `useBacklogDragEnd.ts`, reusing `resolveDropIndex` unchanged — the second reordering view, and safe under M6-A's guard because it writes a different field. `registry.test.ts` was updated to expect two |
+
+M11's three long-open questions are answered in `20260830090000_backlog_and_sprints.sql`'s own header, which is where they belong.
+
+
 ---
 
-## Milestone 30 — Sprints · ⬜ **Not started** · **MEDIUM RISK**
+## Milestone 30 — Sprints · ✅ **Built 2026-08-28; deletion added 2026-08-29** · **MEDIUM RISK**
 
 **For.** A time-boxed set of work with a start, an end and a commitment.
 
@@ -3285,9 +3369,26 @@ todos.sprint_id uuid null references sprints(id) on delete set null
 
 **Explicitly not.** Velocity history and forecasting (needs several completed sprints before it can be anything but a straight line), sprint permissions distinct from board roles, parallel active sprints, and sprint templates.
 
+### As built — Milestone 30 · ✅ 2026-08-28, completed 2026-08-29
+
+| Task | Evidence |
+|---|---|
+| The table | `sprints` in `20260830090000_backlog_and_sprints.sql` — a container with a lifecycle, not a `todos.type` |
+| One active sprint | `sprints_one_active_per_board`, a partial unique index. Every client read of "the active sprint" now goes through `services/sprints/activeSprint.ts` |
+| The transitions | `start_sprint` / `complete_sprint` RPCs — each is more than one write, so each is one transaction |
+| A Subtask carries no sprint | Folded into `enforce_work_item_hierarchy` rather than given a second trigger |
+| **Deletion** | **Added 2026-08-29.** `deleteSprint` in `sprintsApi.ts`, `useDeleteSprint`, and `components/backlog/DeleteSprintModal.tsx` |
+
+**Why deletion was missing, and how it was closed.** The RLS policy `"Editors and above delete sprints"` shipped with the table; nothing in the UI ever called it, so a mistyped sprint was permanent. The fix is an ordinary `delete`, not a fourth RPC — the rehoming that would have been its second write is already the `on delete set null` foreign key's job, which the migration chose deliberately so that *"deleting a sprint must not delete the work planned into it."* The dialog says so in the item count, out of the same cached array the section header counts from.
+
+**Offered on `future` sprints only.** An active sprint's exit is *Complete sprint*, which decides where unfinished work goes and preserves the record of what shipped; a completed sprint has no section in the Backlog to delete from (`buildBacklogBoard` filters it out). That is a UX guard mirroring the RPCs' own state checks — **not** a security rule. The policy remains the authority, and nothing was added to or removed from it.
+
+**Burndown did not ship**, and was not in this milestone's scope beyond the points it rolls up.
+
+
 ---
 
-## Milestone 31 — Timeline improvements · ⬜ **Not started**
+## Milestone 31 — Timeline improvements · ◑ **Four of five candidates built 2026-08-28**
 
 **For.** Making the timeline a planning surface rather than a picture of dates.
 
@@ -3305,9 +3406,33 @@ todos.sprint_id uuid null references sprints(id) on delete set null
 
 **Explicitly not**, still: resource levelling, baselines, and zoom levels beyond the two the shell contract supports.
 
+### As built — Milestone 31 · ◑ 2026-08-28
+
+| Candidate | Status |
+|---|---|
+| Group rows by Epic | ✅ `services/views/timelineHierarchy.ts` (M28-B) |
+| Epic bars derived from their children's range | ✅ Computed, stored nowhere, as specified |
+| Sprint bands on the axis | ✅ `components/timeline/TimelineSprintBand.tsx` — one shared band, overlapping sprints packed onto stacked lanes (`0e93871`) |
+| Progress shading from subtask completion | ◑ Reaches the Epic row as a **badge**, not as bar shading. `TimelineBar`'s fill is still category-and-elapsed-time derived |
+| Dependency arrows and critical path | ⬜ Still blocked on `work_item_links`, which is M33 — exactly as this milestone's own candidate table predicted |
+
+**M31-C — Board–Sprint integration — is where this wave's two worst defects came from. Both were fixed 2026-08-29.**
+
+It made the Board a view onto the active Sprint by conflating two columns that `20260830090000_backlog_and_sprints.sql` had **deliberately kept independent**, and whose header had already named this exact failure: *"it would mean every pre-existing work item on every board drops off the Board the instant this ships."* That is what happened.
+
+| Defect | Cause | Fix |
+|---|---|---|
+| **Every card created on the Board was invisible on it** | `isOnBoard` began requiring `sprint_id === activeSprintId`, while all four create surfaces still sent `sprint_id: null` through `useAddTodo` | `useAddTodo` now derives the board's active sprint itself and stamps it, so a fifth create surface inherits the rule instead of re-discovering it. `addTodo` gained the field, mirroring `addBacklogItem` |
+| **A board with no active sprint rendered nothing** — and with it, no `AddColumnButton` and no column controls at all | The same conflation, plus a full-page `NoActiveSprintState` that replaced the columns | `isOnBoard` restored to *has a column **and** is not committed to some other Sprint*. The takeover became a one-line notice above a working board. `Swimlanes`, which had never applied the rule at all, now shares it |
+
+**No schema change was needed for either** — the columns already meant the right thing. Three `backlog.test.ts` cases encoded the old rule and were rewritten; two were added.
+
+**The lesson for the ledger.** A migration header that argues against a design is a constraint the client has to keep satisfying. Nothing checked that the client still agreed with it, and the disagreement shipped.
+
+
 ---
 
-## Milestone 32 — Attachments · ⬜ **Not started**
+## Milestone 32 — Attachments · ⬜ **Not started — this is the next milestone**
 
 **For.** Files on a work item.
 
@@ -3339,22 +3464,25 @@ Not a commitment. Re-costed when M32 lands.
 
 ---
 
-## Risk register — 2026-08-26 audit
+## Risk register — 2026-08-29 audit
 
-Standing debt found by reading the repository, the 58 migration files and `supabase migration list` against `nxnnfaoyttbzndphnawe`. **None of it blocks M24.** Rows 1–3 should be cleared before M27, which is the first migration of this wave that cannot be reversed by forward-fix.
+Standing debt found by reading the repository, the 63 migration files and the git history. **None of it blocks M32**, which is the next milestone. Row 1 was scheduled into M27 and did not ship there; it and row 2 both wait on row 3.
 
 | # | Item | Where | Why it matters now |
 |---|---|---|---|
-| 1 | **Dead `todos.status` / `previous_status`** | M14 outstanding, M10-00 | Two status-shaped columns already; M27 adds `parent_id` and M30 adds `sprint_id`. **Scheduled into M27** |
-| 2 | **`todos.position` still written** (M6-05) | M6-A left it as the rollback | M29 adds `backlog_rank`, giving the table three ordering values. The soak M6-05 waited for has run since 2026-08-14 |
-| 3 | **PITR still not enabled** | Part V, PH-01 | M27's contract migration is the first genuine **Tier B** work since M2. Rule 6 requires a dump; that requirement is now live rather than theoretical |
-| 4 | **`wip/m10-02-email-invites-stage2`** — unmerged, 2 unapplied migrations, an Edge Function, ~1,200 lines of live test harness | branch only | Its `20260820120000_fix_provision_user_columns.sql` is **superseded** by main's `20260821100000`. Its `20260820140000_email_invites_stage2.sql` and `supabase/functions/send-invite-email` are real unshipped work. **Land it or delete it** — an unapplied migration on a branch is a schema the CLI does not know about |
-| 5 | **`CLAUDE.md` describes roughly the M6-A codebase** | repo root | Names 5 service folders (there are 16), points `db:types` at `src/types/database.types.ts` (the real path is `src/types/database.ts`), and describes realtime as future work. Every agent and every new reader starts from it |
-| 6 | **Stale worktree + stash** | `TODO_app.worktrees/agents-fix-drag-and-drop-implementation`, `stash@{0}` | Both pinned to pre-M0 code (`cb5c9e0`, 2026-07-28). Neither is restorable onto the current tree |
-| 7 | **M3-16 role matrix never re-run against the linked project**; six avatar-storage REST checks never run | M3, M14 | The only two verification gaps in the security model, both owed since 2026-08-14 |
-| 8 | **Main bundle 538 kB (170 kB gzip)** | `dist/assets/index-*.js` | Over Vite's 500 kB warning. `BoardPage` is already split; the remainder is the shell plus i18n plus icons |
-| 9 | **i18n coverage** — ~60 files of English strings | Appendix B, was M9-06 | Every milestone in this wave adds more. The switcher works; the coverage does not |
-| 10 | **Touch scrolling on the board** | Appendix B | *"Reopen with any future touch or DnD work"* — M29's backlog drag is DnD work |
+| 1 | **Dead `todos.status` / `previous_status`** | M14 outstanding, M10-00 | **Was scheduled into M27 and did not ship.** The table has since gained `parent_id`, `sprint_id` and `backlog_rank`, so the "clear it before a fourth concept lands" argument has already been lost. Still Tier B, still gated on row 3 |
+| 2 | **`todos.position` still written** (M6-05) | M6-A left it as the rollback | M29 shipped `backlog_rank`, so the table now carries three ordering values as predicted. Gated on row 3 |
+| 3 | **PITR still not enabled** | Part V, PH-01 | Now gating both rows above. No Tier B migration has run in this wave — every one of M24 → M31 was Tier A — so nothing has been done unsafely; it means the two drops keep being deferred rather than being risked |
+| 4 | **`wip/m10-02-email-invites-stage2`** — unmerged, 2 unapplied migrations, an Edge Function, ~1,200 lines of live test harness | branch only | Unchanged since 2026-08-26. **Land it or delete it** — an unapplied migration on a branch is a schema the CLI does not know about |
+| 5 | ~~`CLAUDE.md` describes roughly the M6-A codebase~~ | repo root | **Largely closed** by `46a1dcb` (service list, `db:types` path, realtime). Still silent on Epics, Subtasks, the Backlog, Sprints, and the Board's own membership rule — a reader of `CLAUDE.md` alone would not know the Backlog view exists |
+| 6 | **Stale worktree + stash** | `TODO_app.worktrees/agents-fix-drag-and-drop-implementation`, `stash@{0}` | Unchanged. Both pinned to pre-M0 code |
+| 7 | **M3-16 role matrix never re-run against the linked project**; six avatar-storage REST checks never run | M3, M14 | Unchanged — the two verification gaps in the security model, owed since 2026-08-14. **This wave added a fifth board-scoped table (`sprints`) with four new policies, none of them covered by the matrix script** |
+| 8 | **Main bundle 540 kB (171 kB gzip)** | `dist/assets/index-*.js` | Unchanged in substance; grew ~2 kB across the wave. Over Vite's 500 kB warning |
+| 9 | **i18n is vestigial, and the switcher is visibly broken** | Appendix B, was M9-06 | Sharpened from "coverage" to a defect: **6 keys across en/ru/uz, 9 files calling `useTranslation`** against ~360 source files. The Profile page offers EN/RU/UZ and switching changes almost nothing. Either invest in it or hide the control |
+| 10 | **Touch scrolling on the board** | Appendix B | M29's backlog drag has now shipped, which is the trigger this row named. Still unverified on a touch device |
+| 11 | **`graphify-out/` is committed** — 93 files, ~4 MB of tool AST cache | repo root, not in `.gitignore` | New this audit. Not load-bearing; it is checked-in build output of an indexing tool |
+| 12 | **Four unreferenced files** | `components/todo/TodoForm.tsx`, `components/ui/{breadcrumb,checkbox,collapsible}.tsx` | New this audit. `TodoForm` is superseded by `HeaderTodoForm`; the other three are unused vendored primitives |
+| 13 | **No realtime on `sprints`** | `services/realtime/`, M30 | New this audit, and a **deliberate** deferral recorded in `useSprints`' own doc — but now that the Board reads sprint state, a teammate starting a sprint does not reach this client until a refetch |
 
 ---
 # PART V — DEFERRED / PRODUCTION HARDENING

@@ -5,6 +5,7 @@ import { queryKeys } from "@/services/queryClient/queryKeys";
 import { DEFAULT_WORK_TYPE } from "@/constants/workTypes";
 import { useColumns } from "@/services/columns/useColumnsApi";
 import { useSprints } from "@/services/sprints/useSprints";
+import { activeSprintIdOf } from "@/services/sprints/activeSprint";
 import { backlogRankForAppend } from "@/utils/backlogRank";
 import type { IColumn, Sprint, Todo } from "@/types/data";
 import { applySubtaskInserted, applyTodoUpdated } from "./cache";
@@ -24,7 +25,7 @@ function boardEntryFor(
   columns: IColumn[],
   todos: Todo[],
 ) {
-  const activeSprintId = sprints.find((s) => s.state === "active")?.id ?? null;
+  const activeSprintId = activeSprintIdOf(sprints);
 
   if (sprintId === null || sprintId !== activeSprintId) return null;
 

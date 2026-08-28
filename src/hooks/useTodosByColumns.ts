@@ -3,6 +3,7 @@ import React from "react";
 import type { IColumn, Todo } from "@/types/data";
 import { isOnBoard } from "@/services/todos/backlog";
 import { useSprints } from "@/services/sprints/useSprints";
+import { activeSprintIdOf } from "@/services/sprints/activeSprint";
 
 /**
  * One array for every empty render, rather than a fresh `[]` each time.
@@ -29,22 +30,22 @@ const EMPTY_COLUMNS: IColumn[] = [];
  * Every column gets an entry even when nothing is in it, so an empty column
  * still renders — once the Board has anything to render at all; see below.
  *
- * **The Board is a view onto the active Sprint (2026-08-27 product
- * direction), and `isOnBoard` is where that is enforced.** With no Sprint
- * `active` on this board, `todosByColumn` comes back with every bucket
- * empty regardless of what any card's `column_id` says — `KanbanBoard` reads
- * `activeSprintId` (returned below) to show a dedicated empty state instead
- * of a wall of empty columns. See `backlog.ts`'s own module doc for the
- * history: an earlier pass here fell back to "a column alone decides" when
- * no Sprint was active, which was product-reversed — the Board no longer has
- * a plain-Kanban mode to fall back to once a board has Sprints at all.
+ * **`isOnBoard` is the one Sprint rule applied here**, and it only ever
+ * *removes* a card: one committed to a Sprint that is not the running one is
+ * withheld until that Sprint starts. A card with no Sprint at all is on the
+ * Board on its `column_id` alone, so a board with nothing running is an
+ * ordinary Kanban rather than an empty page. See `backlog.ts`'s own module
+ * doc for the pass that answered this differently and what it broke.
+ *
+ * `activeSprintId` is returned rather than kept private because `KanbanBoard`
+ * names the state in a notice above the board — not to decide whether to
+ * render one.
  */
 export default function useTodosByColumns(todos: Todo[]) {
   const { data: columns = EMPTY_COLUMNS } = useColumns();
   const { data: sprints = [], isPending: sprintsPending } = useSprints();
 
-  const activeSprintId =
-    sprints.find((sprint) => sprint.state === "active")?.id ?? null;
+  const activeSprintId = activeSprintIdOf(sprints);
 
   const todosByColumn = React.useMemo(() => {
     // Built inside the memo: it was previously allocated on every render but

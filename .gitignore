@@ -27,3 +27,6 @@ backups
 *.njsproj
 *.sln
 *.sw?
+
+# CodeGraph / graphify tool output — regenerated locally, never committed
+graphify-out

@@ -20,6 +20,7 @@ import { useColumns } from "@/services/columns/useColumnsApi";
 import { buildBacklogBoard } from "@/services/todos/backlog";
 import { useAddBacklogItem } from "@/services/todos/useAddBacklogItem";
 import { useSprints } from "@/services/sprints/useSprints";
+import { activeSprintIdOf } from "@/services/sprints/activeSprint";
 import type { IColumn, Sprint, Todo } from "@/types/data";
 import { cn } from "@/utils/cn";
 import { taskKey } from "@/utils/taskKey";
@@ -28,6 +29,7 @@ import BacklogRow from "./BacklogRow";
 import SprintSection from "./SprintSection";
 import CreateSprintModal from "./CreateSprintModal";
 import CompleteSprintModal from "./CompleteSprintModal";
+import DeleteSprintModal from "./DeleteSprintModal";
 
 /**
  * The board's unstarted work, organised by Sprint (M29+M30+M31-C).
@@ -80,9 +82,8 @@ export default function BacklogView() {
 
   const [creatingSprint, setCreatingSprint] = useState(false);
   const [editingSprint, setEditingSprint] = useState<Sprint | null>(null);
-  const [completingSprint, setCompletingSprint] = useState<Sprint | null>(
-    null,
-  );
+  const [completingSprint, setCompletingSprint] = useState<Sprint | null>(null);
+  const [deletingSprint, setDeletingSprint] = useState<Sprint | null>(null);
   const [addingToBacklog, setAddingToBacklog] = useState(false);
   const [newItemTitle, setNewItemTitle] = useState("");
   const [activeTodo, setActiveTodo] = useState<Todo | null>(null);
@@ -112,8 +113,7 @@ export default function BacklogView() {
     () => sprints.filter((sprint) => sprint.state !== "completed"),
     [sprints],
   );
-  const activeSprintId =
-    sprints.find((sprint) => sprint.state === "active")?.id ?? null;
+  const activeSprintId = activeSprintIdOf(sprints);
 
   const { onDragEnd } = useBacklogDragEnd({
     board,
@@ -201,6 +201,7 @@ export default function BacklogView() {
               indicator={indicator}
               onEdit={setEditingSprint}
               onComplete={setCompletingSprint}
+              onDelete={setDeletingSprint}
             />
           ))}
 
@@ -240,6 +241,13 @@ export default function BacklogView() {
               (sprint) => sprint.id !== completingSprint.id,
             )}
             onClose={() => setCompletingSprint(null)}
+          />
+        )}
+
+        {deletingSprint && (
+          <DeleteSprintModal
+            sprint={deletingSprint}
+            onClose={() => setDeletingSprint(null)}
           />
         )}
       </div>
@@ -378,8 +386,8 @@ function BacklogUnplannedSection({
 
         {items.length === 0 && !adding && (
           <p className="text-ink-3 px-3 pb-2 text-xs">
-            Nothing unplanned — everything real is either on a Sprint or on
-            the Board already.
+            Nothing unplanned — everything real is either on a Sprint or on the
+            Board already.
           </p>
         )}
       </div>

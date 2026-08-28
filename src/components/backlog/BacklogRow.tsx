@@ -13,6 +13,7 @@ import { sprintAssignmentPatch } from "@/services/todos/backlog";
 import type { IColumn, Sprint, Todo } from "@/types/data";
 import { cn } from "@/utils/cn";
 import { taskKey } from "@/utils/taskKey";
+import { activeSprintIdOf } from "@/services/sprints/activeSprint";
 import AssigneeControl from "@/components/todo/TodoItem/AssigneeControl";
 import EstimateControl from "@/components/todo/TodoItem/EstimateControl";
 import StatusControl from "@/components/todo/TodoItem/StatusControl";
@@ -112,9 +113,7 @@ export default function BacklogRow({
     listenersRef.current = listeners;
   });
 
-  const listenerKeys = listeners
-    ? Object.keys(listeners).sort().join(",")
-    : "";
+  const listenerKeys = listeners ? Object.keys(listeners).sort().join(",") : "";
 
   const stableListeners = useMemo(() => {
     const out: Record<string, (event: unknown) => void> = {};
@@ -123,8 +122,7 @@ export default function BacklogRow({
       out[key] = (event) =>
         (
           listenersRef.current as
-            | Record<string, ((e: unknown) => void) | undefined>
-            | undefined
+            Record<string, ((e: unknown) => void) | undefined> | undefined
         )?.[key]?.(event);
     }
 
@@ -179,8 +177,7 @@ const BacklogRowContent = memo(function BacklogRowContent({
   const TypeIcon = type.icon;
 
   const inert = canEditTodos ? undefined : "pointer-events-none";
-  const activeSprintId =
-    sprints.find((sprint) => sprint.state === "active")?.id ?? null;
+  const activeSprintId = activeSprintIdOf(sprints);
 
   function assignSprint(sprintId: string | null) {
     const todos =

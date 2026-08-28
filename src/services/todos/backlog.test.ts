@@ -65,18 +65,28 @@ function column(over: Partial<IColumn> & { id: string }): IColumn {
 }
 
 /**
- * The Board's own visibility rule (2026-08-27 product direction): the Board
- * is a view onto the active Sprint's committed work, not a fallback to plain
- * Kanban when nothing is active.
+ * The Board's own visibility rule.
+ *
+ * `column_id` is the necessary fact and `sprint_id` can only take a card
+ * away: a card committed to a Sprint that is not the running one is withheld
+ * until that Sprint starts, and everything else in a column is on the Board.
+ * This is the independence the sprints migration designed the two columns
+ * around — see `backlog.ts`'s module doc for the pass that conflated them and
+ * what it broke.
  */
 describe("isOnBoard", () => {
-  it("no active Sprint: nothing qualifies, regardless of column", () => {
-    // The core of the reversal. A card with a real column used to render
-    // here when no Sprint was active (plain Kanban); it no longer does.
+  it("no active Sprint: unplanned work in a column still shows", () => {
+    // The board a user had before Sprints existed, and the board a brand new
+    // user has today. Nothing has claimed these cards, so nothing withholds
+    // them.
     expect(
       isOnBoard(todo({ id: "a", column_id: "col-1", sprint_id: null }), null),
-    ).toBe(false);
+    ).toBe(true);
+  });
 
+  it("no active Sprint: a card committed to a Sprint stays off", () => {
+    // Planned into a future Sprint. It keeps its column, but it is not
+    // uncommitted work and it is not this-Sprint work, so it waits.
     expect(
       isOnBoard(todo({ id: "b", column_id: "col-1", sprint_id: "s-1" }), null),
     ).toBe(false);
@@ -101,18 +111,20 @@ describe("isOnBoard", () => {
   });
 
   it("active Sprint: a Future Sprint's item stays off, even with a column", () => {
+    // The one exclusion the Sprint model is actually for: work committed
+    // somewhere else does not leak onto the running board.
     expect(
       isOnBoard(todo({ id: "b", column_id: "col-1", sprint_id: "s-2" }), "s-1"),
     ).toBe(false);
   });
 
-  it("active Sprint: a no-Sprint item stays off, even with a column", () => {
-    // A card never planned into any Sprint at all — plain Kanban's own
-    // leftover state — does not leak onto a board that has since started
-    // using Sprints.
+  it("active Sprint: a no-Sprint item is on the board alongside it", () => {
+    // Ad-hoc work — the card someone typed straight into a column. It sits
+    // beside the Sprint's own cards rather than being hidden by them, which
+    // is what keeps the quick-add from creating invisible cards.
     expect(
       isOnBoard(todo({ id: "c", column_id: "col-1", sprint_id: null }), "s-1"),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("starting a Sprint makes its planned items eligible: column_id is what start_sprint writes", () => {
@@ -128,6 +140,16 @@ describe("isOnBoard", () => {
     const startedOntoBoard = { ...planned, column_id: "todo-1" };
 
     expect(isOnBoard(startedOntoBoard, "s-1")).toBe(true);
+  });
+
+  it("completing a Sprint leaves its unfinished work on the board as unplanned", () => {
+    // `complete_sprint` rehomes everything not in a done column to the
+    // destination Sprint, or to the Backlog (sprint_id null) — it does not
+    // clear column_id. Under this rule that card stays visible as unplanned
+    // work rather than vanishing the moment the Sprint ends.
+    const carried = todo({ id: "a", column_id: "col-1", sprint_id: null });
+
+    expect(isOnBoard(carried, null)).toBe(true);
   });
 });
 
@@ -216,10 +238,7 @@ describe("buildBacklogBoard — unplanned", () => {
   it("excludes a work item planned into a sprint, even with no column yet", () => {
     const planned = todo({ id: "t-1", sprint_id: "s-1", column_id: null });
 
-    const board = buildBacklogBoard(
-      [planned],
-      [sprint({ id: "s-1" })],
-    );
+    const board = buildBacklogBoard([planned], [sprint({ id: "s-1" })]);
 
     expect(board.unplanned).toHaveLength(0);
   });
@@ -273,9 +292,13 @@ describe("sprintAssignmentPatch", () => {
   it("Task A -> Sprint 1 (active): assigns a column, since it has none", () => {
     const taskA = todo({ id: "a", column_id: null, sprint_id: null });
 
-    const patch = sprintAssignmentPatch(taskA, "sprint-1", "sprint-1", activeColumns, [
+    const patch = sprintAssignmentPatch(
       taskA,
-    ]);
+      "sprint-1",
+      "sprint-1",
+      activeColumns,
+      [taskA],
+    );
 
     expect(patch.sprint_id).toBe("sprint-1");
     expect(patch.column_id).toBe("todo-1");
@@ -285,9 +308,13 @@ describe("sprintAssignmentPatch", () => {
   it("Task B -> Sprint 2 (future, not the active one): no column", () => {
     const taskB = todo({ id: "b", column_id: null, sprint_id: null });
 
-    const patch = sprintAssignmentPatch(taskB, "sprint-2", "sprint-1", activeColumns, [
+    const patch = sprintAssignmentPatch(
       taskB,
-    ]);
+      "sprint-2",
+      "sprint-1",
+      activeColumns,
+      [taskB],
+    );
 
     expect(patch.sprint_id).toBe("sprint-2");
     expect(patch.column_id).toBeUndefined();
@@ -296,24 +323,42 @@ describe("sprintAssignmentPatch", () => {
   it("removing from every Sprint clears the column too", () => {
     const item = todo({ id: "c", column_id: "todo-1", sprint_id: "sprint-1" });
 
-    const patch = sprintAssignmentPatch(item, null, "sprint-1", activeColumns, [item]);
+    const patch = sprintAssignmentPatch(item, null, "sprint-1", activeColumns, [
+      item,
+    ]);
 
-    expect(patch).toEqual({ sprint_id: null, column_id: null, backlog_rank: 1024 });
+    expect(patch).toEqual({
+      sprint_id: null,
+      column_id: null,
+      backlog_rank: 1024,
+    });
   });
 
   it("never touches a column the item already has", () => {
-    const item = todo({ id: "d", column_id: "already-on-board", sprint_id: null });
+    const item = todo({
+      id: "d",
+      column_id: "already-on-board",
+      sprint_id: null,
+    });
 
-    const patch = sprintAssignmentPatch(item, "sprint-1", "sprint-1", activeColumns, [
+    const patch = sprintAssignmentPatch(
       item,
-    ]);
+      "sprint-1",
+      "sprint-1",
+      activeColumns,
+      [item],
+    );
 
     expect(patch.column_id).toBeUndefined();
   });
 
   it("backlog_rank appends to the destination section, excluding the item itself", () => {
     const moving = todo({ id: "e", sprint_id: "sprint-1", backlog_rank: 5000 });
-    const sibling = todo({ id: "f", sprint_id: "sprint-2", backlog_rank: 2000 });
+    const sibling = todo({
+      id: "f",
+      sprint_id: "sprint-2",
+      backlog_rank: 2000,
+    });
 
     const patch = sprintAssignmentPatch(
       moving,

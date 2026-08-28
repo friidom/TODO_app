@@ -7,6 +7,8 @@ import { useBoardId } from "@/hooks/useBoardId";
 import { DEFAULT_WORK_TYPE } from "@/constants/workTypes";
 import { isGenuineSubtask } from "./subtasks";
 import { rankForAppend, rankForDrop } from "@/utils/rank";
+import { useSprints } from "@/services/sprints/useSprints";
+import { activeSprintIdOf } from "@/services/sprints/activeSprint";
 
 interface AddTodoVars {
   title: string;
@@ -40,14 +42,48 @@ interface AddTodoVars {
    * ordinary create path with one more field riding along, not a second one.
    */
   parent_id?: string | null;
+  /**
+   * Which sprint the new card joins. **Omitted — which is what every create
+   * surface does — it is the board's own active sprint**, read by the hook
+   * itself; see the note on `useAddTodo` for why it is derived here rather
+   * than passed in.
+   *
+   * Present on the type so a surface that genuinely creates *outside* the
+   * running sprint can say so explicitly, rather than having to reach for
+   * `useAddBacklogItem` and its Backlog rank semantics.
+   */
+  sprint_id?: string | null;
 }
 
 /** `AddTodoVars` once the hook has stamped the client-minted id on. */
 type AddTodoInput = AddTodoVars & { id: string };
 
+/**
+ * Creates a card in a board column.
+ *
+ * **The active sprint is read here rather than passed in, and that is the
+ * fix M31 needed.** Every surface that calls this creates a card straight
+ * into a column — the toolbar's quick-add, a column's own create form, the
+ * timeline's sweep, "New task" under an Epic — and a card in a board column
+ * while a sprint is running is that sprint's work. Leaving each caller to
+ * remember to say so is what produced the bug this replaces: four call sites
+ * all sending `sprint_id: null`, so a card typed into a column was absent
+ * from the sprint it was visibly part of and, once `isOnBoard` began reading
+ * `sprint_id`, absent from the board it had just been typed into.
+ *
+ * Deriving it once here means a fifth create surface inherits the rule
+ * instead of re-discovering it.
+ */
 export function useAddTodo() {
   const queryClient = useQueryClient();
   const boardId = useBoardId();
+
+  // The board's running sprint, or null when none is. Read at hook level so
+  // both `mutationFn` and `onMutate` stamp the same value — deriving it
+  // separately in each would let a sprint that started between the two write
+  // one card into the cache and a different one into the database.
+  const { data: sprints = [] } = useSprints();
+  const activeSprintId = activeSprintIdOf(sprints);
 
   const mutation = useMutation({
     mutationFn: ({
@@ -59,6 +95,11 @@ export function useAddTodo() {
       due_date = null,
       type = DEFAULT_WORK_TYPE,
       parent_id = null,
+      // The board's active sprint unless the caller named one. `undefined`
+      // and `null` mean different things here, so the default cannot be a
+      // destructuring default: `null` is a caller deliberately creating
+      // outside the sprint, and must survive.
+      sprint_id,
     }: AddTodoInput) => {
       if (!boardId) throw new Error("useAddTodo ran without a board");
 
@@ -72,6 +113,7 @@ export function useAddTodo() {
         due_date,
         type,
         parent_id,
+        sprint_id: sprint_id === undefined ? activeSprintId : sprint_id,
       });
     },
 
@@ -87,6 +129,10 @@ export function useAddTodo() {
       due_date = null,
       type = DEFAULT_WORK_TYPE,
       parent_id = null,
+      // Same `undefined` vs `null` distinction as `mutationFn` above, and
+      // resolved the same way so the optimistic row and the written row
+      // carry the same sprint.
+      sprint_id,
     }) => {
       // A todo cannot exist without a board — `board_id` is NOT NULL as of
       // M2-07. Refusing here states that requirement instead of inventing a
@@ -171,13 +217,23 @@ export function useAddTodo() {
         start_date,
         due_date,
         updated_at: null,
-        // M30. No create surface reachable from `useAddTodo` puts a card
-        // straight into a Sprint or gives it a Backlog order — that is
-        // `useAddBacklogItem`'s job, a separate mutation for the same reason
-        // `useAddSubtask` is: the rank semantics genuinely differ. A card
-        // made here is on the Board because it has a column, full stop —
-        // see `useTodosByColumns` on why no Sprint rule gates that.
-        sprint_id: null,
+        // M30, corrected. The board's active sprint — the same value
+        // `mutationFn` sends — so the optimistic card and the stored row
+        // agree about which sprint they are in, and the card appears
+        // immediately in that sprint's Backlog section and its points
+        // rollup as well as on the Board.
+        //
+        // Null when no sprint is running, which is an ordinary card on an
+        // ordinary board: `isOnBoard` puts it on the Board on its
+        // `column_id` alone.
+        //
+        // Still no `backlog_rank`: a card created into a column has a
+        // `rank` within that column, and giving it a Backlog order here
+        // would be inventing a second position nobody asked for.
+        // `useAddBacklogItem` remains the path for an item created into the
+        // Backlog itself, for the reason it always was — the rank semantics
+        // genuinely differ.
+        sprint_id: sprint_id === undefined ? activeSprintId : sprint_id,
         backlog_rank: null,
       };
 
