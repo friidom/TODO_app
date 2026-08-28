@@ -3,28 +3,23 @@ import { toCalendarDay } from "@/utils/dueDate";
 import { addDays, addMonths, startOfMonth, startOfWeek } from "./calendar";
 
 /**
- * Work items as ranges over time (M20).
+ * Work items as ranges over time.
  *
- * **The date arithmetic is M19's, imported rather than rewritten.** `addDays`,
- * `addMonths`, `startOfWeek` and `startOfMonth` live in `calendar.ts` and are
- * pure string maths over `YYYY-MM-DD` with `Date` quarantined behind `Date.UTC`.
- * A second copy here would be a second place a month boundary can be wrong, and
- * the whole reason M19 was built before M20 was to settle these rules once.
+ * The date arithmetic is imported, not rewritten: addDays, addMonths,
+ * startOfWeek and startOfMonth live in calendar.ts and are pure string maths
+ * over `YYYY-MM-DD` with Date quarantined behind Date.UTC. A second copy would
+ * be a second place a month boundary can be wrong.
  *
- * **Nothing here converts a timezone.** A stored value becomes a day through
- * `toCalendarDay` — a slice, never a parse — and every comparison below is a
- * string comparison, which is correct because the format is fixed-width and
- * big-endian. That is the same rule the calendar follows and `utils/dueDate.ts`
- * records.
+ * Nothing here converts a timezone. A stored value becomes a day through
+ * toCalendarDay — a slice, never a parse — and every comparison below is a
+ * string comparison, correct because the format is fixed-width and big-endian.
  *
- * **Row order is derived here and stored nowhere.** The plan is explicit and
- * the reason is not aesthetic: a timeline whose rows can be dragged into an
- * arbitrary order is a *second surface that writes order*, which would reopen
- * M3-10 and pull M6-A forward on the day it ships. `todos.position` still has
- * exactly one writer, and this module is why.
+ * Row order is derived here and stored nowhere. A timeline whose rows can be
+ * dragged into an arbitrary order would be a second surface that writes order;
+ * todos.position still has exactly one writer, and this module is why.
  *
- * Pure, so it takes the anchor and never reads the clock — which is what makes
- * the window boundaries, the leap years and the clipping testable.
+ * Pure, and takes the anchor rather than reading the clock, which is what makes
+ * window boundaries, leap years and clipping testable.
  */
 
 /** The two zoom levels. Order is the order the toggle renders. */
@@ -35,17 +30,14 @@ export type TimelineScale = (typeof TIMELINE_SCALES)[number];
 /**
  * How much time a window covers, and what one tick means in it.
  *
- * **Two levels, and no more**, because M20's "explicitly not" list rules out
- * *"zoom levels beyond what the shell contract supports"*. Two is what the
- * calendar's month/week toggle already established as this product's answer to
- * "how far out am I looking", so the timeline says it the same way rather than
- * inventing a slider.
+ * Two levels and no more. Two is what the calendar's month/week toggle already
+ * established as this product's answer to "how far out am I looking", so the
+ * timeline says it the same way rather than inventing a slider.
  *
  * `weeks` draws six weeks a day at a time — the same 42-day span as the
- * calendar's month grid, deliberately, so switching between the two views is
- * not also a change of period. `months` draws half a year a week at a time,
- * which is the horizon a quarter's planning needs and the point at which a day
- * column would be two pixels wide.
+ * calendar's month grid, so switching views isn't also a change of period.
+ * `months` draws half a year a week at a time, the horizon a quarter needs and
+ * the point at which a day column would be two pixels wide.
  */
 export const TIMELINE_WINDOW: Record<
   TimelineScale,
@@ -62,10 +54,9 @@ export const TIMELINE_WINDOW: Record<
  * One row's placement on the axis, before any of it is drawn.
  *
  * `start` and `end` are inclusive days. A task with only one of the two dates
- * has them equal *and* `isPoint` set, which is the plan's rule stated as data:
- * *"a task with only a due date is a point, not a zero-width bar"*. A task with
- * both dates on the same day is a one-day **range**, not a point — the
- * distinction the plan draws is about how much is known, not about width.
+ * has them equal *and* `isPoint` set. A task with both dates on the same day is
+ * a one-day range, not a point — the distinction is about how much is known,
+ * not about width.
  */
 export interface TimelineItem {
   todo: Todo;
@@ -80,17 +71,14 @@ export interface TimelineItem {
 /**
  * The rows a timeline has, in the order it draws them.
  *
- * **A task with neither date is not on the timeline** — the plan says so, and
- * dropping it here rather than at render is what keeps every consumer agreeing
- * about what "on the timeline" means. It is not hidden work, though:
- * `unscheduledCount` exists so the view can report it, the same way the board
- * reports "3 of 57" and the calendar reports what is off-window.
+ * A task with neither date isn't on the timeline, and dropping it here rather
+ * than at render keeps every consumer agreeing on what that means. Not hidden
+ * work, though: unscheduledCount exists so the view can report it, the way the
+ * board reports "3 of 57".
  *
- * **The sort is the milestone's decision.** `start` ascending is the axis read
- * top to bottom; `end` breaks the tie so two items beginning together are
- * ordered by which finishes first; the key breaks that one so the order is
- * total and stable across renders. Nothing here is stored and nothing here is
- * draggable.
+ * The sort: `start` ascending is the axis read top to bottom; `end` breaks the
+ * tie so two items beginning together are ordered by which finishes first; the
+ * key breaks that one so the order is total and stable across renders.
  */
 export function timelineItems(todos: Todo[]): TimelineItem[] {
   const items: TimelineItem[] = [];
@@ -100,10 +88,10 @@ export function timelineItems(todos: Todo[]): TimelineItem[] {
     const end = todo.due_date ? toCalendarDay(todo.due_date) : null;
 
     if (start && end) {
-      // The database's `todos_date_range_check` forbids start > end, so this
-      // cannot normally happen. It is still ordered rather than trusted: a row
-      // written before the constraint existed would otherwise render a bar of
-      // negative width, and defending here costs one comparison.
+      // todos_date_range_check forbids start > end, so this can't normally
+      // happen. Still ordered rather than trusted: a row written before the
+      // constraint existed would render a bar of negative width, and defending
+      // costs one comparison.
       items.push(
         start <= end
           ? { todo, start, end, isPoint: false }
@@ -141,12 +129,10 @@ function compareItems(a: TimelineItem, b: TimelineItem): number {
 /**
  * Work items with no date at all.
  *
- * **Off the axis, but not out of the view.** The plan's rule is that a task with
- * neither date "is not on the timeline", and that is about *placement* — there
- * is no honest column to draw it in. It is still part of the board, so it is
- * listed in a section of its own beneath the rows rather than reduced to a
- * number. Inventing a date to make it drawable is the one thing that would be
- * worse than either.
+ * Off the axis but not out of the view: there's no honest column to draw them
+ * in, so they get a section of their own beneath the rows rather than being
+ * reduced to a number. Inventing a date to make them drawable would be worse
+ * than either.
  */
 export function unscheduledTodos(todos: Todo[]): Todo[] {
   return todos.filter((todo) => !todo.start_date && !todo.due_date);
@@ -161,9 +147,9 @@ export function unscheduledCount(todos: Todo[]): number {
  * The day each column of the window begins on.
  *
  * Always exactly `TIMELINE_WINDOW[scale].ticks` entries, so the axis never
- * changes width as you page — the same fixed-grid rule that makes the
- * calendar's month always six rows, and for the same reason: a header that
- * reflows moves every bar under the pointer.
+ * changes width as you page — same fixed-grid rule that makes the calendar's
+ * month always six rows, and for the same reason: a header that reflows moves
+ * every bar under the pointer.
  *
  * Both scales begin on a Monday, so `index % 7` is a weekday at the `weeks`
  * scale and no separate weekday calculation is needed anywhere.
@@ -188,8 +174,8 @@ export function windowEnd(ticks: string[], scale: TimelineScale): string {
  * Which column holds `day`, or null when it falls outside the window.
  *
  * A linear scan from the right: the ticks are ascending and there are at most
- * 42 of them, so this is cheaper than the arithmetic it replaces and cannot
- * disagree with the array it is indexing.
+ * 42, so this is cheaper than the arithmetic it replaces and can't disagree with
+ * the array it's indexing.
  */
 export function tickIndexOf(
   day: string,
@@ -208,18 +194,17 @@ export function tickIndexOf(
 }
 
 /**
- * Where an item's bar sits in the window, or null when it is not in it at all.
+ * Where an item's bar sits in the window, or null when it isn't in it at all.
  *
- * **A range that runs off the edge is clipped and says so** rather than being
- * dropped. `openStart` / `openEnd` are what the bar renders as a flat, notched
- * end: an item that began in June and ends in October is genuinely part of what
- * is on screen in August, and hiding it would make a busy quarter look empty.
+ * A range running off the edge is clipped and says so rather than being dropped.
+ * openStart/openEnd are what the bar renders as a flat, notched end: an item
+ * that began in June and ends in October is genuinely part of what's on screen
+ * in August, and hiding it would make a busy quarter look empty.
  */
 export function placeItem(
-  // Only the two ends, so a range that has no row yet — a create sweep, an
-  // undated item being drawn on — is placed by the same rule a stored one is,
-  // rather than by a second copy of the clipping logic or by a fake `Todo`
-  // cast into the shape of one (M20-B).
+  // Only the two ends, so a range with no row yet — a create sweep, an undated
+  // item being drawn on — is placed by the same rule a stored one is, rather
+  // than by a second copy of the clipping logic or a fake Todo cast.
   item: Pick<TimelineItem, "start" | "end">,
   ticks: string[],
   scale: TimelineScale,
@@ -287,10 +272,9 @@ export function placeItems<T extends Pick<TimelineItem, "start" | "end">>(
  * The month bands across the top, as `{ key, index, span }`.
  *
  * A tick belongs to the month of the day it *begins* on, so at the `months`
- * scale a week straddling the 1st is filed under the month it started in. The
- * alternative — splitting a column between two bands — would misalign the
- * header from the grid it names, which is the one thing a Gantt header may not
- * do.
+ * scale a week straddling the 1st is filed under the month it started in.
+ * Splitting a column between two bands would misalign the header from the grid
+ * it names, which is the one thing a Gantt header may not do.
  */
 export function monthBands(
   ticks: string[],
@@ -316,9 +300,9 @@ export function bandAnchor(key: string): string {
 /**
  * A day as the instant it denotes, at midnight UTC.
  *
- * The same quarantine `calendar.ts` documents: a `Date` exists only inside a
- * formatter, is built through `Date.UTC`, is read back with `timeZone: "UTC"`,
- * and never escapes. Formatting is the one thing string maths cannot do.
+ * The same quarantine calendar.ts documents: a Date exists only inside a
+ * formatter, is built through Date.UTC, is read back with `timeZone: "UTC"`, and
+ * never escapes. Formatting is the one thing string maths can't do.
  */
 function utc(day: string): Date {
   const [year, month, date] = day.split("-").map(Number);
@@ -329,10 +313,9 @@ function utc(day: string): Date {
 /**
  * What period is on screen, e.g. `17 Aug – 27 Sep 2026`.
  *
- * The year is printed once, at the end, and the month is dropped from the start
- * when the window does not leave it — the same restraint `weekLabel` uses, for
- * the same reason: a header that always prints everything reads as a bug in the
- * common case.
+ * The year prints once, at the end, and the month is dropped from the start when
+ * the window doesn't leave it — same restraint weekLabel uses: a header that
+ * always prints everything reads as a bug in the common case.
  */
 export function windowLabel(
   ticks: string[],

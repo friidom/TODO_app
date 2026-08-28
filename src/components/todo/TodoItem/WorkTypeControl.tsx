@@ -58,13 +58,13 @@ export default function WorkTypeControl({
         title={`Work type: ${current}`}
         aria-label={`Work type: ${current}`}
         className={cn(
-          "flex shrink-0 items-center gap-1 rounded transition-colors",
+          "flex shrink-0 items-center gap-1 rounded transition-colors duration-150",
           bare
             ? cn("hover:bg-ink/10 p-0.5", meta.tone)
             : cn("text-mini px-1.5 py-0.5 font-semibold", meta.chip),
         )}
       >
-        <Icon className={bare ? "size-4" : "size-3"} />
+        <Icon className={bare ? "size-3.5" : "size-3"} />
         {showLabel && current}
       </button>
 

@@ -275,7 +275,7 @@ export default function TimelineGrid({
                     >
                       <span
                         className={cn(
-                          "grid size-4 place-items-center rounded-full",
+                          "grid size-6 place-items-center rounded-full",
                           isToday && "bg-brand text-brand-fg font-semibold",
                         )}
                       >
@@ -401,7 +401,7 @@ export default function TimelineGrid({
  */
 function HeaderRail() {
   return (
-    <div className="border-hairline bg-canvas sticky left-0 z-10 w-40 shrink-0 border-r md:w-60" />
+    <div className="border-hairline bg-canvas sticky left-0 z-10 w-(--timeline-rail) shrink-0 border-r" />
   );
 }
 
@@ -474,7 +474,10 @@ function Undated({
           type="button"
           onClick={() => setOpen((it) => !it)}
           aria-expanded={open}
-          className="text-ink-2 hover:text-ink focus-visible:ring-brand text-mini sticky left-0 flex w-40 shrink-0 items-center gap-1.5 px-3 text-left font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset md:w-60"
+          // `border-r` like every other rail: without it the vertical line that
+          // runs the full height of the grid stopped dead at this row and picked
+          // up again underneath it.
+          className="text-ink-2 hover:text-ink focus-visible:ring-brand border-hairline text-mini sticky left-0 flex w-(--timeline-rail) shrink-0 items-center gap-1.5 border-r px-3 text-left font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset"
         >
           <ChevronRightIcon
             className={cn(
@@ -527,7 +530,8 @@ function Undated({
                     style={{
                       gridColumn: `${place.index + 1} / span ${place.span}`,
                     }}
-                    className="border-brand bg-brand/25 mx-px h-4 rounded-[3px] border border-dashed"
+                    // Same geometry as `TimelineBar`, like the create row's ghost.
+                    className="border-brand bg-brand/25 mx-px h-5 rounded-[3px] border border-dashed"
                   />
                 )}
               </div>

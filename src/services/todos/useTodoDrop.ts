@@ -18,37 +18,10 @@ export interface TodoDropVars {
   index: number;
 }
 
-/**
- * The drop write path — **one row per drag** as of M6-04.
- *
- * It used to compute a whole new order for two columns and upsert every card in
- * both. That is the shape that loses data the moment two people share a board:
- * each client renumbers from its own snapshot, sends the lot, and last write
- * wins — so the second drag silently reverts cards the second person never
- * touched. A rank is a value the card carries, so a move writes one field on
- * one row and only a genuine same-card conflict can occur.
- *
- * The mutation shape is unchanged from M1-09: an optimistic write paired with a
- * snapshot, so a rejection puts the card back rather than leaving the board
- * showing an order the database never accepted.
- */
 export function useTodoDrop() {
   const queryClient = useQueryClient();
   const boardId = useBoardId();
 
-  /**
-   * The rank for this drop, rebalancing first if the gap has no room left.
-   *
-   * Exhaustion is roughly fifty consecutive drops into the *same* gap, at which
-   * point no double exists strictly between the two neighbours. `rankForDrop`
-   * reports that as null **before** anything is written, so the recovery is a
-   * round trip rather than two cards sharing a rank — which would be exactly
-   * the undefined order M6-A exists to remove.
-   *
-   * The retry is single: after a rebalance the column's ranks are whole
-   * multiples of the gap again, so a second null would mean the rebalance did
-   * not happen, and looping on it would spin.
-   */
   const resolveRank = async ({
     todos,
     activeTodo,

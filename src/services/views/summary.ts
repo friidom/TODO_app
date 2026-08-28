@@ -13,42 +13,22 @@ import type { IColumn, Todo } from "@/types/data";
 import { dueStatus, todayISO, type DueStatus } from "@/utils/dueDate";
 
 /**
- * What the board Summary counts, derived from the work items themselves (M18).
+ * What the board Summary counts, derived from the work items themselves.
  *
- * **No `board_stats` table, no materialised view, no second task system** — the
- * plan states this as a decision rather than an implementation detail, and the
- * reason is that a stored count can disagree with the board. Everything here is
- * a fold over the array `useVisibleTodos` already returns, which is the same
- * array the Board and the List render. A number on the Summary tab and the
- * number in the board header cannot drift, because there is one source.
+ * No stats table and no materialised view: a stored count can disagree with the
+ * board. Everything here folds the array useVisibleTodos already returns, so the
+ * Summary and the board header can't drift. If folding turns out to be slow,
+ * profile the query rather than adding a counter.
  *
- * **Board-scoped by construction, not by discipline.** None of these functions
- * fetches anything: they take the array they are given. The Summary hands them
- * `useVisibleTodos()`, which defaults to `{ kind: "board", boardId }` — so the
- * only way to summarise more than one board would be to pass a wider scope
- * deliberately, and nothing does.
- *
- * If folding turns out to be slow, that is PH-03's trigger — profile the query,
- * do not add a counter.
- *
- * **"Overdue" means exactly one thing.** It comes from `dueStatus()` in
- * `utils/dueDate.ts`, the same function the card chip and the `due` filter
- * call. A dashboard that disagrees with the board about which task is late is
- * worse than no dashboard, so this module does not own a definition of late —
- * it borrows the only one.
- *
- * Pure, and therefore in `services/` beside `scope.ts` and `view.ts` rather
- * than inside the widgets: the branches here are worth a test, and
- * `summary.test.ts` is it.
+ * "Overdue" comes from dueStatus() in utils/dueDate.ts, the same call the card
+ * chip and the `due` filter make. This module doesn't own a definition of late.
  */
 
 /**
- * Which category each column belongs to, by column id.
- *
- * Doneness is the column's `category`, never a field on the work item (M2), so
- * counting done items means resolving each item's column first. Built once per
- * render from the scoped column query and passed in, rather than looked up per
- * item — the alternative is O(items × columns).
+ * Which category each column belongs to, by column id. Doneness is the column's
+ * category, never a field on the item, so counting done means resolving the
+ * column first. Built once per render rather than looked up per item, which
+ * would be O(items × columns).
  */
 export function categoryIndex(columns: IColumn[]): Map<string, ColumnCategory> {
   return new Map(
@@ -60,12 +40,9 @@ export function categoryIndex(columns: IColumn[]): Map<string, ColumnCategory> {
 }
 
 /**
- * The category a work item is in.
- *
- * Falls back to `todo` for an item whose column is missing — either the column
- * query has not resolved yet, or the item is in no column at all. Counting it
- * as "todo" rather than dropping it keeps `todo + inProgress + done === total`,
- * which is what lets the progress bar be trusted.
+ * The category a work item is in. Falls back to `todo` when the column is
+ * missing, so `todo + inProgress + done === total` holds and the progress bar
+ * can be trusted.
  */
 function categoryOfTodo(
   todo: Todo,
@@ -82,11 +59,8 @@ export type SummaryStats = {
   inProgress: number;
   done: number;
   /**
-   * Past its due date and **not done**.
-   *
-   * A finished task cannot be late — it was delivered, whenever that was — and
-   * counting it would make the number grow forever on a healthy board, which is
-   * the failure mode that makes a dashboard get ignored.
+   * Past its due date and not done. A finished task can't be late, and counting
+   * it would make the number grow forever on a healthy board.
    */
   overdue: number;
   /** Due today and not done, by the same rule. */
@@ -141,14 +115,10 @@ export type WorkloadEntry = {
 };
 
 /**
- * Who is carrying what, over **open** items only.
+ * Who is carrying what, over open items only. Done work isn't load — counting it
+ * would rank the roster by tenure rather than by what's on their plate.
  *
- * Done work is not load — a person who finished forty tasks is not busier than
- * one who finished none, and counting completed items would rank the roster by
- * tenure instead of by what is on their plate this week.
- *
- * Sorted by open count descending, then by id, so the order is stable between
- * renders rather than depending on the order items came back in.
+ * Sorted by open count then id, so the order is stable between renders.
  */
 export function workload(
   todos: Todo[],
@@ -188,18 +158,13 @@ export function workload(
 /**
  * How much has happened lately, and how much is about to.
  *
- * Three counts over one window, because the Summary's top row asks the same
- * question three ways: what arrived, what moved, what is coming.
+ * "Updated" means edited since it was created, not "touched": updated_at is set
+ * by a trigger on UPDATE only, so an unchanged card carries null or its creation
+ * instant. Comparing the two keeps a week of new cards from also reading as a
+ * week of activity.
  *
- * **"Updated" means edited since it was created**, not "touched". `updated_at`
- * is set by the M2-04 trigger on UPDATE only, so a card nobody has changed
- * either carries null or carries its creation instant — comparing the two is
- * what keeps a week of new cards from also reading as a week of activity, and
- * it is correct whichever of those two shapes the row has.
- *
- * Pure, so it takes `now` rather than reading the clock: a function that reads
- * the clock cannot be tested without freezing time. Same rule `relativeTime`
- * and `dueStatus` follow.
+ * Takes `now` rather than reading the clock, so it's testable without freezing
+ * time.
  */
 export type RecentCounts = {
   created: number;
@@ -216,10 +181,9 @@ export function recentCounts(
 ): RecentCounts {
   const since = now.getTime() - windowDays * 24 * 60 * 60 * 1000;
 
-  // Compared as calendar days, because `due_date` is a `date` and has no time
-  // to compare against — the same reason `dueStatus` slices an ISO string
-  // rather than constructing a Date. Building one here would reintroduce the
-  // timezone shift M5-04 exists to avoid.
+  // Compared as calendar days: due_date denotes a day and has no time to
+  // compare against. Building a Date would reintroduce the timezone shift
+  // utils/dueDate.ts exists to avoid.
   const today = todayISO(now);
   const horizon = todayISO(new Date(now.getTime() + windowDays * 86_400_000));
 
@@ -252,18 +216,11 @@ export function recentCounts(
 /**
  * What is late and what is about to be, oldest deadline first.
  *
- * **Open items only, and it uses `dueStatus()` rather than its own comparison.**
- * The plan states this as a rule rather than a preference — *"a dashboard that
- * disagrees with the board about which task is late is worse than no
- * dashboard"* — so `overdue` here means exactly what the card chip, the `due`
- * filter and the `Overdue` count mean, because it is the same call.
- *
- * Sorted by the date itself, so the most urgent thing is the first row. Ties
- * break on `board_key` — a stable, human-meaningful order — falling back to the
- * id for a card whose key the server has not allocated yet.
+ * Open items only, and it calls dueStatus() rather than comparing itself, so
+ * `overdue` means exactly what the card chip and the filter mean.
  *
  * `limit` is applied after sorting, so the widget shows the *most* urgent N
- * rather than whichever N the query happened to return first.
+ * rather than whichever N came back first.
  */
 export type DueSoonItem = { todo: Todo; status: DueStatus };
 
@@ -274,10 +231,8 @@ export function dueSoonItems(
   windowDays: number,
   limit: number,
 ): DueSoonItem[] {
-  // Same calendar-day arithmetic `recentCounts` uses, and for the same reason:
-  // `due_date` denotes a day, so the horizon has to be a day too. Building a
-  // Date here would reintroduce the timezone shift `utils/dueDate.ts` exists to
-  // avoid.
+  // Calendar-day arithmetic, same reason as recentCounts: due_date denotes a
+  // day, so the horizon has to be one too.
   const horizon = todayISO(
     new Date(Date.parse(`${today}T00:00:00Z`) + windowDays * 86_400_000),
   );
@@ -291,9 +246,8 @@ export function dueSoonItems(
     const status = dueStatus(todo.due_date, today);
 
     // Overdue is never filtered out by the horizon — something three weeks late
-    // is more urgent than something due on Friday, and a "due soon" panel that
-    // dropped it would be the one place on the page where a late task is
-    // invisible.
+    // is more urgent than something due Friday, and dropping it would make this
+    // the one place a late task is invisible.
     if (status !== "overdue" && todo.due_date.slice(0, 10) > horizon) continue;
 
     items.push({ todo, status });
@@ -315,18 +269,12 @@ export type Slice<T> = { key: T; count: number };
 /**
  * Work items per column, in the board's own column order.
  *
- * **Per column, not per category.** The board's statuses *are* its columns —
- * that is the M2 decision that removed `todos.completed` — so a status chart
- * that collapsed "In Progress" and "In Review" into one bar would be answering
- * a question the board does not ask. Categories are how a column is coloured,
- * not what it is called.
+ * Per column, not per category: the board's statuses *are* its columns, so
+ * collapsing "In Progress" and "In Review" into one bar would answer a question
+ * the board doesn't ask.
  *
- * Empty columns are kept. A column with nothing in it is part of the board's
- * shape whether or not anything is in it, and a status overview that silently
- * dropped it would misreport the board — the same rule `groupTodos` applies.
- *
- * Items in no column at all are counted under `null`, so the slices always sum
- * to the total and the chart can be trusted.
+ * Empty columns are kept and items in no column count under `null`, so the
+ * slices always sum to the total.
  */
 export function statusDistribution(
   todos: Todo[],
@@ -360,13 +308,10 @@ export function statusDistribution(
 /**
  * Work items per priority, in the menu's own order, unset last.
  *
- * `PRIORITY_OPTIONS` is the single ordering of the five levels — the same array
- * the sort and the group read — so a chart cannot disagree with a sorted list
- * about which way is up.
- *
- * "No priority" is a slice rather than an omission: `todos.priority` is
- * nullable and most cards have none, so leaving it out would draw a chart of a
- * minority and call it the board.
+ * PRIORITY_OPTIONS is the single ordering of the five levels, so a chart can't
+ * disagree with a sorted list about which way is up. "No priority" is a slice
+ * rather than an omission — most cards have none, and leaving it out would draw
+ * a chart of a minority and call it the board.
  */
 export function priorityDistribution(todos: Todo[]): Slice<Priority | null>[] {
   const counts = new Map<Priority | null, number>(
@@ -390,10 +335,9 @@ export function priorityDistribution(todos: Todo[]): Slice<Priority | null>[] {
 /**
  * Work items per type, in the menu's own order.
  *
- * Every type is listed even at zero, because the set is fixed at four and a
- * board with no bugs is a fact worth showing rather than a row to hide. There
- * is no Epic here and none is invented — `WORK_TYPES` has four members and the
- * CHECK constraint on `todos.type` has the same four.
+ * Every type is listed even at zero: the set is fixed at four and a board with
+ * no bugs is a fact worth showing. WORK_TYPES has the same four members as the
+ * CHECK constraint on todos.type.
  */
 export function typeDistribution(todos: Todo[]): Slice<WorkType>[] {
   const counts = new Map<WorkType, number>(

@@ -75,7 +75,10 @@ export default function PriorityControl({
         title={`Priority: ${label}`}
         aria-label={`Priority: ${label}`}
         className={cn(
-          "flex shrink-0 items-center gap-1 rounded transition-[colors,opacity]",
+          // `colors` is not a CSS property, so the old `transition-[colors,opacity]`
+          // animated nothing but opacity — the one control on the card whose tint
+          // snapped instead of easing. The property names are spelled out.
+          "flex shrink-0 items-center gap-1 rounded transition-[color,background-color,opacity] duration-150",
           bare
             ? cn(
                 "hover:bg-ink/10 p-0.5",
@@ -96,7 +99,7 @@ export default function PriorityControl({
             "coarse:opacity-100 opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
         )}
       >
-        <Icon className={bare ? "size-4" : "size-3"} />
+        <Icon className={bare ? "size-3.5" : "size-3"} />
         {showLabel && label}
       </button>
 

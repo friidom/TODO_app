@@ -45,9 +45,9 @@ import { cn } from "@/utils/cn";
 
 /** Chip tone keeps the existing overdue / today / upcoming logic. */
 const CHIP_TONE = {
-  overdue: "bg-status-red/15 text-status-red",
-  today: "bg-status-orange/15 text-status-orange",
-  upcoming: "bg-ink/10 text-ink-2",
+  overdue: "bg-status-red/15 text-status-red hover:bg-status-red/25",
+  today: "bg-status-orange/15 text-status-orange hover:bg-status-orange/25",
+  upcoming: "bg-ink/10 text-ink-2 hover:bg-ink/15",
 } as const;
 
 /**
@@ -110,7 +110,7 @@ export default function DueDateControl({
         title={label}
         aria-label={label}
         className={cn(
-          "text-mini flex shrink-0 items-center gap-1 rounded font-medium transition-colors",
+          "text-mini flex shrink-0 items-center gap-1 rounded font-medium transition-colors duration-150",
           bare ? "hover:bg-ink/10 px-1 py-0.5" : "px-1.5 py-0.5",
           dueDate
             ? bare
@@ -129,13 +129,16 @@ export default function DueDateControl({
             calendar on a muted "upcoming" chip said "urgent" about a date that
             is not, which is the one thing this control exists to communicate.
 
+            It is drawn at lucide's default stroke like every other glyph in the
+            product. A set date used to thicken it to 2.5, which made the one
+            icon on the card that is not a status signal the heaviest mark on
+            it — weight standing in for a meaning the colour already carries.
+
             It disappears entirely once a date is set and the control is bare:
             in a column of dates the word "Aug 12" is already unmistakably a
             date, and the glyph beside it is the difference between a row that
             scans and a row of small objects. */}
-        {(!dueDate || !bare) && (
-          <CalendarIcon className="size-3" strokeWidth={dueDate ? 2.5 : 2} />
-        )}
+        {(!dueDate || !bare) && <CalendarIcon className="size-3" />}
         {dueDate && formatDue(dueDate, todayISO(), i18n.language)}
       </button>
 

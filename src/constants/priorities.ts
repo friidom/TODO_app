@@ -36,31 +36,31 @@ export const PRIORITIES = {
     /** Icon tint in a menu row and in the list view. */
     tone: "text-status-red",
     /** Icon plus a soft background, for a compact chip. */
-    chip: "bg-status-red/15 text-status-red",
+    chip: "bg-status-red/15 text-status-red hover:bg-status-red/25",
   },
   high: {
     icon: ChevronUpIcon,
     label: "High",
     tone: "text-status-red",
-    chip: "bg-status-red/15 text-status-red",
+    chip: "bg-status-red/15 text-status-red hover:bg-status-red/25",
   },
   medium: {
     icon: EqualIcon,
     label: "Medium",
     tone: "text-status-orange",
-    chip: "bg-status-orange/15 text-status-orange",
+    chip: "bg-status-orange/15 text-status-orange hover:bg-status-orange/25",
   },
   low: {
     icon: ChevronDownIcon,
     label: "Low",
     tone: "text-status-blue",
-    chip: "bg-status-blue/15 text-status-blue",
+    chip: "bg-status-blue/15 text-status-blue hover:bg-status-blue/25",
   },
   lowest: {
     icon: ChevronsDownIcon,
     label: "Lowest",
     tone: "text-status-blue",
-    chip: "bg-status-blue/15 text-status-blue",
+    chip: "bg-status-blue/15 text-status-blue hover:bg-status-blue/25",
   },
 } as const satisfies Record<
   string,

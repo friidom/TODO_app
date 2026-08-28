@@ -253,6 +253,30 @@ html {
     transparent;
 }
 
+/* The timeline's label rail.
+   ---------------------------------------------------------------------------
+   A variable because two different things have to agree about it and could
+   not: the rails are sticky flex children sized by a class, while the axis
+   behind them — its column rules, its weekend tint and the today marker — is
+   one absolutely positioned layer inset by an inline `paddingLeft`, and an
+   inline style cannot carry a breakpoint.
+
+   So the rails were `w-40 md:w-60` and the axis was a flat `15rem`, and below
+   768px every rule, every shaded weekend and the today line were drawn 80px to
+   the right of the bars they were supposed to be behind. One value, read by
+   both, is the only arrangement in which they cannot drift.
+
+   Same idiom `sidebar.tsx` already uses for `--sidebar-width`. */
+:root {
+  --timeline-rail: 10rem;
+}
+
+@media (min-width: 48rem) {
+  :root {
+    --timeline-rail: 15rem;
+  }
+}
+
 .bg-app {
   background: var(--background);
 }
@@ -396,31 +420,33 @@ html {
   }
 }
 /* A card arriving in a "done" column: a green ring grows out of the edge, then
-   keeps expanding as it fades. Drawn as a box-shadow so the card never resizes,
-   and the card's own shadow-sm rides along in every keyframe so it lands back
-   exactly where it started. */
+   keeps expanding as it fades. Drawn as a box-shadow so the card never resizes.
+
+   The ring is the only layer now. Every keyframe used to carry a second
+   `0 1px 2px rgb(0 0 0 / 0.05)` so "the card's own shadow-sm rides along" — but
+   the card has had no resting shadow since the token ladder was tightened, so
+   that layer was not preserving a shadow, it was lending the card one for 1.4s
+   and taking it away again.
+
+   The green is `--status-green` rather than a hard-coded #94c748, which was the
+   last colour in this file that belonged to no palette — and the only one that
+   did not change with the theme. */
 @keyframes done-flash {
   0% {
-    box-shadow:
-      0 0 0 0 var(--color-done-flash),
-      0 1px 2px 0 rgb(0 0 0 / 0.05);
+    box-shadow: 0 0 0 0 var(--color-done-flash);
   }
 
   25% {
-    box-shadow:
-      0 0 0 3px var(--color-done-flash),
-      0 1px 2px 0 rgb(0 0 0 / 0.05);
+    box-shadow: 0 0 0 3px var(--color-done-flash);
   }
 
   100% {
-    box-shadow:
-      0 0 0 12px transparent,
-      0 1px 2px 0 rgb(0 0 0 / 0.05);
+    box-shadow: 0 0 0 12px transparent;
   }
 }
 
 .done-flash {
-  --color-done-flash: #94c748;
+  --color-done-flash: var(--status-green);
 
   animation: done-flash 1.4s ease-out;
 }
