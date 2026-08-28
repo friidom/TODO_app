@@ -255,12 +255,23 @@ export function placeItem(
   };
 }
 
-/** The rows that actually intersect the window, each with its placement. */
-export function placeItems(
-  items: TimelineItem[],
+/**
+ * The rows that actually intersect the window, each with its placement.
+ *
+ * **Generic over anything `placeItem` can place**, not fixed to
+ * `TimelineItem` — `placeItem` itself already only reads `start`/`end`
+ * (M20-B's own doc explains why: a create sweep and an undated row being
+ * drawn on need placing too, and neither is a stored `TimelineItem`).
+ * `timelineHierarchy.ts`'s Sprint rows are the other shape that needs this
+ * same "keep only what is in the window" fold, over a row that carries a
+ * `Sprint` instead of a `Todo` — reusing this rather than hand-writing a
+ * second copy of the loop.
+ */
+export function placeItems<T extends Pick<TimelineItem, "start" | "end">>(
+  items: T[],
   ticks: string[],
   scale: TimelineScale,
-): { item: TimelineItem; place: NonNullable<ReturnType<typeof placeItem>> }[] {
+): { item: T; place: NonNullable<ReturnType<typeof placeItem>> }[] {
   const placed = [];
 
   for (const item of items) {

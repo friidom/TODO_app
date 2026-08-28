@@ -10,6 +10,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useTimelineView } from "@/hooks/useTimelineView";
 import { useVisibleTodos } from "@/hooks/useVisibleTodos";
 import { useColumns } from "@/services/columns/useColumnsApi";
+import { useSprints } from "@/services/sprints/useSprints";
 import { epicTaskProgress } from "@/services/todos/subtasks";
 import { useAddTodo } from "@/services/todos/useAddTodo";
 import { useTimelineSchedule } from "@/services/todos/useTimelineSchedule";
@@ -22,7 +23,9 @@ import {
   undatedTimelineTodos,
 } from "@/services/views/timelineHierarchy";
 import type { DayRange } from "@/services/views/timelineDrag";
+import type { Sprint } from "@/types/data";
 import { fromCalendarDay, todayISO } from "@/utils/dueDate";
+import CreateSprintModal from "@/components/backlog/CreateSprintModal";
 import type { CreateOptions } from "./TimelineGrid";
 import TimelineGrid from "./TimelineGrid";
 import TimelineNav from "./TimelineNav";
@@ -73,6 +76,16 @@ import TimelineNav from "./TimelineNav";
  * List and the Calendar, never for this screen; see `timelineHierarchy.ts`'s
  * own header for why that line is drawn deliberately rather than left as a
  * gap.
+ *
+ * **Sprints (M30/M31-Timeline) enter the same pipeline, not a second one.**
+ * `useSprints()` is one more board-scoped query already shared with the
+ * Backlog page and the task detail modal — no duplicate data source — and
+ * `buildTimelineHierarchy`/`undatedTimelineTodos` both take it as an
+ * optional second argument, so a board with no Sprints yet renders exactly
+ * as it always has. A Sprint bar opens `CreateSprintModal`, the Backlog's
+ * own editing form, rather than a Task's detail panel — see
+ * `TimelineSprintBand`'s own doc for why that is not a second drag
+ * implementation.
  */
 export default function TimelineView() {
   const view = useBoardView();
@@ -81,12 +94,19 @@ export default function TimelineView() {
 
   const { todos, isLoading, error } = useVisibleTodos();
   const { data: columns = [] } = useColumns();
+  const { data: sprints = [] } = useSprints();
   const { openTask } = useOpenTask();
   const { canEditTodos } = usePermissions();
   const keyPrefix = useKeyPrefix();
 
   const schedule = useTimelineSchedule();
   const addTodo = useAddTodo();
+
+  // The Sprint whose edit form is open — `CreateSprintModal`, the same one
+  // the Backlog page opens from a Sprint's own header. Client-only, like
+  // `collapsedEpics` below; nothing about which Sprint you last inspected on
+  // this screen is worth a round trip to persist.
+  const [editingSprint, setEditingSprint] = useState<Sprint | null>(null);
 
   const today = todayISO();
 
@@ -95,7 +115,10 @@ export default function TimelineView() {
     [timeline.scale, timeline.anchor],
   );
 
-  const hierarchy = useMemo(() => buildTimelineHierarchy(todos), [todos]);
+  const hierarchy = useMemo(
+    () => buildTimelineHierarchy(todos, sprints),
+    [todos, sprints],
+  );
 
   const placed = useMemo(
     () => placeTimelineHierarchy(hierarchy, ticks, timeline.scale),
@@ -155,8 +178,13 @@ export default function TimelineView() {
   // its own already has a row — the bare header `buildTimelineHierarchy`
   // still gives it — and a Task with no Epic is out of scope for this whole
   // view, not merely "not yet dated". What is left is a Task that already
-  // belongs to an Epic and only needs its first range.
-  const undated = useMemo(() => undatedTimelineTodos(todos), [todos]);
+  // belongs to an Epic and only needs its first range. `sprints` narrows it
+  // one step further: a Sprint-bound Task already has a range — its
+  // Sprint's — so it is not "undated" even with no dates of its own.
+  const undated = useMemo(
+    () => undatedTimelineTodos(todos, sprints),
+    [todos, sprints],
+  );
   const totalDated = countHierarchyItems(hierarchy);
   const offWindow = totalDated - countPlacedHierarchyItems(placed);
 
@@ -229,6 +257,11 @@ export default function TimelineView() {
         // gestures here are one or the other.
         interactive={canEditTodos && Boolean(createColumnId)}
         onOpenTask={openTask}
+        onOpenSprint={(sprintId) =>
+          setEditingSprint(
+            sprints.find((sprint) => sprint.id === sprintId) ?? null,
+          )
+        }
         onSchedule={schedule}
         onCreate={create}
         emptyReason={
@@ -254,6 +287,13 @@ export default function TimelineView() {
                 }
         }
       />
+
+      {editingSprint && (
+        <CreateSprintModal
+          sprint={editingSprint}
+          onClose={() => setEditingSprint(null)}
+        />
+      )}
     </div>
   );
 }

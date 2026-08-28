@@ -41,6 +41,16 @@ import TimelineRow, { Row, RowRail } from "./TimelineRow";
  * "+ Create epic" (`TimelineGrid`'s own, the Timeline's one remaining create
  * affordance) is the only sweep-to-create gesture left. Tasks are still
  * planned the ordinary way, from the Task's own detail panel or the Board.
+ *
+ * **A Sprint-bound Task's bar is withheld the same way a derived Epic's is,
+ * for the same reason.** `placed.tasks[].sprintBound` (`timelineHierarchy.ts`)
+ * says whether this Task's displayed range came from its Sprint rather than
+ * its own dates — when it did, `interactive` is forced off for that one row
+ * exactly as `!group.isDerived` forces it off for the Epic's own rolled-up
+ * bar above: there is a real, stored range to show, but dragging it would
+ * either silently write dates that disagree with the Sprint or do nothing at
+ * all, and neither is a defensible drag. The bar still opens the Task on
+ * click.
  */
 export default function TimelineEpicGroup({
   placed,
@@ -127,7 +137,7 @@ export default function TimelineEpicGroup({
       )}
 
       {!collapsed &&
-        tasks.map(({ item, place: taskPlace }) => {
+        tasks.map(({ item, place: taskPlace, sprintBound }) => {
           const active = draft?.key === item.todo.id;
 
           return (
@@ -146,7 +156,8 @@ export default function TimelineEpicGroup({
               keyPrefix={keyPrefix}
               locale={locale}
               today={today}
-              interactive={interactive}
+              // Withheld for a Sprint-bound row — see this file's own doc.
+              interactive={interactive && !sprintBound}
               dragging={active && dragging}
               onOpenTask={onOpenTask}
               onGrab={onGrab}

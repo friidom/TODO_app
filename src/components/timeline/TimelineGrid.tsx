@@ -19,6 +19,7 @@ import type { IColumn, Todo } from "@/types/data";
 import { cn } from "@/utils/cn";
 import TimelineCreateRow from "./TimelineCreateRow";
 import TimelineEpicGroup from "./TimelineEpicGroup";
+import TimelineSprintBand from "./TimelineSprintBand";
 import { Row, RowRail } from "./TimelineRow";
 import {
   HEADER_HEIGHT,
@@ -76,6 +77,7 @@ export default function TimelineGrid({
   today,
   interactive,
   onOpenTask,
+  onOpenSprint,
   onSchedule,
   onCreate,
   emptyReason,
@@ -98,6 +100,9 @@ export default function TimelineGrid({
   /** Editor and above. A viewer reads the timeline but does not plan on it. */
   interactive: boolean;
   onOpenTask: (id: string) => void;
+  /** A Sprint bar was clicked — opens its own edit form (`CreateSprintModal`,
+   * the same one the Backlog page uses), never a Task's detail panel. */
+  onOpenSprint: (sprintId: string) => void;
   onSchedule: (todo: Schedulable, range: DayRange) => Promise<unknown>;
   onCreate: (title: string, range: DayRange, options?: CreateOptions) => void;
   /** What to say when there is nothing to draw. Null when there is. */
@@ -284,6 +289,22 @@ export default function TimelineGrid({
           </div>
 
           {emptyReason && <Empty {...emptyReason} />}
+
+          {/* THE SPRINTS BAND — one row above every Epic group, never nested
+              inside one (`timelineHierarchy.ts`'s own doc on why). Rendered
+              only when there is at least one Sprint to show, so a board that
+              has never used them sees the Timeline exactly as it always
+              was. */}
+          {!emptyReason && hierarchy.sprints.length > 0 && (
+            <TimelineSprintBand
+              sprints={hierarchy.sprints}
+              ticks={ticks}
+              scale={scale}
+              locale={locale}
+              today={today}
+              onOpen={onOpenSprint}
+            />
+          )}
 
           {/* EPIC GROUPS — the only rows this Timeline draws (M28-B,
               corrected same milestone: see `timelineHierarchy.ts` on why a
