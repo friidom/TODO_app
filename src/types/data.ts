@@ -105,11 +105,34 @@ export const TODO_FIELDS = [
   // panel reads the very same array to list its children and count how many
   // are done. A second query would be a second thing to keep invalidated.
   "parent_id",
+  // Which Sprint this item is planned into, or null (M30). Independent of
+  // `parent_id` and of `column_id` by design — see the migration header on
+  // why the Backlog view needs this on the same cached array the Board and
+  // List already read, rather than a second query.
+  "sprint_id",
+  // This item's order in the Backlog view (M29) — a second rank, because a
+  // card's spot in the planning list and its spot in a Kanban column are
+  // different questions. `null` until it has ever been placed in one.
+  "backlog_rank",
   "created_at",
   "updated_at",
 ] as const satisfies readonly (keyof TodoRow)[];
 
 export type Todo = Pick<TodoRow, (typeof TODO_FIELDS)[number]>;
+
+/**
+ * A time-boxed container with its own lifecycle (M30).
+ *
+ * The whole row, unlike `Todo`: `sprints` has nine columns and every surface
+ * that reads a sprint — a section header in the Backlog view, the Sprint
+ * Details panel, the Complete Sprint dialog — wants all of them. There is no
+ * M5-07-style board query fetching a narrower slice, so there is nothing to
+ * narrow.
+ *
+ * Not a `todos` row wearing `type = 'Sprint'` — see the migration header on
+ * why a sprint is a table of its own.
+ */
+export type Sprint = Row<"sprints">;
 
 /**
  * One entry in a board's history (M18).

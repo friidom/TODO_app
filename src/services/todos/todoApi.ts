@@ -32,7 +32,7 @@ import { supabase } from "../api/supabase";
  * make the cache heterogeneous.
  */
 export const TODO_LIST_FIELDS =
-  "id, board_id, column_id, position, rank, board_key, title, type, priority, start_date, due_date, assignee_id, estimate, parent_id, created_at, updated_at";
+  "id, board_id, column_id, position, rank, board_key, title, type, priority, start_date, due_date, assignee_id, estimate, parent_id, sprint_id, backlog_rank, created_at, updated_at";
 
 //!get
 /**
@@ -239,6 +239,83 @@ export async function addTodo({
   return data;
 }
 
+/**
+ * A new work item created straight into the Backlog view (M29) — no column,
+ * a `backlog_rank` instead of a `rank`, optionally planned into a Sprint from
+ * the moment it exists.
+ *
+ * **A separate function from `addTodo`, for the reason `useAddSubtask` is
+ * separate from it.** `addTodo`'s own rank probe is scoped to a `column_id`
+ * this row does not have, and appending to the Backlog view (or to one
+ * Sprint's section of it) is a question about `backlog_rank`, a column
+ * `addTodo` has never touched. Reusing it would mean threading a "sometimes
+ * there is no column" branch through a function whose whole shape assumes
+ * one.
+ *
+ * `sprint_id` is accepted directly rather than through a follow-up patch —
+ * "create a Task inside this Sprint's section" is one gesture, and writing
+ * the row twice would mean a moment where a freshly created card belongs to
+ * no section at all.
+ */
+export async function addBacklogItem({
+  id,
+  title,
+  board_id,
+  backlog_rank,
+  type = DEFAULT_WORK_TYPE,
+  sprint_id = null,
+  column_id = null,
+  rank = null,
+}: {
+  id: string;
+  title: string;
+  board_id: string;
+  /** Computed by the caller via `backlogRankForAppend` over whichever
+   * section (the Backlog, or one Sprint's) this item is being appended to —
+   * the same "caller knows which list it is appending to" shape
+   * `createColumn` already uses for the Board's own rank. */
+  backlog_rank: number;
+  type?: string;
+  sprint_id?: string | null;
+  /** M31. Set together, only when `sprint_id` is the board's *active*
+   * Sprint — `backlog.ts`'s `boardEntryOnActiveSprint` decides both, so a
+   * Task or Epic created straight into a running Sprint appears on the
+   * Board immediately, in the same column `start_sprint` would have used.
+   * Null for every other creation, exactly as before this existed. */
+  column_id?: string | null;
+  rank?: number | null;
+}) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("Not authenticated");
+
+  const { data, error } = await supabase
+    .from("todos")
+    .upsert(
+      {
+        id,
+        title,
+        board_id,
+        creator_id: user.id,
+        column_id,
+        position: null,
+        rank,
+        backlog_rank,
+        type,
+        sprint_id,
+      },
+      { onConflict: "id" },
+    )
+    .select(TODO_LIST_FIELDS)
+    .single();
+
+  if (error) throw error;
+
+  return data;
+}
+
 //!delete
 export async function deleteTodo(id: string) {
   const { error } = await supabase.from("todos").delete().eq("id", id);
@@ -381,13 +458,26 @@ export type TodoPatch = { id: string; board_id: string } & Partial<
     | "priority"
     | "description"
     | "estimate"
-    // M27. **No control writes this yet** — re-parenting has no UI in this
-    // milestone, by its own scope. It is admitted because the column, its
-    // constraints and its `parent_changed` activity branch all exist, and a
-    // field the database can change while the allow-list refuses it is the
-    // shape that makes the next person add a second write path. `null`
-    // promotes a subtask back to a top-level card.
+    // M27, written by `EpicParentControl` since M28-A. `null` promotes a
+    // subtask back to a top-level card, or clears a Task's Epic.
     | "parent_id"
+    // M30. Independent of `parent_id` — see the migration header. `null`
+    // removes a work item from its Sprint without touching its column.
+    // Writing this directly is only ever legal for an Epic or a Task; a
+    // genuine Subtask's own `sprint_id` is refused by
+    // `enforce_work_item_hierarchy`, the same trigger this column's own
+    // depth rule already goes through.
+    | "sprint_id"
+    // M31. Written only alongside `column_id`, by `sprintAssignmentPatch`
+    // (`services/todos/backlog.ts`) — a work item entering the Board through
+    // Sprint planning needs a rank in its new column the same way a drag
+    // does, and `rankForAppend` is the same utility `useTodoDrop`/`useAddTodo`
+    // already use for "append to the end" rather than a second computation.
+    | "rank"
+    // M31, by the same function — moving a work item between Sprint
+    // sections keeps its Backlog-page order correct instead of carrying the
+    // rank from whichever section it left.
+    | "backlog_rank"
   >
 >;
 

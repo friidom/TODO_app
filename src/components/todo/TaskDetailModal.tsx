@@ -9,6 +9,7 @@ import AssigneeControl from "./TodoItem/AssigneeControl";
 import DueDateControl from "./TodoItem/DueDateControl";
 import EpicParentControl from "./TodoItem/EpicParentControl";
 import PriorityControl from "./TodoItem/PriorityControl";
+import SprintControl from "./TodoItem/SprintControl";
 import StartDateControl from "./TodoItem/StartDateControl";
 import StatusControl from "./TodoItem/StatusControl";
 import WorkTypeControl from "./TodoItem/WorkTypeControl";
@@ -24,6 +25,7 @@ import {
 } from "@/services/todos/taskDraft";
 import { useTodo } from "@/services/todos/useTodo";
 import { useTodoHierarchy } from "@/services/todos/useSubtasks";
+import { useSprints } from "@/services/sprints/useSprints";
 import type { TodoRow } from "@/types/data";
 import { cn } from "@/utils/cn";
 import { relativeTime } from "@/utils/relativeTime";
@@ -231,6 +233,10 @@ function Body({
   // mutually exclusive by construction (an Epic cannot have subtasks, a
   // genuine Subtask cannot pick an Epic), so one lookup answers all three.
   const hierarchy = useTodoHierarchy(todo);
+
+  // M30. `useSprints` is board-scoped like `useTodos`, so this is the same
+  // cache entry the Backlog view reads — no second query for one more field.
+  const { data: sprints = [] } = useSprints();
 
   const [title, setTitle] = useState(todo.title ?? "");
   const [description, setDescription] = useState(todo.description ?? "");
@@ -442,6 +448,23 @@ function Body({
                   <EpicParentControl
                     value={todo.parent_id}
                     onChange={(epicId) => patch({ parent_id: epicId })}
+                  />
+                </Field>
+              )}
+
+              {/* The Sprint this item is planned into (M30). Absent for a
+                  genuine Subtask — it has none of its own, always inheriting
+                  its parent Task's, and `enforce_work_item_hierarchy` refuses
+                  the write if this control were shown anyway. Shown for an
+                  Epic and for a Task alike, top-level or under an Epic:
+                  Epic ──→ Sprint and Task ──→ Sprint are independent
+                  relationships, by design. */}
+              {!hierarchy.isGenuineSubtask && (
+                <Field label="Sprint">
+                  <SprintControl
+                    value={todo.sprint_id}
+                    sprints={sprints}
+                    onChange={(sprintId) => patch({ sprint_id: sprintId })}
                   />
                 </Field>
               )}

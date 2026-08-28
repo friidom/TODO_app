@@ -104,6 +104,12 @@ export function useAddSubtask() {
         rank: null,
         created_at: new Date().toISOString(),
         updated_at: null,
+        // A genuine Subtask never carries its own sprint_id — it inherits
+        // its parent's, enforced by `enforce_work_item_hierarchy` (M30) —
+        // and has no Backlog order of its own for the same reason it has no
+        // board rank of its own: it is not planned as its own item.
+        sprint_id: null,
+        backlog_rank: null,
       };
 
       queryClient.setQueryData<Todo[]>(

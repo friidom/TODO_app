@@ -33,6 +33,7 @@ export const VIEW_MODES = [
   "list",
   "calendar",
   "timeline",
+  "backlog",
 ] as const;
 
 export type ViewMode = (typeof VIEW_MODES)[number];
@@ -144,6 +145,27 @@ export const VIEWS: Record<ViewMode, ViewDefinition> = {
      * narrowing, and they still apply.
      */
     capabilities: { canReorder: false, canGroup: false, canSort: false },
+  },
+  backlog: {
+    mode: "backlog",
+    label: "Backlog",
+    /**
+     * `canReorder: true` since M31-C — the second reordering view, and
+     * still safe under the M6-A guard below because it is not a second
+     * writer of `todos.position`/`rank` at all. `todos.backlog_rank` is its
+     * own fractional-rank field, ordering this view's lists the same way
+     * `rank` orders a Kanban column, but as a genuinely separate value
+     * nothing else reads. Two views may each reorder their own field
+     * without conflict; the hazard M6-A's guard exists to catch is two
+     * views renumbering the *same* field from two stale snapshots, which
+     * this is not.
+     *
+     * `canGroup: false` and `canSort: false` for the same reason the
+     * Timeline gives: this view's grouping — by Sprint, then a Backlog
+     * section — is the layout itself, not a `GROUP_KEYS` choice. Filter and
+     * search still apply, same as every other view.
+     */
+    capabilities: { canReorder: true, canGroup: false, canSort: false },
   },
 };
 

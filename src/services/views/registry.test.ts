@@ -9,15 +9,18 @@ import {
 } from "./registry";
 
 describe("view registry", () => {
-  it("EXACTLY ONE VIEW MAY WRITE STORED ORDER UNTIL M6-A LANDS", () => {
-    // Not a style rule. `todos.position` is a dense integer and a reorder
-    // renumbers a whole column from the client's snapshot, so two views that
-    // both write order will silently lose one of them — which is the entire
-    // reason the fractional-rank migration (M6-A) exists.
+  it("ONLY VIEWS WITH THEIR OWN FRACTIONAL-RANK FIELD MAY REORDER", () => {
+    // Not a style rule. `todos.position`/`rank` is one field, and two views
+    // renumbering it from two stale snapshots would silently lose one of
+    // them — the entire reason the fractional-rank migration (M6-A) exists.
     //
-    // If this fails because a new view legitimately reorders, the fix is M6-A,
-    // not a larger number here.
-    expect(reorderingViews()).toEqual(["board"]);
+    // Board and Backlog are both `true` here, and that is not a regression
+    // of the guard: they order two separate fields (`rank` and
+    // `backlog_rank`), so neither can renumber the other's from a stale
+    // snapshot. If this fails because a *third* view starts reordering,
+    // check first whether it has its own rank field the way Backlog does —
+    // if not, the fix is a new one, not a larger array here.
+    expect(reorderingViews()).toEqual(["board", "backlog"]);
   });
 
   it("gives every mode a definition, keyed by its own mode", () => {
@@ -33,6 +36,7 @@ describe("view registry", () => {
     expect(isViewMode("list")).toBe(true);
     expect(isViewMode("calendar")).toBe(true);
     expect(isViewMode("timeline")).toBe(true);
+    expect(isViewMode("backlog")).toBe(true);
     // Not a view. The tab row is driven by this array, so a name that is not
     // in it cannot be reached by hand-editing `?view=` either.
     expect(isViewMode("gantt")).toBe(false);
@@ -54,6 +58,10 @@ describe("view registry", () => {
     // is derived from the dates at render, so there is no stored order for a
     // drag to disagree with.
     expect(capabilitiesOf("timeline").canReorder).toBe(false);
+    // The Backlog view reorders since M31-C, writing its own `backlog_rank`
+    // — a separate field from the Board's `rank`, so this is not the two
+    // views-one-field hazard the guard above exists to catch.
+    expect(capabilitiesOf("backlog").canReorder).toBe(true);
   });
 
   it("lets neither date view group nor sort, because time is their axis", () => {
@@ -64,6 +72,11 @@ describe("view registry", () => {
       expect(capabilitiesOf(mode).canGroup).toBe(false);
       expect(capabilitiesOf(mode).canSort).toBe(false);
     }
+  });
+
+  it("lets the Backlog view do neither — its grouping by Sprint is the layout", () => {
+    expect(capabilitiesOf("backlog").canGroup).toBe(false);
+    expect(capabilitiesOf("backlog").canSort).toBe(false);
   });
 
   it("lets both work-item views group and sort", () => {

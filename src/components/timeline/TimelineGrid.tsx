@@ -1,11 +1,7 @@
 import { useCallback, useState } from "react";
 import { CalendarRangeIcon, ChevronRightIcon } from "lucide-react";
 
-import {
-  useTimelineDrag,
-  createTaskKey,
-  CREATE_EPIC_KEY,
-} from "@/hooks/useTimelineDrag";
+import { useTimelineDrag, CREATE_EPIC_KEY } from "@/hooks/useTimelineDrag";
 import { NO_SUBTASKS, type SubtaskProgress } from "@/services/todos/subtasks";
 import type { Schedulable } from "@/services/todos/useTimelineSchedule";
 import { monthLabel } from "@/services/views/calendar";
@@ -297,7 +293,6 @@ export default function TimelineGrid({
           {!emptyReason &&
             hierarchy.epics.map((group) => {
               const epicId = group.group.epic.id;
-              const createKey = createTaskKey(epicId);
 
               return (
                 <TimelineEpicGroup
@@ -317,32 +312,16 @@ export default function TimelineGrid({
                   dragging={dragging}
                   onOpenTask={open}
                   onGrab={begin}
-                  pending={pending}
-                  onBeginCreate={(event) =>
-                    begin(event, {
-                      key: createKey,
-                      todo: null,
-                      mode: "draw",
-                      base: null,
-                    })
-                  }
-                  onSubmitCreate={(title, range) => {
-                    onCreate(title, range, { parentId: epicId });
-                    setPending(null);
-                  }}
-                  onCancelCreate={() =>
-                    setPending((current) =>
-                      current?.key === createKey ? null : current,
-                    )
-                  }
                 />
               );
             })}
 
           {/* Offered even while the axis is empty — an empty timeline is
               precisely when you most want to put something on it. This is
-              the Timeline's only top-level create affordance now: every
-              other "Create task" row belongs to one Epic group, above. */}
+              the Timeline's only create affordance, full stop (M31-B removed
+              each Epic's own "+ Create task" row) — a Task still reaches an
+              Epic the ordinary way, through its own detail panel or the
+              Board. */}
           <TimelineCreateRow
             ticks={ticks}
             scale={scale}

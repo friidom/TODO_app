@@ -1,6 +1,7 @@
 import { Fragment, useMemo, useState } from "react";
 
 import { DndContext, type DataRef, type UniqueIdentifier } from "@dnd-kit/core";
+import { RocketIcon } from "lucide-react";
 
 import {
   SCREEN_READER_INSTRUCTIONS,
@@ -64,8 +65,10 @@ export default function KanbanBoard() {
   const swimlanes = isSwimlaneGroup(view.group);
 
   // Already in display order — `useVisibleTodos` filtered and ordered it, so
-  // this only buckets.
-  const { todosByColumn, columns } = useTodosByColumns(todos);
+  // this only buckets. `activeSprintId === null` is this board's own "no
+  // Sprint is running" state — the empty-state branch below reads it.
+  const { todosByColumn, columns, activeSprintId, sprintsPending } =
+    useTodosByColumns(todos);
 
   const {
     sensors,
@@ -126,9 +129,25 @@ export default function KanbanBoard() {
     );
   }
 
-  if (isLoading) return <Loading />;
+  // `sprintsPending` joins the gate rather than being read after it: without
+  // this, a board with an active Sprint would render `NoActiveSprintState`
+  // for one frame while `useSprints()` was still resolving, because
+  // `activeSprintId` defaults to `null` until it has data.
+  if (isLoading || sprintsPending) return <Loading />;
 
   if (error) return <p>{error.message}</p>;
+
+  // **The Board is a view onto the active Sprint (product direction,
+  // 2026-08-27), not a fallback to plain Kanban when none is running.** See
+  // `backlog.ts`'s own module doc for why this reverses an earlier pass here.
+  // Nothing below this point — not `DndContext`, not a single column — is
+  // reachable without one; the data layer already enforces the same rule
+  // (`useTodosByColumns`'s `isOnBoard` filter), so this is belt-and-braces
+  // against a wall of columns that would otherwise all render empty, not the
+  // only place the rule lives.
+  if (activeSprintId === null) {
+    return <NoActiveSprintState onGoToBacklog={() => view.setMode("backlog")} />;
+  }
 
   /**
    * The board, said out loud (M9-02).
@@ -348,5 +367,50 @@ export default function KanbanBoard() {
         columnCollapsed={!!activeColumn && collapsed.includes(activeColumn.id)}
       />
     </DndContext>
+  );
+}
+
+/**
+ * The Board with no active Sprint — a full replacement for the columns, not
+ * a notice above an empty one.
+ *
+ * **Borrows `ListView.tsx`'s own `EmptyList` pattern rather than inventing a
+ * new visual language for it** — same icon-in-a-circle-plus-title-plus-hint
+ * shape, same tokens (`bg-ink/[0.06]`/`text-ink-3`/`text-ink`), same action
+ * button classes. `ViewNotice` was not the fit: that is a strip *above* an
+ * otherwise-normal board, for the case where the board's own columns are
+ * still worth looking at (a filter matched nothing). Here there is nothing
+ * to look at — no column has a card that qualifies while no Sprint is
+ * active — so the whole area becomes the message, exactly the reasoning
+ * `EmptyList` states for replacing `ViewNotice` on the List.
+ */
+function NoActiveSprintState({ onGoToBacklog }: { onGoToBacklog: () => void }) {
+  return (
+    // `h-full` matches every other view's own top-level wrapper (`KanbanBoard`'s
+    // normal return, `ListView`, `CalendarView`, `TimelineView`) — `ViewShell`'s
+    // content slot is a flex item, not a flex container, so a bare `flex-1` here
+    // has no flex parent to stretch within and the centering below would collapse
+    // to the content's own height instead of the page's.
+    <div className="flex h-full min-h-0 flex-col items-center justify-center gap-1 px-6 text-center">
+      <span className="bg-ink/[0.06] text-ink-3 mb-3 grid size-10 place-items-center rounded-full">
+        <RocketIcon className="size-4" />
+      </span>
+
+      <p className="text-ink text-sm font-medium">
+        Start a sprint to begin working
+      </p>
+
+      <p className="text-ink-3 max-w-xs text-xs">
+        Plan your work in the Backlog and start a Sprint to see it here.
+      </p>
+
+      <button
+        type="button"
+        onClick={onGoToBacklog}
+        className="text-brand hover:bg-brand-soft focus-visible:ring-brand rounded-control mt-3 px-2.5 py-1 text-xs font-medium transition-colors outline-none focus-visible:ring-2"
+      >
+        Go to Backlog
+      </button>
+    </div>
   );
 }

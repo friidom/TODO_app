@@ -50,22 +50,10 @@ import {
  * every frame, which is the actual cost people mean by "expensive drag".
  */
 
-/** The "+ Create Epic" row's own key (M28-B) — the Timeline's only top-level
- * create gesture since the correction that removed plain top-level Task
- * rows (see `timelineHierarchy.ts`); every other create row is one Epic's
- * own, keyed by `createTaskKey` below. */
+/** The "+ Create Epic" row's own key — the Timeline's only create gesture
+ * (M28-B removed plain top-level Task rows, see `timelineHierarchy.ts`;
+ * M31-B removed each Epic's own "+ Create task" row). */
 export const CREATE_EPIC_KEY = "__create-epic__";
-
-/**
- * One Epic group's own "add a Task" row (M28-B). Every expanded group mounts
- * its own `TimelineCreateRow`, and each needs a key the drag hook and the
- * pending-title state can tell apart — otherwise drawing a range in one
- * Epic's row would show its ghost, and its title form, under a different
- * Epic's.
- */
-export function createTaskKey(epicId: string): string {
-  return `__create-task__:${epicId}`;
-}
 
 /**
  * How far a *move* must travel before it stops being a click.

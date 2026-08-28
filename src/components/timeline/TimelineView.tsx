@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import ViewNotice from "@/components/board/ViewNotice";
@@ -113,6 +113,25 @@ export default function TimelineView() {
     () => new Set(),
   );
 
+  // Every Epic starts collapsed (M31-B). A lazy `useState` initializer alone
+  // cannot do this: it runs once, at mount, and `hierarchy` is still empty on
+  // that very first render whenever `todos` has not loaded yet — a fresh
+  // visit, not a tab switch inside the query's `staleTime`. Seeding from an
+  // empty hierarchy would collapse nothing, and the initializer never runs
+  // again once real data arrives. So this waits for the real Epic list and
+  // seeds exactly once — `hasSeededCollapse` guards against re-collapsing an
+  // Epic the user has since opened, on every later render this same array
+  // reference changes.
+  const hasSeededCollapse = useRef(false);
+
+  useEffect(() => {
+    if (hasSeededCollapse.current || isLoading || hierarchy.epics.length === 0)
+      return;
+
+    hasSeededCollapse.current = true;
+    setCollapsedEpics(new Set(hierarchy.epics.map((group) => group.epic.id)));
+  }, [isLoading, hierarchy]);
+
   const toggleEpic = (epicId: string) =>
     setCollapsedEpics((current) => {
       const next = new Set(current);
@@ -166,9 +185,11 @@ export default function TimelineView() {
       // knew.
       start_date: fromCalendarDay(range.start),
       due_date: fromCalendarDay(range.end),
-      // Epic, when the "+ Create epic" row swept this range (M28-B); the
-      // Task under that Epic's own row, when it did instead — those are the
-      // only two create rows this view has, so one of the two is always set.
+      // Epic, always — "+ Create epic" is this view's only create row since
+      // M31-B removed each Epic's own "+ Create task" one. `parentId` has no
+      // caller left to set it, but stays on `CreateOptions` rather than being
+      // ripped out of a function signature for a value that was never this
+      // one's own idea in the first place.
       type: options?.type,
       parent_id: options?.parentId ?? null,
     });

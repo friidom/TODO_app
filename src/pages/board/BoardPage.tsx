@@ -13,6 +13,7 @@ import ListView from "@/components/views/ListView";
 import SummaryView from "@/components/summary/SummaryView";
 import CalendarView from "@/components/calendar/CalendarView";
 import TimelineView from "@/components/timeline/TimelineView";
+import BacklogView from "@/components/backlog/BacklogView";
 import NotFoundPage from "@/pages/error/NotFoundPage";
 import Loading from "@/components/loading/LoadingPage";
 import { useBoard } from "@/services/boards/useBoard";
@@ -121,6 +122,8 @@ function BoardView({ boardId }: { boardId: string }) {
           <CalendarView />
         ) : view.mode === "timeline" ? (
           <TimelineView />
+        ) : view.mode === "backlog" ? (
+          <BacklogView />
         ) : (
           <KanbanBoard />
         )}

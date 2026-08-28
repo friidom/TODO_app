@@ -30,6 +30,11 @@ export const queryKeys = {
 
   columns: (boardId: string | undefined) => ["columns", boardId] as const,
 
+  /** Every sprint on one board (M30) — board-scoped like `columns`, and read
+   * by the Backlog view, Sprint Details, and the Task Detail Sprint field
+   * alike, the same "one cache, many views" shape `todos` already has. */
+  sprints: (boardId: string | undefined) => ["sprints", boardId] as const,
+
   /** Every board the user can reach. Not board-scoped — it is the index. */
   boards: () => ["boards"] as const,
 

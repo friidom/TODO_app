@@ -1,6 +1,8 @@
 import { useColumns } from "@/services/columns/useColumnsApi";
 import React from "react";
 import type { IColumn, Todo } from "@/types/data";
+import { isOnBoard } from "@/services/todos/backlog";
+import { useSprints } from "@/services/sprints/useSprints";
 
 /**
  * One array for every empty render, rather than a fresh `[]` each time.
@@ -25,10 +27,24 @@ const EMPTY_COLUMNS: IColumn[] = [];
  * implementations of one rule.
  *
  * Every column gets an entry even when nothing is in it, so an empty column
- * still renders.
+ * still renders — once the Board has anything to render at all; see below.
+ *
+ * **The Board is a view onto the active Sprint (2026-08-27 product
+ * direction), and `isOnBoard` is where that is enforced.** With no Sprint
+ * `active` on this board, `todosByColumn` comes back with every bucket
+ * empty regardless of what any card's `column_id` says — `KanbanBoard` reads
+ * `activeSprintId` (returned below) to show a dedicated empty state instead
+ * of a wall of empty columns. See `backlog.ts`'s own module doc for the
+ * history: an earlier pass here fell back to "a column alone decides" when
+ * no Sprint was active, which was product-reversed — the Board no longer has
+ * a plain-Kanban mode to fall back to once a board has Sprints at all.
  */
 export default function useTodosByColumns(todos: Todo[]) {
   const { data: columns = EMPTY_COLUMNS } = useColumns();
+  const { data: sprints = [], isPending: sprintsPending } = useSprints();
+
+  const activeSprintId =
+    sprints.find((sprint) => sprint.state === "active")?.id ?? null;
 
   const todosByColumn = React.useMemo(() => {
     // Built inside the memo: it was previously allocated on every render but
@@ -43,14 +59,17 @@ export default function useTodosByColumns(todos: Todo[]) {
       // `column_id` is nullable: a card with no column belongs to no group.
       // Previously this indexed `grouped[null]`, which found nothing and
       // no-opped through the optional chain — skipping is the same outcome,
-      // stated deliberately.
+      // stated deliberately. `isOnBoard` already implies this, but
+      // TypeScript cannot narrow `todo.column_id` through a function call,
+      // so the check stays explicit here for the indexing below.
       if (todo.column_id === null) return;
+      if (!isOnBoard(todo, activeSprintId)) return;
 
       grouped[todo.column_id]?.push(todo);
     });
 
     return grouped;
-  }, [todos, columns]);
+  }, [todos, columns, activeSprintId]);
 
-  return { todosByColumn, columns };
+  return { todosByColumn, columns, activeSprintId, sprintsPending };
 }

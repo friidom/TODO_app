@@ -1,6 +1,5 @@
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 
-import { createTaskKey } from "@/hooks/useTimelineDrag";
 import type { DragTarget } from "@/hooks/useTimelineDrag";
 import { workTypeOf } from "@/constants/workTypes";
 import type { SubtaskProgress } from "@/services/todos/subtasks";
@@ -10,7 +9,6 @@ import type { TimelineScale } from "@/services/views/timeline";
 import type { IColumn, Todo } from "@/types/data";
 import { cn } from "@/utils/cn";
 import { taskKey } from "@/utils/taskKey";
-import TimelineCreateRow from "./TimelineCreateRow";
 import TimelineRow, { Row, RowRail } from "./TimelineRow";
 
 /**
@@ -35,7 +33,14 @@ import TimelineRow, { Row, RowRail } from "./TimelineRow";
  * **A bare Epic — no dates anywhere, `group.place` and `group.item` both
  * null — still gets a row.** It is a container first; "nothing scheduled
  * yet" is not the same fact as "does not exist", and the header alone is
- * enough to hold its place in the list and its "+ add a Task" affordance.
+ * enough to hold its place in the list.
+ *
+ * **No "+ Create task" row of its own (M31-B removed it).** Every Task on
+ * this Timeline still gets here the same way — `parent_id` naming this
+ * Epic — but the row that let you draw one directly under a group is gone;
+ * "+ Create epic" (`TimelineGrid`'s own, the Timeline's one remaining create
+ * affordance) is the only sweep-to-create gesture left. Tasks are still
+ * planned the ordinary way, from the Task's own detail panel or the Board.
  */
 export default function TimelineEpicGroup({
   placed,
@@ -53,10 +58,6 @@ export default function TimelineEpicGroup({
   dragging,
   onOpenTask,
   onGrab,
-  pending,
-  onBeginCreate,
-  onSubmitCreate,
-  onCancelCreate,
 }: {
   placed: PlacedEpicGroup;
   ticks: string[];
@@ -76,19 +77,12 @@ export default function TimelineEpicGroup({
   dragging: boolean;
   onOpenTask: (id: string) => void;
   onGrab: (event: React.PointerEvent, target: DragTarget) => void;
-  /** The shared pending-title state, read only when it names this group's own
-   * "add a Task" row. */
-  pending: { key: string; range: DayRange } | null;
-  onBeginCreate: (event: React.PointerEvent) => void;
-  onSubmitCreate: (title: string, range: DayRange) => void;
-  onCancelCreate: () => void;
 }) {
   const { group, place, tasks } = placed;
   const { epic } = group;
 
   const epicDraft = draft?.key === epic.id ? draft.range : null;
   const epicDragging = draft?.key === epic.id && dragging;
-  const createKey = createTaskKey(epic.id);
 
   const open = () => onOpenTask(epic.id);
 
@@ -167,26 +161,6 @@ export default function TimelineEpicGroup({
             />
           );
         })}
-
-      {!collapsed && (
-        <TimelineCreateRow
-          ticks={ticks}
-          scale={scale}
-          draft={draft?.key === createKey ? draft.range : null}
-          pending={pending?.key === createKey ? pending.range : null}
-          today={today}
-          locale={locale}
-          interactive={interactive}
-          label="Create task"
-          indent
-          onBegin={onBeginCreate}
-          onSubmit={(title) => {
-            if (pending?.key === createKey)
-              onSubmitCreate(title, pending.range);
-          }}
-          onCancel={onCancelCreate}
-        />
-      )}
     </>
   );
 }

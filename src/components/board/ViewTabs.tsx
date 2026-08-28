@@ -2,6 +2,7 @@ import {
   CalendarIcon,
   GaugeIcon,
   KanbanIcon,
+  LayersIcon,
   ListIcon,
   WaypointsIcon,
   type LucideIcon,
@@ -17,6 +18,7 @@ const ICONS: Record<ViewMode, LucideIcon> = {
   list: ListIcon,
   calendar: CalendarIcon,
   timeline: WaypointsIcon,
+  backlog: LayersIcon,
 };
 
 /**

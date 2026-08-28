@@ -1,10 +1,18 @@
 # Implementation Plan
 
-**Status:** Active — M0 → M5 shipped. Roadmap revised 2026-08-14 for Spaces, a shared view model, the product redesign, Overview, Activity, Calendar and Timeline.
+**Status:** Active — M0 → M23 shipped. Roadmap revised 2026-08-26 for the **Jira depth wave** (Part IV-C): estimates, issue history, hierarchy, epics, backlog and sprints. Previous revision 2026-08-14, for Spaces, a shared view model, the product redesign, Overview, Activity, Calendar and Timeline.
 **Owner:** Tech Lead
 **Source of truth:** the Architecture Review (2026-08-05) + `docs/ARCHITECTURE.md`, `docs/DATABASE.md`, `docs/FRONTEND.md`, `docs/API.md`, `docs/PRODUCT_SPEC.md`
 **Scope:** takes the codebase from its original state (single-user, user-owned board, broken build) to a collaborative, permissioned, realtime work-management product with Jira-level functional depth and its own product identity.
-**Last audited against the repository:** 2026-08-14 (previous audit 2026-08-10).
+**Last audited against the repository:** 2026-08-26 (previous audits 2026-08-14, 2026-08-10).
+
+> **What the 2026-08-26 audit found.** It read the source tree, the 58 migration files and `supabase migration list` against the linked project rather than trusting this document.
+>
+> **Three milestone statuses were flatly wrong**, each recording as unbuilt something that had shipped: **M6** (M6-B realtime, "untouched" — shipped 2026-08-18), **M7** (comments, "unstarted" — shipped 2026-08-18/19) and **M18** (activity and overview, "⬜ Roadmap" — shipped 2026-08-16/17). Two more were stale in detail: **M11**'s backlog note still waits on M6-A, which has shipped, and **M12** records search as unshipped when M16 built it.
+>
+> **Three milestones had shipped without ever being written down at all** — M21 For You, M22 Accounts & Notifications, M23 Production Polish — and are now recorded retroactively in Part IV-B, from the code rather than from an intent that was never captured. That is the one process failure this document has had, and it is kept on the ledger rather than tidied away.
+>
+> **What was in good order:** local and remote migrations pair 58↔58 with nothing pending and nothing applied out of band; the generated types match the live schema; `npm run lint`, `npm run build` and `npm test` (678 tests, 46 files) are green. The standing debt is in the **Risk register** at the end of Part IV-C.
 
 This document is two things at once, and both matter:
 
@@ -556,9 +564,9 @@ Risk labels, applied to every task:
 | **MEDIUM RISK** | Touches shared state, the write path, or many files. Needs deliberate testing. |
 | **HIGH RISK** | Destructive, or changes the security boundary, or migrates data. Requires backup + rollback + migration strategy, documented per task below. |
 
-## Milestone status — as of 2026-08-14
+## Milestone status — as of 2026-08-26
 
-> **Milestone IDs are historical, not sequential.** M0–M9 were numbered in the order they were *planned* in during 2026-08. M10–M13 were roadmap sketches, and M14–M20 were added by the 2026-08-14 revision. The order to build in interleaves them, and it is the **Build order** table below — not this one.
+> **Milestone IDs are historical, not sequential.** M0–M9 were numbered in the order they were *planned* in during 2026-08. M10–M13 were roadmap sketches, M14–M20 were added by the 2026-08-14 revision, M21–M23 were built without being planned and are recorded retroactively, and M24–M33 are the 2026-08-26 Jira depth wave. The order to build in interleaves them, and it is the **Build order** table in Part IV-C — not this one.
 
 | Milestone | Status | Note |
 |---|---|---|
@@ -569,23 +577,27 @@ Risk labels, applied to every task:
 | M4 · Invitations | ✅ Done | All seven tasks plus one fix (`a38c969` → `159869a`). Link invites only, as scoped. |
 | M5 · Work Item Model | ✅ Done | Type split, presentational card, priority / due date / assignee controls, narrowed board query, and the detail panel behind `?task=` (`8f97779`, `2aed1c8`). |
 | — · Board views | ✅ Shipped ahead of the plan | Filter, sort, group, swimlanes and the List view (`5cd7a24` and follow-ups). This is work Part IV had filed under M11 and M12; it arrived first. See *Views shipped ahead of the plan*, below. |
-| M6 · Realtime | 🔶 M6-A built 2026-08-14 | **M6-A (ordering) is in:** `rank` on todos and columns, backfilled and self-verified, read by rank, single-row writes, rebalance RPCs. **M6-05 (drop `position`) is deliberately not done** — Tier B, needs a dump, and the plan requires a soak first. **M6-B (channels) untouched.** M3-10 closed here. |
-| M7 · Comments & Activity | ◑ Split | Comments unstarted. **Activity moved to M18**, where it finally gets the reader M7-05 said it must have before it is built. |
+| M6 · Realtime | ✅ **Done — corrected 2026-08-26** (M6-05 outstanding) | **M6-A (ordering) is in:** `rank` on todos and columns, backfilled and self-verified, read by rank, single-row writes, rebalance RPCs. **M6-B (channels) shipped 2026-08-18** — `20260818090000_realtime_publication.sql`, one channel per board (`useBoardRealtime`), todos + columns + comments INSERT/UPDATE/DELETE reusing the same `apply*` cache functions the mutations call, plus presence. Concurrency results in `docs/REALTIME_VERIFICATION.md`. **M6-05 (drop `position`) is still not done** — Tier B, needs a dump. Its soak has now run; scheduled into the Part IV-C risk register. M3-10 closed here. |
+| M7 · Comments & Activity | ✅ **Done — corrected 2026-08-26** | **Comments shipped 2026-08-18/19**, not "unstarted": `20260818100000_create_comments.sql`, the thread and composer, edit/delete under the M3 matrix, realtime over the board channel, and a persisted draft. **Activity shipped as M18.** Improvements to both are M25 and M26. |
 | M8 · Boards UX | ◑ Absorbed by M15 | Its nine task bodies remain the specification for board CRUD, settings and the cascade check; M15 builds them inside a space hierarchy rather than beside one. |
 | M9 · Quality | ✅ Done (M9-06 deferred) | M9-01 → M9-05 and M9-07 → M9-09 complete; M9-10 skipped on M9-05's evidence. M9-06 (i18n) moved to Appendix B — it never served this milestone's four principles. |
-| M10 · Work Item Depth | 🗺 Roadmap | `type` shipped in M5. Labels, subtasks, links and epics remain. |
-| M11 · Backlog & Views | ◑ Partly shipped | The *views* half shipped early and is the base M16 formalises. The *backlog* half is untouched and still needs M6-A. |
-| M12 · Search & Filtering | ◑ Partly shipped | Filtering shipped, client-side, exactly as this milestone specified. Search, saved filters and the command palette did not. |
+| M10 · Work Item Depth | ◑ **Superseded 2026-08-26 by Part IV-C** | `type` shipped in M5. Its remaining scope is now decomposed: subtasks and hierarchy → **M27**, epics → **M28**, links and labels → **M33**. Its schema decisions and its *Task Detail surface* contract stay here as the specification those milestones answer. **M10-00 (drop the dead status columns) is carried into M27.** |
+| M11 · Backlog & Views | ◑ **Views done; backlog → M29** | The *views* half shipped early and is the base M16 formalises. The *backlog* half is now **M29**, where its three unanswered questions are answered. M6-A, its hard prerequisite, has shipped. |
+| M12 · Search & Filtering | ◑ Partly shipped | Filtering shipped, client-side, exactly as this milestone specified. Search shipped in M16. **Saved filters and the command palette did not** — they are M33. |
 | M13 · Configurable Workflow | 🗺 Roadmap | Unchanged. |
 | **M14 · Foundation Cleanup** | 🔶 Applied 2026-08-14 | Three Tier A migrations live (key prefix, avatar storage ownership, `handle_new_user` search_path) and both blocking decisions settled. **Outstanding: the Tier B drop of `todos.status` / `previous_status`**, blocked on the Rule 6 backup procedure — see the milestone. |
 | **M15 · Spaces & Boards** | 🔶 Applied 2026-08-14 | `spaces` + `boards.space_id` live; space and board CRUD shipped; sidebar grouped. **Deferred: `archived` (M8-03) and board appearance (M8-04).** |
 | **M16 · Shared View Model** | 🔶 Built 2026-08-14 | Scope, search, the view registry and the shared row shape. No migration. **Deferred: selection**, until a bulk action exists to select *for*. |
 | **M17 · Product Redesign** | 🔶 Built 2026-08-14 | `ViewShell` contract, rail removed, `?panel=` drawers, breadcrumb + view tabs, compact sidebar, Geist typography. No schema, no business logic. **Browser verification owed.** |
-| **M18 · Activity & Overview** | ⬜ Roadmap — **new** | `activities` + feed + dashboard. |
+| **M18 · Activity & Overview** | ✅ **Built 2026-08-16/17 — corrected 2026-08-26** | Not "roadmap": `20260815090000_create_activities.sql` + `20260816090000_activity_field_events.sql` are applied, the board feed is live behind `?panel=activity` (`ActivityFeed`, `activityText.ts`, fourteen `(entity_type, action)` pairs), and the **Summary** view shipped as the board's front page (`services/views/summary.ts`, `trends.ts`, `SummaryView`) with its own registry entry. **Per-item history is not built** — that is M25. |
 | **M19 · Calendar** | 🔶 Built 2026-08-17 | Month and week over M16's pipeline. **No schema change**, exactly as the milestone predicted. The four decisions it forced are recorded in the milestone body. **Browser verification owed.** |
-| **M20 · Timeline** | 🔶 Built 2026-08-17 | Date-range view. **Its migration is applied** — `todos.start_date` + `todos_date_range_check`, Tier A, no backfill. Row order derived from `start_date`, so `todos.position` still has one writer. **Browser verification owed.** |
+| **M20 · Timeline** | 🔶 Built 2026-08-17 | Date-range view, plus M20-B's bar/edge/sweep drag. **Its migration is applied** — `todos.start_date` + `todos_date_range_check`, Tier A, no backfill. Row order derived from `start_date`, so `todos.position` still has one writer. **Browser verification owed.** Improvements are M31. |
+| **M21 · For You** | ✅ **Built 2026-08-21 · recorded retroactively 2026-08-26** | The personal hub at `/`, four tabs over one row shape, no migration. Written up in Part IV-B. |
+| **M22 · Accounts & Notifications** | ✅ **Built 2026-08-21 · recorded retroactively 2026-08-26** | Unique usernames, username-or-email sign-in, email confirmation, password reset, and the `notifications` table + panel with invitations moved into it. Seven migrations. Written up in Part IV-B. |
+| **M23 · Production Polish** | ✅ **Built 2026-08-24 · recorded retroactively 2026-08-26** | Design tokens applied product-wide, mobile pass, unified dialog chrome, type scale. No schema. Four follow-up fixes were staged-but-uncommitted at audit time. |
+| **M24 → M33 · Jira depth wave** | ⬜ **Not started — Part IV-C** | Estimates → history → comments → hierarchy → epics → backlog → sprints → timeline → attachments. **M24 is the next milestone.** |
 
-M10–M13 were roadmap direction added in the 2026-08-10 audit; M14–M20 in the 2026-08-14 revision. None of them is decomposed into tasks, and none is a commitment until it is. Appendix E records what is deliberately out of scope — **and it changed on 2026-08-14**, because Calendar and Timeline were on it.
+M10–M13 were roadmap direction added in the 2026-08-10 audit; M14–M20 in the 2026-08-14 revision; M21–M23 were built unplanned and recorded on 2026-08-26; M24–M33 are that same audit's forward roadmap. Appendix E records what is deliberately out of scope — **and it changed twice**: on 2026-08-14 for Calendar and Timeline, and on 2026-08-26 for Sprints.
 
 ### Build order — the sequence to actually work in
 
@@ -598,13 +610,15 @@ Dependencies, not preference. Each row states what would have to be **rebuilt** 
 | 3 | **M16 · Shared View Model** | Turns the shipped board pipeline into one four views share. Needs M15, because "which tasks is this view over?" has no answer until a space exists. |
 | 4 | **M6-A · Ordering (ranks)** · ✅ built 2026-08-14 (M6-05 pending) | The last cheap moment for the ordering migration: before any second reorderable surface exists (backlog rows, timeline rows) and before the redesign touches drag affordances. Doing it after means doing the DnD work twice. |
 | 5 | **M17 · Product Redesign** · ✅ built 2026-08-14 | Renders a settled hierarchy (M15) over a settled view model (M16). Ships the **view shell contract** that M19 and M20 slot into — that contract is the reason the redesign precedes the two new views rather than following them. |
-| 6 | **M18 · Activity & Overview** | Activity's table must not exist without a reader (M7-05); the Overview's recent-activity panel is that reader, so the two are one milestone. Both need M17 to know where they live now that the rail is gone. |
+| 6 | **M18 · Activity & Overview** · ✅ built 2026-08-16/17 | Activity's table must not exist without a reader (M7-05); the Overview's recent-activity panel is that reader, so the two are one milestone. Both need M17 to know where they live now that the rail is gone. |
 | 7 | **M19 · Calendar** · ✅ built 2026-08-17 | The cheap date view, and the proof that M16's model survives a second axis — built before M20 pays for the same lesson with a migration. **It was:** a registry entry, a renderer and a pure date module, with no migration and no change to the pipeline. |
 | 8 | **M20 · Timeline** · ✅ built 2026-08-17 | Needs `todos.start_date`, and needs Calendar to have already surfaced whatever M16 got wrong about dates. **Both paid off exactly as predicted:** M19 found that `due_date` is a `timestamptz` rather than the `date` this plan assumed, and that discovery decided this milestone's column type before a line of it was written. |
-| 9 | **M6-B · Realtime (channels)** | Blocks nothing above it and is blocked by none of it — it is a cache-update path, not a layout. Wants M6-A's single-row writes already in place, or every event re-applies a whole-column renumber. |
-| 10 | **M7 · Comments** | Wants M6-B for live threads and M17 for where a thread renders. |
-| 11 | **M9 · Quality** | Accessibility, keyboard, mobile and performance across the final surface rather than across two. **Exception: pull M9-01 and M9-02 into M17** if the redesign rewrites the board's DOM — retrofitting accessibility is doing it twice, which is what M9's own dependency note already says. |
-| — | M10 · Work Item Depth, M13 · Configurable Workflow | Unchanged roadmap. Neither is on the path to anything above; both are re-costed once the views exist. |
+| 9 | **M6-B · Realtime (channels)** · ✅ built 2026-08-18 | Blocks nothing above it and is blocked by none of it — it is a cache-update path, not a layout. Wants M6-A's single-row writes already in place, or every event re-applies a whole-column renumber. |
+| 10 | **M7 · Comments** · ✅ built 2026-08-18/19 | Wants M6-B for live threads and M17 for where a thread renders. Both were true when it ran. |
+| 11 | **M9 · Quality** · ✅ built 2026-08-19 (M9-06 deferred) | Accessibility, keyboard, mobile and performance across the final surface rather than across two. **Exception: pull M9-01 and M9-02 into M17** if the redesign rewrites the board's DOM — retrofitting accessibility is doing it twice, which is what M9's own dependency note already says. |
+| 12 | **M21 · For You**, **M22 · Accounts & Notifications**, **M23 · Production Polish** · ✅ built 2026-08-21/24 | **Not in this table when they were built** — they were added to the product without passing through the plan, and the 2026-08-26 audit is what recorded them. Kept in the ledger as evidence of the one process failure this document has had. |
+| 13 → 21 | **M24 → M32 · the Jira depth wave** | **Part IV-C has its own build order table**, because this one records a sequence that has finished. Start at M24. |
+| — | M13 · Configurable Workflow | Unchanged roadmap. Not on the path to anything above; re-costed once the hierarchy exists (M28), because a transition rule that cannot mention an Epic is half a feature. |
 
 **What this order buys.** Every UI milestone (M17 → M20) runs after the two decisions that would otherwise force it to be rewritten: the hierarchy (M15) and the view model (M16). Every schema decision that a later view depends on is made in M14 or named in Appendix D before the view is built. Nothing in the new wave waits on realtime, and realtime waits on nothing in it.
 
@@ -2990,6 +3004,359 @@ Mixing the two would not merely have been untidy: **the check constraint this mi
 
 ---
 
+## Milestone 21 — For You · ✅ **Built 2026-08-21 · recorded retroactively 2026-08-26**
+
+> **This milestone was never written down before it was built.** It is recorded here on the ledger rule at the head of this document: a milestone that shipped without a section is a milestone the next audit rediscovers by reading components. The section is written from the code, not from an intent that was never captured.
+
+**For.** A personal home. Before this, `/` redirected to the oldest board, so the app had no answer to "what should I be working on" that was not "pick a board and look".
+
+**What shipped.** `src/pages/forYou/ForYouPage.tsx` over `src/services/forYou/` — four tabs (Recommended · Assigned · Worked on · Viewed) resolving to **one row shape** (`FeedItem`), grouped into day buckets by a pure `feed.ts` that takes `now` as an argument rather than reading the clock. Viewed history is client-side (`viewed.ts`, `localStorage`); the other three are queries.
+
+**No migration.** Every tab reads columns the schema already had, which is the property that made the milestone cheap.
+
+**One thing was built and then removed, and it is worth keeping recorded:** a **Starred** tab. A star is the one item on this page that cannot be derived from data that already exists, so it needed a `todo_stars` table. That migration was never written, so the tab went out rather than shipping a control that explains why it does not work. **Reopen with** the table.
+
+**Cache shape.** `queryKeys.forYou()` and its four children are **not board-scoped**, deliberately and uniquely: every other key in the factory answers *what is on this board*, and these answer *what is mine*, across every board RLS lets the caller reach. `forYouByIds` is keyed by the sorted id list so two tabs asking for the same rows share one request.
+
+---
+
+## Milestone 22 — Accounts & Notifications · ✅ **Built 2026-08-21 · recorded retroactively 2026-08-26**
+
+> Also never written down before it was built. Recorded from the code and the seven migrations it applied.
+
+**For.** Two things that turned out to be one milestone: making an account a real identity, and giving the product somewhere for events to land.
+
+**What shipped — accounts.**
+
+| Piece | Where |
+|---|---|
+| Unique usernames, normalised and validated in the database | `20260821100000_username_helpers.sql`, `20260821120000_username_rules.sql`, `src/utils/username.ts` |
+| Backfill of existing accounts | `20260821110000_backfill_usernames.sql` |
+| Username assigned at signup by the auth trigger | `20260821130000_handle_new_user_username.sql` |
+| Sign in with a username **or** an email | `20260821150000_login_email_for.sql` → `login_email_for(p_username)` |
+| Live availability check on the register form | `useUsernameAvailability`, `queryKeys.usernameAvailability` — keyed by the *normalised* name, so `Ada` and `ada` share one entry as they share one row |
+| Email confirmation required before entering the app | `7f6c807`, and `20260819130000_provision_on_confirmation.sql` |
+| Password reset | `/reset-password`, outside both route guards — a recovery link *signs the user in*, so `PublicRoute` would bounce them off the one screen the link exists to reach |
+
+**What shipped — notifications.** `20260821160000_create_notifications.sql` plus `src/services/notifications/` and `src/components/notifications/`. Two types today (`invite`, `assigned`), a tabbed panel, an unread badge, and `payload` denormalised by the trigger so a notification stays legible after the board is renamed or the card deleted. Invitations moved **into** notifications (`fa4eced`, `66cb6f0`), and `20260821170000_decline_invite.sql` gave declining an invite a real server-side verb instead of a silent dismissal.
+
+**Also in this window:** `20260821180000_unfiled_space.sql` and `20260824120000_default_space_name.sql` — every new account is provisioned with a space, so "unfiled" stopped being the default state of a fresh account.
+
+**A regression this window created and closed on its own.** `20260819130000_provision_on_confirmation.sql` split the provisioning body out of `provision_new_user()` and copied it from the pre-M2-13 version, which inserts `columns.user_id` — a column dropped in M2-13. Both call sites swallow the failure by design, so a new account silently got no profile and no board. **It is fixed on `main`:** `20260821100000_username_helpers.sql` redefines `provision_user` without that column, and the two later redefinitions keep it out. The dedicated fix migration on `wip/m10-02-email-invites-stage2` is therefore **superseded** — see the 2026-08-26 risk register.
+
+---
+
+## Milestone 23 — Production Polish · ✅ **Built 2026-08-24 · recorded retroactively 2026-08-26**
+
+**For.** Making the product look like one product. No schema, no business logic, no new capability.
+
+**What shipped.** `49c7731` and `d5816fa`: the design tokens applied across ~50 components, a mobile pass, dialog chrome unified (`components/ui/dialogChrome.ts`), the last arbitrary pixel sizes moved onto the type scale, and a default Space so a new account lands somewhere named.
+
+**Uncommitted at the time of the 2026-08-26 audit** — four staged fixes found while using the built product, each documented in the file it touches: the column list's `overflow-x` promotion, `Modal` portalling to `document.body` to escape the sidebar's `z-10` stacking context, `scrollbar-width` moved from `html` to `*` (it does not inherit, so no inner scroller was ever thin), and `cn()` taught the three custom font sizes, without which `tailwind-merge` read `text-mini` as a colour and dropped it from every card chip.
+
+---
+
+# PART IV-C — THE JIRA DEPTH WAVE (M24 → M33)
+
+**Added by the 2026-08-26 audit.** The 2026-08-14 direction (M14 → M20) was about *surfaces*: where work is filed, how it is viewed, how it looks. This wave is about **the work item itself** — what it can hold, what it can contain, and what contains it.
+
+It is the milestone the plan has been pointing at since M10 was written. M10's task bodies, its schema decisions and Appendix D's hierarchy rows are **the specification for this wave**, not a parallel one; M27 and M28 below answer M10's open questions rather than re-asking them. M10 stays on the ledger as the section that framed them.
+
+## The containment model — decided once, here
+
+The requirement, in the product owner's words: *a Sprint can contain normal tasks and Epics; an Epic can contain multiple tasks; a task can contain multiple subtasks. Keep it flexible — do not assume Sprint → only tasks.*
+
+```
+Sprint ────────────┐  (a container with its own lifecycle: dates, state)
+                   │
+                   ├── Epic ──── Task / Bug / Story / Feature ──── Subtask
+                   │
+                   └── Task / Bug / Story / Feature ──── Subtask
+```
+
+**Two mechanisms, not one, and the split is the decision.**
+
+| Relationship | Mechanism | Why not the other one |
+|---|---|---|
+| Epic → item, item → subtask | **`todos.parent_id` — one self-referencing column on one table** | An Epic needs a key, a title, a description, an assignee, a status, comments, activity, dates and realtime. That is `todos`. A second table means a second set of policies, cache functions, realtime handlers, query keys and views — **permanently**, and in every milestone after this one. Appendix D has recommended this since 2026-08-10 |
+| Sprint → item | **A `sprints` table + `todos.sprint_id`** | A sprint is not a work item. It has no key, no assignee, no column, no comments; it has a *lifecycle* (future → active → completed) and dates of its own. Modelling it as a `todos` row with `type = 'Sprint'` would put a state machine inside the work item table and make every board query filter it out |
+
+**What makes it flexible rather than merely permissive.** `sprint_id` sits on the work item, not on the Epic, so **a sprint holds whatever carries the column** — an Epic, a Task, a Bug, in any mix. Nothing in the schema says a sprint contains tasks; it says a work item may be in a sprint. That is exactly the assumption the requirement asks us not to bake in.
+
+**The depth rule, enforced in the database rather than in React** (Part II, rule 5 — an invariant enforced only in the client is not an invariant):
+
+| Type | `parent_id` must be | `sprint_id` must be |
+|---|---|---|
+| `Epic` | **null** — an Epic is always top level | any, or null |
+| `Task` / `Bug` / `Story` / `Feature` | null, **or** an `Epic` on the same board | any, or null |
+| `Subtask` | **an item of the four types above** — never an Epic, never another Subtask | **null** — a subtask is in whatever sprint its parent is in |
+
+Three levels, and no more. A trigger enforces it, `board_id` equality is enforced with it (a cross-board parent is the same mistake as a cross-board link, and Appendix E refuses those), and `on delete cascade` from parent to child is the rule already applied to every board-scoped child table.
+
+**Why a subtask carries no `sprint_id`.** If it could, a subtask could sit in a different sprint from its parent, and every rollup — points, progress, the burndown — would have two defensible answers. Inheriting is one answer, and it is the one that stays true when the parent moves.
+
+## Build order
+
+Dependencies, not preference. Each row states what would have to be **rebuilt** if it ran earlier.
+
+| # | Milestone | Why it sits here |
+|---|---|---|
+| 1 | **M24 · Story Point Estimate** | Needs nothing. `todos.estimate` has existed since M2-04 and has never been read, so this is a UI milestone with a one-line constraint, not a schema milestone. It sits first because **every container below rolls it up** — an Epic's points, a sprint's committed points, a burndown — and building the rollups before the number they roll up is building them twice |
+| 2 | **M25 · Issue History** | Builds the **tabbed lower region** the *Task Detail surface* section has reserved since 2026-08-14, with its one tab. Everything after it that wants a tab (comments, subtasks, attachments) adds one instead of re-laying out the panel — which is precisely the failure that section exists to prevent. Also widens trigger coverage before three new fields arrive that would otherwise change silently |
+| 3 | **M26 · Comments improvements** | Wants M25's tab region to live in, and `notifications` (M22) for @mentions to land in. Nothing below depends on it, so it is here rather than later only because it is cheap once M25 exists |
+| 4 | **M27 · Hierarchy — `parent_id` + Subtasks** | **The one-way door.** Appendix D: *"Epic/subtask hierarchy: `parent_id` in one table vs. a second table — must be made by M10, before subtasks are built."* Subtasks are the first consumer of the column and the cheapest way to prove the depth rule, which is why they are the same milestone rather than the one after it. Carries **M10-00** with it: the dead `todos.status` / `previous_status` columns must go *before* a fourth structural concept lands on this table |
+| 5 | **M28 · Epics** | The second application of M27's column, and it cannot precede it without inventing the same column twice. Needs the depth rule already enforced, or an Epic can be filed under a Task |
+| 6 | **M29 · Backlog** | Needs **M6-A** (shipped) because a backlog is a second ordered surface, and needs **M28** because an Epic belongs in a backlog exactly as a task does. This is where M11's three unanswered questions get answered |
+| 7 | **M30 · Sprints** | Needs a backlog to plan *from* and Epics to plan *with*. Building it before either means a sprint that can only be filled from the board, which is the assumption the containment model above refuses |
+| 8 | **M31 · Timeline improvements** | Needs M28 for epic swimlanes and M30 for sprint bands. Dependency arrows still need `work_item_links`, which is still M33 |
+| 9 | **M32 · Attachments** | Independent of everything above — a table and a storage bucket. Last of the committed work because it is the least structural, and its template (`20260814101000_avatar_storage_ownership.sql`) is not going anywhere |
+| — | **M33 · Later** | Labels, work item links, saved filters, the command palette, and the standing debt. Re-costed when M32 lands |
+
+---
+
+## Milestone 24 — Story Point Estimate · ⬜ **Not started — this is the next milestone**
+
+**For.** A number on a work item saying how big it is, and the sums that number makes possible.
+
+**Depends on.** Nothing.
+
+**The schema is already there, and that is the whole shape of this milestone.** `todos.estimate numeric` was added by `20260806092902_todos_task_fields.sql` (M2-04) and has never had a reader. M5-07 explicitly excluded it from the board query as *"a number rendered by nothing"*, and M20 explicitly refused to make it a duration. This milestone gives it a meaning for the first time.
+
+**Decisions this milestone must make.**
+
+- **What the number means.** Story points, not hours — M20 already recorded that `estimate` *"means points or hours depending on who filled it in"*, and that ambiguity has to end here. Points.
+- **Free numeric, or a fixed scale?** The column is `numeric`, which allows `0.5` and `13`. **Recommendation: keep the column free and offer a Fibonacci quick-pick in the control** (`0, 1, 2, 3, 5, 8, 13, 21`) with a typed value allowed. A CHECK constraint pinned to a scale is a migration every time a team disagrees about the scale; a quick-pick is an edit. What *is* worth a constraint is `estimate is null or estimate >= 0` — Tier A, one line, and it stops a negative from reaching a sum.
+- **`null` is not `0`.** Unestimated and estimated-at-zero are different answers, and every rollup below has to say which it is showing. A sum that silently treats null as zero reports a fully-estimated sprint that is half guessed.
+- **Where it renders.** A row in the detail panel's Details rail — a *property*, so it is a row added to the existing list and never a new section. On the card: a small chip, which M17's second pass established is the scarcest surface in the product, so it earns its place or it does not go there.
+- **Filter and sort.** `estimate` becomes a `SORT_KEYS` entry. As a *filter* it is a range rather than a set, which none of the five existing `FILTER_CATEGORIES` are — **recommendation: sort now, filter later**, and note it here rather than growing `TodoFilters` into two shapes for one dimension.
+
+**The four edits that make it real.** `TODO_FIELDS` in `types/data.ts`, `TODO_LIST_FIELDS` in `todos/todoApi.ts` (both, and `todoApi.test.ts` asserts they agree), the `TodoPatch` admission, and the control. The rollups — an Epic's total, a sprint's committed points — are **not** built here; they are built by the milestone that introduces the container, which is the only place they have somewhere to live.
+
+**Explicitly not.** Time tracking, logged work, remaining estimate, burndown. Burndown is M30's and it needs a sprint to burn down.
+
+**Acceptance.** A number set on the detail panel survives a refresh; the board sorts by it; an unestimated item sorts distinguishably from a zero-point one; `npm run build`, `npm run lint` and `npm test` are green.
+
+---
+
+## Milestone 25 — Issue History · ⬜ **Not started**
+
+**For.** Reading what happened to *one* work item, in the panel where you are already looking at it.
+
+**Depends on.** M18 (`activities` exists, is trigger-written and has a board-level reader).
+
+**What exists.** The table, three trigger functions, the board-scoped feed behind `?panel=activity`, and fourteen `(entity_type, action)` pairs rendered by `activityText.ts`.
+
+**What is missing, and it is three things.**
+
+1. **A per-item query.** The feed is `where board_id = ? order by created_at desc limit 50`. Per-item is `where entity_id = ?`, which today has no index — the migration's index is `(board_id, created_at desc)`. One additive index, Tier A.
+2. **The tab region.** This milestone builds it, per the *Task Detail surface* contract, with **Activity** as its first tab. Adding the second tab must not be a re-layout — that is the contract's whole point and this is where it gets honoured or broken.
+3. **Actions the triggers do not log yet.** `description` changed, `start_date` changed, `estimate` changed (new in M24), comment created / deleted, and — arriving in M27/M28/M30 — parent changed, sprint changed. Each is a new `(entity_type, action)` pair in the CHECK and a new branch in `activityText.ts`; the CHECK constrains the *pair*, which is what makes an unhandled action a database error rather than a blank line in the feed.
+
+**Decisions.**
+
+- **Does the per-item tab paginate?** The board feed deliberately does not (`ACTIVITY_PAGE = 50`, no cursor). One item's history is far smaller — **same answer, same reason**, and if an item ever exceeds it that is the trigger, recorded here.
+- **Comment events in the history.** *Yes* — "commented" is a thing that happened to the item. **The comment body does not go in the payload:** a comment can be edited and deleted, and a payload copy would be a second, unmoderatable copy of text somebody chose to remove.
+- **Nothing here becomes client-written.** `activities` has no insert grant and no insert policy, and that is what makes the log trustworthy. Every new action is a trigger.
+
+**Explicitly not.** Diff rendering of description changes, restore-from-history, and an audit export.
+
+---
+
+## Milestone 26 — Comments improvements · ⬜ **Not started**
+
+**For.** Making the thread a place work is coordinated rather than a list of strings.
+
+**Depends on.** M25 (the tab region), M22 (`notifications`, for a mention to land somewhere).
+
+**What exists.** `comments` (M7-01), the thread and composer, edit and delete with the M3 permission matrix (`canComment` / `canModerateComments` / `canEditComment`), realtime inserts, updates and deletes over the board channel, and a persisted draft.
+
+**Candidates, in the order they earn their place.**
+
+| Improvement | Schema? | Note |
+|---|---|---|
+| **@mentions** | **No** — the mention is text; the *notification* is a new `notifications.type` value | The highest-value item, and the one that makes comments participate in the product rather than sit beside it. The picker reads `board_roster`, which members can already see |
+| **Markdown rendering** | No | A renderer and a sanitiser. **Not a rich-text editor** — a WYSIWYG is a dependency, a serialisation format and a migration path, and none of that is justified by a comment box |
+| **Reactions** | Yes — `comment_reactions(comment_id, user_id, emoji)`, board-scoped per M7-01 | Cheap, and genuinely reduces "+1" comments. Build after mentions |
+| **Threaded replies** | Yes — `comments.parent_id` | **Recommendation: not yet.** A flat thread on a work item is not the surface that suffers from lacking threads, and `parent_id` on comments is a second hierarchy to reason about in the same wave that adds the first one to `todos` |
+
+**Explicitly not.** Rich text, comment attachments (that is M32 plus a decision), and comment permalinks.
+
+---
+
+## Milestone 27 — Hierarchy · `parent_id` + Subtasks · ⬜ **Not started** · **HIGH RISK**
+
+**For.** Letting a work item contain work items. This is the one-way door of the whole wave.
+
+**Depends on.** M24 (a subtask with points is what makes a parent's rollup mean something), M25 (a parent change should be logged the moment the column exists).
+
+**Carries M10-00 with it, and that is not optional.** `todos.status` and `todos.previous_status` are dead — RLS_AUDIT finding D, unread since M2-15 — and M10's own prerequisite says *"drop them before adding `type`, or the schema will carry two plausible-looking status concepts into the milestone that is about to add a third."* `type` shipped anyway in M5. **This milestone adds the fourth and fifth structural concepts (`parent_id`, and M30's `sprint_id` behind it), so the drop happens here or it does not happen.** It is **Tier B** — dropping a column is destructive and forward-fix cannot restore data — so it needs the Rule 6 backup procedure, and it is its own migration and its own commit, never combined with the additive one.
+
+**The decisions, and Appendix D says each of these must be made here.**
+
+| Decision | Answer | Why |
+|---|---|---|
+| One table or two? | **One.** `todos.parent_id uuid null references todos(id) on delete cascade` | See *The containment model* above |
+| Does a subtask render as a board card? | **No.** A subtask lives in its parent's panel and nowhere else | This is the answer that makes subtasks cheap. Saying *yes* makes them inherit `column_id`, `rank`, DnD, collision detection, the backlog and every filter — Appendix D: *"reversing it touches every one of them"*. **The board query therefore gains `and parent_id is null`**, or every subtask appears as a loose card the day the column lands |
+| Does a subtask have a key? | **Yes** — the `board_key` trigger is unconditional and giving one type an exception is a special case in the one mechanism that must not have any | `KAN-14` being a subtask of `KAN-9` is exactly how Jira reads and costs nothing |
+| Depth | **Enforced by trigger, three levels, per the table in *The containment model*** | A rule enforced in `onDragEnd` is not a rule (Part II) |
+| Same board | **Enforced.** Parent and child share `board_id`, checked the same way `todo_column_same_board` checks its pair | A cross-board parent is a cross-board link, which Appendix E refuses |
+| Delete | **`on delete cascade`** — deleting a task deletes its subtasks | The rule already applied to every board-scoped child table. The delete modal must *say so*, the way `DeleteColumnModal` does |
+
+**Rollups this introduces.** A parent shows `n of m` subtasks done (doneness is the child's column category, never a field — M2-15) and the sum of its children's points, with `null` distinguished from `0` per M24.
+
+**Explicitly not.** Converting an existing task to a subtask and back (a second write path with its own edge cases — reopen when someone asks), moving a subtask between parents by drag, and subtasks of subtasks.
+
+**Rollback.** The additive migration is Tier A and reverses by `drop column parent_id`. The M10-00 drop is Tier B and does not reverse — take the dump.
+
+---
+
+## Milestone 28 — Epics · ⬜ **Not started**
+
+**For.** A container for a body of work that spans columns and outlives a sprint.
+
+**Depends on.** M27 (the column and the depth trigger).
+
+**What it is.** A fifth value in the `todos.type` CHECK — `Epic` — plus the depth rule already enforced in M27, plus a colour in `constants/workTypes.ts` and an entry in `WORK_TYPE_OPTIONS`. **That is the entire schema change: one constraint, altered.** Everything an Epic needs — a key, a title, a description, an assignee, comments, activity, dates, realtime — it inherits from being a `todos` row, which is the payoff of M27's one-table answer.
+
+**Decisions.**
+
+- **Does an Epic appear on the board?** **Yes**, as a normal card, unlike a subtask. An Epic has a status and moves through columns; hiding it would mean a second surface to see it on, built now, for a product that has one board.
+- **An epic field on its children.** A row in the Details rail — "Parent" — pointing at the Epic. It is `parent_id`, rendered; there is no second column.
+- **Epic colour.** Jira gives each Epic its own colour. **Recommendation: not yet** — that is a per-row palette, which is a column, and `constants/workTypes.ts` gives the *type* a colour today. Reopen when a board has enough Epics that the type colour stops distinguishing them.
+- **Grouping and filtering by Epic.** A `GROUP_KEYS` entry and a `FILTER_CATEGORIES` entry. Both are pure additions to `view.ts`, and grouping by Epic is what makes the board readable once Epics exist.
+
+**Explicitly not.** Epic progress bars on the board (M31's), cross-board epics (Appendix E), and an epic-only view.
+
+---
+
+## Milestone 29 — Backlog · ⬜ **Not started** · **MEDIUM RISK**
+
+**For.** A place for work that is real but not yet on the board.
+
+**Depends on.** M6-A (shipped — ranks), M28 (an Epic belongs in a backlog exactly as a task does).
+
+**This is M11's backlog half, and its three questions are answered here.**
+
+| M11's question | Answer | Cost of the alternative |
+|---|---|---|
+| What is "in the backlog"? | **`column_id is null`.** The column is already nullable and the shape already exists | An explicit flag is a second source of truth for the same fact, and the two can disagree |
+| *— superseded by M31, once Sprints existed.* | `column_id is null` was the whole answer only because M29 shipped without Sprints. Once M30 added `sprint_id`, that same rule quietly made *Board* membership mean "has a column," full stop — a Task planned into a future Sprint could still land on the Board, and a pre-existing on-Board task could never surface in the Backlog page just because it predated Sprints. `isOnBoard`/`isInBacklog` (`services/todos/backlog.ts`) replace it: a card is on the Board when it has a column *and* (no Sprint is active on this board, or its own `sprint_id` matches whichever one is). The Backlog page's own ungrouped bucket is simpler still — `sprint_id is null`, independent of column. |
+| Does the backlog have its own ordering? | **Yes — `todos.backlog_rank double precision`, a second rank** | Appendix D: a work item's position in the backlog is independent of its position in a column, so reusing `rank` means one value answering two questions. `rankBetween` / `rankForDrop` / `rankForAppend` and the rebalance RPCs are reused unchanged — this is a second *value*, not a second *scheme* |
+| Persisted view state? | **No.** The backlog is a view mode in the existing registry, and its state stays in the URL like every other view | *"Do not build a `board_views` table until a user can actually name and reuse a view"* — still M12's, still true |
+
+**The thing to check before writing a line of it**, because M11 named it and it is still true: `todos.column_id`'s FK is `on delete restrict` and **every current query assumes a column**. `useTodosByColumns`, `resolveDropIndex`, the DnD collision detection, `applyTodoMoved`, `orderByBoard` and the summary all have to be read for what a null does to them. That reading is a task of its own, before the migration.
+
+**A sixth view mode.** `VIEW_MODES` gains `backlog`, and its capabilities are `canReorder: true` — **which makes it the second reordering view, and `registry.test.ts`'s M6-A guard will fail.** That is the test doing its job: the guard exists because *dense integers* could not survive two order-writers, and ranks can. The guard is rewritten to assert what is now true (every reordering view writes a rank, never `position`), not deleted.
+
+**Explicitly not.** Backlog-only estimation ceremony, ranking by drag across the backlog/board boundary in the same gesture (two surfaces, one drop — reopen after the simple case works), and bulk move.
+
+---
+
+## Milestone 30 — Sprints · ⬜ **Not started** · **MEDIUM RISK**
+
+**For.** A time-boxed set of work with a start, an end and a commitment.
+
+**Depends on.** M29 (something to plan from), M28 (something other than tasks to plan with), M24 (a number to commit).
+
+> **Appendix E reversal, stated rather than smuggled.** Sprints were on the *explicitly out of scope* list, with the reopening condition *"the product has real users running iterations, and the backlog (M11) is in daily use. Sprints without a used backlog are ceremony."* **The product owner reversed this on 2026-08-26.** Half the condition is met the honest way — M29 builds the backlog directly beneath this milestone. The other half is not, and this section records that rather than pretending otherwise: sprints here are a *modelling* commitment, and the ceremony (velocity, forecasting, retrospectives) is deliberately staged behind the containment itself.
+
+**The schema.**
+
+```
+sprints(id, board_id, name, goal, start_date, end_date, state, rank, created_at, updated_at)
+todos.sprint_id uuid null references sprints(id) on delete set null
+```
+
+- **`board_id` on `sprints`**, policed by `board_role(board_id)` — M7-01's precedent, and Appendix D says not to re-litigate it per table.
+- **`on delete set null`, never cascade.** Deleting a sprint must not delete the work in it. Same reasoning as `boards.space_id`: the sprint is filing, the work item is content.
+- **`state` is `'future' | 'active' | 'completed'`**, a checked text field — a fixed set the user picks from and never defines, the same shape as `columns.category` and `todos.type`.
+- **At most one `active` sprint per board**, enforced by a partial unique index. Two active sprints is a question every rollup would have to answer twice.
+
+**Decisions.**
+
+| Decision | Answer |
+|---|---|
+| What may carry `sprint_id`? | **Any work item whose `parent_id` is null** — an Epic or a top-level task, in any mix. Subtasks inherit. Enforced by the same trigger as M27's depth rule, extended |
+| Does starting a sprint change the board? | **Recommendation: yes, explicitly — starting a sprint moves its items onto the board** by giving them a `column_id` (the first `todo`-category column) in one bulk write. The alternative — making the board query *mean* "the active sprint" — is a change to what every existing board shows, and it would strand every board that never uses a sprint |
+| Completing a sprint | Asks where unfinished work goes: the next sprint, or the backlog. Never silently — that decision is the reason the ceremony exists |
+| Does a sprint span boards? | **No.** `board_id` is not null. Cross-board anything is Appendix E |
+
+**Rollups.** Committed points, completed points, item count by status. **Burndown is a chart over `activities`**, which is why M25 must log the events the chart reads — and if it did not, the burndown would need a snapshot table nobody has asked for.
+
+**Explicitly not.** Velocity history and forecasting (needs several completed sprints before it can be anything but a straight line), sprint permissions distinct from board roles, parallel active sprints, and sprint templates.
+
+---
+
+## Milestone 31 — Timeline improvements · ⬜ **Not started**
+
+**For.** Making the timeline a planning surface rather than a picture of dates.
+
+**Depends on.** M28 (Epics to group by), M30 (sprints to band).
+
+**Candidates.**
+
+| Improvement | Needs |
+|---|---|
+| **Group rows by Epic** — the single highest-value one | M28. It is what makes a timeline of forty items readable |
+| **Sprint bands** on the axis | M30 |
+| **Epic bars derived from their children's range** | M28. `min(start)` to `max(due)`, computed, stored nowhere — the same rule M20 applied to row order |
+| **Dependency arrows and critical path** | **`work_item_links`, which is M33.** M20 refused these for exactly this reason and the refusal stands until the table exists |
+| Progress shading from subtask completion | M27 |
+
+**Explicitly not**, still: resource levelling, baselines, and zoom levels beyond the two the shell contract supports.
+
+---
+
+## Milestone 32 — Attachments · ⬜ **Not started**
+
+**For.** Files on a work item.
+
+**Depends on.** M25 (a tab to live in).
+
+**The template already exists and this milestone must not invent a second one.** `20260814101000_avatar_storage_ownership.sql` is the shape: a bucket with a size limit and a mime allow-list, and policies keyed on `(storage.foldername(name))[1]`. Appendix B has said since M0 that attachments should be designed so they *can* attach to `todos` — this is where that is cashed in.
+
+**The schema.** `attachments(id, board_id, todo_id, uploader_id, storage_path, filename, mime_type, size_bytes, created_at)` — `board_id` for the policy per M7-01, `on delete cascade` from the todo.
+
+**The decisions.**
+
+- **The bucket is private, unlike `avatars`.** An avatar is public by design; a file attached to a private board is not, so reads go through a signed URL rather than `getPublicUrl`.
+- **Who may delete one?** The uploader, plus `canModerateComments`' holders — the same shape as comment moderation, and reusing it means one rule rather than two.
+- **Orphan cleanup.** Deleting the row cascades; deleting the *object* does not. A storage object whose row is gone is invisible and permanent. Decide the sweep — a scheduled function, or an explicit delete before the row goes — **before** the first upload, not after.
+
+**Explicitly not.** Inline image previews in comments, versioned attachments, and drag-to-upload onto a card.
+
+---
+
+## Milestone 33 — Later · 🗺 Roadmap
+
+Not a commitment. Re-costed when M32 lands.
+
+- **Labels** — `labels` + `todo_labels`, board-scoped (Appendix B, M10). A filter category and a chip.
+- **Work item links** — `work_item_links(from_id, to_id, type)`. Appendix D's directionality question is still unanswered and must be answered before the table. Unblocks M31's dependency arrows.
+- **Saved filters and the command palette** — M12's unshipped half. The palette needs no schema and is the highest product-identity return in this document.
+- **M13 · Configurable workflow** — unchanged.
+- **The standing debt**, which is not roadmap: M6-05 (drop `todos.position`), the M3-16 role-matrix re-run against the linked project, the six avatar-storage REST checks, the i18n coverage sweep, touch scrolling on the board, board `archived` (M8-03) and board appearance (M8-04). Tracked in the 2026-08-26 risk register below.
+
+---
+
+## Risk register — 2026-08-26 audit
+
+Standing debt found by reading the repository, the 58 migration files and `supabase migration list` against `nxnnfaoyttbzndphnawe`. **None of it blocks M24.** Rows 1–3 should be cleared before M27, which is the first migration of this wave that cannot be reversed by forward-fix.
+
+| # | Item | Where | Why it matters now |
+|---|---|---|---|
+| 1 | **Dead `todos.status` / `previous_status`** | M14 outstanding, M10-00 | Two status-shaped columns already; M27 adds `parent_id` and M30 adds `sprint_id`. **Scheduled into M27** |
+| 2 | **`todos.position` still written** (M6-05) | M6-A left it as the rollback | M29 adds `backlog_rank`, giving the table three ordering values. The soak M6-05 waited for has run since 2026-08-14 |
+| 3 | **PITR still not enabled** | Part V, PH-01 | M27's contract migration is the first genuine **Tier B** work since M2. Rule 6 requires a dump; that requirement is now live rather than theoretical |
+| 4 | **`wip/m10-02-email-invites-stage2`** — unmerged, 2 unapplied migrations, an Edge Function, ~1,200 lines of live test harness | branch only | Its `20260820120000_fix_provision_user_columns.sql` is **superseded** by main's `20260821100000`. Its `20260820140000_email_invites_stage2.sql` and `supabase/functions/send-invite-email` are real unshipped work. **Land it or delete it** — an unapplied migration on a branch is a schema the CLI does not know about |
+| 5 | **`CLAUDE.md` describes roughly the M6-A codebase** | repo root | Names 5 service folders (there are 16), points `db:types` at `src/types/database.types.ts` (the real path is `src/types/database.ts`), and describes realtime as future work. Every agent and every new reader starts from it |
+| 6 | **Stale worktree + stash** | `TODO_app.worktrees/agents-fix-drag-and-drop-implementation`, `stash@{0}` | Both pinned to pre-M0 code (`cb5c9e0`, 2026-07-28). Neither is restorable onto the current tree |
+| 7 | **M3-16 role matrix never re-run against the linked project**; six avatar-storage REST checks never run | M3, M14 | The only two verification gaps in the security model, both owed since 2026-08-14 |
+| 8 | **Main bundle 538 kB (170 kB gzip)** | `dist/assets/index-*.js` | Over Vite's 500 kB warning. `BoardPage` is already split; the remainder is the shell plus i18n plus icons |
+| 9 | **i18n coverage** — ~60 files of English strings | Appendix B, was M9-06 | Every milestone in this wave adds more. The switcher works; the coverage does not |
+| 10 | **Touch scrolling on the board** | Appendix B | *"Reopen with any future touch or DnD work"* — M29's backlog drag is DnD work |
+
+---
 # PART V — DEFERRED / PRODUCTION HARDENING
 
 **Nothing in this part blocks any task in Part III or Part IV.**
@@ -3192,6 +3559,17 @@ A decision is on this list only if deferring it makes the eventual change *struc
 | **Whether a board's key changes when it moves between spaces** | **M14** | It must not. A renumber after a key is in a URL or a comment breaks references people already rely on, and "tidying it up later" is the tempting version of that mistake |
 | **Space deletion vs. the boards inside it** | **M15** | A cascade here removes every member's access to every board in the space. `on delete set null` — a space is filing, a board is content |
 
+**Added in the 2026-08-26 revision.** The first four rows *answer* questions this appendix has carried since 2026-08-10 — they are recorded as decided, with the milestone that applies them, so nobody re-opens them at implementation time. The last two are new.
+
+| Decision | Answer, and where it is applied | Cost of deciding late |
+|---|---|---|
+| ~~Epic/subtask hierarchy: `parent_id` in one table vs. a second table~~ | **✅ Decided 2026-08-26: one table.** `todos.parent_id`, self-referencing, `on delete cascade`. Applied by **M27**; see *The containment model* in Part IV-C | Unchanged — a second table is a second set of policies, cache functions, realtime handlers and views, permanently |
+| ~~Whether a subtask renders as a board card~~ | **✅ Decided 2026-08-26: no.** A subtask lives in its parent's panel; the board query gains `and parent_id is null`. Applied by **M27** | Unchanged — reversing it touches column, rank, DnD, backlog and every filter |
+| ~~Backlog: nullable `column_id` vs. an explicit flag~~ | **✅ Decided 2026-08-26: nullable `column_id`.** The shape already exists; a flag would be a second source of truth for one fact. Applied by **M29**, after the read-through of every query that assumes a column | Unchanged |
+| ~~Second ordering surface (backlog rank vs. column rank)~~ | **✅ Decided 2026-08-26: a second value, not a second scheme.** `todos.backlog_rank double precision`, reusing `rankBetween` / `rankForDrop` / `rankForAppend` and the rebalance RPCs unchanged. Applied by **M29** | Unchanged — but the hazard is retired: M6-A's ranks are what make two order-writing surfaces safe, which is the whole reason M6-A preceded this |
+| **Sprint as a table vs. a `todos` type** — new | **A table.** `sprints(id, board_id, name, goal, start_date, end_date, state, rank, …)` + `todos.sprint_id`, `on delete set null`. **M30** | A sprint modelled as a work item puts a lifecycle state machine inside `todos` and makes every existing board, list, calendar and timeline query filter it out — forever, and each one silently wrong until it does |
+| **Whether a subtask may carry its own `sprint_id`** — new | **No — it inherits its parent's.** Enforced by M27's depth trigger, extended in **M30** | Two defensible answers for every points rollup, every progress figure and the burndown. Retrofitting the rule means a data migration over rows that already disagree |
+
 ---
 
 # Appendix E — Explicitly Out of Scope
@@ -3202,7 +3580,7 @@ None of these are refused permanently. Each has a condition that would reopen it
 
 | Not building | Would reconsider when |
 |---|---|
-| Sprints and sprint planning | The product has real users running iterations, and the backlog (M11) is in daily use. Sprints without a used backlog are ceremony |
+| ~~Sprints and sprint planning~~ → **now M30** | ~~The product has real users running iterations, and the backlog (M11) is in daily use. Sprints without a used backlog are ceremony~~ → **Reopened 2026-08-26 by product direction.** Half the stated condition is met the honest way: **M29 builds the backlog immediately beneath M30**, so sprints are no longer being built on top of a surface that does not exist. The other half — real users running iterations — is **not** met, and M30 records that rather than pretending otherwise. What that buys is a boundary: M30 commits to the *containment model* (a sprint holds Epics and tasks alike), and the **ceremony stays out** — velocity, forecasting, retrospectives and sprint templates are all in M30's *explicitly not* list on the original reasoning |
 | Releases and versions | Something is actually being released against these boards |
 | ~~Advanced roadmaps, timeline/Gantt~~ → **now M20** | **Reopened 2026-08-14 by product direction.** The stated condition was *"dependencies and date ranges exist and are maintained"*. Date ranges are being added by M20 (`todos.start_date`), so half the condition is met the honest way. **Dependencies are not**, which is why M20's timeline has no dependency arrows and no critical path — those still need M10's `work_item_links` and stay out of scope. *Advanced roadmaps* — cross-project rollups, scenario planning — remain out of scope on the original terms |
 | Automation rules ("when X then Y") | Workflows (M13) exist and users are hand-repeating a transition often enough to name it |

@@ -22,6 +22,8 @@ const row: Todo = {
   updated_at: null,
   position: 3,
   rank: 4096,
+  sprint_id: null,
+  backlog_rank: null,
 };
 
 describe("toCardContent", () => {

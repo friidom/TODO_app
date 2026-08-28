@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Todo } from "../../types/data";
 import { RANK_GAP, byRank } from "../../utils/rank";
 import {
+  applyBacklogMoved,
   applySubtaskInserted,
   applyTodoConfirmed,
   applyTodoDeleted,
@@ -306,6 +307,60 @@ describe("applyTodoMoved", () => {
         expect(todos.some((original) => original === row)).toBe(true);
       }
     });
+  });
+});
+
+describe("applyBacklogMoved", () => {
+  it("writes only the fields the patch names, onto exactly one row", () => {
+    const todos = board();
+    const result = applyBacklogMoved(todos, "1", { backlog_rank: 1536 });
+
+    const moved = result.find((it) => it.id === "1");
+
+    expect(moved?.backlog_rank).toBe(1536);
+    // Untouched by a same-section reorder's patch.
+    expect(moved?.sprint_id).toBe(todos[0].sprint_id);
+    expect(moved?.column_id).toBe(todos[0].column_id);
+  });
+
+  it("carries a cross-Sprint move's full patch — sprint_id, column_id and rank together", () => {
+    const todos = board();
+    const result = applyBacklogMoved(todos, "1", {
+      sprint_id: "sprint-a",
+      backlog_rank: 1536,
+      column_id: "a",
+      rank: 512,
+    });
+
+    const moved = result.find((it) => it.id === "1");
+
+    expect(moved).toMatchObject({
+      sprint_id: "sprint-a",
+      backlog_rank: 1536,
+      column_id: "a",
+      rank: 512,
+    });
+  });
+
+  it("passes every other row through by reference", () => {
+    const todos = board();
+    const result = applyBacklogMoved(todos, "1", { backlog_rank: 1536 });
+
+    for (const id of ["2", "3", "4", "5", "6"]) {
+      const before = todos.find((it) => it.id === id);
+      const after = result.find((it) => it.id === id);
+
+      expect(after).toBe(before);
+    }
+  });
+
+  it("never mutates the input", () => {
+    const todos = board();
+    const before = todos.map((it) => ({ ...it }));
+
+    applyBacklogMoved(todos, "1", { backlog_rank: 1536 });
+
+    expect(todos).toEqual(before);
   });
 });
 

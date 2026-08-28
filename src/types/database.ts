@@ -449,10 +449,58 @@ export type Database = {
           },
         ]
       }
+      sprints: {
+        Row: {
+          board_id: string
+          created_at: string
+          end_date: string | null
+          goal: string | null
+          id: string
+          name: string
+          rank: number
+          start_date: string | null
+          state: string
+          updated_at: string
+        }
+        Insert: {
+          board_id: string
+          created_at?: string
+          end_date?: string | null
+          goal?: string | null
+          id?: string
+          name: string
+          rank?: number
+          start_date?: string | null
+          state?: string
+          updated_at?: string
+        }
+        Update: {
+          board_id?: string
+          created_at?: string
+          end_date?: string | null
+          goal?: string | null
+          id?: string
+          name?: string
+          rank?: number
+          start_date?: string | null
+          state?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sprints_board_id_fkey"
+            columns: ["board_id"]
+            isOneToOne: false
+            referencedRelation: "boards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       todos: {
         Row: {
           archived: boolean
           assignee_id: string | null
+          backlog_rank: number | null
           board_id: string
           board_key: number | null
           column_id: string | null
@@ -467,6 +515,7 @@ export type Database = {
           previous_status: string | null
           priority: string | null
           rank: number | null
+          sprint_id: string | null
           start_date: string | null
           status: string | null
           title: string | null
@@ -476,6 +525,7 @@ export type Database = {
         Insert: {
           archived?: boolean
           assignee_id?: string | null
+          backlog_rank?: number | null
           board_id: string
           board_key?: number | null
           column_id?: string | null
@@ -490,6 +540,7 @@ export type Database = {
           previous_status?: string | null
           priority?: string | null
           rank?: number | null
+          sprint_id?: string | null
           start_date?: string | null
           status?: string | null
           title?: string | null
@@ -499,6 +550,7 @@ export type Database = {
         Update: {
           archived?: boolean
           assignee_id?: string | null
+          backlog_rank?: number | null
           board_id?: string
           board_key?: number | null
           column_id?: string | null
@@ -513,6 +565,7 @@ export type Database = {
           previous_status?: string | null
           priority?: string | null
           rank?: number | null
+          sprint_id?: string | null
           start_date?: string | null
           status?: string | null
           title?: string | null
@@ -555,6 +608,13 @@ export type Database = {
             referencedRelation: "todos"
             referencedColumns: ["id", "board_id"]
           },
+          {
+            foreignKeyName: "todos_sprint_id_fkey"
+            columns: ["sprint_id"]
+            isOneToOne: false
+            referencedRelation: "sprints"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
@@ -590,6 +650,10 @@ export type Database = {
           role: string
           username: string
         }[]
+      }
+      complete_sprint: {
+        Args: { p_move_to_sprint_id?: string; p_sprint_id: string }
+        Returns: undefined
       }
       create_invite: {
         Args: {
@@ -659,6 +723,7 @@ export type Database = {
         Args: { p_board_id: string; p_role: string; p_user_id: string }
         Returns: undefined
       }
+      start_sprint: { Args: { p_sprint_id: string }; Returns: undefined }
       username_available: { Args: { p_username: string }; Returns: boolean }
     }
     Enums: {

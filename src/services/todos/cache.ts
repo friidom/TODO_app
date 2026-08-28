@@ -150,3 +150,27 @@ export function applyTodoMoved(
     todo.id === activeTodo.id ? { ...todo, column_id: columnId, rank } : todo,
   );
 }
+
+/**
+ * The board after a Backlog-page drag lands `todoId` at `patch` — the
+ * `sprint_id`/`column_id`/`rank`/`backlog_rank` fields `sprintAssignmentPatch`
+ * decided for the drop.
+ *
+ * **`applyTodoMoved`'s counterpart for the Backlog's own drag path, not a
+ * reuse of it.** A Board drag always writes exactly `column_id` and `rank`;
+ * a Backlog drag's write shape depends on the drop — same-section is
+ * `backlog_rank` alone, a cross-Sprint move adds `sprint_id`, and entering
+ * the board's active Sprint with no column yet adds `column_id`/`rank` too
+ * (`sprintAssignmentPatch`'s own branches). Accepting the patch rather than
+ * fixed parameters is what lets one function answer to all of them without
+ * a same-shaped sibling for each branch.
+ */
+export function applyBacklogMoved(
+  todos: Todo[],
+  todoId: string,
+  patch: Partial<Pick<Todo, "sprint_id" | "column_id" | "rank" | "backlog_rank">>,
+): Todo[] {
+  return todos.map((todo) =>
+    todo.id === todoId ? { ...todo, ...patch } : todo,
+  );
+}

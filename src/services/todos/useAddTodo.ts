@@ -171,6 +171,14 @@ export function useAddTodo() {
         start_date,
         due_date,
         updated_at: null,
+        // M30. No create surface reachable from `useAddTodo` puts a card
+        // straight into a Sprint or gives it a Backlog order — that is
+        // `useAddBacklogItem`'s job, a separate mutation for the same reason
+        // `useAddSubtask` is: the rank semantics genuinely differ. A card
+        // made here is on the Board because it has a column, full stop —
+        // see `useTodosByColumns` on why no Sprint rule gates that.
+        sprint_id: null,
+        backlog_rank: null,
       };
 
       queryClient.setQueryData<Todo[]>(
