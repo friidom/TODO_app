@@ -156,19 +156,24 @@ export default function TodoCard({
         onOpen?.();
       }}
       className={cn(
-        // No resting shadow and a border at half the hairline's contrast: the
-        // card is found by its surface being one step above the column, which
-        // is what the tightened token ladder is for. A border and a shadow on
-        // top of that is the "developer dashboard" look.
-        "group border-ink/[0.06] bg-elevated hover:border-ink/15 hover:bg-ink/[0.02] rounded-card relative flex touch-none flex-col gap-1.5 border p-2.5 transition-[background-color,border-color,opacity] duration-150 select-none",
+        // A border at half the hairline's contrast, and **one** step of
+        // elevation — `e1` at rest, `e2` under the cursor. The card is still
+        // found by its surface being a step above the column; the shadow only
+        // stops it reading as printed onto the column, which is most of what
+        // made a full board look flat. Anything more than one step of lift on
+        // hover is the "developer dashboard" look this deliberately avoids.
+        "group border-ink/[0.06] bg-elevated hover:border-ink/15 hover:bg-ink/[0.02] rounded-card shadow-e1 hover:shadow-e2 relative flex touch-none flex-col gap-1.5 border p-2.5 transition-[background-color,border-color,box-shadow,opacity] duration-150 select-none",
         // The pointer cursor is earned by opening rather than by dragging now,
         // which is why the `dragDisabled` branch is gone: a card on a grouped
         // board cannot be dragged and still opens, so a default cursor there
         // was telling the truth about the wrong verb.
         overlay
-          ? "cursor-grabbing opacity-70 shadow-lg"
+          ? "cursor-grabbing opacity-70 shadow-e3"
           : onOpen && "cursor-pointer",
-        dragging && "hover:border-ink/[0.06] opacity-40",
+        // The placeholder left behind by a lift is *below* the board, not on
+        // it: it keeps the border but drops the shadow, or the column shows a
+        // raised card and a raised hole at the same time.
+        dragging && "hover:border-ink/[0.06] shadow-none opacity-40",
         // Mounting in a done column means the card just got there — the
         // animation is one-shot, so mounting is the whole trigger.
         celebrate && "done-flash",

@@ -17,7 +17,7 @@
  * their own files.
  */
 export const HEADER_CONTROL =
-  "border-hairline bg-surface text-ink-2 hover:text-ink hover:bg-elevated focus-visible:ring-brand flex h-9 items-center gap-1.5 rounded-control border px-2.5 text-[13px] transition-colors duration-150 outline-none focus-visible:ring-2 disabled:cursor-default disabled:opacity-70";
+  "border-hairline bg-surface text-ink-2 hover:text-ink hover:bg-elevated focus-visible:ring-brand flex h-9 items-center gap-1.5 rounded-control border px-2.5 text-[13px] transition-colors duration-150 outline-none active:bg-wash-strong focus-visible:ring-2 disabled:cursor-default disabled:opacity-70";
 
 /**
  * What a control looks like once it is doing something.
@@ -34,7 +34,7 @@ export const HEADER_CONTROL =
  * deepen it, not undo it.
  */
 export const HEADER_CONTROL_ACTIVE =
-  "border-brand/40 bg-brand-soft text-brand hover:bg-brand/20 hover:text-brand";
+  "border-brand/40 bg-brand-soft text-brand hover:bg-brand/20 hover:text-brand active:bg-brand/25";
 
 /**
  * The quiet end of the toolbar: no border until you reach for it.

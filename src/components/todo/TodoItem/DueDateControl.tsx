@@ -148,7 +148,7 @@ export default function DueDateControl({
             {...panelProps}
             role="dialog"
             aria-label="Due date"
-            className="border-hairline bg-elevated rounded-surface z-50 w-[268px] border p-3 shadow-[0_12px_32px_rgba(0,0,0,0.28)]"
+            className="border-hairline bg-elevated rounded-surface z-50 w-[268px] border p-3 shadow-e2"
           >
             <DatePanel
               title="Due date"

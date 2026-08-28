@@ -277,6 +277,43 @@ html {
   }
 }
 
+
+/* Elevation — three steps, and the reason they are tokens.
+   ---------------------------------------------------------------------------
+   Before this there was no ladder, only six hard-coded shadows invented one at
+   a time: `0_16px_40px_-16px_rgba(0,0,0,0.5)` on five modals, a `-12px` variant
+   on the filter popover, `0_24px_64px_-16px_rgba(0,0,0,0.65)` on the task
+   panel, `0_12px_32px_-12px` on menus, plus Tailwind's own `shadow-sm/lg/xl`.
+
+   Two problems, and the second is the one you can see. They disagreed with each
+   other, so a menu and the dialog it opened over sat at unrelated heights. And
+   every one of them was **black at a fixed alpha**, which is right on the dark
+   navy canvas and wrong on the light one — a 40px black blur under a white card
+   is a grey smudge, not a shadow. Light gets a navy-tinted, low-alpha shadow;
+   dark gets black at a higher alpha, because a dark surface on a dark page
+   needs more contrast to separate at all.
+
+   Restraint is the point. e1 is barely visible and is meant to be: a resting
+   card is found by its surface being a step above the column, and the shadow
+   only stops it looking pasted on. e2 is the hover lift and every floating
+   layer. e3 is reserved for what is genuinely on top of the app — modals and a
+   dragged card. Nothing gets more than one step of lift on hover. */
+:root {
+  --elevation-1: 0 1px 2px oklch(0.24 0.02 265 / 5%);
+  --elevation-2:
+    0 1px 2px oklch(0.24 0.02 265 / 5%), 0 4px 12px -2px oklch(0.24 0.02 265 / 9%);
+  --elevation-3:
+    0 4px 8px -2px oklch(0.24 0.02 265 / 8%),
+    0 20px 44px -12px oklch(0.24 0.02 265 / 20%);
+}
+
+.dark {
+  --elevation-1: 0 1px 2px oklch(0 0 0 / 28%);
+  --elevation-2: 0 1px 2px oklch(0 0 0 / 30%), 0 4px 12px -2px oklch(0 0 0 / 38%);
+  --elevation-3:
+    0 4px 8px -2px oklch(0 0 0 / 40%), 0 20px 44px -12px oklch(0 0 0 / 55%);
+}
+
 .bg-app {
   background: var(--background);
 }
@@ -313,6 +350,10 @@ html {
   --color-status-orange: var(--status-orange);
   --color-status-green: var(--status-green);
   --color-status-red: var(--status-red);
+  /* shadow-e1 / shadow-e2 / shadow-e3 — see the elevation block above. */
+  --shadow-e1: var(--elevation-1);
+  --shadow-e2: var(--elevation-2);
+  --shadow-e3: var(--elevation-3);
   --radius-surface: var(--radius-surface-size);
   --radius-card: var(--radius-card-size);
   --radius-control: var(--radius-control-size);

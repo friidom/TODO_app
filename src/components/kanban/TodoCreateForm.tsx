@@ -11,7 +11,7 @@ import { DEFAULT_WORK_TYPE, type WorkType } from "@/constants/workTypes";
 // cards, and at `rounded-xl` (14px against their 10px) it was visibly a
 // different shape from its neighbours.
 const CARD =
-  "mb-2 rounded-card border-2 border-brand bg-elevated px-2.5 py-2 shadow-sm";
+  "mb-2 rounded-card border-2 border-brand bg-elevated px-2.5 py-2 shadow-e1";
 
 /** What the form collected besides the title. */
 export interface CreateDraft {

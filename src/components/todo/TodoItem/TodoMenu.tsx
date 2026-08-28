@@ -79,7 +79,7 @@ export default function TodoMenu({
             {...panelProps}
             role="menu"
             aria-label="Card actions"
-            className="border-hairline bg-elevated rounded-card z-50 w-60 border p-1 shadow-[0_8px_24px_rgba(0,0,0,0.24)]"
+            className="border-hairline bg-elevated rounded-card z-50 w-60 border p-1 shadow-e2"
           >
             {/* First, because it is the way into everything the menu cannot
                 show — the description above all. Opens the panel over the

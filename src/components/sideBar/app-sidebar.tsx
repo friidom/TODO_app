@@ -125,7 +125,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     <Sidebar className="border-hairline border-r" {...props}>
       <SidebarHeader className="px-3 py-3">
         <div className="flex items-center gap-2.5">
-          <span className="bg-brand text-brand-fg rounded-control grid size-7 place-items-center shadow-sm">
+          <span className="bg-brand text-brand-fg rounded-control grid size-7 place-items-center shadow-e1">
             <SquareKanbanIcon className="size-4" />
           </span>
 

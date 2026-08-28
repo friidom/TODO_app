@@ -184,7 +184,7 @@ function Overlay({
           // `min()` is what keeps it off the edges on a laptop. Height is capped
           // rather than fitted so a long description scrolls inside the modal
           // instead of growing it past the viewport.
-          "border-hairline bg-canvas rounded-surface flex h-[min(46rem,100%)] w-[min(1100px,100%)] flex-col overflow-hidden border shadow-[0_24px_64px_-16px_rgba(0,0,0,0.65)]",
+          "border-hairline bg-canvas rounded-surface flex h-[min(46rem,100%)] w-[min(1100px,100%)] flex-col overflow-hidden border shadow-e3",
           leaving
             ? "animate-out fade-out-0 slide-out-to-bottom-1 fill-mode-forwards duration-150"
             : "animate-in fade-in-0 slide-in-from-bottom-1 duration-200",

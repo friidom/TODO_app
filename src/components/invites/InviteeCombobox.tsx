@@ -194,7 +194,7 @@ export default function InviteeCombobox({
         <ul
           id={listId}
           role="listbox"
-          className="border-hairline bg-elevated absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border py-1 shadow-xl"
+          className="border-hairline bg-elevated absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border py-1 shadow-e2"
         >
           {error ? (
             <li className="text-status-red px-3 py-2.5 text-sm">

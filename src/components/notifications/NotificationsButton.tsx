@@ -88,7 +88,7 @@ export default function NotificationsButton() {
             role="dialog"
             aria-modal="true"
             aria-label="Notifications"
-            className="border-hairline bg-surface rounded-surface fixed z-50 overflow-hidden border shadow-[0_16px_40px_-16px_rgba(0,0,0,0.5)] max-md:inset-x-4 max-md:top-16 md:top-20 md:left-[calc(var(--sidebar-width,16rem)+0.5rem)]"
+            className="border-hairline bg-surface rounded-surface fixed z-50 overflow-hidden border shadow-e3 max-md:inset-x-4 max-md:top-16 md:top-20 md:left-[calc(var(--sidebar-width,16rem)+0.5rem)]"
           >
             <NotificationsPanel onClose={() => setOpen(false)} />
           </div>

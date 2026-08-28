@@ -81,7 +81,7 @@ const DropZone = memo(function DropZone({
             aria-label="Create work item"
             // Inert until the gap is hovered, so the badge — which is taller
             // than the gap — never steals hover or drag area from the cards.
-            className="border-hairline bg-elevated text-ink-2 pointer-events-none absolute top-1/2 -left-2 z-10 flex size-6 -translate-y-1/2 items-center justify-center rounded-md border opacity-0 shadow-sm transition-opacity duration-100 group-hover:pointer-events-auto group-hover:opacity-100"
+            className="border-hairline bg-elevated text-ink-2 pointer-events-none absolute top-1/2 -left-2 z-10 flex size-6 -translate-y-1/2 items-center justify-center rounded-md border opacity-0 shadow-e1 transition-opacity duration-100 group-hover:pointer-events-auto group-hover:opacity-100"
           >
             <Plus size={15} />
           </button>

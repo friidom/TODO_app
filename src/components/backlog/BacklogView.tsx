@@ -5,10 +5,11 @@ import {
   useDroppable,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { PlusIcon } from "lucide-react";
+import { PlusIcon, LayersIcon } from "lucide-react";
 
 import ViewNotice from "@/components/board/ViewNotice";
 import Loading from "@/components/loading/LoadingPage";
+import EmptyState from "@/components/ui/EmptyState";
 import { workTypeOf } from "@/constants/workTypes";
 import useBacklogDnd, { type BacklogIndicator } from "@/hooks/useBacklogDnd";
 import { useBacklogDragEnd } from "@/hooks/useBacklogDragEnd";
@@ -192,6 +193,31 @@ export default function BacklogView() {
             ordinary block children here, so they take their natural height and
             the box scrolls, instead of being flex items competing to shrink. */}
         <div className="min-h-0 flex-1 overflow-y-auto pb-6">
+          {/* First run: no sprint has ever been created and nothing is waiting
+              to be planned. Both sections below still render their own terse
+              "nothing here" line, but two of those stacked under a heading is
+              what an empty board actually looked like — a page that reads as
+              broken rather than as new. This says what the page is FOR, and
+              offers the one action that starts it. Suppressed the moment
+              either side has anything, so it is genuinely a first-run state
+              and not a recurring empty view. */}
+          {board.sprintSections.length === 0 &&
+            board.unplanned.length === 0 && (
+              <EmptyState
+                icon={LayersIcon}
+                title="Nothing planned yet"
+                hint="The Backlog is where work waits before a sprint picks it up. Create a sprint, or add items and plan them later."
+                action={
+                  canEditTodos
+                    ? {
+                        label: "Create sprint",
+                        run: () => setCreatingSprint(true),
+                      }
+                    : undefined
+                }
+              />
+            )}
+
           {board.sprintSections.map((section) => (
             <SprintSection
               key={section.sprint.id}
@@ -258,7 +284,7 @@ export default function BacklogView() {
           // (`components/todo/TodoCard.tsx`) — the Board's drag overlay is
           // the reference for what a lifted item looks like on this product,
           // and this page's own overlay should read as the same gesture.
-          <div className="bg-elevated border-hairline rounded-card text-ink flex max-w-xs cursor-grabbing items-center gap-1.5 border px-3 py-2 text-sm font-medium opacity-70 shadow-lg">
+          <div className="bg-elevated border-hairline rounded-card text-ink flex max-w-xs cursor-grabbing items-center gap-1.5 border px-3 py-2 text-sm font-medium opacity-70 shadow-e3">
             <OverlayIcon
               className={cn("size-3.5 shrink-0", overlayType!.tone)}
             />

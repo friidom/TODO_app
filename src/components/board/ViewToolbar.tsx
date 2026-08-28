@@ -42,6 +42,19 @@ export default function ViewToolbar({ view }: { view: BoardView }) {
         <BoardFilters view={view} />
         {canGroup && <BoardGroup view={view} />}
         {canSort && <BoardSort view={view} />}
+
+        {/* Narrowing the board and adding to it are different kinds of verb,
+            and the row had them at the same weight in one undifferentiated
+            run of five controls. A hairline is the whole separation — enough
+            that the filled button reads as the primary action rather than as
+            the fifth control, and not so much that it becomes a section.
+            Hidden below `md`, where the controls wrap and a vertical rule
+            would cut across a row it no longer divides. */}
+        <span
+          aria-hidden
+          className="bg-hairline mx-0.5 hidden h-5 w-px shrink-0 md:block"
+        />
+
         <HeaderTodoForm />
       </div>
     </div>

@@ -29,4 +29,4 @@ export const FIELD_INPUT_INVALID =
  * inline `h-9` save button — that one shares a row with an error message.
  */
 export const FORM_SUBMIT =
-  "bg-brand text-brand-fg hover:bg-brand/90 focus-visible:ring-brand focus-visible:ring-offset-surface rounded-control flex h-10 w-full items-center justify-center gap-2 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60";
+  "bg-brand text-brand-fg hover:bg-brand/90 active:bg-brand/80 focus-visible:ring-brand focus-visible:ring-offset-surface rounded-control flex h-10 w-full items-center justify-center gap-2 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60";

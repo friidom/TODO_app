@@ -27,7 +27,7 @@ export default function TodoDragOverlay({
       {activeColumn && (
         <div
           className={cn(
-            "bg-surface rounded-xl shadow-xl",
+            "bg-surface rounded-xl shadow-e2",
             columnCollapsed
               ? "flex w-14 flex-col items-center gap-3 py-3"
               : "w-[280px] px-3 py-3",

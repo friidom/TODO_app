@@ -117,7 +117,7 @@ export default function EstimateControl({
             {...panelProps}
             role="dialog"
             aria-label="Story point estimate"
-            className="border-hairline bg-elevated rounded-card z-50 flex items-center gap-1 border p-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.24)]"
+            className="border-hairline bg-elevated rounded-card z-50 flex items-center gap-1 border p-1.5 shadow-e2"
           >
             <input
               type="number"

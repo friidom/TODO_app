@@ -117,7 +117,7 @@ export default function BoardFilters({ view }: { view: BoardView }) {
             {...panelProps}
             role="dialog"
             aria-label="Filter"
-            className="border-hairline bg-elevated rounded-card z-50 flex w-[min(30rem,calc(100vw-2rem))] flex-col overflow-hidden border shadow-[0_16px_40px_-12px_rgba(0,0,0,0.5)]"
+            className="border-hairline bg-elevated rounded-card z-50 flex w-[min(30rem,calc(100vw-2rem))] flex-col overflow-hidden border shadow-e3"
           >
             {/* Stacks below `sm`, so the panel is still usable at 375px where
                 two 15rem columns would each be too narrow to read. */}

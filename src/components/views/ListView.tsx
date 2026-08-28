@@ -12,6 +12,7 @@ import { groupTodos } from "@/services/todos/view";
 import { cn } from "@/utils/cn";
 import ListRow from "./ListRow";
 import { LIST_GRID, LIST_MIN_WIDTH } from "./listGrid";
+import EmptyState from "@/components/ui/EmptyState";
 
 /**
  * The board as an issue list.
@@ -233,27 +234,14 @@ function EmptyList({ view }: { view: BoardView }) {
           action: null,
         };
 
+  // The shape moved to `ui/EmptyState` so the empty column and the empty
+  // Backlog could wear it too — this view had the only one in the product.
   return (
-    <div className="flex flex-col items-center gap-1 px-6 py-16 text-center">
-      {/* No border on the disc: the list around it is built out of hairlines
-          and one more outlined object in the middle of the empty space reads as
-          another control rather than as an illustration. */}
-      <span className="bg-ink/[0.06] text-ink-3 mb-3 grid size-10 place-items-center rounded-full">
-        <InboxIcon className="size-4" />
-      </span>
-
-      <p className="text-ink text-sm font-medium">{title}</p>
-      <p className="text-ink-3 max-w-xs text-xs">{hint}</p>
-
-      {action && (
-        <button
-          type="button"
-          onClick={action.run}
-          className="text-brand hover:bg-brand-soft focus-visible:ring-brand rounded-control mt-3 px-2.5 py-1 text-xs font-medium transition-colors outline-none focus-visible:ring-2"
-        >
-          {action.label}
-        </button>
-      )}
-    </div>
+    <EmptyState
+      icon={InboxIcon}
+      title={title}
+      hint={hint}
+      action={action ?? undefined}
+    />
   );
 }

@@ -137,7 +137,7 @@ function InviteCard({
 }) {
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
-      <div className="border-hairline bg-surface rounded-surface w-full max-w-[420px] border p-6 shadow-[0_16px_40px_-16px_rgba(0,0,0,0.5)] sm:p-8">
+      <div className="border-hairline bg-surface rounded-surface w-full max-w-[420px] border p-6 shadow-e3 sm:p-8">
         <span className="bg-brand-soft rounded-surface mb-5 grid size-14 place-items-center">
           {icon}
         </span>

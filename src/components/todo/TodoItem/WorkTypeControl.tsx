@@ -74,7 +74,7 @@ export default function WorkTypeControl({
             {...panelProps}
             role="menu"
             aria-label="Work type"
-            className="border-hairline bg-elevated rounded-card z-50 w-44 overflow-hidden border p-1 shadow-[0_8px_24px_rgba(0,0,0,0.24)]"
+            className="border-hairline bg-elevated rounded-card z-50 w-44 overflow-hidden border p-1 shadow-e2"
           >
             <p className="text-ink-3 text-mini px-2 py-1.5 font-semibold tracking-wide uppercase">
               Work type

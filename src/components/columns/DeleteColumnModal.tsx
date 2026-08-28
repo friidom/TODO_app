@@ -81,7 +81,7 @@ function DeleteColumnDialog({
     >
       <form
         onSubmit={handleSubmit}
-        className="border-hairline bg-surface rounded-surface max-h-full w-[640px] max-w-full overflow-y-auto border p-5 shadow-[0_16px_40px_-16px_rgba(0,0,0,0.5)] sm:p-6"
+        className="border-hairline bg-surface rounded-surface max-h-full w-[640px] max-w-full overflow-y-auto border p-5 shadow-e3 sm:p-6"
       >
         <div className="mb-5 flex items-start justify-between gap-4">
           <h2 className={`${DIALOG_TITLE} flex items-center gap-2.5`}>

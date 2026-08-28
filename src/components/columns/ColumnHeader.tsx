@@ -285,7 +285,7 @@ function RenameField({
           onMouseDown={(e) => e.preventDefault()}
           onClick={save}
           aria-label="Save name"
-          className="border-hairline bg-elevated text-ink hover:bg-ink/10 rounded-md border p-1.5 shadow-sm"
+          className="border-hairline bg-elevated text-ink hover:bg-ink/10 rounded-md border p-1.5 shadow-e1"
         >
           <Check size={16} />
         </button>
@@ -295,7 +295,7 @@ function RenameField({
           onMouseDown={(e) => e.preventDefault()}
           onClick={onDone}
           aria-label="Cancel rename"
-          className="border-hairline bg-elevated text-ink hover:bg-ink/10 rounded-md border p-1.5 shadow-sm"
+          className="border-hairline bg-elevated text-ink hover:bg-ink/10 rounded-md border p-1.5 shadow-e1"
         >
           <X size={16} />
         </button>

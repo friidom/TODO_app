@@ -1,4 +1,4 @@
-import { LayersIcon } from "lucide-react";
+import { Rows3Icon } from "lucide-react";
 
 import {
   DropdownMenu,
@@ -36,7 +36,7 @@ export default function BoardGroup({ view }: { view: BoardView }) {
         aria-label={active ? `Group — ${GROUP_LABELS[group]}` : "Group"}
         className={cn(HEADER_CONTROL, active && HEADER_CONTROL_ACTIVE)}
       >
-        <LayersIcon className="size-4" />
+        <Rows3Icon className="size-4" />
         <span className="hidden md:inline">
           {active ? GROUP_LABELS[group] : "Group"}
         </span>

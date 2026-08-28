@@ -2,7 +2,7 @@ import { useDroppable } from "@dnd-kit/core";
 import TodoItem from "../todo/TodoItem";
 
 import type { IColumn, Todo } from "../../types/data";
-import { Plus } from "lucide-react";
+import { Plus, InboxIcon } from "lucide-react";
 import React, { useCallback, useState, useRef, useEffect } from "react";
 import { useAddTodo } from "@/services/todos/useAddTodo";
 import { useSubtaskProgressByParent } from "@/services/todos/useSubtasks";
@@ -11,6 +11,7 @@ import TodoCreateForm, { type CreateDraft } from "./TodoCreateForm";
 import ColumnHeader, { type TransitionPill } from "../columns/ColumnHeader";
 import { categoryOf } from "@/constants/columns";
 import { cn } from "@/utils/cn";
+import EmptyState from "@/components/ui/EmptyState";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { usePermissions } from "@/hooks/usePermissions";
 import type { TodoIndicator } from "@/hooks/useKanbanDnd";
@@ -325,6 +326,21 @@ export default function KanbanColumn({
             )}
 
             {creatingAt === 0 && createForm}
+
+            {/* An empty column used to be a blank strip with a Create button
+                under it, which reads as a column that failed to load rather
+                than one with nothing in it. Suppressed while a card is in
+                flight over the board — the drop indicator is the clearer
+                message then — and while the create form is open, which is
+                already the answer to "there is nothing here". */}
+            {todos.length === 0 && !dragging && creatingAt === null && (
+              <EmptyState
+                size="sm"
+                icon={InboxIcon}
+                title="Nothing here yet"
+                className="text-ink-3"
+              />
+            )}
 
             {todos.map((todo, index) => (
               <React.Fragment key={todo.id}>

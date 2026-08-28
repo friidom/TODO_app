@@ -37,7 +37,7 @@ export default function AuthShell({
 
       <div className="relative flex w-full max-w-sm flex-col items-center">
         <div className="mb-7 flex items-center gap-2.5">
-          <span className="bg-brand text-brand-fg rounded-control grid size-8 place-items-center shadow-sm">
+          <span className="bg-brand text-brand-fg rounded-control grid size-8 place-items-center shadow-e1">
             <SquareKanbanIcon className="size-[18px]" />
           </span>
           <span className="text-ink font-wordmark text-xl font-semibold tracking-tight">
@@ -45,7 +45,7 @@ export default function AuthShell({
           </span>
         </div>
 
-        <div className="border-hairline bg-surface rounded-surface w-full border p-7 shadow-[0_16px_40px_-16px_rgba(0,0,0,0.5)]">
+        <div className="border-hairline bg-surface rounded-surface w-full border p-7 shadow-e3">
           <h1 className="text-ink text-xl font-semibold tracking-tight">
             {title}
           </h1>

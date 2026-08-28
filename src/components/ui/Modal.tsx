@@ -68,7 +68,7 @@ export default function Modal({
         // /`shadow-2xl` — pre-token classes and a heavier shadow than anything
         // else here, so a dialog read as belonging to a different application
         // than the board it opened over.
-        className={`border-hairline bg-surface rounded-surface max-h-full ${width} max-w-full overflow-y-auto border p-5 shadow-[0_16px_40px_-16px_rgba(0,0,0,0.5)]`}
+        className={`border-hairline bg-surface rounded-surface max-h-full ${width} max-w-full overflow-y-auto border p-5 shadow-e3`}
       >
         {children}
       </div>

@@ -88,7 +88,7 @@ export default function CalendarChip({
         // in the overlay — the same idiom the board uses. Opacity only, so the
         // day cell does not reflow the moment a drag starts.
         isDragging && "opacity-40",
-        overlay && "border-brand/40 shadow-[0_8px_24px_rgba(0,0,0,0.28)]",
+        overlay && "border-brand/40 shadow-e3",
       )}
     >
       <TypeIcon className={cn("size-3 shrink-0", type.tone)} />

@@ -383,8 +383,16 @@ function BoardRow({
         render={<NavLink to={to} />}
         isActive={isActive}
         className={cn(
-          "pl-6",
-          isActive ? "bg-brand-soft text-ink font-medium" : "text-ink-2",
+          "relative pl-6",
+          // A 2px brand rail on the active board, drawn as a pseudo-element so
+          // it costs no layout and the row cannot shift when it appears. The
+          // tint alone was doing the whole job, and in a rail of eight boards a
+          // soft purple fill is easy to lose — the mark on the edge is what
+          // makes "you are here" readable at a glance rather than by comparing
+          // backgrounds. Same idiom the view tabs use, turned on its side.
+          isActive
+            ? "bg-brand-soft text-ink before:bg-brand font-medium before:absolute before:top-1/2 before:left-0 before:h-4 before:w-0.5 before:-translate-y-1/2 before:rounded-r-full"
+            : "text-ink-2",
         )}
       >
         <KanbanIcon

@@ -17,6 +17,7 @@ import type { PlacedTimelineHierarchy } from "@/services/views/timelineHierarchy
 import type { DayRange, DragMode } from "@/services/views/timelineDrag";
 import type { IColumn, Todo } from "@/types/data";
 import { cn } from "@/utils/cn";
+import EmptyState from "@/components/ui/EmptyState";
 import TimelineCreateRow from "./TimelineCreateRow";
 import TimelineEpicGroup from "./TimelineEpicGroup";
 import TimelineSprintBand from "./TimelineSprintBand";
@@ -551,13 +552,11 @@ function Undated({
  */
 function Empty({ title, hint }: { title: string; hint: string }) {
   return (
-    <div className="relative flex flex-col items-center gap-1 px-6 py-14 text-center">
-      <span className="bg-ink/[0.06] text-ink-3 mb-3 grid size-10 place-items-center rounded-full">
-        <CalendarRangeIcon className="size-4" />
-      </span>
-
-      <p className="text-ink text-sm font-medium">{title}</p>
-      <p className="text-ink-3 max-w-xs text-xs leading-relaxed">{hint}</p>
-    </div>
+    <EmptyState
+      icon={CalendarRangeIcon}
+      title={title}
+      hint={hint}
+      className="relative"
+    />
   );
 }

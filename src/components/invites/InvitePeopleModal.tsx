@@ -127,7 +127,7 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
         role="dialog"
         aria-modal="true"
         aria-label="Invite people"
-        className="border-hairline bg-surface rounded-surface max-h-full w-[560px] max-w-full overflow-y-auto border p-5 shadow-[0_16px_40px_-16px_rgba(0,0,0,0.5)] sm:p-6"
+        className="border-hairline bg-surface rounded-surface max-h-full w-[560px] max-w-full overflow-y-auto border p-5 shadow-e3 sm:p-6"
       >
         <div className="mb-1 flex items-start justify-between gap-4">
           <h2 className="text-ink text-xl font-bold">Invite people</h2>

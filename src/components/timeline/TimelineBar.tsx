@@ -143,7 +143,7 @@ export default function TimelineBar({
           // the gesture this view exists for.
           interactive && "cursor-grab",
           dragging
-            ? "cursor-grabbing shadow-[0_8px_20px_-8px_rgb(0_0_0/0.6)] ring-white/40"
+            ? "cursor-grabbing shadow-e3 ring-white/40"
             : "group-hover:ring-white/25",
         )}
       >
