@@ -22,5 +22,17 @@ export default defineConfig({
     // deliberately absent — pure logic is where the risk is, and component
     // tests nobody needs are a maintenance cost.
     environment: "node",
+    // `supabase.ts` throws at module load when these are missing, and CI has no
+    // `.env`. That guard is right for the app — a missing variable should fail
+    // at startup with a name rather than as an opaque error on the first query
+    // — but it also fires for a test that only wants a *constant* from a module
+    // the client happens to share: `todoApi.test.ts` imports TODO_LIST_FIELDS,
+    // and `todoApi.ts` imports `supabase` four lines up. Stub values satisfy
+    // the guard. Nothing in this suite opens a socket, so the values are never
+    // dialled; the live suite has its own config and real credentials.
+    env: {
+      VITE_SUPABASE_URL: "http://localhost:54321",
+      VITE_SUPABASE_PUBLISHABLE_KEY: "stub-publishable-key",
+    },
   },
 });

@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Commits
+
+Do **not** add a `Co-Authored-By: Claude ...` trailer to commit messages. The
+history was rewritten on 2026-08-29 to strip 113 such trailers so Claude stops
+appearing in the GitHub contributors list; re-adding one puts it back.
+
 ## Commands
 
 ```bash
