@@ -25,9 +25,19 @@ export function formatEstimate(value: number | null): string {
  * component: it is the one condition `EstimateControl`'s hover/focus/coarse
  * class trio all branch on, and a test can pin the rule here even though it
  * cannot render the classes themselves.
+ *
+ * `forced` is the caller's own override (M31-C): a surface with no row to
+ * hover — the Task Details rail, where the field's label reserves the space
+ * and an empty cell would read as broken — asks for the trigger regardless.
+ * It is a second argument here rather than an `|| alwaysVisible` in the
+ * component for the same reason this function exists at all: the rule stays
+ * in one place a test can reach, instead of half here and half in the JSX.
  */
-export function estimateAlwaysVisible(value: number | null): boolean {
-  return value !== null;
+export function estimateAlwaysVisible(
+  value: number | null,
+  forced = false,
+): boolean {
+  return forced || value !== null;
 }
 
 /** What the input shows the moment editing starts, or what cancel reverts to. */

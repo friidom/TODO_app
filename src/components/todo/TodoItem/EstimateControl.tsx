@@ -47,9 +47,19 @@ import { cn } from "@/utils/cn";
 export default function EstimateControl({
   value,
   onChange,
+  alwaysVisible = false,
 }: {
   value: number | null;
   onChange: (value: number | null) => void;
+  /**
+   * Keep the trigger on screen instead of revealing it on card hover — the
+   * same escape hatch `PriorityControl`, `AssigneeControl` and
+   * `DueDateControl` each carry, for a surface with no card row to hover.
+   * The Task Details rail is the one caller: its own field label reserves
+   * the cell, so an unset estimate hidden there would leave a labelled row
+   * with nothing in it — and nothing to click to set one.
+   */
+  alwaysVisible?: boolean;
 }) {
   const { close, triggerProps, panelProps, mounted } = useCardPopover();
   const [draft, setDraft] = useState(() => estimateToDraft(value));
@@ -91,7 +101,7 @@ export default function EstimateControl({
         aria-label={label}
         className={cn(
           "text-micro grid size-6 shrink-0 place-items-center rounded-sm font-semibold transition-[opacity,background-color]",
-          estimateAlwaysVisible(value)
+          estimateAlwaysVisible(value, alwaysVisible)
             ? "bg-ink/10 text-ink-2 hover:bg-ink/15"
             : cn(
                 "border-hairline text-ink-3 hover:text-ink-2 border",

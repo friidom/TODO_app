@@ -99,6 +99,21 @@ describe("estimateAlwaysVisible", () => {
     expect(estimateAlwaysVisible(5)).toBe(true);
     expect(estimateAlwaysVisible(0)).toBe(true);
   });
+
+  it("defaults to not forced, so the board card keeps its hover reveal", () => {
+    // The second argument is optional: every caller that predates it —
+    // `TodoCard` and `BacklogRow` — must behave exactly as before.
+    expect(estimateAlwaysVisible(null, false)).toBe(false);
+    expect(estimateAlwaysVisible(null)).toBe(
+      estimateAlwaysVisible(null, false),
+    );
+  });
+
+  it("is true for an unset estimate when the caller forces it", () => {
+    // The Task Details rail (M31-C): no card to hover, and a labelled field
+    // whose cell would otherwise be empty with nothing to click.
+    expect(estimateAlwaysVisible(null, true)).toBe(true);
+  });
 });
 
 /**

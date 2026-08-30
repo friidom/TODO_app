@@ -8,6 +8,7 @@ import SubtasksSection from "./SubtasksSection";
 import AssigneeControl from "./TodoItem/AssigneeControl";
 import DueDateControl from "./TodoItem/DueDateControl";
 import EpicParentControl from "./TodoItem/EpicParentControl";
+import EstimateControl from "./TodoItem/EstimateControl";
 import PriorityControl from "./TodoItem/PriorityControl";
 import SprintControl from "./TodoItem/SprintControl";
 import StartDateControl from "./TodoItem/StartDateControl";
@@ -426,6 +427,27 @@ function Body({
                   // A labelled field has no row to hover, so the placeholder
                   // has to stay on screen — the field's own label is what
                   // reserves the space, and an empty one would look broken.
+                  alwaysVisible
+                />
+              </Field>
+
+              {/* Story points (M31-C). The same `EstimateControl` the Board
+                  card and the Backlog row use — not a read-only pill with a
+                  separate editor — so the three surfaces can never disagree
+                  about how an estimate is entered or what counts as one.
+
+                  `alwaysVisible` because this rail has no card to hover: the
+                  control's hidden-until-hover state keys off a `group`
+                  ancestor that only `TodoCard` and `BacklogRow` provide.
+
+                  `onChange` goes through the same `patch` every other field
+                  here uses, so one write updates this modal, the card, the
+                  Backlog row and a sprint's Story Point totals together —
+                  they all read the one `["todos", boardId]` cache entry. */}
+              <Field label="Story points">
+                <EstimateControl
+                  value={todo.estimate}
+                  onChange={(estimate) => patch({ estimate })}
                   alwaysVisible
                 />
               </Field>
