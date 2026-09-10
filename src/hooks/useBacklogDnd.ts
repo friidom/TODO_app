@@ -11,7 +11,6 @@ import {
 } from "@dnd-kit/core";
 import { useCallback, useState } from "react";
 
-/** Droppable `data.type` values used across the Backlog page. */
 export type BacklogDropType = "backlog-section" | "backlog-gap";
 
 export interface BacklogIndicator {
@@ -19,8 +18,6 @@ export interface BacklogIndicator {
   index: number;
 }
 
-/** How far (px) the pointer may sit outside a section and still target it —
- * mirrors the Board's own `COLUMN_HOVER_DISTANCE` (`useKanbanDnd.ts`). */
 const SECTION_HOVER_DISTANCE = 80;
 
 function centreOf(rect: ClientRect) {
@@ -77,11 +74,7 @@ function typeOf(container: DroppableContainer) {
   return container.data.current?.type as BacklogDropType | undefined;
 }
 
-/**
- * A gap that touches the dragged item is where it already sits — same
- * suppression `useKanbanDnd.ts` applies, so dropping there offers no target
- * instead of drawing a line around the item itself.
- */
+// a gap touching the dragged item is where it already sits — suppress it, don't draw a line around the item itself
 function touchesActive(
   hit: { container: DroppableContainer } | null,
   activeId: UniqueIdentifier,
@@ -91,34 +84,15 @@ function touchesActive(
   return data?.beforeId === activeId || data?.afterId === activeId;
 }
 
-/**
- * Sensors, collision detection and the insertion-indicator state for the
- * Backlog page's drag (M31-C) — the same shape `useKanbanDnd.ts` gives the
- * Board, narrowed to one branch: this page only ever drags one kind of
- * thing (a row), so there is no column-reorder-style second case. No
- * keyboard sensor — the Board's own (`keyboardDrag.ts`) is a two-axis
- * (column left/right, row up/down) coordinate system, and this page has
- * only one axis; out of scope for a pointer-drag-feel fix.
- *
- * **`indicator` is `null`-when-idle, not a sentinel object.** The Board's
- * own `EMPTY_INDICATOR` uses `columnId: null` for "nothing hovered" because
- * no real column ever has a null id. Here `sectionKey: null` IS a real
- * destination — the Backlog's own ungrouped list — so it cannot double as
- * "no gap hovered" too.
- */
+// indicator is null when idle, not a sentinel object — sectionKey: null is a real destination (the ungrouped list) here
 export default function useBacklogDnd() {
   const [indicator, setIndicator] = useState<BacklogIndicator | null>(null);
 
   const sensors = useSensors(
-    // Same activation distance the Board's own drag uses.
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   );
 
-  /**
-   * Nothing on this page reflows while dragging either — the Board's own
-   * rule (`useKanbanDnd.ts`): only the `DragOverlay` moves, so collisions
-   * are resolved against the pointer, not against overlap with a gap.
-   */
+  // nothing reflows while dragging — only the DragOverlay moves, so collisions resolve against the pointer
   const collisionDetection = useCallback<CollisionDetection>(
     ({ active, collisionRect, droppableContainers, pointerCoordinates }) => {
       const point =
@@ -128,7 +102,7 @@ export default function useBacklogDnd() {
 
       const { x, y } = point;
 
-      // ---- nearest section --------------------------------------------------
+      // nearest section
       const sections = droppableContainers.filter(
         (container) => typeOf(container) === "backlog-section",
       );
@@ -146,14 +120,13 @@ export default function useBacklogDnd() {
         | null
         | undefined;
 
-      // ---- nearest gap inside it ---------------------------------------------
+      // nearest gap inside it
       const gaps = droppableContainers.filter(
         (container) =>
           typeOf(container) === "backlog-gap" &&
           container.data.current?.sectionKey === sectionKey,
       );
 
-      // Empty section: fall back to the section itself.
       if (!gaps.length) return toCollisions(section);
 
       const hit = pickNearest(gaps, (rect) =>
@@ -186,7 +159,7 @@ export default function useBacklogDnd() {
     }
 
     if (data.type === "backlog-section") {
-      // Empty section — there is no gap to name, so the drop lands at 0.
+      // empty section, no gap to name — drop lands at 0
       setIndicator({ sectionKey: data.sectionKey ?? null, index: 0 });
     }
   }, []);

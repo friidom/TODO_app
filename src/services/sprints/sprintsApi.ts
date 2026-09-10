@@ -2,24 +2,8 @@ import { supabase } from "@/services/api/supabase";
 import type { Sprint } from "@/types/data";
 import { rankForAppend } from "@/utils/rank";
 
-/**
- * The raw Supabase calls for `sprints` (M30) — no hooks, no cache writes, the
- * same split every other feature folder keeps between `<feature>Api.ts` and
- * `use*.ts`.
- *
- * **State transitions are not a patch.** `start_sprint` and `complete_sprint`
- * are RPCs, not `update sprints set state = ...`, because both are more than
- * one write — starting bulk-assigns a column to whatever the sprint holds
- * that has none yet, and completing rehomes unfinished work. A function body
- * is one transaction; two sequential client writes are not, and a failure
- * between them would leave the sprint's state ahead of or behind the work it
- * describes. See the migration's own header for the full reasoning.
- */
+// start/complete are RPCs, not a plain update — each is more than one write (bulk-assign a column / rehome unfinished work) and needs one transaction
 
-/** Every sprint on one board, oldest first — the Backlog view re-sorts by
- * `rank` and filters by `state` itself (`buildBacklogBoard`), so this is the
- * unfiltered set every reader (the Backlog page, Sprint Details, the Task
- * Detail Sprint field) shares. */
 export async function fetchSprints(boardId: string): Promise<Sprint[]> {
   const { data, error } = await supabase
     .from("sprints")
@@ -40,16 +24,6 @@ export interface CreateSprintInput {
   end_date?: string | null;
 }
 
-/**
- * A new sprint, appended after the board's existing ones.
- *
- * Reuses `rankForAppend` unchanged — the migration's own decision is that
- * this is the same fractional scheme `rank.ts` already implements, not a
- * second one. `sprints` has no `position` column to fall back to, so each
- * row is adapted to the shape `rankForAppend` expects with `position: null`,
- * which `rankOf` reads as `0` and never uses: every existing sprint already
- * has a real `rank` from its own creation.
- */
 export async function createSprint({
   board_id,
   name,
@@ -83,7 +57,7 @@ export type SprintPatch = { id: string } & Partial<
   Pick<Sprint, "name" | "goal" | "start_date" | "end_date">
 >;
 
-/** Edits a sprint's own fields. Never its `state` — see the module doc. */
+// never touches state — see startSprint/completeSprint for that
 export async function updateSprint({
   id,
   ...patch
@@ -100,22 +74,7 @@ export async function updateSprint({
   return data;
 }
 
-/**
- * Deletes a sprint. **Its work items are not deleted with it.**
- *
- * `todos.sprint_id` is declared `on delete set null` — never cascade — and
- * the migration states why in its own words: *"the sprint is filing, the
- * work item is content. Deleting a sprint must not delete the work planned
- * into it."* So the database returns every item to the Backlog in the same
- * statement, with no second write from here to get half-done.
- *
- * An ordinary `delete` rather than an RPC, which is the opposite of
- * `start_sprint`/`complete_sprint` and for the reason stated at the top of
- * this module: those are RPCs because each is *more than one write*. This is
- * one, and the rehoming that would have been the second is the foreign key's
- * own job. The existing `"Editors and above delete sprints"` policy is what
- * authorises it, so there is nothing new to grant.
- */
+// todos.sprint_id is on delete set null, not cascade — deleting a sprint returns its work to the Backlog, doesn't delete it
 export async function deleteSprint(sprintId: string): Promise<string> {
   const { error } = await supabase.from("sprints").delete().eq("id", sprintId);
 
@@ -124,8 +83,6 @@ export async function deleteSprint(sprintId: string): Promise<string> {
   return sprintId;
 }
 
-/** Moves a future sprint to active and bulk-assigns the board's first
- * `todo`-category column to every item of its that has none yet. */
 export async function startSprint(sprintId: string): Promise<void> {
   const { error } = await supabase.rpc("start_sprint", {
     p_sprint_id: sprintId,
@@ -134,14 +91,7 @@ export async function startSprint(sprintId: string): Promise<void> {
   if (error) throw error;
 }
 
-/**
- * Moves an active sprint to completed.
- *
- * `moveToSprintId` is the destination for its unfinished work — another
- * sprint's id, or `null` for the Backlog. A finished item (sitting in a
- * done-category column) is untouched, keeping its `sprint_id` as the record
- * of what shipped in this sprint.
- */
+// a finished item keeps its sprint_id — that's the record of what shipped
 export async function completeSprint(
   sprintId: string,
   moveToSprintId: string | null,

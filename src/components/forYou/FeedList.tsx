@@ -3,18 +3,6 @@ import { CircleAlertIcon, InboxIcon, type LucideIcon } from "lucide-react";
 import { groupFeed, type FeedItem, type ForYouTab } from "@/services/forYou/feed";
 import FeedRow from "./FeedRow";
 
-/**
- * The grouped feed, and the three states it can be in instead (M21).
- *
- * **Every state is the same width and lives in the same place**, so switching
- * tabs never moves the page under the pointer — the failure the brief names as
- * "a huge empty white area". The empty and error states are inset boxes of a
- * fixed minimum height rather than centred in the viewport, because the tabs
- * above them are still the subject and an apology that fills the screen implies
- * the whole page failed.
- */
-
-/** What each tab says when it has nothing, and why it might have nothing. */
 const EMPTY: Record<ForYouTab, { icon: LucideIcon; title: string; hint: string }> =
   {
     recommended: {
@@ -79,19 +67,13 @@ export default function FeedList({
     return <State icon={empty.icon} title={empty.title} hint={empty.hint} />;
   }
 
-  // `now` is passed in rather than read here, so every group header and every
-  // row in one render agrees about where the boundaries are. A component that
-  // called `new Date()` per row could place two rows a millisecond apart into
-  // "Today" and "Yesterday".
+  // now is passed in, not read here, so every row agrees on the "Today"/"Yesterday" boundary
   const groups = groupFeed(items, new Date(now));
 
   return (
     <div className="flex flex-col gap-6">
       {groups.map((group) => (
         <section key={group.period}>
-          {/* Sticky, so the period you are reading stays named while you scroll
-              a long feed. `bg-canvas` rather than transparent: rows pass
-              underneath it. */}
           <h2 className="bg-canvas text-ink-3 sticky top-0 z-10 py-1.5 text-[11px] font-semibold tracking-[0.08em] uppercase">
             {group.label}
           </h2>
@@ -117,14 +99,6 @@ export default function FeedList({
   );
 }
 
-/**
- * The loading state, shaped like the thing it is standing in for.
- *
- * Rows rather than a spinner: the layout is known before the data is, so
- * reserving it means the feed fills in rather than appearing and shoving the
- * page down. One group header and five rows is roughly what a live feed opens
- * with.
- */
 function Skeleton() {
   return (
     <div className="animate-pulse">
@@ -138,7 +112,7 @@ function Skeleton() {
             <span className="min-w-0 flex-1">
               <span
                 className="bg-ink/10 block h-3 rounded"
-                // Varied so it reads as text rather than as a progress bar.
+                // varied width so it reads as text, not a progress bar
                 style={{ width: `${52 + ((i * 13) % 34)}%` }}
               />
               <span className="bg-ink/10 mt-2 block h-2.5 w-40 max-w-[60%] rounded" />

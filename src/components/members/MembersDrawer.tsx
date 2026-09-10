@@ -8,21 +8,6 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useAuth } from "@/services/auth/useAuth";
 import { useBoardMembers } from "@/services/members/useBoardMembers";
 
-/**
- * The board's roster, re-homed from the context rail (M17).
- *
- * **Same data, same rows, a quarter of the standing cost.** It reads the
- * `board_roster` RPC through `useBoardMembers` — never `board_members`, which
- * is self-read only and would return a one-person list with no error to signal
- * it — and renders `MemberRow` unchanged, which is why role management and the
- * Owner's untouchability came along without a line of new logic. What changed
- * is when it is on screen: opened from the member stack rather than occupying
- * 288px of every board, for every user, forever.
- *
- * Invite lives here now too. It was duplicated between the rail and the board
- * header when both were permanent; with the rail gone, the drawer is where a
- * roster action belongs and the header keeps only the stack that opens it.
- */
 export default function MembersDrawer({ boardId }: { boardId: string }) {
   const { data: members, isPending, error } = useBoardMembers(boardId);
   const { user } = useAuth();
@@ -63,9 +48,6 @@ export default function MembersDrawer({ boardId }: { boardId: string }) {
           </p>
         )}
 
-        {/* An empty roster is a real answer, not a failure: `board_roster`
-            returns an empty set to a non-member rather than raising, so this is
-            also what someone who has lost access sees. */}
         {members?.length === 0 && (
           <p className="border-hairline text-ink-3 rounded-card border border-dashed px-3 py-4 text-xs leading-relaxed">
             No members to show.

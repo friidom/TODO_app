@@ -19,41 +19,14 @@ import StatusControl from "./StatusControl";
 import WorkTypeControl from "./WorkTypeControl";
 import { useCardPopover } from "./useCardPopover";
 
-/**
- * Everything you can do to a card that the card itself does not show.
- *
- * The card stays a card: title, work type, key, due date, assignee, and nothing
- * else. **This is where the actions live**, which is the split that lets both
- * stay readable — a card communicates, a menu operates.
- *
- * It is a property panel rather than a list of verbs, and that is what makes it
- * cheap: every row hosts the control that already exists for that field,
- * unchanged. "Change work type" is `WorkTypeControl`; "change status" is
- * `StatusControl`, which delegates to `useMoveTodo` — the same `useTodoDrop`
- * mutation a drag ends in, position renumbering and done-flash included.
- * Nothing here re-implements a picker and nothing here opens a second write
- * path.
- *
- * `StatusControl` is why the old `TodoColumnMenu` is gone. That one hid the
- * card's current column (so the menu could not tell you where the card *was*)
- * and rendered `column.title` raw where the rest of the board goes through
- * `columnTitle()`. This one shows every column with a check on the current one,
- * skips a move that would change nothing, and was already written — it had
- * simply never been imported anywhere.
- */
 export default function TodoMenu({
   todo,
   onEdit,
 }: {
   todo: Todo;
-  /** Puts the card into its inline title edit — the flow the pencil uses. */
   onEdit: () => void;
 }) {
-  // `hostsPopovers` is what makes the five property rows work at all. Each
-  // control portals its own panel to document.body, so without it a mousedown on
-  // a date or a member reads as an outside click, closes this menu, and unmounts
-  // the control before its own click handler can run — the choice looked
-  // registered and saved nothing.
+  // hostsPopovers matters — each field control portals its own panel, and without this a click on one reads as an outside click and closes the menu first
   const { mounted, close, triggerProps, panelProps } = useCardPopover({
     hostsPopovers: true,
   });
@@ -81,9 +54,6 @@ export default function TodoMenu({
             aria-label="Card actions"
             className="border-hairline bg-elevated rounded-card z-50 w-60 border p-1 shadow-e2"
           >
-            {/* First, because it is the way into everything the menu cannot
-                show — the description above all. Opens the panel over the
-                board rather than navigating (M5-06). */}
             <button
               type="button"
               role="menuitem"
@@ -112,9 +82,6 @@ export default function TodoMenu({
 
             <div className="bg-hairline my-1 h-px" />
 
-            {/* The panel stays open while these are used: setting a priority and
-                a due date in one visit is the common case, and closing after
-                each would make it two. */}
             <Field label="Status">
               <StatusControl todoId={todo.id} columnId={todo.column_id} />
             </Field>
@@ -132,8 +99,6 @@ export default function TodoMenu({
                 value={todo.priority}
                 onChange={(priority) => patch({ priority })}
                 showLabel
-                // Same reason as the detail modal: a labelled field in a menu
-                // has nothing to hover, so the control is always drawn.
                 alwaysVisible
               />
             </Field>
@@ -176,7 +141,6 @@ export default function TodoMenu({
   );
 }
 
-/** One labelled property row: the field's name, and the control that sets it. */
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex min-w-0 items-center justify-between gap-2 px-2 py-1">

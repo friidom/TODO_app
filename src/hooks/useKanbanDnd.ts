@@ -26,10 +26,8 @@ export interface TodoIndicator {
   index: number;
 }
 
-/** Droppable `data.type` values used across the board. */
 export type DropType = "column" | "column-gap" | "todo-gap";
 
-/** How far (px) the pointer may sit outside a column and still target it. */
 const COLUMN_HOVER_DISTANCE = 80;
 
 const EMPTY_INDICATOR: TodoIndicator = { columnId: null, index: 0 };
@@ -84,11 +82,7 @@ function typeOf(container: DroppableContainer) {
   return container.data.current?.type as DropType | undefined;
 }
 
-/**
- * A gap that touches the dragged item is where it already sits — dropping there
- * changes nothing, so we offer no target at all instead of drawing a line
- * around the item itself.
- */
+// a gap touching the dragged item is where it already sits — no point offering that as a target
 function touchesActive(
   hit: { container: DroppableContainer } | null,
   activeId: UniqueIdentifier,
@@ -102,7 +96,6 @@ function centreOf(rect: ClientRect) {
   return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
 }
 
-/** A droppable reduced to what `keyboardDrag` needs, dropping its rect. */
 function toGapRef(container: DroppableContainer): GapRef {
   const data = container.data.current ?? {};
 
@@ -115,21 +108,8 @@ function toGapRef(container: DroppableContainer): GapRef {
   };
 }
 
-/**
- * Where a keyboard drag goes on each arrow press (M9-01).
- *
- * **It answers in coordinates because that is the only language dnd-kit's
- * sensors speak**, but it decides in indices: `keyboardDrag` picks the target
- * gap, and this turns that gap's centre into the translation that puts the
- * dragged item's centre on it. The collision detection below then resolves that
- * position to the same gap through the ordinary distance measurement, so the
- * keyboard and the pointer converge on one code path rather than two — which is
- * what makes "keyboard and pointer produce identical results" true by
- * construction instead of by testing.
- *
- * Returning nothing leaves the drag where it is, which is the right answer for
- * a key with no meaning here and for an edge the drag has already reached.
- */
+// dnd-kit sensors only speak coordinates, so this converts keyboardDrag's chosen gap into a translation —
+// collision detection below then resolves that position back to the same gap, keeping keyboard and pointer on one path
 const keyboardCoordinates: KeyboardCoordinateGetter = (
   event,
   { currentCoordinates, context },
@@ -140,15 +120,13 @@ const keyboardCoordinates: KeyboardCoordinateGetter = (
 
   if (!active || !collisionRect) return;
 
-  // The drag has to stay put rather than scroll the board out from under
-  // itself, which is what an unhandled arrow key would do.
+  // otherwise an unhandled arrow key scrolls the board out from under the drag
   event.preventDefault();
 
   const activeId = String(active.id);
   const containers = droppableContainers.getEnabled();
   const centre = centreOf(collisionRect);
 
-  /** The gap the dragged item is currently over, by measurement. */
   function currentGap(gaps: DroppableContainer[], axis: "x" | "y") {
     let best: DroppableContainer | null = null;
     let bestDistance = Number.POSITIVE_INFINITY;
@@ -176,9 +154,7 @@ const keyboardCoordinates: KeyboardCoordinateGetter = (
 
     const target = centreOf(rect);
 
-    // A translation, not a position: dnd-kit moves the dragged node by the
-    // difference from where the drag began, so what is returned has to be the
-    // current coordinates plus how far the item still has to travel.
+    // a translation, not a position — dnd-kit moves the node by the delta from where the drag began
     return {
       x: currentCoordinates.x + (target.x - centre.x),
       y: currentCoordinates.y + (target.y - centre.y),
@@ -212,9 +188,7 @@ const keyboardCoordinates: KeyboardCoordinateGetter = (
 
   if (!from) return;
 
-  // The columns left to right, taken from the gaps themselves rather than from
-  // the board's state — this runs inside a sensor and has no access to the
-  // ordered column list, and the rects are the truth about what is on screen.
+  // columns left to right, read from the gap rects — this runs inside a sensor with no access to board state
   const columnIds = [
     ...new Map(
       gaps
@@ -244,9 +218,7 @@ export default function useKanbanDnd() {
   const [activeTodo, setActiveTodo] = useState<Todo | null>(null);
   const [activeColumn, setActiveColumn] = useState<IColumn | null>(null);
 
-  /** Gap the todo will be dropped into: `{ columnId, index }`. */
   const [indicator, setIndicator] = useState<TodoIndicator>(EMPTY_INDICATOR);
-  /** Gap the column will be dropped into: index in the ordered column list. */
   const [columnIndicator, setColumnIndicator] = useState<number | null>(null);
 
   const sensors = useSensors(
@@ -255,31 +227,14 @@ export default function useKanbanDnd() {
         distance: 8,
       },
     }),
-    // M9-01. Added alongside the pointer sensor rather than replacing anything:
-    // dnd-kit picks the sensor whose activator fired, so a mouse drag never
-    // reaches this one and nothing about the pointer path changed.
-    //
-    // Space and Enter start and finish the drag, Escape cancels — all three are
-    // dnd-kit's defaults and none of them is worth re-specifying. Only the
-    // arrows needed a board-shaped answer.
+    // Space/Enter/Escape are dnd-kit's defaults; only the arrow keys needed a board-shaped coordinate getter
     useSensor(KeyboardSensor, { coordinateGetter: keyboardCoordinates }),
   );
 
-  /**
-   * Nothing in the board reflows while dragging, so collisions are resolved
-   * purely against the pointer: we look for the gap whose centre is closest to
-   * the cursor instead of waiting for the cursor to land inside it.
-   */
+  // nothing reflows while dragging, so we just find the gap whose centre is nearest the cursor
   const collisionDetection = useCallback<CollisionDetection>(
     ({ active, collisionRect, droppableContainers, pointerCoordinates }) => {
-      // **The keyboard's half of M9-01, and it is one line here because the
-      // work is in `keyboardCoordinates` above.** A keyboard drag has no
-      // cursor, so `pointerCoordinates` is null and this used to return no
-      // collisions at all — the board was pointer-only at exactly this line.
-      // The dragged item's own centre is the honest substitute: the coordinate
-      // getter has already put it on the gap it means to target, so measuring
-      // from it resolves to that gap and both input methods run the same
-      // distance comparison from here down.
+      // no cursor on a keyboard drag — fall back to the dragged item's own centre, which keyboardCoordinates already placed on the target gap
       const point =
         pointerCoordinates ?? (collisionRect && centreOf(collisionRect));
 

@@ -2,10 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { relativeTime } from "./relativeTime";
 
-/** A pinned "now". Every expectation below is relative to this instant. */
 const NOW = Date.parse("2026-08-14T12:00:00.000Z");
 
-/** `ms` before NOW, as the ISO string a row would carry. */
 const ago = (ms: number) => new Date(NOW - ms).toISOString();
 
 const MINUTE = 60_000;
@@ -14,13 +12,10 @@ const DAY = 24 * HOUR;
 
 describe("relativeTime", () => {
   it("says nothing when there is nothing to say", () => {
-    // A board with no work items has no last activity, and the chip that reads
-    // this hides rather than rendering an empty one.
     expect(relativeTime(null, NOW)).toBeNull();
   });
 
   it("refuses a string that is not a time", () => {
-    // Rendering "NaNm ago" is worse than rendering nothing.
     expect(relativeTime("not a date", NOW)).toBeNull();
   });
 
@@ -30,8 +25,7 @@ describe("relativeTime", () => {
   });
 
   it("reads a future timestamp as 'just now' rather than a negative", () => {
-    // Server and browser clocks disagree by seconds. "just now" is the truthful
-    // reading of a few seconds in the future; "-1m ago" is not.
+    // clock skew between server and browser shouldn't ever read as "-1m ago"
     expect(relativeTime(new Date(NOW + 30_000).toISOString(), NOW)).toBe(
       "just now",
     );
@@ -46,7 +40,6 @@ describe("relativeTime", () => {
   });
 
   it("switches unit exactly at the boundary, never one tick early", () => {
-    // The off-by-one that makes a clock read "60m ago" instead of "1h ago".
     expect(relativeTime(ago(HOUR - 1), NOW)).toBe("59m ago");
     expect(relativeTime(ago(HOUR), NOW)).toBe("1h ago");
     expect(relativeTime(ago(DAY - 1), NOW)).toBe("23h ago");
@@ -54,15 +47,11 @@ describe("relativeTime", () => {
   });
 
   it("keeps counting in days rather than inventing weeks", () => {
-    // This labels board activity: past a few days the exact figure stops
-    // mattering, while a wrong unit still reads as a bug.
     expect(relativeTime(ago(90 * DAY), NOW)).toBe("90d ago");
   });
 
   describe("short form", () => {
     it("drops the 'ago' and shortens 'just now'", () => {
-      // For a stamp whose position already says it is an age — the right edge
-      // of an activity row, opposite the sentence it dates.
       expect(relativeTime(ago(0), NOW, { short: true })).toBe("now");
       expect(relativeTime(ago(5 * MINUTE), NOW, { short: true })).toBe("5m");
       expect(relativeTime(ago(5 * HOUR), NOW, { short: true })).toBe("5h");
@@ -70,16 +59,12 @@ describe("relativeTime", () => {
     });
 
     it("picks the same unit at the same boundary as the long form", () => {
-      // Short is a suffix decision, not a rounding one: the two forms must
-      // never disagree about whether something is 59m or 1h old.
       expect(relativeTime(ago(HOUR - 1), NOW, { short: true })).toBe("59m");
       expect(relativeTime(ago(HOUR), NOW, { short: true })).toBe("1h");
       expect(relativeTime(ago(DAY), NOW, { short: true })).toBe("1d");
     });
 
     it("leaves the long form alone when omitted or explicitly off", () => {
-      // The default has to be the existing behaviour: every caller predates the
-      // option and none of them passes it.
       expect(relativeTime(ago(5 * HOUR), NOW)).toBe("5h ago");
       expect(relativeTime(ago(5 * HOUR), NOW, {})).toBe("5h ago");
       expect(relativeTime(ago(5 * HOUR), NOW, { short: false })).toBe("5h ago");

@@ -18,27 +18,13 @@ import { useCompleteSprint } from "@/services/sprints/useSprints";
 import { useTodos } from "@/services/todos/useTodos";
 import type { Sprint } from "@/types/data";
 
-/**
- * "Completed work remains completed; unfinished work moves to another sprint
- * or the Backlog; the sprint becomes Completed; no work is silently lost" —
- * the user's own words for this dialog, and the RPC (`complete_sprint`)
- * enacts exactly that in one transaction. This dialog's only job is to ask
- * the one question the RPC cannot answer by itself: where the unfinished
- * work should go.
- *
- * **Read-only preview, then one confirm.** The counts below are computed
- * from the same cached `todos` array every other view reads — no second
- * query — so what this dialog shows is exactly what `complete_sprint` is
- * about to act on.
- */
+// asks the one thing complete_sprint's transaction can't answer itself: where unfinished work goes
 export default function CompleteSprintModal({
   sprint,
   otherOpenSprints,
   onClose,
 }: {
   sprint: Sprint;
-  /** Every other future/active sprint on the board — the dropdown's
-   * alternative to the Backlog. */
   otherOpenSprints: Sprint[];
   onClose: () => void;
 }) {

@@ -26,7 +26,6 @@ const PILL =
 
 interface Props {
   column: IColumn | null;
-  /** Every other column — the possible new homes for this one's work. */
   destinations: IColumn[];
   onClose: () => void;
 }
@@ -104,9 +103,6 @@ function DeleteColumnDialog({
           {columnTitle(column.title)}&quot; status.
         </p>
 
-        {/* Each side is a labelled cell rather than two rows of a 3x2 grid, so
-            the stacked layout below `sm` reads "from -> to" instead of putting
-            both labels together and both values together. */}
         <div className="grid grid-cols-1 gap-y-4 sm:grid-cols-[1fr_auto_1fr] sm:items-end sm:gap-x-5 sm:gap-y-0">
           <div className="min-w-0">
             <p className="text-ink text-meta mb-2 font-semibold">

@@ -70,8 +70,6 @@ describe("summaryStats", () => {
   });
 
   it("counts an item in no column as todo rather than dropping it", () => {
-    // The invariant the progress bar depends on: the three buckets always sum
-    // to the total, whatever state the column query is in.
     const stats = summaryStats([todo({ column_id: null })], INDEX, TODAY);
 
     expect(stats.total).toBe(1);
@@ -104,8 +102,6 @@ describe("summaryStats", () => {
   });
 
   it("never counts a finished task as overdue", () => {
-    // Otherwise the number only ever grows, and a board that ships late work
-    // looks permanently on fire.
     const stats = summaryStats(
       [todo({ due_date: "2026-01-01", column_id: "c-done" })],
       INDEX,
@@ -222,9 +218,6 @@ describe("recentCounts", () => {
   });
 
   it("does not read a brand-new card as an updated one", () => {
-    // The distinction the whole function turns on: `updated_at` equal to
-    // `created_at` means nobody has touched it, so a week of new cards must not
-    // also read as a week of edits.
     const counts = recentCounts(
       [
         todo({
@@ -333,8 +326,6 @@ describe("dueSoonItems", () => {
   });
 
   it("keeps overdue items whatever the window is", () => {
-    // Three weeks late is more urgent than Friday. A "due soon" panel that
-    // dropped it would be the one place a late task is invisible.
     const items = dueSoonItems(
       [todo({ due_date: "2026-07-20T00:00:00Z" })],
       INDEX,
@@ -350,8 +341,8 @@ describe("dueSoonItems", () => {
   it("drops anything past the horizon", () => {
     const items = dueSoonItems(
       [
-        todo({ due_date: "2026-08-22T00:00:00Z" }), // exactly on it
-        todo({ due_date: "2026-08-23T00:00:00Z" }), // past it
+        todo({ due_date: "2026-08-22T00:00:00Z" }),
+        todo({ due_date: "2026-08-23T00:00:00Z" }),
       ],
       INDEX,
       TODAY,
@@ -472,8 +463,6 @@ describe("typeDistribution", () => {
   it("lists every type even at zero", () => {
     const slices = typeDistribution([]);
 
-    // Epic is a work type like any other (M28-A), so it gets its own bar —
-    // at zero, same as every other type with no cards yet.
     expect(slices.map((slice) => slice.key)).toEqual([
       "Task",
       "Bug",
@@ -491,8 +480,7 @@ describe("typeDistribution", () => {
     ]);
 
     expect(slices.find((slice) => slice.key === "Bug")?.count).toBe(2);
-    // 'Chore' does not exist in this product; `toWorkType` resolves it to
-    // the default rather than inventing a new bar.
+    // "Chore" isn't a real type — toWorkType resolves it to the default
     expect(slices.find((slice) => slice.key === "Task")?.count).toBe(1);
   });
 });

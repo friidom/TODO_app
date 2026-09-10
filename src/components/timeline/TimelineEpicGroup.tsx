@@ -11,47 +11,8 @@ import { cn } from "@/utils/cn";
 import { taskKey } from "@/utils/taskKey";
 import TimelineRow, { Row, RowRail } from "./TimelineRow";
 
-/**
- * One Epic, its Tasks, and the affordance to add another (M28-B).
- *
- * **The header row reuses `TimelineRow` for its bar, not a second bar
- * implementation.** An Epic with its own explicit dates is placed and drawn
- * exactly like a Task — `TimelineRow` does not know or care that `item.todo`
- * is an Epic, only that it has a placement. The one thing that differs is the
- * rail beside it (a chevron and a progress badge instead of a priority icon),
- * which is `TimelineRow`'s `rail` override, added for exactly this.
- *
- * **A rolled-up range is drawn, not written.** When the Epic has no dates of
- * its own, `group.isDerived` says so, and this component passes
- * `interactive={false}` for that one bar regardless of the view's own
- * permission — there is no explicit date to move without inventing one, so
- * the bar opens the Epic on click (every `TimelineBar` always does) but shows
- * no resize handles, no grab cursor, and does not drag. No second visual style
- * beyond that: the shape, colour and progress fill are the same rendering the
- * rest of the axis uses — the interaction difference alone is the signal.
- *
- * **A bare Epic — no dates anywhere, `group.place` and `group.item` both
- * null — still gets a row.** It is a container first; "nothing scheduled
- * yet" is not the same fact as "does not exist", and the header alone is
- * enough to hold its place in the list.
- *
- * **No "+ Create task" row of its own (M31-B removed it).** Every Task on
- * this Timeline still gets here the same way — `parent_id` naming this
- * Epic — but the row that let you draw one directly under a group is gone;
- * "+ Create epic" (`TimelineGrid`'s own, the Timeline's one remaining create
- * affordance) is the only sweep-to-create gesture left. Tasks are still
- * planned the ordinary way, from the Task's own detail panel or the Board.
- *
- * **A Sprint-bound Task's bar is withheld the same way a derived Epic's is,
- * for the same reason.** `placed.tasks[].sprintBound` (`timelineHierarchy.ts`)
- * says whether this Task's displayed range came from its Sprint rather than
- * its own dates — when it did, `interactive` is forced off for that one row
- * exactly as `!group.isDerived` forces it off for the Epic's own rolled-up
- * bar above: there is a real, stored range to show, but dragging it would
- * either silently write dates that disagree with the Sprint or do nothing at
- * all, and neither is a defensible drag. The bar still opens the Task on
- * click.
- */
+// reuses TimelineRow for the epic's own bar — it doesn't care that item.todo is an epic, just that it has a placement.
+// a derived (rolled-up) range is drawn but not draggable, same for a sprint-bound task's range — neither is a real value to write back.
 export default function TimelineEpicGroup({
   placed,
   ticks,
@@ -80,9 +41,6 @@ export default function TimelineEpicGroup({
   progress: SubtaskProgress;
   collapsed: boolean;
   onToggleCollapse: () => void;
-  /** The whole shared gesture draft — this group reads only the entries whose
-   * key names one of its own rows, the same way `TimelineGrid` already does
-   * for the top-level ones. */
   draft: { key: string; range: DayRange } | null;
   dragging: boolean;
   onOpenTask: (id: string) => void;
@@ -120,9 +78,6 @@ export default function TimelineEpicGroup({
           keyPrefix={keyPrefix}
           locale={locale}
           today={today}
-          // A derived range is a summary, not a stored fact — nothing to
-          // drag it onto without inventing dates the Epic never received.
-          // See the module doc above.
           interactive={interactive && !group.isDerived}
           dragging={epicDragging}
           onOpenTask={onOpenTask}
@@ -156,7 +111,6 @@ export default function TimelineEpicGroup({
               keyPrefix={keyPrefix}
               locale={locale}
               today={today}
-              // Withheld for a Sprint-bound row — see this file's own doc.
               interactive={interactive && !sprintBound}
               dragging={active && dragging}
               onOpenTask={onOpenTask}
@@ -176,16 +130,7 @@ export default function TimelineEpicGroup({
   );
 }
 
-/**
- * The Epic header's own rail: a chevron in place of nothing, the ordinary
- * type icon and key, and a progress badge in place of the priority icon
- * `RowRail` shows there instead.
- *
- * A `<div>`, not a `<button>` like `RowRail` — this rail holds two separate
- * targets (the toggle, the open-task title) rather than one, the same reason
- * `EpicTasksSection`'s own header is a `<div>` around two controls instead of
- * a single clickable row.
- */
+// a div, not a button like RowRail — this holds two separate click targets (toggle, open task)
 function EpicRail({
   epic,
   keyPrefix,
@@ -199,7 +144,6 @@ function EpicRail({
   onOpen: () => void;
   progress: SubtaskProgress;
   collapsed: boolean;
-  /** Null when the Epic has no Tasks at all — nothing to expand or collapse. */
   onToggleCollapse: (() => void) | null;
 }) {
   const type = workTypeOf(epic.type);

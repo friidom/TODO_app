@@ -42,7 +42,6 @@ describe("sprintPoints", () => {
   });
 
   it("does not treat an unestimated item as zero points", () => {
-    // The M24 rule this rollup must not silently violate.
     const items = [todo({ estimate: 3 }), todo({ estimate: null })];
 
     const result = sprintPoints(items, COLUMNS);

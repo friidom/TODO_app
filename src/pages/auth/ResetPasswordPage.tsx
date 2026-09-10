@@ -14,27 +14,9 @@ import {
   type AuthFieldErrors,
 } from "@/utils/validation";
 
-/**
- * Step two: set the new password (M22).
- *
- * **Routed outside both guards, and that is load-bearing.** A Supabase recovery
- * link does not carry a token for this page to redeem — it *signs the user in*,
- * exchanging the URL fragment for a real session before any of this renders. So
- * `PublicRoute` would see a session and redirect to `/` before the form could
- * be used, and `ProtectedRoute` would be no better if the exchange had not
- * finished yet. `/invite/:token` sits outside both for the same kind of reason.
- *
- * **Why the session is awaited rather than read once.** The exchange is
- * asynchronous and races this component's first render: `getSession()` can
- * legitimately answer null a tick before the recovery session lands. Reading it
- * once and rendering "link expired" on null would show that message to
- * everybody, every time, on a link that is perfectly good. So this waits for
- * either — `PASSWORD_RECOVERY`/`SIGNED_IN` from the subscription, or a session
- * that is already there — and only calls the link dead once neither has
- * appeared.
- */
+// Routed outside PublicRoute and ProtectedRoute on purpose: the recovery link signs the user in via URL fragment exchange,
+// which races this component's mount — PublicRoute would redirect away on the resulting session, ProtectedRoute would 404 before it lands.
 
-/** How long to wait for the recovery session before calling the link dead. */
 const RECOVERY_TIMEOUT_MS = 4000;
 
 type Status = "checking" | "ready" | "invalid";
@@ -58,16 +40,11 @@ export default function ResetPasswordPage() {
       setStatus("ready");
     };
 
-    // The event, for the ordinary case where the exchange completes after this
-    // component mounts. `PASSWORD_RECOVERY` is what a recovery link fires;
-    // `SIGNED_IN` covers the versions and flows that report it that way.
     const { data: subscription } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") ready();
     });
 
-    // And the poll-free fallback for the case where it completed *before* we
-    // subscribed — a full page load on a slow render, or a revisit with the
-    // session already in storage.
+    // fallback for when the exchange finished before we subscribed
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) ready();
     });

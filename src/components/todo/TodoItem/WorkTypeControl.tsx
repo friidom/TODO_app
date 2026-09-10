@@ -10,19 +10,7 @@ import {
 } from "@/constants/workTypes";
 import { cn } from "@/utils/cn";
 
-/**
- * The card's work type: a compact coloured chip that opens a four-item menu.
- *
- * Controlled, like `DueDateControl` and `AssigneeControl` — it reports the
- * chosen type through `onChange` and never writes. That is what lets the card
- * and the create form share one implementation: on a card the parent patches
- * through `updateTodo`, and in the create form the parent holds it in state
- * until the card is submitted.
- *
- * The chip is icon-only on the card. The label would double the width of the
- * densest row on the board for something the colour and icon already say, and
- * it is on the trigger's `aria-label` and `title` for anyone who needs it.
- */
+// controlled, like the other card popovers — reports the chosen type and never writes itself
 export default function WorkTypeControl({
   value,
   onChange,
@@ -31,17 +19,8 @@ export default function WorkTypeControl({
 }: {
   value: string | null;
   onChange: (value: WorkType) => void;
-  /** The create form has room for the word; the card does not. */
   showLabel?: boolean;
-  /**
-   * The tinted background off, leaving a coloured icon.
-   *
-   * **For the list, where the type is the quietest thing in the row.** A card is
-   * a surface with room for a chip; a list row is a line of text, and a filled
-   * badge at the start of it competes with the summary it is supposed to be
-   * labelling. The colour still carries the type — it is the box around it that
-   * the row does not need.
-   */
+  // no tinted background, just the coloured icon — for the list row, where a filled badge is too loud
   bare?: boolean;
 }) {
   const { mounted, close, triggerProps, panelProps } = useCardPopover();

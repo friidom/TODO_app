@@ -16,18 +16,7 @@ import {
 } from "@/components/ui/dialogChrome";
 import { FIELD_INPUT } from "@/components/ui/fieldInput";
 
-/**
- * Delete a board, behind a typed confirmation (M8-03).
- *
- * **The typed name is a mistake-guard, not a permission.** M2-01's DELETE
- * policy is `owner_id = auth.uid()`, so a non-owner is refused whether or not
- * this modal is reached; what this prevents is deleting the wrong board out of
- * a list of similar names.
- *
- * The warning is specific about the blast radius on purpose. A board deletion
- * cascades to its columns, its work items, its memberships and its invitations
- * — for **every** member, not only the owner pressing the button.
- */
+// typed confirmation is a mistake-guard, not a permission check — the db's owner_id policy is what actually enforces it
 export default function DeleteBoardModal({
   board,
   onClose,
@@ -53,9 +42,7 @@ export default function DeleteBoardModal({
       onSuccess: () => {
         onClose();
 
-        // Only when the board being deleted is the one on screen. Deleting
-        // another board from the sidebar should leave you where you are; `/`
-        // re-picks a board, and renders the empty state if none is left.
+        // only redirect if the deleted board is the one on screen
         if (boardId === board.id) navigate("/", { replace: true });
       },
     });

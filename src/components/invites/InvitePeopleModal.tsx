@@ -29,24 +29,7 @@ import type {
 } from "@/services/invites/invitesApi";
 import { useBoardId } from "@/hooks/useBoardId";
 
-/**
- * "Invite people" — generate a link, copy it, see and revoke the pending ones.
- *
- * The modal shell is `DeleteColumnModal`'s: a dimmed backdrop that closes on a
- * click outside, a centred card, Escape to close. Same object as the rest of
- * the app rather than a new dialog vocabulary.
- *
- * **What it does not do: send email.** The address field is present and
- * disabled, because v1 is link invites only (docs/IMPLEMENTATION_PLAN.md, M4)
- * — `board_invites.email` exists so email invites are additive later. An
- * enabled field that quietly did nothing would be worse than an obviously
- * disabled one.
- *
- * The role selector is UX, not enforcement. Every rule it expresses is
- * enforced again in `create_invite`: an admin cannot invite an admin, and
- * nobody can invite an owner. Disabling the option is how the UI explains a
- * refusal it already knows is coming.
- */
+// link invites only for now — no email sending, the role selector is UX only (create_invite enforces the real rule)
 export default function InvitePeopleModal({
   open,
   onClose,
@@ -54,10 +37,7 @@ export default function InvitePeopleModal({
   open: boolean;
   onClose: () => void;
 }) {
-  // The dialog lives in its own component so closing UNMOUNTS it. That resets
-  // the role, the expiry and — the one that matters — the generated link, with
-  // no effect syncing state to the `open` prop. Reopening should not offer the
-  // link from last time as if it were fresh.
+  // own component so closing unmounts it and resets state — reopening shouldn't offer last time's link as fresh
   if (!open) return null;
 
   return <InviteDialog onClose={onClose} />;
@@ -72,14 +52,12 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
   const [role, setRole] = useState<InviteRole>(DEFAULT_INVITE_ROLE);
   const [days, setDays] = useState(DEFAULT_EXPIRY_DAYS);
   const [created, setCreated] = useState<CreatedInvite | null>(null);
-  /** Who the invite is for, or null for a shareable link (M4-08). */
   const [invitee, setInvitee] = useState<Invitee | null>(null);
 
   const createInvite = useCreateInvite();
 
   useEffect(() => {
     function handleEscape(e: KeyboardEvent) {
-      // The dropdowns handle Escape first when one is open.
       if (e.key === "Escape" && !e.defaultPrevented) onClose();
     }
 
@@ -94,14 +72,10 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
     if (!boardId) return;
 
     createInvite.mutate(
-      // `email: null` is the link invite, unchanged: the RPC skips its whole
-      // addressee block, so this path is exactly what M4-02 shipped.
       { boardId, role, expiresInDays: days, email: invitee?.email ?? null },
       {
         onSuccess: (created) => {
           setCreated(created);
-          // The person is now invited, so the field should not still be
-          // holding them as if they were about to be.
           setInvitee(null);
         },
       },
@@ -147,9 +121,6 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
           role you choose.
         </p>
 
-        {/* M4-08 stage 1. The field searches registered users and nothing else:
-            an address with no account behind it is stage 2's problem, and the
-            empty state says so rather than accepting input that would fail. */}
         <label className="text-ink mb-1.5 block text-sm font-medium">
           Names or emails
         </label>
@@ -182,9 +153,6 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
                   onValueChange={(next) => setRole(next as InviteRole)}
                 >
                   {INVITE_ROLE_OPTIONS.map((option) => {
-                    // An admin inviting an admin is refused by create_invite's
-                    // strictly-below-own-rank rule. Say so here rather than
-                    // letting the request fail with a permission error.
                     const blocked =
                       option.value === "admin" && !canInviteAdmins;
 
@@ -283,7 +251,6 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-/** The link that was just minted, ready to copy. */
 function CreatedLink({ invite }: { invite: CreatedInvite }) {
   return (
     <div className="border-brand/30 bg-brand-soft/40 mb-4 rounded-lg border p-3">
@@ -293,8 +260,7 @@ function CreatedLink({ invite }: { invite: CreatedInvite }) {
       </p>
 
       <div className="flex items-center gap-2">
-        {/* Read-only rather than disabled: the text must stay selectable so
-            there is a manual path when the clipboard API is unavailable. */}
+        {/* readOnly, not disabled — stays selectable as a fallback when clipboard API isn't available */}
         <input
           readOnly
           value={inviteUrl(invite.token, window.location.origin)}
@@ -315,12 +281,7 @@ function CreatedLink({ invite }: { invite: CreatedInvite }) {
   );
 }
 
-/**
- * Every link on this board that can still be used.
- *
- * Accepted and expired invites are filtered out in the query (M4-07), so this
- * list is exactly the set of things "copy" and "revoke" make sense for.
- */
+// accepted/expired invites are filtered out in the query already
 function PendingInvites({
   boardId,
   canInvite,

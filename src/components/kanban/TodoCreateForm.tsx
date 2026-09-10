@@ -6,14 +6,9 @@ import DueDateControl from "@/components/todo/TodoItem/DueDateControl";
 import WorkTypeControl from "@/components/todo/TodoItem/WorkTypeControl";
 import { DEFAULT_WORK_TYPE, type WorkType } from "@/constants/workTypes";
 
-/** Card shell — shared so the skeleton and the form are the same box. */
-// `rounded-card`, not `rounded-xl`: this box sits in the column between real
-// cards, and at `rounded-xl` (14px against their 10px) it was visibly a
-// different shape from its neighbours.
 const CARD =
   "mb-2 rounded-card border-2 border-brand bg-elevated px-2.5 py-2 shadow-e1";
 
-/** What the form collected besides the title. */
 export interface CreateDraft {
   assignee_id: string | null;
   due_date: string | null;
@@ -25,37 +20,12 @@ interface Props {
   onChange: (value: string) => void;
   onSubmit: (draft: CreateDraft) => void;
   onCancel: () => void;
-  /** The board whose roster the assignee picker offers. */
   boardId: string;
-  /** Play the loading skeleton before showing the controls. */
   skeleton?: boolean;
   ref?: RefObject<HTMLDivElement | null>;
 }
 
-/**
- * The inline "new work item" card. Rendered either at the bottom of a column
- * (the Create button) or in the gap the user clicked.
- *
- * On open it shows a skeleton for a beat so the card lands in place before the
- * caret does — the blocks are sized to the real controls, so nothing shifts.
- * Submitting moves the card down a slot, which remounts it; the parent drops
- * `skeleton` by then so a fast typist never loses the input mid-run.
- *
- * **The assignee and due-date controls are the same components the card uses.**
- * They are controlled, so here their values live in this form's state until
- * submit rather than being patched onto a row that does not exist yet. That
- * remount on submit is also what clears the draft: the next card starts empty
- * without anything having to reset it.
- *
- * The work-type control replaced two inert buttons that stood for a type the
- * schema had no column for. It now writes `todos.type`, added in
- * 20260812090000_todos_work_type.sql, and opens on Task — the same default the
- * column carries, so submitting without touching it stores what the database
- * would have stored anyway.
- *
- * There is no status control here: status is which column a card is in, and
- * this form is already inside one.
- */
+// no status control — status is which column a card is in, and this form is already inside one
 export default function TodoCreateForm({
   value,
   onChange,
@@ -117,11 +87,6 @@ export default function TodoCreateForm({
         className="text-ink placeholder:text-ink-3 w-full bg-transparent text-sm outline-none"
       />
 
-      {/* `mt-2.5`, matching the skeleton above exactly. It was `mt-8` against
-          the skeleton's `mt-3` — 32px of dead air under the caret, sized to
-          cancel out an `h-10` placeholder standing in for a 20px input. The two
-          errors summed to the same total height, so the swap did not visibly
-          jump; both are gone rather than balanced. */}
       <div className="mt-2.5 flex items-center gap-1">
         <WorkTypeControl value={type} onChange={setType} showLabel />
 

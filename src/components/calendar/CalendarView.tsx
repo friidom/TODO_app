@@ -35,34 +35,8 @@ import CalendarGrid from "./CalendarGrid";
 import CalendarNav from "./CalendarNav";
 import UndatedStrip from "./UndatedStrip";
 
-/**
- * The board's work placed on dates (M19).
- *
- * **A renderer over M16's pipeline, and nothing more.** It reads the same
- * `useVisibleTodos()` the Kanban and the list read, so the filter and the search
- * are not merely consistent between the three views — they are the same
- * computation, over the same cache entry, with no second query and no second
- * model. Flipping to the calendar changes one search param.
- *
- * The sort is deliberately not honoured, and the registry says so
- * (`canSort: false`): dates *are* this view's order. Grouping is off for the
- * same kind of reason — the date grouping is the layout, and a second one would
- * mean either swimlanes of calendars or a calendar quietly showing one person's
- * work.
- *
- * **Its own `DndContext`, not the board's.** `useKanbanDnd` exists to answer
- * "which gap between which two cards", with a custom `collisionDetection` that
- * measures gaps and paints an indicator. A calendar drop answers "which day" —
- * big rectangles, no internal order — so `closestCenter` over the day cells is
- * the whole of it. Reusing the board's hook would mean bending a gap-finder
- * around a question that has no gaps, and touching a file M19 is told not to
- * change.
- *
- * **The write is `updateTodo`, the one every field control already uses.** See
- * `useCalendarDrop` — the milestone rules out a second mutation and a second
- * optimistic layer, so a drop here is the same write as picking a date from the
- * card's popover.
- */
+// same useVisibleTodos() pipeline as Kanban/List — no second query, no second model, just a different render.
+// its own DndContext with closestCenter, not the board's useKanbanDnd — a day-cell drop has no gaps to measure.
 export default function CalendarView() {
   const boardId = useBoardId();
   const view = useBoardView();
@@ -76,14 +50,7 @@ export default function CalendarView() {
   const keyPrefix = useKeyPrefix();
   const drop = useCalendarDrop();
 
-  /**
-   * Whether the undated strip is open.
-   *
-   * Client-only state, not a search param — the same call `KanbanBoard` makes
-   * for which columns are collapsed. A panel being open is a property of this
-   * tab in this browser, not of the view worth putting in a shared link, and
-   * `useCalendarView`'s two params are the ones that are.
-   */
+  // client-only, not a search param — not worth putting in a shared link
   const [stripCollapsed, setStripCollapsed] = useState(false);
 
   const [dragging, setDragging] = useState<Todo | null>(null);
@@ -103,18 +70,12 @@ export default function CalendarView() {
     [members],
   );
 
-  // The strip counts as "shown" even collapsed: collapsing it does not hide
-  // the work, and the collapsed rail keeps reporting the count.
   const offscreen = useMemo(
     () => offscreenCount(todos, days, true),
     [todos, days],
   );
 
   const sensors = useSensors(
-    // 8px, matching the board exactly. A chip is also a click target — it opens
-    // the task modal — so the threshold is what separates "I tapped this" from
-    // "I am moving this", and having two answers to that in one product would
-    // make the calendar feel like a different application.
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   );
 
@@ -131,9 +92,7 @@ export default function CalendarView() {
 
     if (!todo) return;
 
-    // `day` is a string on a day cell and null on the undated strip, which is
-    // what makes clearing a date the same code path as setting one. `undefined`
-    // means the drop landed on something that is not a date target at all.
+    // string on a day cell, null on the undated strip (clears the date), undefined if it's not a date target at all
     const day = over.data.current?.day as string | null | undefined;
 
     if (day === undefined) return;
@@ -154,9 +113,6 @@ export default function CalendarView() {
       onDragCancel={() => setDragging(null)}
     >
       <div className="flex h-full min-h-0 flex-col">
-        {/* No drag hint: the calendar's drag is never disabled by a sort or a
-            grouping, because it does not honour either. The empty-filter case
-            is real here as everywhere. */}
         <ViewNotice view={view} visibleCount={todos.length} />
 
         <CalendarNav
@@ -176,15 +132,7 @@ export default function CalendarView() {
             memberById={memberById}
             canEdit={canEditTodos}
             onOpenTask={openTask}
-            // "+N more" switches to the week holding that day rather than
-            // opening a popover. A popover would be a fourth surface that lists
-            // work items, with its own scroll and its own empty state; the week
-            // layout already exists, already shows a whole day, and is a place
-            // you can keep working from.
-            //
-            // One action rather than an anchor write plus a layout write: two
-            // param writes in one handler both build on the render's params,
-            // so the second wins. `useCalendarView` carries the mechanism.
+            // "+N more" jumps to the week view instead of opening a popover — no second surface to build
             onOpenDay={calendar.openDay}
             locale={i18n.language}
           />
@@ -201,10 +149,6 @@ export default function CalendarView() {
         </div>
       </div>
 
-      {/* The travelling copy. Nothing in the grid reflows during a drag — the
-          original stays in place at reduced opacity — which is the same
-          interaction model the board uses and the reason a drop never lands
-          somewhere the layout moved to. */}
       <DragOverlay dropAnimation={null}>
         {dragging && (
           <div className="w-44">

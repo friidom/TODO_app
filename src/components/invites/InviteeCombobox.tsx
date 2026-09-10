@@ -5,24 +5,7 @@ import { useInviteeSearch } from "@/services/invites/useInviteeSearch";
 import type { Invitee } from "@/services/invites/invitesApi";
 import { cn } from "@/utils/cn";
 
-/**
- * The invite field's autocomplete over registered users (M4-08 stage 1).
- *
- * **A combobox rather than a select**, because the list is a search result and
- * not a set of options: it is server-filtered, it is capped at eight rows, and
- * it is empty until two characters have been typed. A `<select>` would have to
- * hold every account in the product to offer the same choice.
- *
- * The selected person is rendered as a chip *in place of* the input rather than
- * as text inside it. An address sitting in an editable field looks like
- * something you are still typing; a chip with a remove button says the choice
- * has been made and how to undo it.
- *
- * Stage 1 offers registered users only, so "no users found" is a terminal
- * answer here. Stage 2 is where that state grows an "invite anyway" action for
- * an address with no account behind it, which is why the empty state is its own
- * branch rather than a bare message.
- */
+// Registered users only for now, so "no users found" is terminal here — no "invite anyway" fallback yet.
 export default function InviteeCombobox({
   boardId,
   value,
@@ -36,7 +19,7 @@ export default function InviteeCombobox({
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
-  /** Which row the arrow keys are on. -1 is "none", not "the first". */
+  // -1 means "none", not "the first"
   const [active, setActive] = useState(-1);
 
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -50,9 +33,7 @@ export default function InviteeCombobox({
     tooShort,
   } = useInviteeSearch(boardId, query);
 
-  // A shorter result set can strand the highlight past the end. Clamped here
-  // rather than reset from an effect: the effect would set state during render's
-  // aftermath purely to compute something render already knows.
+  // clamped here rather than an effect — a shorter result set can strand the highlight past the end
   const activeIndex = active < results.length ? active : -1;
 
   useEffect(() => {
@@ -77,14 +58,10 @@ export default function InviteeCombobox({
   function clear() {
     onChange(null);
     setQuery("");
-    // Focus returns to the field, so removing the wrong person and picking
-    // again is one motion rather than a click and a hunt for the caret.
     requestAnimationFrame(() => inputRef.current?.focus());
   }
 
   function onKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
-    // Backspace on an empty field removes the chip — the behaviour every
-    // token field has, and the reason the chip needs no click to undo.
     if (event.key === "Backspace" && query === "" && value) {
       event.preventDefault();
       clear();
@@ -106,17 +83,13 @@ export default function InviteeCombobox({
     }
 
     if (event.key === "Enter" && activeIndex >= 0) {
-      // Only when a row is highlighted: otherwise Enter belongs to the form,
-      // which is how someone who typed a full address and never touched the
-      // arrows still submits.
       event.preventDefault();
       select(results[activeIndex]);
       return;
     }
 
     if (event.key === "Escape") {
-      // Marked handled so the dialog's own Escape listener does not also fire
-      // and close the whole modal out from under a dropdown.
+      // stop it bubbling to the dialog's Escape handler, or it closes the whole modal
       event.preventDefault();
       setOpen(false);
     }
@@ -247,7 +220,6 @@ export default function InviteeCombobox({
   );
 }
 
-/** `full_name`, else `username`, else the address — all three are nullable. */
 function displayName(invitee: Invitee) {
   return invitee.full_name || invitee.username || invitee.email || "Unnamed";
 }

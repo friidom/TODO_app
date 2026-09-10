@@ -10,16 +10,7 @@ import {
 
 describe("view registry", () => {
   it("ONLY VIEWS WITH THEIR OWN FRACTIONAL-RANK FIELD MAY REORDER", () => {
-    // Not a style rule. `todos.position`/`rank` is one field, and two views
-    // renumbering it from two stale snapshots would silently lose one of
-    // them — the entire reason the fractional-rank migration (M6-A) exists.
-    //
-    // Board and Backlog are both `true` here, and that is not a regression
-    // of the guard: they order two separate fields (`rank` and
-    // `backlog_rank`), so neither can renumber the other's from a stale
-    // snapshot. If this fails because a *third* view starts reordering,
-    // check first whether it has its own rank field the way Backlog does —
-    // if not, the fix is a new one, not a larger array here.
+    // board and backlog each write a separate field (rank vs backlog_rank) — a third reordering view needs its own field too, not just a spot in this array
     expect(reorderingViews()).toEqual(["board", "backlog"]);
   });
 
@@ -37,8 +28,6 @@ describe("view registry", () => {
     expect(isViewMode("calendar")).toBe(true);
     expect(isViewMode("timeline")).toBe(true);
     expect(isViewMode("backlog")).toBe(true);
-    // Not a view. The tab row is driven by this array, so a name that is not
-    // in it cannot be reached by hand-editing `?view=` either.
     expect(isViewMode("gantt")).toBe(false);
     expect(isViewMode(undefined)).toBe(false);
   });
@@ -47,27 +36,13 @@ describe("view registry", () => {
     expect(capabilitiesOf("board").canReorder).toBe(true);
     expect(capabilitiesOf("list").canReorder).toBe(false);
     expect(capabilitiesOf("summary").canReorder).toBe(false);
-    // The calendar drags, and still does not reorder. `canReorder` means
-    // "writes todos.position", not "has drag and drop" — a calendar drop
-    // writes due_date through the ordinary update path.
+    // canReorder means "writes todos.position", not "has drag and drop" — calendar/timeline drags write dates instead
     expect(capabilitiesOf("calendar").canReorder).toBe(false);
-    // The timeline drags as of M20-B — a bar moves, its ends resize, and a
-    // sweep across empty track creates — and it still does not reorder, for
-    // the same reason the calendar does not: every one of those gestures
-    // writes `start_date`/`due_date` and none writes `position`. Its row order
-    // is derived from the dates at render, so there is no stored order for a
-    // drag to disagree with.
     expect(capabilitiesOf("timeline").canReorder).toBe(false);
-    // The Backlog view reorders since M31-C, writing its own `backlog_rank`
-    // — a separate field from the Board's `rank`, so this is not the two
-    // views-one-field hazard the guard above exists to catch.
     expect(capabilitiesOf("backlog").canReorder).toBe(true);
   });
 
   it("lets neither date view group nor sort, because time is their axis", () => {
-    // Same gate Summary uses: `ViewToolbar` reads these two flags, so a view
-    // whose order is the date axis does not offer a sort that cannot reorder
-    // it, and a view whose layout IS a grouping does not offer a second one.
     for (const mode of ["calendar", "timeline"] as const) {
       expect(capabilitiesOf(mode).canGroup).toBe(false);
       expect(capabilitiesOf(mode).canSort).toBe(false);
@@ -80,9 +55,6 @@ describe("view registry", () => {
   });
 
   it("lets both work-item views group and sort", () => {
-    // Board and List have shown the same filter, sort and grouping since they
-    // shipped. The registry has to keep saying so, or one of them would start
-    // hiding a control the other offers.
     for (const mode of ["board", "list"] as const) {
       expect(capabilitiesOf(mode).canGroup).toBe(true);
       expect(capabilitiesOf(mode).canSort).toBe(true);
@@ -90,10 +62,6 @@ describe("view registry", () => {
   });
 
   it("lets Summary do neither, which is what hides its two dead controls", () => {
-    // `ViewToolbar` gates Group and Sort on exactly these flags. If Summary
-    // ever reports true here, two controls that change nothing reappear above
-    // a dashboard — which is the state the registry exists to make impossible
-    // to reach by accident.
     expect(capabilitiesOf("summary").canGroup).toBe(false);
     expect(capabilitiesOf("summary").canSort).toBe(false);
   });

@@ -1,10 +1,5 @@
 import { Link, isRouteErrorResponse, useRouteError } from "react-router";
 
-/**
- * The router's last line of defence: a throw that escaped every ErrorBoundary,
- * or a routing failure. Reached only when a whole page has already failed, so
- * it links out rather than offering a retry that would re-run the same render.
- */
 export default function RouteErrorPage() {
   const error = useRouteError();
 

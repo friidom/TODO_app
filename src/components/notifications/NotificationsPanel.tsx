@@ -31,19 +31,7 @@ import {
 import { cn } from "@/utils/cn";
 import { relativeTime } from "@/utils/relativeTime";
 
-/**
- * The inbox itself (M22).
- *
- * **A panel anchored to the bell, not a page.** Notifications are read in
- * passing — you glance, you open the one that matters, you carry on — and a
- * route would mean leaving whatever you were doing to check whether anything
- * had happened. It is the same argument `useOpenTask` makes for the task detail
- * being a modal over the board rather than a page.
- *
- * **Clicking a row marks it read and navigates in one gesture.** Making "mark
- * read" a separate deliberate act is how inboxes end up with a permanent unread
- * badge nobody can clear; you have read it, you are looking at it.
- */
+// clicking a row marks it read and navigates in one gesture — a separate "mark read" step is how badges get stuck forever
 export default function NotificationsPanel({
   onClose,
 }: {
@@ -55,15 +43,6 @@ export default function NotificationsPanel({
   const { data: notifications = [], isLoading, error } = useNotifications();
   const markRead = useMarkRead();
 
-  /**
-   * The invitations that are still pending, keyed by invite id.
-   *
-   * `notifications.entity_id` is the invite's id; `my_pending_invites` returns
-   * the token the accept/decline RPCs take. This map is the join between them,
-   * and it is the single source of "is this still actionable" — an invitation
-   * that has been accepted, declined, revoked or expired is simply absent from
-   * the RPC's result, so no per-row expiry check is needed here.
-   */
   const { data: pendingInvites = [], isPending: invitesPending } =
     useMyInvites();
 
@@ -84,8 +63,6 @@ export default function NotificationsPanel({
 
     const target = notificationTarget(notification);
 
-    // A row whose board or task has since been deleted still renders — it is a
-    // record of something that happened — but it does not pretend to be a link.
     if (target) {
       navigate(target);
       onClose();
@@ -217,9 +194,7 @@ function Row({
   onAccepted,
 }: {
   notification: Notification;
-  /** Present only for an invitation that can still be acted on. */
   invite: MyInvite | null;
-  /** The pending list has not answered yet, so `invite: null` means nothing. */
   invitesPending: boolean;
   onOpen: () => void;
   onAccepted: (boardId: string) => void;
@@ -251,9 +226,6 @@ function Row({
           <span
             className={cn(
               "text-meta block leading-snug",
-              // Weight rather than colour carries unread: a coloured row would
-              // compete with the type chip beside it, and dimming read rows
-              // makes a caught-up inbox look broken.
               unread ? "text-ink font-medium" : "text-ink-2",
             )}
           >
@@ -265,8 +237,6 @@ function Row({
           </span>
         </span>
 
-        {/* The unread dot, and the only thing in the row that is purely state.
-            Kept out of the text flow so a long title cannot push it off. */}
         {unread && (
           <span
             aria-label="Unread"
@@ -275,11 +245,7 @@ function Row({
         )}
       </button>
 
-      {/* OUTSIDE the button, because a button inside a button is invalid HTML
-          and the browser's own repair of it drops one of them — the same
-          constraint `FeedRow` works around for its star. Indented to the text
-          column so the actions read as belonging to this row's message rather
-          than to the list. */}
+      {/* outside the button — a button inside a button is invalid HTML and gets repaired away */}
       {notification.type === "invite" && (
         <div className="pr-2 pb-2 pl-[3.375rem]">
           <InviteActions

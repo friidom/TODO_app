@@ -12,12 +12,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {children}
 
       {createPortal(
-        // The live region is mounted whether or not anything is in it: a
-        // screen reader announces content inserted into a region that was
-        // already there, not a region that appears with content in it.
-        //
-        // Above z-50 (the modals) and z-[1000] (the card menu), or a failure
-        // raised while one of those is open would be announced and invisible.
+        // mounted even when empty — a screen reader only announces content added to a region that was already there
+        // z-[1100] to sit above modals (z-50) and the card menu (z-[1000])
         <div
           role="status"
           aria-live="polite"

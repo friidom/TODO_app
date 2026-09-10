@@ -1,17 +1,10 @@
 interface Limits {
-  /** Nullable in the schema; renders as empty rather than the string "null". */
   title: string | null;
   min_limit?: number | null;
   max_limit?: number | null;
 }
 
-/**
- * The warning shown in a column header when its work-item count falls outside
- * the configured limits, or `null` when it is within them.
- *
- * Limits are advisory: this only produces a message, it never blocks a drop.
- * See `limitBreach.check.ts` for the checks.
- */
+// advisory only — this produces a message, it never blocks a drop
 export function limitBreach(column: Limits, count: number) {
   const { title: rawTitle, min_limit, max_limit } = column;
   const title = rawTitle ?? "";

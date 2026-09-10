@@ -1,6 +1,6 @@
 # Implementation Plan
 
-**Status:** Active — M0 → M23 shipped, and the **Jira depth wave** is most of the way through: M24, M25, M27, M28, M29, M30 and M31 are built (2026-08-26 → 2026-08-28). **M26 and M32 are the two committed milestones still unbuilt.** Roadmap set 2026-08-26 (Part IV-C); previous revision 2026-08-14, for Spaces, a shared view model, the product redesign, Overview, Activity, Calendar and Timeline.
+**Status:** Active — M0 → M23 shipped, and the **Jira depth wave** is all but complete: M24, M25, M27, M28, M29, M30 and M31 are built (2026-08-26 → 2026-08-28), and **M32 landed 2026-09-03**. **M26 is the one committed milestone still unbuilt.** Roadmap set 2026-08-26 (Part IV-C); previous revision 2026-08-14, for Spaces, a shared view model, the product redesign, Overview, Activity, Calendar and Timeline.
 **Owner:** Tech Lead
 **Source of truth:** the Architecture Review (2026-08-05) + `docs/ARCHITECTURE.md`, `docs/DATABASE.md`, `docs/FRONTEND.md`, `docs/API.md`, `docs/PRODUCT_SPEC.md`
 **Scope:** takes the codebase from its original state (single-user, user-owned board, broken build) to a collaborative, permissioned, realtime work-management product with Jira-level functional depth and its own product identity.
@@ -12,7 +12,7 @@
 >
 > **Two Board defects were found and fixed during this audit**, both consequences of one inverted assumption in M31 — see that milestone's own note and the risk register. **A third gap was closed:** a sprint could be created but never deleted.
 >
-> **What is still not built:** **M26** (comment improvements) and **M32** (attachments), the two remaining committed milestones. **M10-00** — the drop of the dead `todos.status` / `previous_status` columns — was carried into M27 and did **not** ship with it; it stands alongside **M6-05** (`todos.position`). Neither blocks anything; both are Tier B and both still wait on PH-01.
+> **What is still not built:** **M26** (comment improvements), now the only remaining committed milestone — **M32 (attachments) shipped 2026-09-03**, after this audit was written. **M10-00** — the drop of the dead `todos.status` / `previous_status` columns — was carried into M27 and did **not** ship with it; it stands alongside **M6-05** (`todos.position`). Neither blocks anything; both are Tier B and both still wait on PH-01.
 >
 > **Honest partials, not claimed as done.** M24 shipped its control and its rollups but **not the `estimate` sort key** its own acceptance criteria named. M31 shipped four of its five candidates; dependency arrows still wait on `work_item_links` (M33), exactly as that row predicted.
 >
@@ -325,6 +325,27 @@ Decided at M7-01, 2026-08-18, resolving the open question this section carried f
 
 Read as a single rule: **a comment belongs to its author, and the only power anyone else has over it is to remove it.** Nobody edits another person's text — an admin who could would make the attribution a lie, which is worse than deleting it. Editing is narrowed to the text itself by a column-level `grant update (content)`, because a row-level policy cannot say which columns a permitted update may touch.
 
+### Attachment matrix
+
+Decided at M32, 2026-09-03, resolving the half of that milestone's *who may* question it left open. **Attachments are content, and this is deliberately not the comment matrix above.**
+
+| Capability | viewer | editor | admin | owner |
+|---|:---:|:---:|:---:|:---:|
+| Read the list, and download any file on a board they belong to | ✅ | ✅ | ✅ | ✅ |
+| Upload a file | ❌ | ✅ | ✅ | ✅ |
+| Upload **as another user** | ❌ | ❌ | ❌ | ❌ |
+| Edit an attachment in any way | ❌ | ❌ | ❌ | ❌ |
+| Delete their own upload | — | ✅ | ✅ | ✅ |
+| Delete **anyone's** upload (moderation) | ❌ | ❌ | ✅ | ✅ |
+
+Two rules, and the first is the one that is easy to get wrong by analogy. **Uploading is content, not participation.** M7-01 admitted a viewer to the comment matrix because "a reviewer who can read a board but not change it is exactly the person with something to say about it" — that argument is about *saying*, and it does not carry to storing a file on somebody else's board, which is the same kind of act as creating a work item. So this row of the table matches *Board content* and not *Comment*.
+
+The second rule is the comment matrix's, reused rather than re-decided: **a file belongs to whoever uploaded it, and the only power anyone else has over it is to remove it.** There is no edit at any rank — not narrowed to one column as a comment's is, but absent: the table has no UPDATE policy and no UPDATE grant, because every column is either the identity of a stored object or a fact about the bytes, and a rename is a delete plus a re-upload.
+
+The viewer's delete cell is "—" rather than ❌ because a viewer has nothing to delete; a row naming them can only exist if they uploaded it as an editor and were later demoted, and the policy's second branch re-checks the role for exactly that case.
+
+Object-level policies on `storage.objects` mirror all of this rather than approximating it — the DELETE one reads the attachment row itself, so it is the same expression over the same row, which is what makes the client's delete-object-then-row ordering safe.
+
 ### Owner immutability — invariants
 
 These are database invariants, not UI rules. I1–I5 each have a named test in M3-16; I6 is a scoping rule, enforced by M3-14 refusing `role = 'owner'` and by no transfer operation existing.
@@ -617,8 +638,8 @@ Risk labels, applied to every task:
 | **M29 · Backlog** | ✅ **Built 2026-08-28** | `20260830090000_backlog_and_sprints.sql` (`todos.backlog_rank`), the Backlog view, and its own gap-precise drag reusing the Board's DnD shape against a second rank field. M11's three questions are answered in the migration header. (`f76a198`) |
 | **M30 · Sprints** | ✅ **Built 2026-08-28 · deletion added 2026-08-29** | Same migration: the `sprints` table, the future → active → completed lifecycle, `sprints_one_active_per_board`, and the `start_sprint` / `complete_sprint` RPCs. **Sprint deletion shipped 2026-08-29** — the gap the audit found: an ordinary `delete` under the existing policy, with `on delete set null` returning the sprint's work to the Backlog. (`f76a198`) |
 | **M31 · Timeline improvements** | ◑ **Four of five candidates built 2026-08-28** | Epic row grouping, derived Epic bars, Sprint bands (`TimelineSprintBand.tsx`) and M31-C's Board–Sprint integration all shipped. **Dependency arrows did not** — they need `work_item_links`, which is M33, exactly as the candidate table predicted. Subtask progress reaches the Epic row as a badge rather than as bar shading. **This milestone also shipped the product's two worst defects**, both fixed 2026-08-29 — see its own section. (`f76a198`, `0e93871`) |
-| **M32 · Attachments** | ⬜ **Not started — this is the next milestone** | Unchanged, and now genuinely next. Its tab region (M25) exists and its storage template (`20260814101000_avatar_storage_ownership.sql`) is unchanged. |
-| **M33 · Later** | 🗺 Roadmap | Labels, work item links, saved filters, the command palette. Re-costed when M32 lands. |
+| **M32 · Attachments** | ✅ **Built 2026-09-03** | `attachments` + the private `task-attachments` bucket, both in `20260831090000_create_attachments.sql`, and an Attachments section in the task detail panel. Followed the storage template; **did not** use M25's tab region, and its own section records why. |
+| **M33 · Later** | 🗺 Roadmap | Labels, work item links, saved filters, the command palette. **Now due for re-costing — M32 has landed.** |
 
 M10–M13 were roadmap direction added in the 2026-08-10 audit; M14–M20 in the 2026-08-14 revision; M21–M23 were built unplanned and recorded on 2026-08-26; M24–M33 are that same audit's forward roadmap. Appendix E records what is deliberately out of scope — **and it changed twice**: on 2026-08-14 for Calendar and Timeline, and on 2026-08-26 for Sprints.
 
@@ -640,7 +661,7 @@ Dependencies, not preference. Each row states what would have to be **rebuilt** 
 | 10 | **M7 · Comments** · ✅ built 2026-08-18/19 | Wants M6-B for live threads and M17 for where a thread renders. Both were true when it ran. |
 | 11 | **M9 · Quality** · ✅ built 2026-08-19 (M9-06 deferred) | Accessibility, keyboard, mobile and performance across the final surface rather than across two. **Exception: pull M9-01 and M9-02 into M17** if the redesign rewrites the board's DOM — retrofitting accessibility is doing it twice, which is what M9's own dependency note already says. |
 | 12 | **M21 · For You**, **M22 · Accounts & Notifications**, **M23 · Production Polish** · ✅ built 2026-08-21/24 | **Not in this table when they were built** — they were added to the product without passing through the plan, and the 2026-08-26 audit is what recorded them. Kept in the ledger as evidence of the one process failure this document has had. |
-| 13 → 21 | **M24 → M32 · the Jira depth wave** · M24–M31 built 2026-08-26 → 08-28 | **Part IV-C has its own build order table**, because this one records a sequence that has finished. **Start at M32** — M24 → M31 are built. |
+| 13 → 21 | **M24 → M32 · the Jira depth wave** · M24–M31 built 2026-08-26 → 08-28, M32 on 09-03 | **Part IV-C has its own build order table**, because this one records a sequence that has finished. **The wave is complete apart from M26.** |
 | — | M13 · Configurable Workflow | Unchanged roadmap. Not on the path to anything above; re-costed once the hierarchy exists (M28), because a transition rule that cannot mention an Epic is half a feature. |
 
 **What this order buys.** Every UI milestone (M17 → M20) runs after the two decisions that would otherwise force it to be rewritten: the hierarchy (M15) and the view model (M16). Every schema decision that a later view depends on is made in M14 or named in Appendix D before the view is built. Nothing in the new wave waits on realtime, and realtime waits on nothing in it.
@@ -3132,8 +3153,8 @@ Dependencies, not preference. Each row states what would have to be **rebuilt** 
 | 6 | **M29 · Backlog** · ✅ built 2026-08-28 | Needs **M6-A** (shipped) because a backlog is a second ordered surface, and needs **M28** because an Epic belongs in a backlog exactly as a task does. This is where M11's three unanswered questions get answered |
 | 7 | **M30 · Sprints** · ✅ built 2026-08-28 | Needs a backlog to plan *from* and Epics to plan *with*. Building it before either means a sprint that can only be filled from the board, which is the assumption the containment model above refuses |
 | 8 | **M31 · Timeline improvements** · ◑ built 2026-08-28 | Needs M28 for epic swimlanes and M30 for sprint bands. Dependency arrows still need `work_item_links`, which is still M33 |
-| 9 | **M32 · Attachments** · ⬜ **next** | Independent of everything above — a table and a storage bucket. Last of the committed work because it is the least structural, and its template (`20260814101000_avatar_storage_ownership.sql`) is not going anywhere |
-| — | **M33 · Later** | Labels, work item links, saved filters, the command palette, and the standing debt. Re-costed when M32 lands |
+| 9 | **M32 · Attachments** · ✅ built 2026-09-03 | Independent of everything above — a table and a storage bucket, exactly as this row predicted. It followed `20260814101000_avatar_storage_ownership.sql` for the bucket and `20260818100000_create_comments.sql` for the table, and adapted only the *subject* of the first path segment: a board, not a user |
+| — | **M33 · Later** | Labels, work item links, saved filters, the command palette, and the standing debt. **Due for re-costing — M32 has landed** |
 
 ---
 
@@ -3206,7 +3227,7 @@ Dependencies, not preference. Each row states what would have to be **rebuilt** 
 | The History tab | `src/components/activity/TodoHistoryList.tsx`, over `queryKeys.todoActivities(todoId)` |
 | Comments moved into it | `CommentThread` gained `hideHeading`, so the tab bar names the section instead of a second heading inside it |
 
-**The contract held.** M32's attachments now add a tab rather than re-laying out the panel, which is the whole reason this milestone preceded them.
+**The contract held, though not in the way this line first predicted.** It read: *"M32's attachments now add a tab rather than re-laying out the panel."* They did not add a tab — Attachments is its own section under the description, and M32 argues why. What the contract exists to prevent still did not happen: adding the capability was one import and one mounted component in `TaskDetailModal`, with nothing re-laid out. The region is what makes *activity* extensible, and files are not activity.
 
 
 ---
@@ -3432,11 +3453,13 @@ It made the Board a view onto the active Sprint by conflating two columns that `
 
 ---
 
-## Milestone 32 — Attachments · ⬜ **Not started — this is the next milestone**
+## Milestone 32 — Attachments · ✅ **Built 2026-09-03**
 
 **For.** Files on a work item.
 
-**Depends on.** M25 (a tab to live in).
+**Depends on.** M25 (a tab to live in). **In the event it did not need one** — see
+*As built* below, which is the one place this milestone diverged from its own
+specification.
 
 **The template already exists and this milestone must not invent a second one.** `20260814101000_avatar_storage_ownership.sql` is the shape: a bucket with a size limit and a mime allow-list, and policies keyed on `(storage.foldername(name))[1]`. Appendix B has said since M0 that attachments should be designed so they *can* attach to `todos` — this is where that is cashed in.
 
@@ -3450,11 +3473,187 @@ It made the Board a view onto the active Sprint by conflating two columns that `
 
 **Explicitly not.** Inline image previews in comments, versioned attachments, and drag-to-upload onto a card.
 
+### As built — Milestone 32 · ✅ 2026-09-03
+
+| Task | Evidence |
+|---|---|
+| The table | `supabase/migrations/20260831090000_create_attachments.sql` — `attachments(id, board_id, todo_id, uploader_id, filename, storage_path, size_bytes, mime_type, created_at)`, composite FK to `todos (id, board_id)` on cascade, four policies, revoke-then-grant with **no UPDATE at all** |
+| The bucket | Same migration. `task-attachments`, private, 25 MiB, **no mime allow-list**. **The first bucket this repository creates in SQL** — `avatars` predates the migration discipline and could only ever be `update`d, which is why `docs/RLS_AUDIT.md` had to be written from a schema dump |
+| Storage policies | Same migration, section 6. Three, all leading with `bucket_id` because RLS on `storage.objects` is global across buckets. **The first DELETE policy on `storage.objects` in this project** — before this, no bucket's objects could be deleted by any client |
+| The service | `src/services/attachments/` — `attachmentsApi.ts` (table *and* storage calls, unlike `profile/`'s split), `fileMeta.ts` + its test, and three hooks |
+| The UI | `src/components/todo/AttachmentsSection.tsx`, mounted directly under the description |
+| Client permission rules | `canAttach` and `canDeleteAttachment` in `services/members/permissions.ts`, with six cases in `permissions.test.ts` |
+| **M32-B · preview and thumbnails** · 2026-09-03 | `AttachmentPreview.tsx` (a lightbox), `attachmentIcons.ts`, `signedPreviewUrls` + `useAttachmentPreviews`, and `previewKind` with its own tests. A per-row three-dot menu replaced the two inline icon buttons |
+| **M32-C · filters, views and bulk actions** · 2026-09-03 | `attachmentFilter.ts` + its tests, `useBulkAttachments.ts`, and `AttachmentItem.tsx` — the row, card, menu and confirmation lifted out of a section that had grown to 660 lines |
+
+**M32-B — what a row shows, and what a click does.** The first build gave every
+file the same icon and made the filename a download. Both were wrong for the
+common case, which is a screenshot: a row now renders the image itself, and
+clicking the thumbnail or the name opens a preview over the task rather than
+saving a file nobody asked to save.
+
+**It reopens one thing M32 deliberately closed, and the reopening is narrow.**
+Every link in the first build carried `download`, forcing
+`Content-Disposition: attachment`, because the bucket has no mime allow-list and
+an inline `.html` would run on the storage origin. A preview needs the opposite,
+so `previewKind` is the gate and exactly two families pass it: **images**, which
+go in an `<img>` and are therefore in a script-free context even when the file is
+an SVG carrying a `<script>`; and **PDFs**, which go in an `<iframe>` and are a
+judgement rather than a guarantee — bounded by the object being served under the
+`Content-Type` recorded at upload, so the frame receives `application/pdf` and a
+browser handed HTML under that type renders nothing. Everything else keeps the
+old behaviour exactly: a fallback card with a download button. `fileMeta.test.ts`
+pins the gate, including that a bare `"image"` string does not pass as `image/`.
+
+**Three details worth keeping.** Thumbnails are one `createSignedUrls` call for
+the whole list rather than one per row, keyed by the paths so an upload changes
+the entry. There is **no server-side resizing** — Supabase image transformation
+is Pro-only — so a 4 MB photo is 4 MB to draw a 32px square; `loading="lazy"` and
+the preview reusing the identical URL are what make that acceptable rather than
+free. And the lightbox's Escape listener is registered in the **capture** phase:
+`TaskDetailModal` guards on `!event.defaultPrevented`, but document-level bubble
+listeners fire in registration order and the task modal's was added first, so a
+bubble listener would mark the event only after the task had already decided to
+close, and Escape would shut both.
+
+**Storage was not touched.** Same bucket, same policies, same paths, same upload
+and delete paths. The only addition is one read-only API function.
+
+**M32-C — the section grows a header, and the section stops being one file.**
+Five tabs (All · Images · Documents · Videos · Other), a list/grid switch,
+Download all and Delete all. The reference screenshot is the visual source; the
+structural change is that `AttachmentsSection` is now a shell — one file's row,
+card, menu and confirmation live in `AttachmentItem.tsx`, the taxonomy in
+`services/attachments/attachmentFilter.ts` with ten tests of its own, and the two
+bulk actions in `useBulkAttachments.ts`. Without that split the section would be
+past nine hundred lines, which is how a component stops being read before it is
+changed.
+
+**Three decisions worth the ledger.**
+
+- **The tabs are client-side and the taxonomy is built on `fileKind`.** Seven
+  glyphs collapse into four tabs, so the icon and the tab can never disagree
+  about what a file is. Office formats are matched by an explicit list rather
+  than an `application/vnd.` prefix — that prefix also covers fonts and
+  archives, and a prefix test would file a `.rar` under Documents. A `.docx`
+  that arrives as `application/octet-stream` is caught by extension, which is
+  the case a Documents tab exists for. `filterCounts` is pinned by a test
+  asserting the four categories sum to the total, so nothing is double-counted
+  and nothing is unreachable.
+- **"All" for the bulk actions means what is on screen, not what exists.** Jira
+  ignores the selected tab; this does not, because the count sits on the menu
+  item and a number the user cannot account for is worse than a narrower
+  promise. Delete narrows once more, to the files that person may actually
+  remove.
+- **Download all is a staggered series of anchors, not a zip.** A client-side
+  archiver is a dependency that would hold every file in memory to save two
+  clicks in the download shelf. Each file needs its own signed URL because the
+  plural `createSignedUrls` can only name the object's own key — a uuid — as the
+  download name.
+
+**Delete all confirms inline, like everything else in this panel**, and the
+second reason is mechanical rather than aesthetic: `ui/Modal` dismisses on a
+bubble-phase `document` keydown and `TaskDetailModal` registered its listener
+first, so Escape inside a nested dialog would close the dialog *and* the task
+behind it. `AttachmentPreview` is the one nested surface that does open, and it
+listens in the capture phase for exactly that reason.
+
+**Storage was not touched, again.** Same bucket, same policies, same paths, same
+upload, download and delete paths.
+
+**The three decisions this milestone required, as settled.**
+
+1. **The bucket is private**, as specified. Reads are `createSignedUrl` with a
+   60-second TTL and a `download` option. That option is not convenience: with
+   no mime allow-list, an uploaded `.html` served inline would execute on the
+   storage origin, and forcing `Content-Disposition: attachment` is what closes
+   it. There is no inline preview and no `getPublicUrl` anywhere in the feature.
+
+2. **Who may.** Deleting is the uploader plus `canModerateComments`' holders,
+   exactly as specified — one rule, reused. **Uploading was left open and is now
+   editor and above**, the content matrix rather than the comment one: M7-01 let
+   a viewer comment because commenting is participation, and a file stored on
+   somebody else's board fails that test. Both matrices in Part II gain a row.
+
+3. **Orphan cleanup, decided before the first upload as this section demanded.**
+   The object is written before the row and deleted before the row, on both
+   paths — a failed insert removes the object it just wrote. The ordering is not
+   cosmetic: the storage DELETE policy locates an object *through*
+   `attachments.storage_path`, so once a row is gone no client can reach the
+   bytes. Row-first would therefore make every partial failure a permanent
+   invisible orphan; object-first makes it a **visible** broken row that the
+   same button clears. The one case left is cascade — deleting a work item or a
+   board drops rows and leaves objects — and that is accepted with a runnable
+   sweep query in the migration header, run as `service_role`. A scheduled
+   function is deferred to PH-01, recorded rather than forgotten.
+
+**Where it diverged, and why.** M25's contract says a new capability fills the
+tabbed region rather than re-laying out the panel, and the build order note above
+predicted attachments would "add a tab". **They did not — Attachments is its own
+section, directly under the description.** The contract's *reason* holds for
+things that are activity (comments, history, work log) and an attachment is not
+one: it is part of what the work item is, the way the description is, and filing
+it under a heading reading "Activity" would make the panel lie about where its
+contents are. What the contract actually guards against — a re-layout — did not
+happen either way: the change to `TaskDetailModal` is one import and one mounted
+component. Recorded here rather than edited out, per this document's own rule.
+
+**Two things deliberately not built**, each with the precedent it follows:
+
+- **Realtime.** `attachments` is not on the publication, on M7-01's own
+  precedent (comments were added later, by M7-04, with their teardown). There is
+  a second reason specific to this table: under `REPLICA IDENTITY DEFAULT` a
+  DELETE payload is the primary key alone, so a receiving client would learn an
+  id but never the `storage_path` it should forget.
+- **A `cache.ts`.** That file exists in `todos/`, `columns/` and `comments/` for
+  one stated reason — a realtime callback cannot reach into an `onMutate`. With
+  no realtime consumer it would be the shape without the reason.
+
+**What was verified, and what was not.**
+
+**Verified.** `npm run build`, `npm run lint` and `npm test` (949 tests, 55
+files) are green. And — **a first for a security-bearing migration in this
+project** — the policies were actually run before they shipped. All 64
+migrations were applied in order to a shadow database (a container from this
+project's own Postgres image, plus the auth and storage scaffolding a Supabase
+project has outside this repo), and `scripts/verify-m32-attachments.sql` seeded
+two boards and six users, switched to `authenticated` with a real `auth.uid()`,
+and asserted **29 outcomes across `public.attachments` and `storage.objects`:
+29/29 passed.** M14's storage checklist and M3-16's role matrix were both
+written and left unrun; this one was not.
+
+Separately, `supabase start` applied all 64 migrations to a **local Supabase
+stack**, so the migration has also been through the CLI's own apply path against
+the **real** `storage` schema rather than a stand-in. That is what proves the
+three `storage.objects` policies reference columns and functions that actually
+exist. (The stack then failed its own health checks on the analytics, vector and
+storage containers and stopped — a local environment problem, after every
+migration had applied.)
+
+The run also **found a wrong expectation in the checklist as first drafted**:
+"insert with a board_id that is not the work item's" was written as 23503, and
+it is 42501 — the policy refuses a non-member before the composite key is
+reached. Corrected in the migration, with both paths now tested separately.
+
+**Not verified.** Two things, and neither is a database question.
+
+- **The migration is not applied to the linked project.** `supabase db push`
+  wants the database password interactively and this session could not supply
+  one. So `npm run db:types` has not run either, and the `attachments` block in
+  `src/types/database.ts` is **hand-written to match what the generator will
+  produce**. Regenerating it is the first step after the push, and a diff there
+  is a bug in the migration rather than in the types.
+- **The REST-level list** in the migration's section 10. The SQL run proves the
+  database refuses; PostgREST and storage-api sit above these policies, and four
+  of its checks — the private bucket's anonymous GET, an expired signed URL, the
+  26 MiB rejection and an upload with no Content-Type — can only be made there.
+  The browser pass over the UI is owed for the same reason.
+
 ---
 
 ## Milestone 33 — Later · 🗺 Roadmap
 
-Not a commitment. Re-costed when M32 lands.
+Not a commitment. **Due for re-costing: M32 landed 2026-09-03, which was the trigger this line named.**
 
 - **Labels** — `labels` + `todo_labels`, board-scoped (Appendix B, M10). A filter category and a chip.
 - **Work item links** — `work_item_links(from_id, to_id, type)`. Appendix D's directionality question is still unanswered and must be answered before the table. Unblocks M31's dependency arrows.
@@ -3466,7 +3665,7 @@ Not a commitment. Re-costed when M32 lands.
 
 ## Risk register — 2026-08-29 audit
 
-Standing debt found by reading the repository, the 63 migration files and the git history. **None of it blocks M32**, which is the next milestone. Row 1 was scheduled into M27 and did not ship there; it and row 2 both wait on row 3.
+Standing debt found by reading the repository, the 63 migration files and the git history. **None of it blocked M32**, which has since shipped. Row 1 was scheduled into M27 and did not ship there; it and row 2 both wait on row 3. **Row 7 gained a sixth board-scoped table on 2026-09-03** — `attachments`, with four table policies and three storage policies, none of them covered by the matrix script; M32 left that script alone deliberately rather than adding a section nobody has run.
 
 | # | Item | Where | Why it matters now |
 |---|---|---|---|

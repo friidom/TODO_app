@@ -1,17 +1,4 @@
-/**
- * Canonical UUID shape check. Pure — no React, no network.
- *
- * Used to decide whether a route param is worth sending to the database at
- * all. `id=eq.not-a-uuid` is not a miss, it is a type error: Postgres rejects
- * it with "invalid input syntax for type uuid", which surfaces as a thrown
- * query and a "something went wrong" boundary rather than a 404. Screening the
- * param first turns a malformed URL into the answer it deserves.
- *
- * Deliberately canonical 8-4-4-4-12. Postgres itself is looser — it accepts
- * braces and omitted hyphens — but nothing in this application ever mints
- * those, so anything else in a URL was typed or guessed, and 404 is the right
- * response either way.
- */
+// screens a route param before it hits the query — a malformed uuid there is a Postgres error, not a clean 404
 const UUID_SHAPE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

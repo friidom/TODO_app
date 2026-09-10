@@ -7,23 +7,7 @@ import type { Todo } from "@/types/data";
 import { cn } from "@/utils/cn";
 import CalendarChip from "./CalendarChip";
 
-/**
- * One day, as a droppable cell (M19).
- *
- * **The drop target is the whole cell**, not a gap between items. A calendar
- * drop answers "which day", and a day has no internal order to aim at — the
- * board's gap-based `collisionDetection` exists because dropping between two
- * cards means something there, and it means nothing here. That is why the
- * calendar's DnD is `closestCenter` over big rectangles rather than a second
- * copy of `useKanbanDnd`.
- *
- * **The overflow rule, applied.** `DAY_ITEM_LIMIT` items are listed and the
- * rest become one control that opens the day in the week layout. Decided once
- * in the pure module because M19 states it recurs in both layouts — and the
- * week's limit is infinite, so the branch below simply never fires there and
- * the cell scrolls instead. The escalation has to stop at the surface it
- * escalates *to*.
- */
+// drop target is the whole cell, not a gap — a day has no internal order to drop between
 export default function DayCell({
   day,
   todos,
@@ -39,14 +23,12 @@ export default function DayCell({
   day: string;
   todos: Todo[];
   layout: CalendarLayout;
-  /** False for the padding days a month grid borrows from its neighbours. */
   inMonth: boolean;
   isToday: boolean;
   keyPrefix: string;
   memberById: Map<string, BoardMember>;
   canEdit: boolean;
   onOpenTask: (id: string) => void;
-  /** "+N more" — switches to the week containing this day. */
   onOpenDay: (day: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({
@@ -63,16 +45,10 @@ export default function DayCell({
       ref={setNodeRef}
       className={cn(
         "border-hairline flex min-w-0 flex-col gap-1 border-r border-b p-1.5 transition-colors",
-        // The week cell is one row tall and owns the scroll; the month cell is
-        // sized by the row track and never scrolls itself.
         layout === "week" && "min-h-0",
-        // A padding day is still a real day you can drop on — a task due the
-        // 1st belongs on the 1st whichever grid you are looking at — so it is
-        // dimmed rather than disabled.
+        // padding day, still droppable — dimmed, not disabled
         !inMonth && "bg-ink/[0.02]",
-        // The only thing a hover changes is the fill. No border width, no
-        // ring, no transform: a cell that grows under the pointer would move
-        // its neighbours mid-drag.
+        // only the fill changes on hover — a growing cell would shove neighbours mid-drag
         isOver && "bg-brand-soft",
       )}
     >
@@ -88,8 +64,6 @@ export default function DayCell({
           {Number(day.slice(8, 10))}
         </span>
 
-        {/* The count sits in the header rather than under the list, so a cell
-            that is overflowing says so before you have finished reading it. */}
         {todos.length > 0 && (
           <span className="text-ink-3/70 text-micro ml-auto shrink-0 tabular-nums">
             {todos.length}
@@ -97,10 +71,7 @@ export default function DayCell({
         )}
       </div>
 
-      {/* Only the week cell scrolls — it has no item limit, so this is where a
-          busy day is actually read. A month cell never scrolls, because a
-          scrollbar in one of thirty-five boxes is invisible until you are
-          already inside it; it shows three and hands the day over. */}
+      {/* only the week cell scrolls — a scrollbar in one of thirty-five month boxes is invisible until you're in it */}
       <div
         className={cn(
           "flex min-w-0 flex-col gap-1",

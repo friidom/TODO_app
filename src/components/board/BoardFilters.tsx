@@ -30,36 +30,9 @@ import {
   HEADER_CONTROL_BADGE,
 } from "./headerControl";
 
-/** Past this many rows a list is worth searching; below it, a box is noise. */
 const SEARCHABLE_FROM = 7;
 
-/**
- * Narrow the board to the work you care about.
- *
- * **Two panes: the field on the left, its values on the right.** It used to be
- * all five categories stacked in one scrolling menu, which is fine at four
- * members and unusable at twenty — reaching "Priority" meant scrolling past
- * every person on the board. Picking the field first is what makes the panel a
- * fixed size whatever the roster does.
- *
- * **Not a `DropdownMenu`, and that is not a style choice.** Base UI's `Menu`
- * owns focus with a roving tabindex and a typeahead, so a text input inside a
- * `Menu.Popup` has its keystrokes intercepted and focus pulled onto whichever
- * item matched. The within-field search needs a real input, so the panel is a
- * plain popover on `useCardPopover` — the same primitive every card control
- * uses, which already brings outside-click, Escape, portalling and the
- * pointerdown guard.
- *
- * **The filter model is untouched.** Five dimensions, all fields the schema
- * already has; **AND between sections, OR inside one**; an empty section is
- * off rather than excluding everything; state lives in the URL through
- * `useBoardView`. This is a new way to reach `toggleFilter`, not a new store.
- *
- * Which options exist and what they are called is `filterOptions` — pure and
- * tested, because the within-field search runs over labels. Icons and tones are
- * read here from the constants that already hold them, so the pure module stays
- * free of React.
- */
+// popover, not DropdownMenu — Base UI's Menu roving-tabindex/typeahead would eat keystrokes meant for the search input
 export default function BoardFilters({ view }: { view: BoardView }) {
   const boardId = useBoardId();
   const { user } = useAuth();
@@ -85,8 +58,6 @@ export default function BoardFilters({ view }: { view: BoardView }) {
 
   function pickField(next: FilterCategory) {
     setField(next);
-    // The query belonged to the field that is leaving. Carrying "joh" into
-    // Priority would show an empty list and look broken.
     setNeedle("");
   }
 
@@ -106,11 +77,6 @@ export default function BoardFilters({ view }: { view: BoardView }) {
         )}
       </button>
 
-      {/* `mounted` rather than `open`: it stays true for the length of the close,
-          which is what lets the panel animate out instead of vanishing on the
-          frame the click lands. Every card popover renders on it for the same
-          reason, so the enter and the exit here are the product's, not this
-          panel's. */}
       {mounted && (
         <FloatingPortal>
           <div
@@ -119,10 +85,7 @@ export default function BoardFilters({ view }: { view: BoardView }) {
             aria-label="Filter"
             className="border-hairline bg-elevated rounded-card z-50 flex w-[min(30rem,calc(100vw-2rem))] flex-col overflow-hidden border shadow-e3"
           >
-            {/* Stacks below `sm`, so the panel is still usable at 375px where
-                two 15rem columns would each be too narrow to read. */}
             <div className="flex flex-col sm:flex-row">
-              {/* LEFT — the fields, with what each one is holding. */}
               <div className="border-hairline shrink-0 border-b p-1.5 sm:w-44 sm:border-r sm:border-b-0">
                 {FILTER_CATEGORIES.map((category) => {
                   const count = filters[category].length;
@@ -154,7 +117,6 @@ export default function BoardFilters({ view }: { view: BoardView }) {
                 })}
               </div>
 
-              {/* RIGHT — the values of the field on the left. */}
               <div className="flex min-w-0 flex-1 flex-col">
                 {searchable && (
                   <div className="border-hairline flex items-center gap-2 border-b px-3 py-2">
@@ -192,9 +154,6 @@ export default function BoardFilters({ view }: { view: BoardView }) {
               </div>
             </div>
 
-            {/* Two clears, and the difference matters: one empties the field you
-                are looking at, the other empties every field. Each is offered
-                only when it would do something. */}
             <div className="border-hairline flex items-center gap-2 border-t px-3 py-2">
               <button
                 type="button"
@@ -229,13 +188,7 @@ export default function BoardFilters({ view }: { view: BoardView }) {
   );
 }
 
-/**
- * One value, with whatever the rest of the app already uses to picture it.
- *
- * The icon lookup lives here rather than in `filterOptions` so that module can
- * stay pure data — a member's avatar in particular needs the roster row, not
- * just a label.
- */
+// icon lookup lives here, not in filterOptions, so that module stays pure data
 function OptionRow({
   option,
   field,
@@ -280,9 +233,6 @@ function OptionRow({
         checked ? "bg-brand-soft text-ink" : "text-ink-2 hover:bg-ink/[0.04]",
       )}
     >
-      {/* A box rather than a tick alone: an unchecked row needs to look
-          checkable, and the column of empty boxes is what makes a multi-select
-          list read as one. */}
       <span
         className={cn(
           "grid size-4 shrink-0 place-items-center rounded-[4px] border transition-colors",

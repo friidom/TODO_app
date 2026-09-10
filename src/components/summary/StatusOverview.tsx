@@ -4,43 +4,11 @@ import type { IColumn } from "@/types/data";
 import { cn } from "@/utils/cn";
 import SummaryCard, { WidgetEmpty } from "./SummaryCard";
 
-/**
- * A donut, drawn in SVG, and the reason it is not a library (M18).
- *
- * One chart does not justify a charting dependency — the brief says so and it
- * is the right call: recharts is ~90kB gzipped and brings its own theming,
- * fonts and animation opinions to a product that has all three already. This is
- * one `<circle>` per slice with a `stroke-dasharray`, which is the whole
- * technique.
- *
- * **The `r = 15.9155` is not arbitrary.** `2πr` at that radius is 100, so a
- * dash array is expressed directly in *percent* and no segment maths is needed
- * beyond a running total. `-90deg` rotation starts the first slice at twelve
- * o'clock, which is where a reader expects it.
- *
- * **Per column, not per category**, because the board's statuses *are* its
- * columns — collapsing "In Progress" and "In Review" into one arc would answer
- * a question the board does not ask. Two columns sharing a category share its
- * colour and are stepped apart by opacity, so the palette still means what it
- * means everywhere else in the product.
- *
- * **The legend goes two-up past six statuses.** A board with nine columns drew
- * a nine-row list beside a ring, which made the card twice as tall as the one
- * next to it and left its right half empty. Two columns is the same information
- * in half the height, and the threshold is the point where the list stops being
- * shorter than the ring.
- *
- * **Nothing in here is `flex-1`.** The panel is exactly as tall as a ring, a
- * legend and a progress line; it is not stretched to meet the feed beside it,
- * which is where its blank lower half used to come from. The ring is `size-24`
- * rather than `size-32` for the same reason — 128px of chart set the panel's
- * height from its decoration rather than from its data.
- */
+// hand-drawn SVG donut, not a charting lib — one chart doesn't justify ~90kB of recharts.
+// r=15.9155 makes the circumference exactly 100, so stroke-dasharray is already a percentage.
 
-/** How far each successive column of the same category fades. */
 const SHADES = ["opacity-100", "opacity-75", "opacity-50", "opacity-30"];
 
-/** Past this many statuses the legend splits into two columns. */
 const LEGEND_WRAP_AT = 6;
 
 export default function StatusOverview({
@@ -53,14 +21,9 @@ export default function StatusOverview({
   slices: Slice<string | null>[];
   columns: IColumn[];
   total: number;
-  /** Items in a `done` column. Feeds the progress line at the foot, nothing else. */
   done: number;
-  /** The widget's span in the Summary's grid. */
   className?: string;
 }) {
-  // Which shade each column takes: its index among the columns that share its
-  // category. Computed here rather than in the pure module because it is a
-  // presentation decision, and the pure module holds no colours.
   const shadeOf = new Map<string, string>();
   const seen = new Map<string, number>();
 
@@ -72,15 +35,7 @@ export default function StatusOverview({
     shadeOf.set(column.id, SHADES[Math.min(nth, SHADES.length - 1)]);
   }
 
-  /**
-   * The arcs, with each one's start already resolved.
-   *
-   * Computed up front rather than by carrying a running total through the
-   * `.map()` below: accumulating into a closure variable while rendering is the
-   * shape `react-hooks/immutability` flags, and it is right to — a render that
-   * is retried or interleaved would resume from a total left behind by the last
-   * attempt. A `reduce` says the same thing and cannot.
-   */
+  // reduce, not a closure variable accumulated during .map() — a retried/interleaved render can't resume from stale state
   const arcs = slices
     .filter((slice) => slice.count > 0)
     .reduce<{ key: string | null; percent: number; start: number }[]>(
@@ -88,8 +43,7 @@ export default function StatusOverview({
         const percent = (slice.count / total) * 100;
         const consumed = acc.reduce((sum, arc) => sum + arc.percent, 0);
 
-        // `25` puts the start of the arc at twelve o'clock once the whole svg
-        // is rotated -90deg.
+        // 25 = quarter turn, puts the start at 12 o'clock once the svg is rotated -90deg
         acc.push({ key: slice.key, percent, start: 25 - consumed });
 
         return acc;
@@ -113,8 +67,7 @@ export default function StatusOverview({
           <div className="flex flex-col items-center gap-3 sm:flex-row sm:gap-4">
             <div className="relative shrink-0">
               <svg viewBox="0 0 42 42" className="size-24 -rotate-90">
-                {/* The track, so a board with one status still reads as a ring
-                    rather than as an arc floating in space. */}
+                {/* track, so one status still reads as a ring, not a floating arc */}
                 <circle
                   cx="21"
                   cy="21"
@@ -137,8 +90,6 @@ export default function StatusOverview({
                       fill="none"
                       strokeWidth="3.5"
                       stroke="currentColor"
-                      // The circumference at r=15.9155 is 100, so the dash
-                      // array is already a percentage and needs no conversion.
                       strokeDasharray={`${arc.percent} ${100 - arc.percent}`}
                       strokeDashoffset={arc.start}
                       className={cn(
@@ -152,9 +103,6 @@ export default function StatusOverview({
                 })}
               </svg>
 
-              {/* Centred over the ring rather than inside the SVG: a
-                  foreignObject would not inherit the page's font, and a <text>
-                  would not wrap. */}
               <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
                 <span className="text-ink text-xl leading-none font-semibold tabular-nums">
                   {total}
@@ -179,8 +127,6 @@ export default function StatusOverview({
                     key={slice.key ?? "none"}
                     className={cn(
                       "flex min-w-0 break-inside-avoid items-center gap-2 py-0.5",
-                      // An empty column is part of the board's shape and stays
-                      // listed, but it is not something to look at.
                       slice.count === 0 && "opacity-45",
                     )}
                   >
@@ -192,10 +138,7 @@ export default function StatusOverview({
                       )}
                     />
 
-                    {/* Raw, never through `t()`: a column title is
-                        user-editable text, and running it through i18n was the
-                        M2-20 bug that made a column called "todo" render as a
-                        translation key. */}
+                    {/* raw, never through t() — a column title is user text, not a translation key */}
                     <span className="text-ink-2 min-w-0 flex-1 truncate text-xs">
                       {column ? columnTitle(column.title) : "No status"}
                     </span>
@@ -213,17 +156,7 @@ export default function StatusOverview({
             </ul>
           </div>
 
-          {/* THE ONE THING THE RING CANNOT SHOW. The donut is composition —
-              which status holds what — and says nothing about progress, because
-              "done" is one arc among several and reads as just another colour.
-              This is the same data asked the other way, and it is the line
-              somebody actually reports upward.
-
-              `done` is the CATEGORY, not a column named Done: doneness has been
-              `columns.category === 'done'` since M2 removed `todos.completed`,
-              so a board with two finished columns counts both — and this figure
-              is the one `summaryStats` already computes for the metric strip,
-              passed in rather than recounted, so the two cannot disagree. */}
+          {/* done is the column category, not a column literally named "Done" — counts every finished column */}
           <div className="border-hairline flex items-center gap-2.5 border-t pt-2.5">
             <span className="text-ink-3 text-mini shrink-0">Completed</span>
 

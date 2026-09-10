@@ -18,8 +18,6 @@ describe("normalizeUsername", () => {
   });
 
   it("leaves inner characters alone — it normalises, it does not repair", () => {
-    // Whether `ada lovelace` is *allowed* is validateUsername's decision, and
-    // silently deleting the space would accept a name nobody typed.
     expect(normalizeUsername(" Ada Lovelace ")).toBe("ada lovelace");
   });
 });
@@ -71,8 +69,6 @@ describe("validateUsername — rejects", () => {
   });
 
   it("reports length before shape, so the first complaint is the useful one", () => {
-    // `a.` is both too short and badly shaped. Being told to add a character
-    // and *then* being told about the dot is two round trips of feedback.
     expect(validateUsername("a.")).toMatch(/at least 3/);
   });
 });
@@ -87,9 +83,7 @@ describe("isUsernameShapeValid", () => {
 
 describe("case-insensitive collision, as the client sees it", () => {
   it("NORMALISES TWO SPELLINGS OF ONE NAME TO THE SAME STRING", () => {
-    // This is the client half of the unique index on `lower(username)`: the
-    // availability check asks about the normalised form, so `Ada` and `ADA`
-    // ask the identical question and get the identical answer.
+    // client half of the unique index on lower(username) — Ada and ADA ask the identical question
     expect(normalizeUsername("Ada")).toBe(normalizeUsername("ADA"));
     expect(normalizeUsername(" aDa ")).toBe(normalizeUsername("ada"));
   });

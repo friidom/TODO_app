@@ -4,7 +4,6 @@ import { inviteErrorMessage } from "./inviteError";
 
 describe("inviteErrorMessage", () => {
   it("maps each SQLSTATE accept_invite can raise", () => {
-    // The shape PostgrestError actually has: a plain object, not an Error.
     expect(inviteErrorMessage({ code: "22023" })).toMatch(/expired/i);
     expect(inviteErrorMessage({ code: "23505" })).toMatch(/already been used/i);
     expect(inviteErrorMessage({ code: "P0002" })).toMatch(/not valid/i);

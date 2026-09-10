@@ -8,18 +8,13 @@ export function useLogin() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  // Where the user was headed before they were asked to sign in. Screened
-  // through safeNext because it comes from the query string — see the
-  // open-redirect note there. `/` when there is nothing to return to.
+  // screened through safeNext since this comes from the query string — see nextPath.ts for the open-redirect note
   const next = safeNext(searchParams.get("next")) ?? "/";
 
   return useMutation({
-    // LoginForm renders login.error next to the fields, so the global
-    // MutationCache toast would say the same thing a second time.
+    // LoginForm renders login.error next to the fields already
     meta: { silent: true },
 
-    // `identifier`, not `email`, since M22: the field takes either, and naming
-    // it for one of the two is how a caller ends up validating the wrong thing.
     mutationFn: ({
       identifier,
       password,

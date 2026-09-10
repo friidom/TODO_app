@@ -5,51 +5,20 @@ import { useCardPopover } from "./useCardPopover";
 import type { Sprint } from "@/types/data";
 import { cn } from "@/utils/cn";
 
-/**
- * The Sprint a work item belongs to — a chip when set, a dashed "no sprint"
- * chip when not (M30). Structurally `EpicParentControl`'s twin: the same
- * `useCardPopover` plumbing, the same "compact chip plus a short floating
- * list" shape, because picking a Sprint and picking an Epic parent are the
- * same kind of choice — one of a short, board-scoped list, or none.
- *
- * **Controlled, and it does not know how the value is saved.** It reports
- * the chosen Sprint's id (or `null` to clear) through `onChange` and never
- * writes — the Task Detail panel patches `sprint_id` alone through
- * `useTodoPatch`, while the Backlog view's own "Move to" use of this same
- * control also clears `column_id` when the choice is "no sprint", enforcing
- * "Backlog items are not shown on the Board". That difference lives in each
- * caller's `onChange`, not in this component, the same way `DueDateControl`
- * does not know whether it is editing a card or a still-unsaved create form.
- *
- * **The list is exactly the board's future and active Sprints.** A
- * completed sprint's planning is over — offering it here would let a work
- * item join a sprint that already shipped, which
- * `enforce_work_item_hierarchy`'s sibling rules refuse everywhere else a
- * closed container is offered as a destination.
- *
- * **No `boardId` prop**, matching `EpicParentControl`: this panel opens only
- * from inside a task or a Backlog row already scoped to one board, and the
- * caller already holds the board's own Sprint list.
- */
+// controlled — reports the chosen id via onChange and never writes itself; the caller decides what else to patch
 export default function SprintControl({
   value: sprintId,
   sprints,
   onChange,
 }: {
-  /** The current sprint id, or null. */
   value: string | null;
-  /** The board's own sprints — filtered to future/active by the caller, or
-   * here, whichever reads more naturally at the call site. */
   sprints: Sprint[];
   onChange: (value: string | null) => void;
 }) {
   const { mounted, close, triggerProps, panelProps } = useCardPopover();
 
   const options = sprints.filter((sprint) => sprint.state !== "completed");
-  // Looked up in the full list, not `options`: a completed sprint is no
-  // longer a valid *destination*, but a card's own historical link to one
-  // (`complete_sprint` leaves a finished item's `sprint_id` untouched) must
-  // still render as that sprint's name rather than falling back to "None".
+  // looked up in the full list, not options — a card can still be linked to a completed sprint and should show its name
   const sprint = sprints.find((candidate) => candidate.id === sprintId) ?? null;
 
   const label = sprint ? `Sprint: ${sprint.name}` : "No sprint";

@@ -9,12 +9,9 @@ import { isGenuineSubtask } from "./subtasks";
 import { useBoardId } from "@/hooks/useBoardId";
 
 export interface TodoDropVars {
-  /** The board as it stands before the drop. */
   todos: Todo[];
   activeTodo: Todo;
-  /** Destination column. A drop without one is not a drop, so the caller narrows it. */
   columnId: string;
-  /** Gap index within the destination column. */
   index: number;
 }
 
@@ -28,16 +25,11 @@ export function useTodoDrop() {
     columnId,
     index,
   }: TodoDropVars) => {
-    // The card cannot be its own neighbour: leaving it in would make a
-    // same-column move compute the midpoint of the gap it already occupies.
+    // exclude itself (can't be its own neighbour) and genuine subtasks (carry a column but aren't a board neighbour)
     const destination = todos.filter(
       (todo) =>
         todo.column_id === columnId &&
         todo.id !== activeTodo.id &&
-        // Visible cards only (M27, widened for Epics in M28-A) — a genuine
-        // Subtask carries a column but is not a neighbour on the board, so
-        // it must not shape a drop rank. A Task under an Epic is a real
-        // neighbour and stays included.
         !isGenuineSubtask(todos, todo),
     );
 
@@ -47,9 +39,7 @@ export function useTodoDrop() {
 
     await rebalanceColumnRanks(columnId);
 
-    // Refetched rather than recomputed from the stale array: the server has
-    // just rewritten every rank in this column, and the old numbers would
-    // produce a rank between two values that no longer exist.
+    // refetch, not recompute — the server just rewrote every rank in this column
     const fresh =
       (await queryClient.fetchQuery<Todo[]>({
         queryKey: queryKeys.todos(boardId),
@@ -94,21 +84,14 @@ export function useTodoDrop() {
         queryKeys.todos(boardId),
       );
 
-      // Computed again here rather than shared with `mutationFn`: this one has
-      // to be synchronous to land in the same frame as the drop, and the
-      // exhaustion path is async. A null means "no room" — the card stays put
-      // for the moment it takes the rebalance to run, then `onSuccess` writes
-      // it where it landed. Rare enough to be invisible, and the alternative is
-      // an optimistic position the server may not honour.
+      // recomputed sync (not shared with mutationFn, which can go async on rebalance) — null means no room,
+      // card stays put until onSuccess lands it, rare enough to be invisible
       const all = todos ?? [];
       const rank = rankForDrop(
         all.filter(
           (todo) =>
             todo.column_id === columnId &&
             todo.id !== activeTodo.id &&
-            // Visible cards only (M27, widened for Epics in M28-A) — see
-            // `resolveRank` above for why a Task under an Epic must stay in
-            // this set while a genuine Subtask must not.
             !isGenuineSubtask(all, todo),
         ),
         index,
@@ -124,28 +107,18 @@ export function useTodoDrop() {
       return { previousTodos };
     },
 
-    // The rebalance path skipped the optimistic write, and the exhaustion path
-    // refetched — either way the card's real rank is only known now.
     onSuccess: (rank, { activeTodo, columnId }) => {
       queryClient.setQueryData<Todo[]>(queryKeys.todos(boardId), (old) =>
         old ? applyTodoMoved(old, activeTodo, columnId, rank) : old,
       );
 
-      // The History/All tab's entry, if this item's modal is open (M25) — the
-      // same reasoning `useUpdateTodo` follows, for the one other path that
-      // changes a `todos` row: `StatusControl`'s picker moves a card through
-      // this same mutation, so its history entry needs the same refetch. A
-      // no-op for the overwhelmingly common case, a board drag with no modal
-      // open on the card being moved: `invalidateQueries` only refetches a
-      // query that is currently observed, and nothing observes this item's
-      // history while its panel is closed.
+      // no-op unless this item's history tab is open and observing the query
       queryClient.invalidateQueries({
         queryKey: queryKeys.todoActivities(activeTodo.id),
       });
     },
 
-    // Restore only. The message comes from the MutationCache handler in
-    // queryClient.ts; a toast here as well would report one failure twice.
+    // restore only — the toast comes from the global MutationCache handler
     onError: (_err, _vars, context) => {
       if (!context) return;
 
@@ -157,9 +130,7 @@ export function useTodoDrop() {
         return;
       }
 
-      // Nothing to restore: setQueryData(key, undefined) is a no-op, so the
-      // optimistic order would survive the failure. Drop the entry and let
-      // useTodos fetch the truth.
+      // nothing to restore to — drop the entry instead of leaving the optimistic order in place
       queryClient.removeQueries({
         queryKey: queryKeys.todos(boardId),
         exact: true,

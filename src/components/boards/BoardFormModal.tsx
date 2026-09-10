@@ -16,32 +16,15 @@ import {
 } from "@/components/ui/dialogChrome";
 import { FIELD_INPUT } from "@/components/ui/fieldInput";
 
-/**
- * Create a board, or edit one. One component for the same reason
- * `SpaceFormModal` is: the fields are identical and only the verb differs.
- *
- * **Board settings, deliberately three fields.** Title, description, and which
- * space it is filed in. `icon`, `cover_color` and `visibility` are M8-04's and
- * are not here — each needs a palette or a permission story of its own, and
- * neither is what M15 is for.
- *
- * **The space select is offered only to the board's owner**, because only the
- * owner may file a board: the `boards_space_ownership` trigger refuses anyone
- * else, so showing an admin a control that always fails would be the exact
- * dishonesty `usePermissions` exists to avoid. An admin still edits title and
- * description — M3-17 grants them that, and the database is what enforces it.
- */
+// space select only shows for the owner — a trigger refuses filing from anyone else, so it'd be a control that always fails
 export default function BoardFormModal({
   board,
   spaceId = null,
   canFile = true,
   onClose,
 }: {
-  /** Present means edit; absent means create. */
   board?: IBoard;
-  /** Which space a newly created board lands in. */
   spaceId?: string | null;
-  /** Whether the caller may change the filing — owner only. */
   canFile?: boolean;
   onClose: () => void;
 }) {
@@ -65,9 +48,7 @@ export default function BoardFormModal({
 
     if (!trimmed) return;
 
-    // Empty description clears the column rather than storing "", so "no
-    // description" is one value in the database — the rule `taskDraft.ts`
-    // already applies to work items.
+    // empty clears the column instead of storing "" — one value for "no description"
     const patch = {
       title: trimmed,
       description: description.trim() || null,
@@ -75,8 +56,7 @@ export default function BoardFormModal({
 
     if (board) {
       updateBoard.mutate(
-        // `space_id` is sent only when the caller may change it, so an admin's
-        // save cannot round-trip a value the trigger would then refuse.
+        // sent only when the caller may actually change it
         canFile
           ? { id: board.id, ...patch, space_id: space || null }
           : { id: board.id, ...patch },
@@ -93,8 +73,6 @@ export default function BoardFormModal({
       {
         onSuccess: () => {
           onClose();
-          // Straight to the board that was just made. Creating one and being
-          // left where you were is the interaction asking "did that work?".
           navigate(`/boards/${id}`);
         },
       },

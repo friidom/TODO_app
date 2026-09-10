@@ -8,8 +8,6 @@ describe("confirmLabel", () => {
   });
 
   it("falls back to the label an untitled board actually renders", () => {
-    // `boards.title` is nullable. Asking for a null title would make the box
-    // impossible to satisfy, so the target is what is on screen.
     expect(confirmLabel(null)).toBe("Untitled board");
     expect(confirmLabel("   ")).toBe("Untitled board");
   });

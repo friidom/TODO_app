@@ -13,7 +13,6 @@ import {
   type TodoFilters,
 } from "./view";
 
-/** Today, pinned. Every due-date expectation below is relative to this day. */
 const TODAY = "2026-08-13";
 
 const card = (id: string, fields: Partial<Todo> = {}): Todo =>
@@ -39,8 +38,6 @@ const filters = (overrides: Partial<TodoFilters> = {}): TodoFilters => ({
 const ids = (todos: Todo[]) => todos.map((todo) => todo.id);
 
 describe("filterTodos", () => {
-  // The rule the whole panel rests on: unchecking your last work type shows
-  // every card again, not none of them.
   it("is the identity when nothing is selected", () => {
     const todos = [card("1"), card("2")];
 
@@ -144,8 +141,6 @@ describe("filterTodos", () => {
       ).toEqual(["never"]);
     });
 
-    // A card due today at midnight UTC must not read as overdue — the same
-    // boundary `dueDate.ts` exists to get right.
     it("does not call a card due today overdue", () => {
       const result = filterTodos(
         todos,
@@ -202,8 +197,6 @@ describe("searchTodos", () => {
   ];
 
   it("returns the same array when the query is empty", () => {
-    // Identity, not a copy: an unsearched board must hand the same reference
-    // downstream so the memos below it do nothing.
     expect(searchTodos(rows, "")).toBe(rows);
     expect(searchTodos(rows, "   ")).toBe(rows);
   });
@@ -215,14 +208,10 @@ describe("searchTodos", () => {
   });
 
   it("survives a card with no title", () => {
-    // `todos.title` is nullable and a card in flight has none.
     expect(ids(searchTodos(rows, "z"))).toEqual([]);
   });
 
   it("matches a bare number against the key AND the title", () => {
-    // The bug this pass fixed. A bare number used to mean key-only, so on a
-    // board whose cards are titled "123" and "3231" — this project's own board
-    // — typing 123 returned nothing while matching cards sat on screen.
     const numeric = [
       card("a", { title: "Fix the login redirect", board_key: 12 }),
       card("b", { title: "123", board_key: 40 }),
@@ -230,21 +219,15 @@ describe("searchTodos", () => {
       card("d", { title: "no digits here", board_key: 123 }),
     ];
 
-    // 123 finds both titles containing it and the card whose key is 123.
     expect(ids(searchTodos(numeric, "123"))).toEqual(["b", "c", "d"]);
   });
 
   it("still matches a key exactly, not as a substring of a key", () => {
-    // `12` must not return the card keyed 112, or searching by key is useless
-    // on any board past a hundred cards. The title arm is a substring match;
-    // the key arm is equality.
     expect(ids(searchTodos(rows, "12"))).toEqual(["a"]);
     expect(ids(searchTodos(rows, "112"))).toEqual(["c"]);
   });
 
   it("narrows to the key alone once a prefix is written", () => {
-    // Writing the prefix is an explicit statement that you mean the key, so a
-    // card *titled* 123 is no longer what was asked for.
     const numeric = [
       card("b", { title: "123", board_key: 40 }),
       card("d", { title: "no digits here", board_key: 123 }),
@@ -260,16 +243,12 @@ describe("searchTodos", () => {
   });
 
   it("matches a full key and ignores the prefix", () => {
-    // The prefix belongs to the board (M14) and a view may span boards with
-    // different ones, so the number is what is matched. Generous, never wrong.
     expect(ids(searchTodos(rows, "KAN-12"))).toEqual(["a"]);
     expect(ids(searchTodos(rows, "kan-12"))).toEqual(["a"]);
     expect(ids(searchTodos(rows, "OPS-12"))).toEqual(["a"]);
   });
 
   it("treats a phrase containing digits as a title search", () => {
-    // The trap a looser "digits anywhere" rule falls into: this must not drag
-    // in card 12 alongside whatever the words match.
     expect(ids(searchTodos(rows, "fix 12 things"))).toEqual([]);
   });
 
@@ -279,8 +258,6 @@ describe("searchTodos", () => {
 });
 
 describe("sortTodos", () => {
-  // This is what makes the sort a view concern: switching away and back leaves
-  // the board's dragged order untouched, because nothing was ever reordered.
   it("returns the input untouched under manual", () => {
     const todos = [card("2"), card("1")];
 
@@ -297,8 +274,6 @@ describe("sortTodos", () => {
     expect(ids(sortTodos(todos, "due", "desc"))).toEqual(["late", "early"]);
   });
 
-  // A card with no due date is not the most overdue one, and flipping the
-  // direction should not promote every unanswered card to the top.
   it("keeps cards with no value last in both directions", () => {
     const todos = [
       card("none"),
@@ -326,8 +301,6 @@ describe("sortTodos", () => {
       card("unset"),
     ];
 
-    // Alphabetically "high" precedes "highest" and "low" precedes "lowest",
-    // which is backwards in both pairs.
     expect(ids(sortTodos(todos, "priority", "asc"))).toEqual([
       "highest",
       "high",
@@ -361,7 +334,6 @@ describe("sortTodos", () => {
     ];
 
     expect(ids(sortTodos(todos, "created", "asc"))).toEqual(["old", "new"]);
-    // `updated_at` is nullable, so the never-updated card falls to the end.
     expect(ids(sortTodos(todos, "updated", "asc"))).toEqual(["new", "old"]);
   });
 
@@ -401,13 +373,9 @@ const member = (id: string, full_name: string | null): BoardMember => ({
   joined_at: "2026-01-01T00:00:00Z",
 });
 
-/** Two columns, deliberately given out of position order. */
 const COLUMNS = [column("doing", "In progress", 1), column("todo", "To do", 0)];
 
 describe("orderByBoard", () => {
-  // The cache stops being in board order the first time a card is dragged:
-  // `applyTodoMoved` returns [...untouched, ...source, ...destination]. Both
-  // views used to reconstruct the order separately; this is the one rule now.
   it("reads columns left to right and position top to bottom", () => {
     const todos = [
       card("d2", { column_id: "doing", position: 1 }),
@@ -439,8 +407,6 @@ describe("orderByBoard", () => {
     expect(ids(todos)).toEqual(["d1", "t1"]);
   });
 
-  // Bucketing preserves array order, so the board can drop its own sort only if
-  // this holds: what the list shows top to bottom is what each column shows.
   it("agrees with what each column would show on the board", () => {
     const todos = [
       card("t2", { column_id: "todo", position: 1 }),
@@ -458,9 +424,6 @@ describe("orderByBoard", () => {
 describe("the view pipeline", () => {
   const ctx = { columns: COLUMNS, members: [member("u1", "Alex")] };
 
-  // "Assigned to me, by due date, grouped by assignee" — the three controls
-  // compose in one direction: filter narrows, sort orders what is left, group
-  // splits what the sort produced. Nothing re-orders after grouping.
   it("filters, then sorts, then groups", () => {
     const todos = [
       card("theirs", {
@@ -507,8 +470,6 @@ describe("the view pipeline", () => {
 
     const visible = filterTodos(todos, filters({ type: ["Bug"] }), "u1", TODAY);
 
-    // `sortTodos` is the identity under manual, so the board's order is
-    // `orderByBoard`'s answer and nothing downstream re-sorts.
     expect(sortTodos(visible, "manual")).toBe(visible);
     expect(ids(orderByBoard(visible, COLUMNS))).toEqual(["t2", "d1"]);
   });
@@ -535,8 +496,6 @@ describe("groupTodos", () => {
       ctx,
     );
 
-    // An empty column is part of the board's shape whether or not anything is
-    // in it — hiding it would make the board depend on its contents.
     expect(result.map((group) => group.label)).toEqual([
       "To do",
       "In progress",
@@ -581,8 +540,6 @@ describe("groupTodos", () => {
       expect(result.map((group) => group.label)).toEqual(["Alex"]);
     });
 
-    // `assignee_id` survives removal from the board, so these cards still have
-    // to land somewhere.
     it("keeps cards assigned to somebody the roster no longer lists", () => {
       const result = groupTodos(
         [card("1", { assignee_id: "gone" })],
@@ -597,7 +554,6 @@ describe("groupTodos", () => {
   it("groups by work type in menu order, dropping the empty ones", () => {
     const todos = [card("1", { type: "Bug" }), card("2", { type: "Task" })];
 
-    // WORK_TYPE_OPTIONS puts Task first because it is the default.
     expect(groupTodos(todos, "type", ctx).map((group) => group.key)).toEqual([
       "Task",
       "Bug",

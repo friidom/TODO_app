@@ -10,28 +10,7 @@ import { monthGrid, shiftMonth } from "@/utils/calendarGrid";
 import { todayISO } from "@/utils/dueDate";
 import { cn } from "@/utils/cn";
 
-/**
- * The month picker, shared by both of a work item's dates (M20).
- *
- * **Extracted from `DueDateControl`, unchanged in behaviour.** It was private to
- * that file while the row had one date on it; M20 adds `start_date`, and the
- * choice was to copy sixty lines of calendar arithmetic or to lift them. A
- * second copy would be a second place a month boundary, a weekday offset or a
- * locale rule can be wrong — and they would drift silently, because both
- * pickers look right until you page one of them into February.
- *
- * Still a hand-built grid rather than a dependency, for the reason
- * `DueDateControl` records: neither `@base-ui/react` nor `radix-ui` ships a
- * calendar, and the only hard part is arithmetic that already lives in
- * `utils/calendarGrid.ts` where it is tested.
- *
- * **`min` / `max` are what keep the two dates from crossing.** The database
- * refuses an inverted range — `todos_date_range_check`, added with the column —
- * so without a bound the UI would happily offer a start date after the due date
- * and then surface a raw `23514` in a toast. Disabling the days that cannot be
- * chosen says the same thing before the click, which is the difference between
- * a constraint that guides and one that scolds.
- */
+// shared by start date and due date — min/max disable days that'd invert the range before the DB constraint has to reject it
 export default function DatePanel({
   title,
   icon: Glyph,
@@ -44,32 +23,24 @@ export default function DatePanel({
   onClear,
 }: {
   title: string;
-  /**
-   * The heading's glyph. A due date and a start date are the same picker and
-   * not the same idea, and the icon is the cheapest place to say so.
-   */
   icon: LucideIcon;
-  /** Tailwind text colour for that glyph. */
   accent: string;
   selected: string | null;
   locale: string;
-  /** Earliest selectable day, `YYYY-MM-DD`. */
   min?: string;
-  /** Latest selectable day, `YYYY-MM-DD`. */
   max?: string;
   onSelect: (day: string) => void;
   onClear: () => void;
 }) {
   const today = todayISO();
 
-  // The month on screen. Opens on the selected date, else on today.
   const [view, setView] = useState(() => {
     const [year, month] = (selected ?? today).split("-").map(Number);
 
     return { year, month: month - 1 };
   });
 
-  // en is the only Sunday-first locale the app carries; ru and uz start Monday.
+  // en is the only Sunday-first locale here; ru/uz start Monday
   const weekStartsOn = locale.startsWith("en") ? 0 : 1;
   const grid = monthGrid(view.year, view.month, weekStartsOn);
 
@@ -81,8 +52,6 @@ export default function DatePanel({
     timeZone: "UTC",
   });
 
-  // Derived from the grid's own first week, so the labels can never fall out of
-  // step with the columns beneath them.
   const weekdays = grid.slice(0, 7).map((entry) =>
     new Date(`${entry.day}T00:00:00.000Z`).toLocaleDateString(locale, {
       weekday: "short",
@@ -90,8 +59,7 @@ export default function DatePanel({
     }),
   );
 
-  // String comparison, because the format is fixed-width and big-endian — the
-  // same rule every date comparison in the app follows.
+  // string comparison works because YYYY-MM-DD is fixed-width and big-endian
   const blocked = (day: string) =>
     (min !== undefined && day < min) || (max !== undefined && day > max);
 
@@ -113,9 +81,6 @@ export default function DatePanel({
         )}
       </div>
 
-      {/* Typing a date is the one thing the native control does better than a
-          grid, so it stays — but only as the text field, not as the picker.
-          `min`/`max` are honoured by the browser's own validation too. */}
       <input
         type="date"
         value={selected ?? ""}
@@ -184,11 +149,7 @@ export default function DatePanel({
                   : inMonth
                     ? "text-ink hover:bg-ink/10"
                     : "text-ink-3 hover:bg-ink/5",
-                // Today is a ring rather than a fill, so it stays legible when
-                // it is also the selected day.
                 isToday && !isSelected && "ring-brand/60 ring-1 ring-inset",
-                // Out of range: struck through rather than merely dimmed, so it
-                // reads as "not allowed" rather than "outside this month".
                 isBlocked &&
                   "text-ink-3/30 cursor-not-allowed line-through hover:bg-transparent",
               )}

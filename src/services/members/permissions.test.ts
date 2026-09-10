@@ -4,6 +4,7 @@ import {
   BOARD_ROLES,
   assignableRoles,
   canActOnMember,
+  canDeleteAttachment,
   canDeleteComment,
   canEditComment,
   permissionsFor,
@@ -47,8 +48,6 @@ describe("permissionsFor", () => {
   });
 
   it("gives a non-member nothing", () => {
-    // Null is the shape board_role() returns for a stranger, and the two junk
-    // cases are what a hand-edited cache or a renamed role would produce.
     for (const role of [null, undefined, "", "admiral"]) {
       expect(permissionsFor(role).canReadBoard).toBe(false);
       expect(permissionsFor(role).role).toBeNull();
@@ -124,9 +123,6 @@ describe("assignableRoles", () => {
   });
 
   it("agrees with canActOnMember about every pair", () => {
-    // The two are used together — the menu lists assignableRoles on a row
-    // canActOnMember allowed — so a disagreement would offer a control whose
-    // every option is refused.
     for (const actor of BOARD_ROLES) {
       for (const target of assignableRoles(actor)) {
         expect(canActOnMember(actor, target)).toBe(true);
@@ -137,8 +133,6 @@ describe("assignableRoles", () => {
 
 describe("comment permissions — M7-01", () => {
   it("lets every member comment, viewer included", () => {
-    // The decision M7-01 was blocked on: commenting is participation, not
-    // content, so this is the one capability a viewer shares with an owner.
     for (const role of BOARD_ROLES) {
       expect(permissionsFor(role).canComment).toBe(true);
     }
@@ -158,9 +152,6 @@ describe("comment permissions — M7-01", () => {
   });
 
   it("LETS NOBODY EDIT SOMEONE ELSE'S — there is no rank that widens it", () => {
-    // Mirrors the policy exactly: UPDATE is author_id = auth.uid() with no
-    // role branch. An admin who could rewrite someone's words would make the
-    // attribution a lie.
     expect(canEditComment("u-2", "u-1")).toBe(false);
     expect(canDeleteComment("admin", "u-2", "u-1")).toBe(true);
     expect(canEditComment("u-2", "u-1")).toBe(false);
@@ -169,8 +160,6 @@ describe("comment permissions — M7-01", () => {
   it("treats a missing session as nobody", () => {
     expect(canEditComment(undefined, "u-1")).toBe(false);
     expect(canEditComment(null, "u-1")).toBe(false);
-    // The dangerous shape: an undefined author id must never match an
-    // undefined user id into an allow.
     expect(canEditComment(undefined, undefined as unknown as string)).toBe(
       false,
     );
@@ -189,9 +178,54 @@ describe("comment permissions — M7-01", () => {
   });
 
   it("gives a non-member nothing, even over a comment carrying their id", () => {
-    // The membership test is what stops a stale id from a signed-out session
-    // matching an author id into an allow.
     expect(canDeleteComment(null, "u-1", "u-1")).toBe(false);
     expect(canDeleteComment("nonsense", "u-1", "u-1")).toBe(false);
+  });
+});
+
+describe("attachment permissions — M32", () => {
+  it("REFUSES A VIEWER, WHERE COMMENTING ALLOWS ONE", () => {
+    expect(permissionsFor("viewer").canComment).toBe(true);
+    expect(permissionsFor("viewer").canAttach).toBe(false);
+
+    expect(permissionsFor("editor").canAttach).toBe(true);
+    expect(permissionsFor("admin").canAttach).toBe(true);
+    expect(permissionsFor("owner").canAttach).toBe(true);
+    expect(permissionsFor(null).canAttach).toBe(false);
+  });
+
+  it("tracks canEditTodos, which is what makes it the content matrix", () => {
+    for (const role of [...BOARD_ROLES, null, "admiral"]) {
+      const p = permissionsFor(role);
+
+      expect(p.canAttach).toBe(p.canEditTodos);
+    }
+  });
+
+  it("lets an uploader delete their own at editor rank and above", () => {
+    expect(canDeleteAttachment("editor", "u-1", "u-1")).toBe(true);
+    expect(canDeleteAttachment("admin", "u-1", "u-1")).toBe(true);
+  });
+
+  it("lets admins and owners delete anyone's, and editors nobody else's", () => {
+    expect(canDeleteAttachment("admin", "u-2", "u-1")).toBe(true);
+    expect(canDeleteAttachment("owner", "u-2", "u-1")).toBe(true);
+    expect(canDeleteAttachment("editor", "u-2", "u-1")).toBe(false);
+  });
+
+  it("gives a viewer no delete, not even over a row carrying their id", () => {
+    expect(canDeleteAttachment("viewer", "u-1", "u-1")).toBe(false);
+  });
+
+  it("gives a non-member nothing", () => {
+    expect(canDeleteAttachment(null, "u-1", "u-1")).toBe(false);
+    expect(canDeleteAttachment("nonsense", "u-1", "u-1")).toBe(false);
+  });
+
+  it("TREATS AN ORPHANED FILE AS NOBODY'S, NOT AS EVERYBODY'S", () => {
+    expect(canDeleteAttachment("editor", null, null)).toBe(false);
+    expect(canDeleteAttachment("editor", undefined, null)).toBe(false);
+    expect(canDeleteAttachment("editor", "u-1", null)).toBe(false);
+    expect(canDeleteAttachment("admin", null, null)).toBe(true);
   });
 });

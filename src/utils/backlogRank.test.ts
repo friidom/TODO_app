@@ -8,7 +8,6 @@ import {
   RANK_GAP,
 } from "./backlogRank";
 
-/** A fixed, ordered set of creation stamps — the fallback ordering. */
 const AT = (day: number) =>
   `2026-08-${String(day).padStart(2, "0")}T00:00:00.000Z`;
 
@@ -39,7 +38,6 @@ describe("effectiveBacklogRank", () => {
   });
 
   it("degrades an unparseable stamp to 0 rather than NaN", () => {
-    // NaN here would reintroduce the non-total comparator this replaced.
     expect(effectiveBacklogRank(row(null, { created_at: "not a date" }))).toBe(
       0,
     );
@@ -56,9 +54,6 @@ describe("byBacklogRank", () => {
   });
 
   it("sorts a never-placed row after a low-ranked one", () => {
-    // A creation stamp is ~1.7e12, so an untouched row sits far below a
-    // hand-placed rank in the ordering — "never dragged" still reads as
-    // "later in the list" for the ranks this app actually writes.
     const rows = [row(1000), row(null, { created_at: AT(2) }), row(500)];
 
     expect(rows.sort(byBacklogRank).map((r) => r.backlog_rank)).toEqual([
@@ -77,14 +72,7 @@ describe("byBacklogRank", () => {
   });
 
   it("is a TOTAL order: the same rows sort identically from any input order", () => {
-    // The first of the two ordering bugs. `Infinity` as the null fallback
-    // made two unranked rows compare `Infinity - Infinity` = NaN, which
-    // `Array.prototype.sort` reads as "equal" — so each array simply kept
-    // its own input order. The drop path sorts TWO arrays and needs them to
-    // agree: `visible` (from `useVisibleTodos`, ordered by `orderByBoard`)
-    // and `full` (raw cache, fetch order). Disagreeing meant the gap the
-    // user aimed at and the neighbours the rank was computed between were
-    // positions in two different lists.
+    // regression: Infinity as the null fallback made two unranked rows compare NaN, so sort kept input order
     const a = row(null, { id: "a", created_at: AT(1) });
     const b = row(null, { id: "b", created_at: AT(2) });
     const c = row(null, { id: "c", created_at: AT(3) });
@@ -98,14 +86,7 @@ describe("byBacklogRank", () => {
   });
 
   it("is ROW-INTRINSIC: ranking one row keeps it where it was placed", () => {
-    // The second ordering bug, and the subtler one. A fallback defined
-    // *relative to the list* — "unranked rows sort after the highest real
-    // rank" — is stable only while no row has a real rank. The moment one
-    // drop writes one, that row leaves the unranked tail and jumps ahead of
-    // every row it was dropped below: dropping D between A and B in an
-    // all-unranked [A,B,C,D] produced [D,A,B,C]. Creation time depends on
-    // nothing but the row, so a rank computed strictly between two rows
-    // stays strictly between them.
+    // regression: a list-relative fallback jumped a newly-ranked row to the front once it left the unranked tail
     const a = row(null, { id: "a", created_at: AT(1) });
     const b = row(null, { id: "b", created_at: AT(2) });
     const c = row(null, { id: "c", created_at: AT(3) });
@@ -147,9 +128,6 @@ describe("backlogRankForAppend", () => {
   });
 
   it("counts a never-placed row, since it is really down there", () => {
-    // Reading only real ranks — the previous behaviour — put a new item at
-    // `1000 + RANK_GAP`, which is the TOP of a section whose untouched rows
-    // sit around 1.7e12, not the bottom of it.
     const untouched = row(null, { created_at: AT(2) });
 
     expect(backlogRankForAppend([row(1000), untouched])).toBe(

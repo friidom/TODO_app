@@ -14,20 +14,7 @@ import { useBoardMembers } from "@/services/members/useBoardMembers";
 import type { Activity } from "@/types/data";
 import { relativeTime } from "@/utils/relativeTime";
 
-/**
- * One work item's History tab (M25) — the Jira-style field/chip rendering the
- * reference asks for, over the same `activities` table the board-wide feed
- * reads.
- *
- * **A flat list, unlike `ActivityFeed`'s day-grouped drawer.** One item's
- * lifetime of activity is bounded and usually short; a day header earns its
- * place scanning a board's worth of history across weeks, not one card's.
- *
- * **`names` is built once here and handed to both `HistoryRow` and
- * `ActivitySection`'s "All" tab** (which imports `HistoryRow` directly) — the
- * same shape `ActivityContext.names` already established, so a history
- * renderer resolving an assignee id is not a new convention.
- */
+// flat list, unlike ActivityFeed's day-grouped drawer — one card's history is short enough to not need day headers
 export default function TodoHistoryList({
   todoId,
   boardId,
@@ -35,8 +22,6 @@ export default function TodoHistoryList({
 }: {
   todoId: string;
   boardId: string;
-  /** The signed-in viewer's id, for the "You" substitution `HistoryRow` does
-   * that the board-wide feed deliberately does not. */
   currentUserId: string | undefined;
 }) {
   const {
@@ -73,9 +58,7 @@ export default function TodoHistoryList({
     );
   }
 
-  // Filtered rather than mapped-and-nulled: `deleted` and any action a future
-  // migration adds ahead of this build return null from `describeHistoryChange`,
-  // and a list a person is reading should not show a blank row for either.
+  // describeHistoryChange returns null for actions it doesn't know how to phrase — filtered, not rendered blank
   const rows = (activities ?? [])
     .map((activity) => ({
       activity,
@@ -106,18 +89,7 @@ export default function TodoHistoryList({
   );
 }
 
-/**
- * One history entry: avatar, "{actor} changed the {field}", a relative
- * timestamp on its own line, and — when there is a value to show — a
- * two-chip "old → new" row underneath, the new value emphasized. Matches the
- * reference screenshot's spacing rather than `ActivityFeed`'s single
- * destination-only chip, which is the one place the two renderers genuinely
- * differ (see `historyText.ts`'s header for why).
- *
- * Exported so `ActivitySection`'s "All" tab can render a history row with the
- * identical markup a plain `CommentRow` gets for a comment — one look for the
- * merged feed, not two competing ones.
- */
+// exported so ActivitySection's "All" tab can render this with the same markup a CommentRow gets
 export function HistoryRow({
   activity,
   change,
@@ -131,10 +103,7 @@ export function HistoryRow({
 }) {
   const actor = members.find((member) => member.id === activity.actor_id);
 
-  // "You" for the viewer's own edits, matching the reference's mixed example
-  // ("aminjanovkamoliddin0725 changed the Status" / "You changed Story
-  // Points"). Deliberately only here — the board-wide `ActivityFeed` keeps
-  // always resolving a name, unchanged.
+  // "You" for the viewer's own edits — only here, ActivityFeed always resolves a name
   const actorLabel =
     activity.actor_id !== null && activity.actor_id === currentUserId
       ? "You"
@@ -182,10 +151,6 @@ export function HistoryRow({
 
             <ArrowRightIcon className="text-ink-3/60 size-3 shrink-0" />
 
-            {/* The new value is the one worth seeing at a glance — the same
-                argument `ActivityFeed`'s own chip makes for its single
-                destination value, applied here to the second half of a pair
-                instead of the whole chip. */}
             <span className="bg-brand-soft text-brand text-mini min-w-0 truncate rounded-full px-2 py-0.5 font-medium">
               {change.to}
             </span>

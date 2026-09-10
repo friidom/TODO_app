@@ -9,9 +9,7 @@ export function useUpdateBoard() {
   return useMutation({
     mutationFn: updateBoard,
 
-    // Two caches hold this row — the list and the board's own entry — and both
-    // are patched and both are rolled back. Patching only the list is the bug
-    // M1-04 fixed for profiles: the write lands somewhere nothing reads.
+    // two caches hold this row — the list and the board's own entry — both get patched and both get rolled back
     onMutate: async ({ id, ...patch }) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.boards() });
       await queryClient.cancelQueries({ queryKey: queryKeys.board(id) });
@@ -41,8 +39,6 @@ export function useUpdateBoard() {
 
       queryClient.setQueryData(queryKeys.boards(), context.previousBoards);
 
-      // Only restore the detail entry if there was one. Writing undefined back
-      // would plant an empty cache entry where none existed.
       if (context.previousBoard) {
         queryClient.setQueryData(
           queryKeys.board(context.id),

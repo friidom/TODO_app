@@ -19,16 +19,7 @@ import {
 import { cn } from "@/utils/cn";
 import { HEADER_CONTROL, HEADER_CONTROL_ACTIVE } from "./headerControl";
 
-/**
- * Show the work in the order you care about.
- *
- * **Sorting is a view concern and writes nothing.** `todos.position` is the
- * order the user dragged the board into and it stays exactly as they left it,
- * whatever this control is set to — `sortTodos` under `manual` is the identity
- * function, so switching away and back is free and cannot lose an arrangement.
- *
- * Direction is disabled under `Manual`, which has no key to apply one to.
- */
+// View-only, writes nothing — sortTodos under "manual" is the identity function, so switching away and back never loses the drag order.
 export default function BoardSort({ view }: { view: BoardView }) {
   const { sort, dir, setSort, setDir } = view;
 
@@ -53,10 +44,7 @@ export default function BoardSort({ view }: { view: BoardView }) {
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" className="w-48">
-        {/* Inside the radio group, not beside it: `DropdownMenuLabel` is Base
-            UI's `Menu.GroupLabel` and it reads the group context to name the
-            group it labels. `Menu.RadioGroup` provides that context; the popup
-            does not. Rendered first, so the panel reads exactly as before. */}
+        {/* label goes inside the radio group — it reads group context that only RadioGroup provides */}
         <DropdownMenuRadioGroup
           value={sort}
           onValueChange={(next) => setSort(next as SortKey)}

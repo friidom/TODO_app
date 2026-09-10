@@ -8,9 +8,7 @@ export function useTodos() {
 
   return useQuery({
     queryKey: queryKeys.todos(boardId),
-    // Keyed on the board rather than the user. useAuth is gone from here: the
-    // route is already behind ProtectedRoute, RLS is the real boundary, and a
-    // user_id filter would hide a teammate's cards once M3 shares boards.
+    // keyed on the board, not the user — RLS is the real boundary, a user_id filter here would hide teammates' cards
     queryFn: () => {
       if (!boardId) throw new Error("useTodos ran without a board");
       return fetchTodos(boardId);

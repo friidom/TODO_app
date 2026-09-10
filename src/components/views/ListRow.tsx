@@ -16,38 +16,6 @@ import { cn } from "@/utils/cn";
 import { taskKey } from "@/utils/taskKey";
 import { LIST_GRID } from "./listGrid";
 
-/**
- * One work item as a line in an issue list.
- *
- * Every cell is the control the card already uses — the list is a second
- * *layout*, not a second implementation. `StatusControl` is the clearest case:
- * it was written for a card, never imported, and turns out to be exactly what a
- * status column wants, still writing through `useMoveTodo` and so still ringing
- * a card that lands in a done column.
- *
- * **Three things are visible from across the room, and four are not.** The row
- * used to give every field the same treatment: seven bordered, filled, labelled
- * objects in a line, each looking like a control in its own right, so nothing in
- * it was louder than anything else and the summary — the only part anyone reads
- * to find an item — was the fourth thing the eye landed on. Now the type is a
- * bare coloured glyph, the key is muted 11px, the summary is the only 14px text
- * on the line, and status/priority/assignee/due sit to the right at a weight
- * meant to be *checked* rather than read. `bare` on three of those controls is
- * what took the badges off; nothing about what they do changed.
- *
- * **An empty field renders nothing (M18).** Priority, assignee and due are all
- * nullable and all common — on a board nobody has prioritised, `alwaysVisible`
- * put a grey signal glyph, a grey person glyph and a grey calendar glyph on
- * every single row, three columns of identical marks that looked like data and
- * carried none. They now fade in on row hover, which is the bargain
- * `AssigneeControl` and `DueDateControl` were already written for and
- * `PriorityControl` has just been given. The controls stay in flow at
- * `opacity-0`, so nothing about the row's geometry depends on what it holds.
- *
- * Editing the summary is the card's inline rename, in place: the same
- * Enter-saves / Escape-cancels / blur-saves / empty-reverts behaviour, through
- * the same `useTodoPatch`.
- */
 export default function ListRow({ todo }: { todo: Todo }) {
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(todo.title ?? "");
@@ -61,15 +29,7 @@ export default function ListRow({ todo }: { todo: Todo }) {
 
   const celebrate = useDoneFlash((state) => state.todoId === todo.id);
 
-  /**
-   * Read-only cells for a viewer.
-   *
-   * `pointer-events-none` rather than five presentational twins of controls
-   * that already exist: it keeps the row looking exactly as it does for
-   * everyone else — same chips, same spacing, same colours — while making them
-   * inert. A viewer clicking a status chip that opens a menu and then silently
-   * fails is the case the plan warns reads as a broken board.
-   */
+  // pointer-events-none rather than read-only twins of every control — same look, just inert
   const inert = canEditTodos ? undefined : "pointer-events-none";
 
   useEffect(() => {
@@ -99,21 +59,10 @@ export default function ListRow({ todo }: { todo: Todo }) {
       role="row"
       className={cn(
         LIST_GRID,
-        // 44px, fixed rather than a minimum: the row is a line in a list and
-        // every one of them should be the same line. Colour is the only thing
-        // hover changes — no border width, no padding, no transform — so a row
-        // cannot shift or nudge its neighbours under the cursor.
-        //
-        // `bg-ink/[0.035]` rather than a surface token because it is the same
-        // gesture in both themes: ink lifts a dark row and settles a light one,
-        // where a fixed colour would have to be chosen twice.
         "border-hairline group hover:bg-ink/[0.035] h-11 border-b transition-colors duration-150",
         celebrate && "done-flash",
       )}
     >
-      {/* TYPE — a coloured glyph and nothing else. It is the first thing in the
-          row and the least of it: the colour says Bug or Story at a glance, and
-          anyone who needs the word has the tooltip and the aria-label. */}
       <div role="cell" className={cn("flex", inert)}>
         <WorkTypeControl
           bare
@@ -122,13 +71,6 @@ export default function ListRow({ todo }: { todo: Todo }) {
         />
       </div>
 
-      {/* KEY — null while the insert is in flight, because the server allocates
-          it and that absence is the pending state. Opening is deliberately not
-          gated: reading a task is not editing it, and the menu at the end of the
-          row is editor-only. Same affordance the card's key carries.
-
-          `tabular-nums` so KAN-9 and KAN-12 line up down the column rather than
-          wandering with the width of each digit. */}
       <div role="cell" className="min-w-0">
         {key !== null ? (
           <button
@@ -144,10 +86,6 @@ export default function ListRow({ todo }: { todo: Todo }) {
         )}
       </div>
 
-      {/* TITLE — the one thing in the row at reading weight, and the only track
-          that grows. `min-w-0` is what lets it truncate: a grid item defaults to
-          `min-width: auto` and would refuse to shrink below its own text, so a
-          long summary would push the metadata off the end of the row. */}
       <div role="cell" className="min-w-0">
         {editing ? (
           <input
@@ -171,9 +109,6 @@ export default function ListRow({ todo }: { todo: Todo }) {
             {todo.title || <span className="text-ink-3/60">Untitled</span>}
           </button>
         ) : (
-          // Plain text rather than an inert button: the summary is the one cell
-          // whose control is nothing but the edit affordance, so for a viewer
-          // there is no chip to preserve — only the words.
           <span
             title={todo.title ?? undefined}
             className="text-ink text-meta block w-full truncate font-medium"
@@ -183,9 +118,6 @@ export default function ListRow({ todo }: { todo: Todo }) {
         )}
       </div>
 
-      {/* METADATA — four fixed tracks, so the four of them line up down the list
-          whatever any one row happens to hold, and the eye can check a column
-          without reading it. */}
       <div role="cell" className={cn("flex min-w-0", inert)}>
         <StatusControl todoId={todo.id} columnId={todo.column_id} />
       </div>
@@ -217,9 +149,6 @@ export default function ListRow({ todo }: { todo: Todo }) {
         />
       </div>
 
-      {/* The track is declared whether or not a menu goes in it, so the row
-          keeps its columns against the header for a viewer too. The menu fades
-          in place — it is in flow at `opacity-0`, so nothing reflows on hover. */}
       <div role="cell" className="flex justify-end">
         {canEditTodos && (
           <div className="coarse:opacity-100 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">

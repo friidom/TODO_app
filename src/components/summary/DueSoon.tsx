@@ -6,40 +6,14 @@ import { formatDue } from "@/utils/dueDate";
 import { taskKey } from "@/utils/taskKey";
 import SummaryCard, { WidgetEmpty } from "./SummaryCard";
 
-/**
- * What is late and what is next (M18).
- *
- * **The only widget on this page that names individual work items**, and that
- * is what earns it a place: every other panel answers "how much", and none of
- * them answers the question somebody opening a board on Monday actually has,
- * which is "what do I have to deal with today". A count of six overdue items is
- * a fact; the six titles are the thing you act on.
- *
- * **"Overdue" is not defined here.** `dueSoonItems` calls `dueStatus()` — the
- * same function the card chip, the `due` filter and the KPI strip call — so
- * a task this widget calls late is late everywhere else too. The plan states
- * this as a rule: *a dashboard that disagrees with the board about which task
- * is late is worse than no dashboard.*
- *
- * Rows open the existing task modal through `useOpenTask`, the same `?task=`
- * search param the board and the list use, so a deep link from here carries the
- * Summary view it was found under.
- *
- * **Three things per row: the key, the title, the date.** The work-type glyph
- * that used to lead each row is gone — this is the narrowest panel on the page,
- * the title is the part that gets truncated, and urgency is already carried by
- * the date's colour. A fourth element would have been spending the narrowest
- * widget's width on its least useful field.
- */
+// dueSoonItems calls the same dueStatus() as the card chip and the due filter, so "overdue" always means the same thing
 export default function DueSoon({
   items,
   windowDays,
   className,
 }: {
   items: DueSoonItem[];
-  /** Only the empty state names it — the title says "soon" and this says how soon. */
   windowDays: number;
-  /** The widget's span in the Summary's grid. */
   className?: string;
 }) {
   const { openTask } = useOpenTask();

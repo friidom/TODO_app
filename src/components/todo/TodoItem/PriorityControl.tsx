@@ -11,20 +11,6 @@ import {
 import { cn } from "@/utils/cn";
 import { useCardPopover } from "./useCardPopover";
 
-/**
- * A card's priority: a compact chip that opens the five levels.
- *
- * Controlled, like `WorkTypeControl`, `DueDateControl` and `AssigneeControl` —
- * it reports the choice through `onChange` and never writes. The parent patches
- * through `useTodoPatch`, which is what lets the card menu and the list row
- * share this one implementation.
- *
- * **Unset is a first-class value, unlike work type.** `todos.type` is NOT NULL
- * with a default, so every card has one; `todos.priority` is nullable and most
- * cards have none. The chip renders as a neutral placeholder rather than as a
- * fake "Medium", and the menu offers "No priority" as a real option so a
- * priority set by mistake can be taken off again.
- */
 export default function PriorityControl({
   value,
   onChange,
@@ -34,30 +20,10 @@ export default function PriorityControl({
 }: {
   value: string | null;
   onChange: (value: Priority | null) => void;
-  /** The list view has a column's worth of room; a chip on a card does not. */
   showLabel?: boolean;
-  /**
-   * The tinted background off, leaving a coloured arrow.
-   *
-   * **The list wants the least of any field here.** Priority is one of five
-   * levels drawn as an up or down arrow, which is legible at a glance from the
-   * shape and the colour alone — the chip around it was carrying no information
-   * the arrow was not already carrying.
-   */
+  // tinted background off, just the coloured arrow — used by the list, which needs the least visual weight
   bare?: boolean;
-  /**
-   * Keep the placeholder on screen when nothing is set.
-   *
-   * **Off by default, which is the change M18 made.** `SignalIcon` is what an
-   * unset priority renders, and in a list where most cards have none it drew
-   * the same meaningless glyph on every single row — a column of noise that
-   * looked like data. Faded out, an empty priority costs nothing to look at and
-   * the control is still one hover away, which is the same bargain
-   * `AssigneeControl` and `DueDateControl` already struck.
-   *
-   * `alwaysVisible` is for a surface with no row to hover — the card, where the
-   * control has to be findable without one.
-   */
+  // keeps the empty-state placeholder visible even without row hover — for surfaces like the card with no row to hover
   alwaysVisible?: boolean;
 }) {
   const { mounted, close, triggerProps, panelProps } = useCardPopover();
@@ -75,25 +41,18 @@ export default function PriorityControl({
         title={`Priority: ${label}`}
         aria-label={`Priority: ${label}`}
         className={cn(
-          // `colors` is not a CSS property, so the old `transition-[colors,opacity]`
-          // animated nothing but opacity — the one control on the card whose tint
-          // snapped instead of easing. The property names are spelled out.
+          // "colors" isn't a real CSS property — spelled out, or only opacity actually transitions
           "flex shrink-0 items-center gap-1 rounded transition-[color,background-color,opacity] duration-150",
           bare
             ? cn(
                 "hover:bg-ink/10 p-0.5",
-                // Unset is a real and common state, so it renders as something
-                // rather than as a gap — but at a weight that does not read as a
-                // priority of its own.
                 meta ? meta.tone : "text-ink-3/40 hover:text-ink-3",
               )
             : cn(
                 "text-mini px-1.5 py-0.5 font-semibold",
                 meta ? meta.chip : "bg-ink/10 text-ink-3 hover:text-ink-2",
               ),
-          // Opacity, never `display` — the button stays in flow at zero, so a
-          // row does not reflow under the cursor and the grid track keeps its
-          // width whether or not the card has a priority.
+          // opacity, not display — keeps the row from reflowing under the cursor
           !meta &&
             !alwaysVisible &&
             "coarse:opacity-100 opacity-0 group-hover:opacity-100 focus-visible:opacity-100",

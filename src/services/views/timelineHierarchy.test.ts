@@ -52,7 +52,6 @@ function sprint(over: Partial<Sprint> & { id: string }): Sprint {
   } as Sprint;
 }
 
-/** A stored instant, written the way `fromCalendarDay` writes one. */
 function at(day: string): string {
   return `${day}T00:00:00.000Z`;
 }
@@ -100,11 +99,7 @@ describe("buildTimelineHierarchy — grouping", () => {
   });
 
   it("does not give a Task with dates but no Epic any row at all", () => {
-    // The correction this milestone makes: this view's top-level rows are
-    // Epics only. A dated, unparented Task belongs to the Board and the
-    // List, never to this screen — it is not "top-level" here, it is simply
-    // out of scope, so there is nowhere in the returned hierarchy it could
-    // appear.
+    // top-level rows on this view are Epics only — an unparented Task is out of scope, not "top-level"
     const solo = todo({
       id: "t-1",
       start_date: at("2026-08-10"),
@@ -123,8 +118,6 @@ describe("buildTimelineHierarchy — grouping", () => {
   });
 
   it("never appears — a genuine Subtask does not surface as its Task's row nor nested under any Epic", () => {
-    // Defence in depth: `useVisibleTodos` already drops these before this
-    // module sees the array (M27), but the invariant is stated here too.
     const e = epic({ id: "e-1" });
     const task = todo({
       id: "t-1",
@@ -144,18 +137,11 @@ describe("buildTimelineHierarchy — grouping", () => {
     expect(hierarchy.epics[0].tasks.map((t) => t.item.todo.id)).toEqual([
       "t-1",
     ]);
-    // Only the Task is a direct child of the Epic — the Subtask is a child
-    // of the Task, two levels down, and must not inflate the Epic's own
-    // count of Tasks it directly owns.
+    // Subtask is two levels down, must not inflate the Epic's direct-child taskCount
     expect(hierarchy.epics[0].taskCount).toBe(1);
   });
 
   it("drops a Task whose Epic is not present, rather than making it top-level", () => {
-    // The Epic itself is not in `todos` — filtered by search/type, or a
-    // transient cache gap. Membership is `childrenOf(todos, epic.id)` and
-    // nothing wider, so a Task naming an absent Epic has no group to join —
-    // the correction removed the old "fall back to top-level" rule along
-    // with the plain top-level row it fell back into.
     const orphan = todo({
       id: "t-1",
       parent_id: "epic-not-in-array",
@@ -257,7 +243,7 @@ describe("buildTimelineHierarchy — Epic dates", () => {
     expect(hierarchy.epics[0].item).toMatchObject({
       start: "2026-08-14",
       end: "2026-08-14",
-      isPoint: false, // the group's own rolled-up span, not the child's shape
+      isPoint: false, // group's rolled-up span, not the child's own shape
     });
   });
 });
@@ -305,7 +291,7 @@ describe("placeTimelineHierarchy", () => {
     const placed = placeTimelineHierarchy(hierarchy, ticks, "weeks");
 
     expect(placed.epics).toHaveLength(1);
-    expect(placed.epics[0].place).toBeNull(); // the Epic's own bar is still off-window
+    expect(placed.epics[0].place).toBeNull(); // Epic's own bar is still off-window
     expect(placed.epics[0].tasks).toHaveLength(1);
   });
 
@@ -347,7 +333,6 @@ describe("countHierarchyItems / countPlacedHierarchyItems", () => {
   });
 
   it("differs by exactly what the window drops", () => {
-    // Two Epics, one dated this month and one dated back in January.
     const here = epic({
       id: "e-1",
       start_date: at("2026-08-18"),
@@ -475,9 +460,6 @@ describe("buildTimelineHierarchy — Sprint rows", () => {
   });
 
   it("defaults to no Sprint rows when the argument is omitted", () => {
-    // Every pre-Sprint call site (and every test above this one) calls
-    // buildTimelineHierarchy with one argument -- this is what keeps them
-    // passing unchanged.
     const e = epic({ id: "e-1" });
 
     expect(buildTimelineHierarchy([e]).sprints).toEqual([]);
@@ -496,7 +478,7 @@ describe("buildTimelineHierarchy — Sprint-bound Tasks", () => {
       id: "t-1",
       parent_id: "e-1",
       sprint_id: "s-1",
-      // Its own dates, deliberately far from the Sprint's -- must never win.
+      // far from the Sprint's dates — must never win
       start_date: at("2026-01-01"),
       due_date: at("2026-01-02"),
     });
@@ -624,9 +606,6 @@ describe("buildTimelineHierarchy — Sprint-bound Tasks", () => {
   });
 
   it("a Task whose Sprint has no usable range is not bound -- own dates win", () => {
-    // The Sprint exists and is named, but is missing a date -- the same rule
-    // that keeps it off the Timeline as its own row (above) also means it
-    // gives nothing to clamp a Task to.
     const s = sprint({ id: "s-1", start_date: at("2026-08-01") }); // no end_date
     const e = epic({ id: "e-1" });
     const task = todo({
@@ -731,12 +710,7 @@ describe("placeTimelineHierarchy — Sprint rows", () => {
   });
 });
 
-/**
- * The Sprints band is one row, so where two bars meet on it is a real
- * question — see `packSprintLanes` and `TimelineSprintBand`.
- */
 describe("placeTimelineHierarchy — Sprint lanes and angled ends", () => {
-  // Day-per-column, so a column index is a day offset from 2026-08-17.
   const ticks = timelineTicks("weeks", "2026-08-17"); // 2026-08-17 .. 09-27
 
   const placeAll = (sprints: Sprint[]) =>
@@ -767,7 +741,7 @@ describe("placeTimelineHierarchy — Sprint lanes and angled ends", () => {
       start_date: at("2026-08-17"),
       end_date: at("2026-08-20"),
     });
-    // Begins the very next day, so the two bars abut with no empty column.
+    // begins the next day, so the two bars abut with no gap
     const second = sprint({
       id: "s-2",
       start_date: at("2026-08-21"),
@@ -813,7 +787,7 @@ describe("placeTimelineHierarchy — Sprint lanes and angled ends", () => {
     const placed = placeAll([first, overlapping]);
 
     expect(placed.map((s) => s.lane)).toEqual([0, 1]);
-    // Different lanes never touch, so neither end is cut.
+    // different lanes never touch, so neither end is cut
     expect(placed[0].angledEnd).toBe(false);
     expect(placed[1].angledStart).toBe(false);
   });
@@ -829,7 +803,7 @@ describe("placeTimelineHierarchy — Sprint lanes and angled ends", () => {
       start_date: at("2026-08-20"),
       end_date: at("2026-08-27"),
     });
-    // Starts after `first` has ended, so lane 0 is free again for it.
+    // starts after `first` has ended, so lane 0 is free again
     const later = sprint({
       id: "s-3",
       start_date: at("2026-09-01"),

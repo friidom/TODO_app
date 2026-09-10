@@ -1,27 +1,16 @@
-/**
- * Field checks for the auth forms. Pure — no React, no i18n, no network.
- *
- * The point is to stop a submit that cannot succeed, not to be the authority
- * on what an address is. Supabase decides that, and the confirmation mail
- * decides whether it exists.
- */
-
 import { identifierKind } from "./identifier";
 import { validateUsername } from "./username";
-/** Supabase's own default minimum. Rejecting shorter here saves a round trip. */
+
+// matches Supabase's own minimum, so a too-short password fails here instead of round-tripping
 export const PASSWORD_MIN_LENGTH = 6;
 
-// Deliberately loose: something, an @, something, a dot, something. Stricter
-// patterns reject addresses that are perfectly valid, which is a worse failure
-// than letting a typo through to a server that will catch it.
+// deliberately loose — a stricter pattern rejects valid addresses, which is worse than letting a typo reach the server
 const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export interface AuthFieldErrors {
-  /** Registration only; the login form never sets it (M10-01). */
   username?: string;
   email?: string;
   password?: string;
-  /** Registration and password reset — the second password field (M22). */
   confirmPassword?: string;
 }
 
@@ -34,18 +23,6 @@ export function validateEmail(email: string): string | undefined {
   return undefined;
 }
 
-/**
- * The login field, which takes an address **or** a username (M22).
- *
- * It dispatches on the same `identifierKind` the sign-in call uses, so the form
- * and the request can never disagree about which branch a string is on. Each
- * branch then defers to the existing checker — there is no third notion of
- * validity invented here.
- *
- * The message names both possibilities rather than guessing which the user
- * meant: "Enter a valid email address" is actively unhelpful to someone who was
- * typing a username and mistyped it.
- */
 export function validateIdentifier(value: string): string | undefined {
   const trimmed = value.trim();
 
@@ -53,18 +30,14 @@ export function validateIdentifier(value: string): string | undefined {
 
   if (identifierKind(trimmed) === "email") return validateEmail(trimmed);
 
-  // A username typed at the login form is checked for shape only. It is
-  // deliberately NOT checked for existence — that answer belongs to the server,
-  // and asking here would build the enumeration oracle the RPC avoids.
+  // shape check only — existence is the server's call, checking it here would build an enumeration oracle
   return validateUsername(trimmed)
     ? "Enter a valid email address or username."
     : undefined;
 }
 
 export function validatePassword(password: string): string | undefined {
-  // Not trimmed: leading and trailing spaces are part of a password, and
-  // silently dropping them would reject the credentials the user registered
-  // with.
+  // not trimmed — spaces are part of a password, dropping them would reject valid credentials
   if (!password) return "Password is required.";
 
   if (password.length < PASSWORD_MIN_LENGTH) {
@@ -74,13 +47,7 @@ export function validatePassword(password: string): string | undefined {
   return undefined;
 }
 
-/**
- * Only the fields that failed appear on the result.
- *
- * `username` is optional because the login form has no such field. Passing
- * `undefined` leaves it unchecked rather than reporting it as missing, which is
- * what keeps this one function serving both screens.
- */
+// username undefined means "no such field" (login form), not "missing" — keeps this serving both screens
 export function validateAuthForm(
   email: string,
   password: string,
@@ -103,17 +70,6 @@ export function validateAuthForm(
   return errors;
 }
 
-/**
- * Whether the two password fields agree.
- *
- * Compared untrimmed, for the reason `validatePassword` records: spaces are
- * part of a password. Trimming one side would let "  hunter2" and "hunter2"
- * pass as a match and then store only one of them.
- *
- * An empty confirmation reports "confirm it" rather than "they do not match" —
- * the second is technically true and reads like an accusation about a field
- * that has not been filled in yet.
- */
 export function validateConfirmPassword(
   password: string,
   confirmPassword: string,

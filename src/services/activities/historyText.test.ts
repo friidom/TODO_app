@@ -193,7 +193,6 @@ describe("describeHistoryChange — type_changed (Work type)", () => {
 
 describe("describeHistoryChange — description_changed", () => {
   it("has a field but no chip", () => {
-    // The migration's own rule: no from/to is ever stored for this action.
     const change = describeHistoryChange(
       entry("description_changed", {}),
       NAMES,
@@ -233,8 +232,6 @@ describe("describeHistoryChange — estimate_changed (Story point estimate)", ()
   });
 
   it("reads a written zero as 0, distinct from None", () => {
-    // The exact distinction M24-A's constraint and cache widening exist to
-    // preserve, carried through to how history renders it.
     const change = describeHistoryChange(
       entry("estimate_changed", { from: null, to: 0 }),
       NAMES,
@@ -257,8 +254,7 @@ describe("describeHistoryChange — unrenderable actions", () => {
 
 describe("describeHistoryChange — subtasks (M27)", () => {
   it("names an added subtask by its key", () => {
-    // This row lives in the PARENT's history: `entity_id` is the parent, and
-    // the payload describes the child.
+    // lives in the parent's history — entity_id is the parent, payload describes the child
     const change = describeHistoryChange(
       entry("subtask_added", { board_key: 78, title: "123" }),
       NAMES,
@@ -283,8 +279,6 @@ describe("describeHistoryChange — subtasks (M27)", () => {
   });
 
   it("falls back to the title for a child that never got a key", () => {
-    // `board_key` is allocated by a trigger, so a subtask deleted while its
-    // insert was still in flight has a title and no key.
     const change = describeHistoryChange(
       entry("subtask_added", { title: "Write the migration" }),
       NAMES,
@@ -314,8 +308,7 @@ describe("describeHistoryChange — subtasks (M27)", () => {
     );
 
     expect(change?.verb).toBe("made this a top-level work item");
-    // No chip: both sides are raw uuids this renderer cannot resolve into
-    // keys, and the sentence already carries the whole fact.
+    // no chip — both sides are raw uuids this renderer can't resolve into keys
     expect(change?.from).toBeNull();
     expect(change?.to).toBeNull();
   });
@@ -385,9 +378,7 @@ describe("describeHistoryChange — epics (M28-A)", () => {
   });
 
   it("still falls back to the plain sentence for a pre-M28-A row", () => {
-    // No `from_key`/`to_key` at all — the shape every row had before this
-    // migration, and the only shape a genuine subtask reparenting can ever
-    // produce today, since that path has no UI to drive it.
+    // no from_key/to_key at all — the only shape a genuine subtask reparenting can produce today
     const change = describeHistoryChange(
       entry("parent_changed", { from: null, to: "task-1" }),
       NAMES,

@@ -12,19 +12,6 @@ import {
 } from "@/services/views/calendar";
 import { cn } from "@/utils/cn";
 
-/**
- * Where the calendar is looking, and the two ways to change it (M19).
- *
- * **A second row inside the view, not a third slot in `ViewShell`.** M17's
- * shell has an identity row, a toolbar and a content area, and M19's obligation
- * is to *fill* that contract rather than extend it — so the period navigator
- * lives at the top of the calendar's own content, where a control that means
- * nothing to Board or List cannot end up in a toolbar all four views share.
- *
- * It wears `HEADER_CONTROL` so it sits at exactly the weight Filter and Search
- * do one row above it. The label is the only thing here at reading size,
- * because it is the only thing that answers "where am I".
- */
 export default function CalendarNav({
   view,
   locale,
@@ -32,7 +19,6 @@ export default function CalendarNav({
 }: {
   view: CalendarView;
   locale?: string;
-  /** Visible items the grid is not currently drawing. Reported, never hidden. */
   offscreen: number;
 }) {
   const label =
@@ -67,26 +53,18 @@ export default function CalendarNav({
       <button
         type="button"
         onClick={view.goToday}
-        // Disabled rather than hidden: a control that vanishes when it would do
-        // nothing makes the row change width as you page, and this one sits
-        // beside two arrows you are clicking repeatedly.
+        // disabled, not hidden — hiding it would shift the row width while paging
         disabled={view.isCurrent}
         className={HEADER_CONTROL}
       >
         Today
       </button>
 
-      {/* `min-w-0` and no truncation: the label is short in every locale the
-          product ships, and reserving nothing for it lets the segmented control
-          sit immediately after rather than at a fixed offset. */}
       <h2 className="text-ink min-w-0 text-sm font-semibold tracking-tight">
         {label}
       </h2>
 
       {offscreen > 0 && (
-        // The calendar's version of the board's "3 of 57". A view that draws a
-        // fraction of what the filter matched has to say so, or an empty March
-        // looks like an empty board.
         <span className="text-ink-3 text-xs">{offscreen} not in view</span>
       )}
 

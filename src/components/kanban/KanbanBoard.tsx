@@ -46,29 +46,18 @@ export default function KanbanBoard() {
   const boardId = useBoardId();
   const view = useBoardView();
 
-  // `todos` is what the view asked for; `all` is the board as it is stored. The
-  // drop mutation rewrites positions across whole columns, so it needs every
-  // row — a filtered array would renumber the visible cards and silently strand
-  // the hidden ones.
+  // `all` (unfiltered) is what the drop mutation reorders — a filtered array would strand the hidden cards.
   const { todos, all, isLoading, error } = useVisibleTodos();
 
   const { data: members = [] } = useBoardMembers(boardId);
 
-  // A drop rewrites `column_id` and `position`, which M3-05 gates at editor.
-  // The plan is explicit that the SENSORS have to be gated and not only the
-  // buttons: a viewer who can pick a card up gets an optimistic move that
-  // silently reverts, and that reads as a broken board rather than as a
-  // permission.
+  // Sensors gated too, not just the buttons — a viewer who can pick a card up gets a move that silently reverts.
   const { canEditTodos } = usePermissions(boardId);
 
   const dragDisabled = view.dndDisabled || !canEditTodos;
 
   const swimlanes = isSwimlaneGroup(view.group);
 
-  // Already in display order — `useVisibleTodos` filtered and ordered it, so
-  // this only buckets. `activeSprintId === null` is this board's own "no
-  // Sprint is running" state, and it is read here only to *name* that state
-  // in a notice above the board — never to decide whether the board renders.
   const { todosByColumn, columns, activeSprintId, sprintsPending } =
     useTodosByColumns(todos);
 
@@ -85,10 +74,8 @@ export default function KanbanBoard() {
     resetDrag,
   } = useKanbanDnd();
 
-  /** The board's key prefix, for naming cards in drag announcements (M9-02). */
   const keyPrefix = useKeyPrefix();
 
-  /** Client-only view state: which columns are folded away. Never persisted. */
   const [collapsed, setCollapsed] = useState<string[]>([]);
 
   const {
@@ -105,12 +92,7 @@ export default function KanbanBoard() {
 
   const orderedColumns = useMemo(() => columns.slice().sort(byRank), [columns]);
 
-  // Swimlanes render the same board, so they answer "what is on it" the same
-  // way. `Swimlanes` buckets a lane by `column_id` alone, which drops Backlog
-  // rows (no column matches) but would happily show work committed to a
-  // Sprint that is not running — the one thing `isOnBoard` exists to withhold.
-  // Filtering here rather than inside `Swimlanes` keeps the rule in one place
-  // and keeps that component about layout.
+  // isOnBoard filtered here, not inside Swimlanes, so the rule stays in one place and that component stays about layout.
   const lanes = useMemo(
     () =>
       swimlanes
@@ -143,22 +125,11 @@ export default function KanbanBoard() {
     );
   }
 
-  // `sprintsPending` still joins the loading gate. It no longer decides
-  // whether the board renders at all, but `isOnBoard` reads `activeSprintId`
-  // — so without this, a card committed to the running Sprint would flicker
-  // out of its column for one frame while `useSprints()` resolved and
-  // `activeSprintId` was still defaulting to null.
+  // sprintsPending still gates loading — without it a card in the running sprint flickers out of its column for a frame.
   if (isLoading || sprintsPending) return <Loading />;
 
   if (error) return <p>{error.message}</p>;
 
-  /**
-   * The board, said out loud (M9-02).
-   *
-   * Every lookup here reads state this component already holds — `columns`,
-   * `todosByColumn`, `orderedColumns` — so announcing a drag costs no query and
-   * nothing had to be lifted or re-fetched to make the board audible.
-   */
   function labelOf(id: UniqueIdentifier, type: string | undefined) {
     if (type === "column") {
       return (
@@ -170,13 +141,9 @@ export default function KanbanBoard() {
 
     if (!todo) return "item";
 
-    // The same builder the card's own `aria-label` uses. Hearing one name on
-    // focus and a different one on pick-up is worse than either being
-    // imperfect, so there is exactly one of these.
     return itemLabel(taskKey(keyPrefix, todo.board_key), todo.title);
   }
 
-  /** The `over` droppable, as "position n of m in Column". */
   function positionOf(over: { id: UniqueIdentifier; data: DataRef } | null) {
     const data = over?.data.current as
       { type?: string; columnId?: string; index?: number } | undefined;
@@ -192,7 +159,6 @@ export default function KanbanBoard() {
 
     if (data.type === "column") return `${title}, which is empty`;
 
-    // Gaps, not cards: a column of three cards has four places to land.
     const gaps = (todosByColumn[data.columnId ?? ""]?.length ?? 0) + 1;
 
     return describePosition(data.index ?? 0, gaps, title);
@@ -255,16 +221,10 @@ export default function KanbanBoard() {
             members={members}
           />
         ) : (
-          // The board's own scroll box. `pb-4` sits on this element rather than
-          // on the track inside it, so the columns can be `h-full` without the
-          // padding pushing them past the bottom edge (M17).
           <div className="min-h-0 flex-1 overflow-x-auto pb-4">
             <div className="flex h-full min-w-max">
               {orderedColumns.map((column, index) => (
                 <Fragment key={column.id}>
-                  {/* Column gaps stay: reordering columns is still meaningful
-                        while the cards inside them are sorted, because the
-                        columns themselves are always in stored order. */}
                   <ColumnDropZone
                     index={index}
                     active={!!activeColumn && columnIndicator === index}
@@ -288,15 +248,8 @@ export default function KanbanBoard() {
                       indicator={indicator}
                       isDragSource={!!activeTodo && column.id === sourceId}
                       dragDisabled={dragDisabled}
-                      // One boolean, computed once, in place of ~200 gaps each
-                      // subscribing to dnd-kit's context (M9-05).
                       dragging={!!activeTodo || !!activeColumn}
-                      // A search narrows a column exactly as a filter does, so
-                      // it belongs in this test — without it a searched column
-                      // believed it was showing stored order, offered the
-                      // mid-column `+`, and handed `addTodo` an index counted
-                      // over the matches while the insert spliced into the full
-                      // column. Same class of bug `dropIndex.ts` exists for.
+                      // search narrows a column same as a filter — without this a searched column offers the mid-column + with a bogus index
                       exactOrder={
                         view.filterCount === 0 &&
                         !view.query.trim() &&
@@ -343,8 +296,6 @@ export default function KanbanBoard() {
                 beforeId={orderedColumns[orderedColumns.length - 1]?.id}
               />
 
-              {/* Wrapped so the button keeps its own height inside a flex
-                    track whose items otherwise stretch to the column height. */}
               <div className="ml-2 shrink-0 self-start">
                 <AddColumnButton setCreateColumnOpen={setCreateColumnOpen} />
               </div>
@@ -377,24 +328,7 @@ export default function KanbanBoard() {
   );
 }
 
-/**
- * No Sprint is running on this board — said in a strip above an otherwise
- * completely normal board, not by replacing it.
- *
- * **This is `ViewNotice`'s own case, and it used to be `EmptyList`'s.** An
- * earlier pass made it a full-page takeover on the reasoning that there was
- * nothing behind it worth looking at, because `isOnBoard` withheld every card
- * while no Sprint was active. That rule is gone (see `backlog.ts`): unplanned
- * work sits on the Board on its `column_id` alone, so behind this strip there
- * are real columns with real cards — plus every column control, rename,
- * reorder, limits, delete and Add column, which the takeover made unreachable
- * on a board that had simply never started a Sprint.
- *
- * So it borrows `ViewNotice`'s shape rather than `EmptyList`'s: one line, an
- * icon, and the single click that resolves it. Same `mb-3` rhythm and the same
- * `text-brand` action button, so the two read as one row of chrome on the
- * boards where a filter notice happens to be showing too.
- */
+// A strip above the board, not a takeover — the board underneath still has real columns and cards.
 function NoActiveSprintNotice({
   onGoToBacklog,
 }: {

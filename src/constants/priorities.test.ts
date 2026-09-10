@@ -10,10 +10,7 @@ import {
 
 describe("priorities", () => {
   it("offers exactly the five values the CHECK constraint allows", () => {
-    // These strings are the constraint in 20260806092902_todos_task_fields.sql:
-    //   check (priority in ('lowest', 'low', 'medium', 'high', 'highest'))
-    // If this fails, one side was changed without the other and a write will be
-    // rejected by the database rather than by the UI.
+    // must match the todos_task_fields CHECK constraint, or a write gets rejected by the DB instead of the UI
     expect([...PRIORITY_OPTIONS].sort()).toEqual([
       "high",
       "highest",
@@ -36,9 +33,6 @@ describe("priorities", () => {
     expect(toPriority("high")).toBe("high");
   });
 
-  // Unlike work type, there is no default to fall back to: the column is
-  // nullable and "no priority" is a real state that must render differently
-  // from any of the five.
   it("returns null for unset and for anything unrecognised", () => {
     expect(toPriority(null)).toBeNull();
     expect(toPriority(undefined)).toBeNull();
@@ -51,15 +45,13 @@ describe("priorities", () => {
   });
 
   it("ranks by urgency, not alphabetically", () => {
-    // Alphabetically "high" < "highest" and "low" < "lowest", which is backwards
-    // in both pairs. This is the whole reason the rank is a lookup.
+    // alphabetically "high" < "highest" and "low" < "lowest" — backwards in both pairs
     expect(priorityRank("highest")).toBeLessThan(priorityRank("high"));
     expect(priorityRank("low")).toBeLessThan(priorityRank("lowest"));
     expect(priorityRank("medium")).toBeLessThan(priorityRank("low"));
   });
 
   it("ranks an unset priority last rather than as medium", () => {
-    // A card nobody has prioritised is not a card of middling importance.
     expect(priorityRank(null)).toBeGreaterThan(priorityRank("lowest"));
     expect(priorityRank("nonsense")).toBe(priorityRank(null));
   });
@@ -71,7 +63,6 @@ describe("priorities", () => {
       expect(meta).not.toBeNull();
       expect(meta?.icon).toBeTruthy();
       expect(meta?.label).toBeTruthy();
-      // Whole literal strings, or Tailwind emits no CSS for them.
       expect(meta?.chip).toMatch(/text-/);
       expect(meta?.tone).toMatch(/text-/);
     }

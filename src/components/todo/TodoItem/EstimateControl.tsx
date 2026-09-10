@@ -11,39 +11,6 @@ import {
 } from "@/services/todos/estimateInput";
 import { cn } from "@/utils/cn";
 
-/**
- * The card's story point estimate (M24-B): a small circle, a dash when
- * unset, a number when set, editable in place through the same popover
- * plumbing `DueDateControl` and `AssigneeControl` already use.
- *
- * **Unset follows `AssigneeControl` and `DueDateControl`'s own rule after
- * all**, revised from M24-B's first pass: hidden until the card is hovered
- * or the control gains keyboard focus, so a board with no estimates stays
- * as free of chrome as one with no assignees. A set value stays on screen
- * unconditionally — once a card has been sized, that is a fact about it
- * worth seeing without reaching for it.
- *
- * `pointer-events-none` while hidden matches the same two controls: an
- * invisible trigger must not still catch the click meant for the card
- * underneath it. `focus-visible:opacity-100` is what keeps it from relying
- * on hover alone — a keyboard user tabs onto the same hidden button a mouse
- * would have to hover to reveal, and `coarse:opacity-100` covers touch,
- * which has no hover state to reveal it with at all.
- *
- * **Controlled, like every sibling control.** It reports the parsed value
- * through `onChange` and never writes; `TodoCard` renders it directly
- * (not a node passed down from `TodoItem`) for the same reason it renders
- * `DueDateControl` directly — an estimate needs no board-scoped fetch, so
- * there is nothing `TodoItem` has to build for it. `TodoItem` still owns
- * the write: `onChange` reaches `useTodoPatch` → `updateTodo`, the same
- * mutation and the same `["todos", boardId]` cache write every other field
- * on the card already goes through.
- *
- * The parsing itself lives in `estimateInput.ts`, not here, for the reason
- * every `*.test.ts` sibling in this codebase exists: this project does not
- * unit-test components directly, so the negative-input guard and the
- * empty-is-null guard have to live somewhere a test can reach them.
- */
 export default function EstimateControl({
   value,
   onChange,
@@ -51,14 +18,7 @@ export default function EstimateControl({
 }: {
   value: number | null;
   onChange: (value: number | null) => void;
-  /**
-   * Keep the trigger on screen instead of revealing it on card hover — the
-   * same escape hatch `PriorityControl`, `AssigneeControl` and
-   * `DueDateControl` each carry, for a surface with no card row to hover.
-   * The Task Details rail is the one caller: its own field label reserves
-   * the cell, so an unset estimate hidden there would leave a labelled row
-   * with nothing in it — and nothing to click to set one.
-   */
+  // For a surface with no card row to hover, like the Details rail.
   alwaysVisible?: boolean;
 }) {
   const { close, triggerProps, panelProps, mounted } = useCardPopover();
@@ -90,10 +50,7 @@ export default function EstimateControl({
         type="button"
         {...triggerProps}
         onClick={(event) => {
-          // Seeded from the live value on every open, not just at mount —
-          // the same reason `cancel` below resets it: a popover that was
-          // opened, closed and reopened must show what is actually stored,
-          // not whatever was left over from the last time it was open.
+          // reseed from the live value on every open, not just mount — otherwise a reopen shows stale draft
           setDraft(estimateToDraft(value));
           triggerProps.onClick(event);
         }}
@@ -105,14 +62,8 @@ export default function EstimateControl({
             ? "bg-ink/10 text-ink-2 hover:bg-ink/15"
             : cn(
                 "border-hairline text-ink-3 hover:text-ink-2 border",
-                // Hidden until the card is hovered or this button itself is
-                // focused — the same bargain `DueDateControl` and
-                // `AssigneeControl` strike for their own unset state.
                 "pointer-events-none opacity-0",
                 "group-hover:pointer-events-auto group-hover:opacity-100",
-                // Keyboard and touch do not hover, so both get their own way
-                // in: a tabbed-to button reveals itself, and a coarse pointer
-                // (no hover state to speak of) sees it every time.
                 "focus-visible:pointer-events-auto focus-visible:opacity-100",
                 "coarse:pointer-events-auto coarse:opacity-100",
               ),
@@ -138,10 +89,7 @@ export default function EstimateControl({
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
-                // The field owns the keyboard while it is open, the same
-                // guard the title's rename input carries — the card root
-                // spreads @dnd-kit's listeners, which treat Enter and Space
-                // as "pick this card up".
+                // stop dnd-kit's listeners on the card root from treating Enter/Space as "pick this up"
                 e.stopPropagation();
 
                 if (e.key === "Enter") commit();

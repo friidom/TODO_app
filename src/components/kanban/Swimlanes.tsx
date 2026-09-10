@@ -12,22 +12,7 @@ import type { IColumn } from "@/types/data";
 import { cn } from "@/utils/cn";
 import KanbanColumn from "./KanbanColumn";
 
-/**
- * The board split into lanes, one per group.
- *
- * **The columns stay statuses.** That is the whole design: a lane is a
- * horizontal slice of the same board, so "In progress" still means what it
- * always did and the board still reads as a board. The alternative — turning the
- * columns into assignees — would be a second Kanban with its own meaning for a
- * drop, and `KanbanColumn` renders both of these unchanged.
- *
- * Grouping by status is not routed here: the columns already are the statuses,
- * so that grouping is the board that was already on screen.
- *
- * Nothing drags in here. A drop would have to mean two things at once — move to
- * this column *and* take on this lane's assignee, type or priority — and
- * inventing an answer to that is worse than saying so, which `ViewNotice` does.
- */
+// nothing drags here — a drop would have to mean "move column" and "take this lane's assignee/type/priority" at once
 export default function Swimlanes({
   groups,
   group,
@@ -35,12 +20,10 @@ export default function Swimlanes({
   members,
 }: {
   groups: TodoGroup[];
-  /** Which dimension the lanes are, so a lane can be decorated like one. */
   group: GroupKey;
   orderedColumns: IColumn[];
   members: BoardMember[];
 }) {
-  /** Client-only, like the board's collapsed columns. Never persisted. */
   const [collapsed, setCollapsed] = useState<string[]>([]);
 
   if (!groups.length) {
@@ -59,8 +42,6 @@ export default function Swimlanes({
 
           return (
             <section key={lane.key}>
-              {/* Sticky to the left edge so the lane's name stays readable while
-                  the columns scroll sideways under it. */}
               <header className="sticky left-0 mb-2 flex w-fit max-w-full items-center gap-2 pr-4">
                 <button
                   type="button"
@@ -91,9 +72,6 @@ export default function Swimlanes({
               {!isCollapsed && (
                 <div className="flex min-w-max items-start">
                   {orderedColumns.map((column) => {
-                    // `filter` preserves order, and the lane's cards arrived in
-                    // display order from `useVisibleTodos` — so this neither
-                    // sorts nor needs to know which sort is on.
                     const cards = lane.todos.filter(
                       (todo) => todo.column_id === column.id,
                     );
@@ -101,9 +79,7 @@ export default function Swimlanes({
                     return (
                       <div key={column.id} className="pr-3">
                         <KanbanColumn
-                          // Lane-scoped, or every lane would register the same
-                          // droppable id and @dnd-kit would be measuring one
-                          // column while pointing at another.
+                          // lane-scoped id — otherwise every lane registers the same droppable and @dnd-kit gets confused
                           id={`${lane.key}::${column.id}`}
                           column={column}
                           headerTitle={columnTitle(column.title)}
@@ -129,14 +105,8 @@ export default function Swimlanes({
   );
 }
 
-/** The column-level actions belong to the ungrouped board; a lane offers none. */
 function noop() {}
 
-/**
- * A lane's identity, dressed the way its dimension is dressed everywhere else —
- * the assignee's own avatar, the work type's icon, the priority's arrow — so a
- * lane header and the chip on a card inside it say the same thing the same way.
- */
 function LaneLabel({
   group,
   lane,

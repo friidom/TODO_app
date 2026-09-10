@@ -8,15 +8,13 @@ describe("safeNext", () => {
     expect(safeNext("/boards/3f2504e0-4f89-41d3-9a0c-0305e82c3301")).toBe(
       "/boards/3f2504e0-4f89-41d3-9a0c-0305e82c3301",
     );
-    // Query and hash belong to the path and are not this function's business.
     expect(safeNext("/boards/x?view=list#top")).toBe("/boards/x?view=list#top");
   });
 
   it("refuses to leave the application", () => {
     expect(safeNext("https://evil.test/login")).toBeNull();
     expect(safeNext("http://evil.test")).toBeNull();
-    // Protocol-relative: the browser reads this as a host, which is the case a
-    // bare startsWith("/") check lets through.
+    // protocol-relative — a bare startsWith("/") check would let this through
     expect(safeNext("//evil.test")).toBeNull();
     expect(safeNext("/\\evil.test")).toBeNull();
     expect(safeNext("javascript:alert(1)")).toBeNull();

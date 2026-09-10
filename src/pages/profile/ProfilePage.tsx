@@ -13,25 +13,7 @@ import { useUploadAvatar } from "@/services/profile/useUploadAvatar";
 import type { ISupabaseProfile } from "@/types/data";
 import { cn } from "@/utils/cn";
 
-/**
- * The account surface.
- *
- * **Rewritten onto the design system**, not redesigned in scope: every field,
- * mutation and control it had is still here. It was the last page carrying
- * hard-coded colours from before the tokens existed — a violet page holding a
- * white card, which read as a different application the moment the board went
- * dark.
- *
- * **Deliberately outside the app shell.** Settings are a place you go, finish
- * with, and leave — not a view of the workspace — so the sidebar would only be
- * offering navigation nobody wants mid-edit. Back returns you to where you came
- * from, which is better than a rail full of boards.
- *
- * It is also the only home for theme and language now. They spent a while in
- * the sidebar footer, where two rarely-touched preferences crowded the busiest
- * corner of the rail; the profile row that used to sit beside them is the way
- * here.
- */
+// deliberately outside the app shell — settings is a place you finish with and leave, not a workspace view
 export default function ProfilePage() {
   const navigate = useNavigate();
   const logout = useLogout();
@@ -42,11 +24,7 @@ export default function ProfilePage() {
 
   const [form, setForm] = useState<ISupabaseProfile | null>(null);
 
-  // Seed the editable copy from the fetched profile. Adjusting state during
-  // render is React's documented answer to "reset state when a value changes";
-  // doing it in an effect ran a second render pass every time and is what the
-  // cascading-render rule flags. Behaviour is identical — `form` still tracks
-  // each new `profile` identity.
+  // seeding during render, not an effect, to avoid a double render pass
   const [seededFrom, setSeededFrom] = useState<ISupabaseProfile | null>(null);
 
   if (profile && profile !== seededFrom) {
@@ -81,14 +59,8 @@ export default function ProfilePage() {
 
   return (
     <div className="bg-canvas flex h-svh flex-col overflow-hidden">
-      {/* The bar is full-bleed, its contents are not: they sit in the same
-          `max-w-2xl` column the cards below do, so "Back" lines up with the left
-          edge of the page's content instead of with the window. */}
       <header className="border-hairline flex min-h-12 shrink-0 items-center border-b px-5 md:px-6">
         <div className="mx-auto flex w-full max-w-2xl items-center gap-3">
-          {/* `navigate(-1)` rather than a link to `/`: you arrive here from a
-              board, and going back to that board is what "back" means. The
-              fallback matters only for someone who opened /profile directly. */}
           <button
             type="button"
             onClick={() => navigate(-1)}
@@ -106,7 +78,6 @@ export default function ProfilePage() {
 
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-8 md:px-6">
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
-          {/* IDENTITY — who this account is, before anything editable. */}
           <section className="border-hairline bg-surface rounded-surface flex items-center gap-4 border p-5">
             <label className="group relative size-16 shrink-0 cursor-pointer overflow-hidden rounded-full">
               <img
@@ -129,12 +100,7 @@ export default function ProfilePage() {
                 )}
               </span>
 
-              {/* Narrowed from `image/*` to exactly what the bucket accepts
-                  (M14): the `avatars` bucket carries an allow-list, so a picker
-                  offering svg, gif or heic would let someone choose a file that
-                  is rejected after they wait for the upload. SVG is excluded
-                  deliberately rather than forgotten — it can carry script, and
-                  these are served from our own origin. */}
+              {/* matches the avatars bucket's allow-list — svg excluded on purpose, it can carry script and these serve from our origin */}
               <input
                 hidden
                 disabled={uploadAvatar.isPending}
@@ -152,7 +118,6 @@ export default function ProfilePage() {
             </div>
           </section>
 
-          {/* ACCOUNT — the four columns `profiles` actually has. */}
           <Section title="Account">
             <Field label="Full name">
               <input
@@ -214,7 +179,6 @@ export default function ProfilePage() {
             </div>
           </Section>
 
-          {/* PREFERENCES — the existing controls, given a home. */}
           <Section title="Preferences">
             <Row label="Theme" hint="Dark or light, remembered on this device.">
               <ThemeToggle />
@@ -247,7 +211,6 @@ export default function ProfilePage() {
   );
 }
 
-/** One titled card. Sections are how a settings page stays scannable. */
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="border-hairline bg-surface rounded-surface border">
@@ -260,7 +223,6 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-/** A labelled input. */
 function Field({
   label,
   hint,
@@ -281,7 +243,6 @@ function Field({
   );
 }
 
-/** A setting whose control sits to the right of its description. */
 function Row({
   label,
   hint,

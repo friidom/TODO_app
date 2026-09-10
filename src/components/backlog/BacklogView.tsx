@@ -32,47 +32,8 @@ import CreateSprintModal from "./CreateSprintModal";
 import CompleteSprintModal from "./CompleteSprintModal";
 import DeleteSprintModal from "./DeleteSprintModal";
 
-/**
- * The board's unstarted work, organised by Sprint (M29+M30+M31-C).
- *
- * **A renderer over the same pipeline as every other view.** It reads
- * `useVisibleTodos()`, so the filter and the search a viewer already set
- * apply here too — the same argument the Timeline's own header comment
- * makes for itself. `buildBacklogBoard` is the one place that turns that
- * flat array into "one section per open Sprint, plus the ungrouped
- * Backlog" — see its own doc for why an item's presence here and its
- * presence on the Board are independent facts.
- *
- * **A genuine Subtask never reaches this page.** `useVisibleTodos` has
- * already dropped it (M27), so "Subtasks remain attached to their Task and
- * do not become independent planning items" holds without this component
- * doing anything about it — the same free property the Timeline has.
- *
- * **Gap-precise drag-and-drop (M31-C), extracted the same way the Board's
- * own is.** `useBacklogDnd` (sensors, collision detection, the hovered-gap
- * indicator) and `useBacklogDragEnd` (what a drop means) are this page's
- * counterparts to the Board's `useKanbanDnd`/`useBoardDragEnd` — narrowed to
- * one branch, since this page only ever drags one kind of thing. Collision
- * detection resolves the nearest Sprint section, then the nearest gap
- * inside it, exactly like the Board resolves a column and then a gap within
- * it; `resolveDropIndex` (`services/todos/dropIndex.ts`) is reused
- * unchanged to turn the rendered gap into a stored-list index.
- * `sprintAssignmentPatch` (in `useBacklogDragEnd`) is still the one function
- * a drag and `BacklogRow`'s own `SprintControl` dropdown both call, so the
- * two can never disagree about where a card lands.
- *
- * **The Backlog's own ungrouped list is its own component, `BacklogUnplannedSection`,
- * for a reason that is not stylistic.** `useDroppable` reads a React Context
- * that only exists inside `<DndContext>`'s children — a component cannot
- * consume the context of the provider it itself renders. Calling it directly
- * in `BacklogView`, the component whose JSX *creates* `<DndContext>`, silently
- * registers nothing (confirmed live: the droppable's ref fires, but dnd-kit's
- * own registry never gains the id). `SprintSection` already had this right,
- * being a genuine child; the Backlog's own section needed the same shape.
- *
- * As on the Board, nothing here reflows while dragging — only the
- * `DragOverlay` moves, and a static blue line marks the nearest gap.
- */
+// The ungrouped list is its own component (BacklogUnplannedSection) because useDroppable needs DndContext's
+// React context — calling it directly here, in the component whose JSX creates <DndContext>, silently registers nothing.
 export default function BacklogView() {
   const view = useBoardView();
   const { todos, isLoading, error } = useVisibleTodos();
@@ -94,22 +55,13 @@ export default function BacklogView() {
   const { sensors, collisionDetection, handleDragOver, indicator, resetDrag } =
     useBacklogDnd();
 
-  // Memoised for the same reason `useTodosByColumns` memoises the Board's
-  // own grouping: `indicator` lives in this component, so every pointer
-  // move re-renders it — recomputing a filter+sort over every todo on the
-  // board on each of those renders is exactly the kind of "expensive
-  // calculation during pointer movement" that reads as drag jank.
+  // memoised — indicator changes on every pointer move, and re-filtering the whole board on each of those is drag jank.
   const board = useMemo(
     () => buildBacklogBoard(todos, sprints),
     [todos, sprints],
   );
 
-  // Memoised so its *reference* is stable across an indicator-driven
-  // re-render, not just its contents — `BacklogRow` is split the way
-  // `TodoItem` is (M9-05) specifically so it can bail out via `memo`, and a
-  // fresh array here on every render would defeat that for every row on
-  // every gap the pointer crosses, same as a fresh object would for
-  // `TodoContainer` (see that file's own `SubtaskCounts` doc).
+  // stable reference so BacklogRow's memo() doesn't bail out on every gap the pointer crosses
   const openSprints = useMemo(
     () => sprints.filter((sprint) => sprint.state !== "completed"),
     [sprints],
@@ -164,17 +116,7 @@ export default function BacklogView() {
         setActiveTodo(null);
       }}
     >
-      {/* **Two elements, not one, and that is the fix for the page not
-          scrolling** (and for Sprint sections visibly collapsing). This used
-          to be a single `flex h-full min-h-0 flex-col overflow-y-auto`
-          carrying both jobs at once. A flex item defaults to `flex-shrink:
-          1`, so once the sections were taller than the viewport the flex
-          algorithm *shrank them to fit* rather than letting them overflow —
-          which meant nothing ever exceeded the container, `overflow-y-auto`
-          had nothing to scroll, and each `<section>` (being
-          `overflow-hidden`) simply clipped its own rows. Splitting the
-          non-scrolling column from the scroll box is the shape `ListView`,
-          `CalendarView` and `TimelineView` all already use. */}
+      {/* two elements, not one — a single flex-col+overflow-y-auto let flex-shrink squeeze the sections instead of overflowing */}
       <div className="flex h-full min-h-0 flex-col">
         <ViewNotice view={view} visibleCount={todos.length} />
 
@@ -189,18 +131,8 @@ export default function BacklogView() {
           </button>
         )}
 
-        {/* The scroll box. Deliberately NOT a flex container: the sections are
-            ordinary block children here, so they take their natural height and
-            the box scrolls, instead of being flex items competing to shrink. */}
+        {/* not a flex container — sections take their natural height so this can actually scroll */}
         <div className="min-h-0 flex-1 overflow-y-auto pb-6">
-          {/* First run: no sprint has ever been created and nothing is waiting
-              to be planned. Both sections below still render their own terse
-              "nothing here" line, but two of those stacked under a heading is
-              what an empty board actually looked like — a page that reads as
-              broken rather than as new. This says what the page is FOR, and
-              offers the one action that starts it. Suppressed the moment
-              either side has anything, so it is genuinely a first-run state
-              and not a recurring empty view. */}
           {board.sprintSections.length === 0 &&
             board.unplanned.length === 0 && (
               <EmptyState
@@ -280,10 +212,7 @@ export default function BacklogView() {
 
       <DragOverlay dropAnimation={null} adjustScale={false}>
         {activeTodo && OverlayIcon && (
-          // Shadow/opacity/cursor match `TodoCard`'s own `overlay` branch
-          // (`components/todo/TodoCard.tsx`) — the Board's drag overlay is
-          // the reference for what a lifted item looks like on this product,
-          // and this page's own overlay should read as the same gesture.
+          // matches TodoCard's overlay styling so a lifted item reads the same everywhere
           <div className="bg-elevated border-hairline rounded-card text-ink flex max-w-xs cursor-grabbing items-center gap-1.5 border px-3 py-2 text-sm font-medium opacity-70 shadow-e3">
             <OverlayIcon
               className={cn("size-3.5 shrink-0", overlayType!.tone)}
@@ -303,12 +232,6 @@ export default function BacklogView() {
   );
 }
 
-/**
- * The Backlog's own ungrouped list — a genuine child of `<DndContext>` (see
- * this file's own header for why that is load-bearing, not stylistic).
- * Mirrors `SprintSection`'s gap-precise shape exactly, for the section
- * `sectionKey: null` names.
- */
 function BacklogUnplannedSection({
   items,
   sprints,

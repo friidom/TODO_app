@@ -35,27 +35,7 @@ import { useSpaces } from "@/services/spaces/useSpaces";
 import type { IBoard, ISpace } from "@/types/data";
 import { cn } from "@/utils/cn";
 
-/**
- * Boards, grouped by the space they are filed in (M15).
- *
- * Replaces the flat list this file used to render. The structure comes out of
- * `groupBoardsBySpace`, which is pure and tested — this component is the markup
- * and the modal state around it.
- *
- * **Ownership, not roles, gates the board menu.** Filing and deletion are both
- * owner-only in the database (the `boards_space_ownership` trigger and M2-01's
- * DELETE policy, which is `owner_id = auth.uid()`), and `board.owner_id` is
- * already on the row — so the check is free. `usePermissions` is the right tool
- * on a board *page*, where the roster is loaded anyway; here it would mean one
- * `board_roster` RPC per board in the list.
- *
- * The consequence, stated: an **admin** on someone else's board sees no menu
- * here, though M3-17 does let them rename it. Renaming from a board-level
- * surface is M17's, and the database has always been the enforcement either
- * way.
- */
-
-/** Which dialog is open, and about what. Null is "none". */
+// gated on board.owner_id, not a roster fetch — filing/deleting is owner-only in the db anyway, and the row already has this field
 type Dialog =
   | { kind: "create-board"; spaceId: string | null }
   | { kind: "edit-board"; board: IBoard }
@@ -72,15 +52,9 @@ export default function BoardsSection() {
 
   const [dialog, setDialog] = useState<Dialog>(null);
 
-  /**
-   * Which spaces are folded away. Client-only and never persisted — the same
-   * idiom `KanbanBoard` uses for collapsed columns, and for the same reason: it
-   * is how one person is looking at the tree right now, not a property of the
-   * space.
-   */
+  // client-only, never persisted — just how this person is looking at the tree right now
   const [collapsed, setCollapsed] = useState<string[]>([]);
 
-  /** Whether the whole SPACES section is folded away. */
   const [sectionOpen, setSectionOpen] = useState(true);
 
   const groups = groupBoardsBySpace(boards, spaces);
@@ -94,10 +68,6 @@ export default function BoardsSection() {
   return (
     <>
       <SidebarGroup>
-        {/* The section label is a control now, not a caption. A sidebar whose
-            only structure is one flat list of boards has nothing to fold; one
-            that groups them by space does, and the person with four spaces
-            wants the ones they are not in out of the way. */}
         <SidebarGroupLabel
           render={
             <button
@@ -154,10 +124,6 @@ export default function BoardsSection() {
           })}
         </SidebarMenu>
 
-        {/* Both creates, persistent and side by side. The `+` on a space row is
-            a shortcut for people who have found it; a sidebar whose only path to
-            a new board is a hover target on a row is a sidebar that looks like
-            it cannot make one. */}
         <SidebarMenu className={cn(!sectionOpen && "hidden")}>
           <SidebarMenuItem>
             <SidebarMenuButton
@@ -210,16 +176,7 @@ export default function BoardsSection() {
   );
 }
 
-/**
- * One space heading and the boards under it.
- *
- * `space === null` is the synthetic group, and since M23 it means exactly what
- * it says: unfiled. Every account gets a real default space called "My Space"
- * (M23-02 renamed it from "Unfiled" precisely so the two could not be confused
- * in the same list), so what falls through to here is a board you cannot file —
- * in practice one shared with you, whose `space_id` names its owner's space and
- * your RLS cannot read that row. No ⋯, because there is no row behind it.
- */
+// space === null is the "can't file this" group — a board shared with you whose owner's space you can't read via RLS
 function SpaceRow({
   space,
   boards,
@@ -254,10 +211,6 @@ function SpaceRow({
             />
           </button>
 
-          {/* A space reads as an object, not a text row (M17 pass 2). The
-              initial on a brand-soft square is the smallest thing that does
-              that, and it stays on-palette — the reference's per-space colours
-              would mean inventing a colour assignment the data does not carry. */}
           {space ? (
             <span className="bg-brand-soft text-brand text-micro grid size-4.5 shrink-0 place-items-center rounded font-bold">
               {space.title.trim().charAt(0).toUpperCase()}
@@ -276,10 +229,7 @@ function SpaceRow({
             onClick={() =>
               onDialog({ kind: "create-board", spaceId: space?.id ?? null })
             }
-            // Always visible below `md`, revealed on hover above it (M22). A
-            // pointer-only affordance is unreachable on a touch screen — there
-            // is no hover to trigger it — so the only way to add a board inside
-            // a space on a phone was not to.
+            // always visible below md — hover-only would be unreachable on touch
             className="hover:text-ink coarse:size-8 coarse:p-0 coarse:grid coarse:place-items-center rounded p-0.5 transition-opacity duration-150 max-md:opacity-100 md:opacity-0 md:group-focus-within/space:opacity-100 md:group-hover/space:opacity-100"
           >
             <PlusIcon className="size-3.5" />
@@ -293,16 +243,7 @@ function SpaceRow({
               <DropdownMenu>
                 <DropdownMenuTrigger
                   aria-label={`${space.title} options`}
-                  // Same rule as the `+` above: rename and delete were both
-                  // unreachable on touch before M22.
-                  // **Always visible, on every space** (M23). It was revealed
-                  // on hover, which made rename and delete undiscoverable —
-                  // there is nothing on the row to suggest a menu exists, so
-                  // the only way to find it was to sweep the pointer over a
-                  // heading. `SidebarMenuAction`'s `showOnHover` is right for a
-                  // board row, where the list is long and the menu is a
-                  // repeat-per-item; a space heading appears a handful of times
-                  // and its menu is the only way to manage the space at all.
+                  // always visible, unlike the board row's hover-only menu — a space heading appears rarely and this is the only way to manage it
                   className="hover:text-ink hover:bg-ink/[0.06] coarse:size-8 coarse:p-0 coarse:grid coarse:place-items-center rounded p-0.5 transition-colors duration-150"
                 >
                   <MoreHorizontalIcon className="size-3.5" />
@@ -337,9 +278,6 @@ function SpaceRow({
       </SidebarMenuItem>
 
       {!collapsed && (
-        // A guide rail down the left, so the boards read as children of the
-        // space above them rather than as more rows in one flat list. Drawn on
-        // the wrapper rather than per row, or every row would restate it.
         <div className="border-hairline motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-1 ml-[1.1rem] border-l pl-1 motion-safe:duration-150">
           {boards.length === 0 ? (
             <SidebarMenuItem>
@@ -384,12 +322,7 @@ function BoardRow({
         isActive={isActive}
         className={cn(
           "relative pl-6",
-          // A 2px brand rail on the active board, drawn as a pseudo-element so
-          // it costs no layout and the row cannot shift when it appears. The
-          // tint alone was doing the whole job, and in a rail of eight boards a
-          // soft purple fill is easy to lose — the mark on the edge is what
-          // makes "you are here" readable at a glance rather than by comparing
-          // backgrounds. Same idiom the view tabs use, turned on its side.
+          // pseudo-element rail so the active mark costs no layout and the row can't shift
           isActive
             ? "bg-brand-soft text-ink before:bg-brand font-medium before:absolute before:top-1/2 before:left-0 before:h-4 before:w-0.5 before:-translate-y-1/2 before:rounded-r-full"
             : "text-ink-2",
@@ -401,8 +334,6 @@ function BoardRow({
         <span className="truncate">{board.title || "Untitled board"}</span>
       </SidebarMenuButton>
 
-      {/* Only the owner's. Everything in this menu is refused by the database
-          for anyone else, so offering it would be a button that fails. */}
       {owned && (
         <DropdownMenu>
           <DropdownMenuTrigger

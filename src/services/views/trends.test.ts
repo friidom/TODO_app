@@ -4,12 +4,7 @@ import { activityTrend, trendPeak } from "./trends";
 import type { Todo } from "@/types/data";
 import { todayISO } from "@/utils/dueDate";
 
-/**
- * Midday UTC, so no real timezone offset moves a fixture onto a different date
- * and the suite says the same thing wherever it runs. Expected buckets are named
- * with `todayISO` — the same conversion the subject uses — because "which local
- * day" is genuinely a property of the reader's zone for a true instant.
- */
+// midday UTC so no real timezone offset moves a fixture onto a different date
 const NOW = new Date("2026-08-15T12:00:00Z");
 
 let seq = 0;
@@ -45,8 +40,6 @@ const sum = (
 
 describe("activityTrend", () => {
   it("always returns one point per day, oldest first, ending today", () => {
-    // A quiet board draws a flat line rather than a short one — a chart whose
-    // width depends on its data cannot be compared with itself.
     const points = activityTrend([], NOW, 7);
 
     expect(points).toHaveLength(7);
@@ -74,9 +67,6 @@ describe("activityTrend", () => {
   });
 
   it("does NOT count a never-edited row as updated", () => {
-    // The rule this exists for, and it is `recentCounts`' rule: an untouched row
-    // carries its creation instant in `updated_at`, so counting it would draw
-    // the created series a second time in a different colour.
     const at = "2026-08-13T12:00:00Z";
 
     const points = activityTrend(
@@ -109,8 +99,6 @@ describe("activityTrend", () => {
   });
 
   it("counts an item once per series even when both fall in the window", () => {
-    // `updated_at` holds only the LAST change, so one row can contribute at most
-    // one created and one updated — never a run of edits.
     const points = activityTrend(
       [
         todo({
@@ -127,8 +115,6 @@ describe("activityTrend", () => {
   });
 
   it("drops an edit older than the window while keeping a creation inside it", () => {
-    // Each timestamp is bucketed on its own; falling outside is not a reason to
-    // discard the row.
     const points = activityTrend(
       [
         todo({
@@ -155,9 +141,6 @@ describe("activityTrend", () => {
       7,
     );
 
-    // The second row has a real edit instant but no creation instant to compare
-    // it against, so `updated > created` is false and it is left out rather than
-    // guessed at.
     expect(sum(points, "created")).toBe(0);
     expect(sum(points, "updated")).toBe(0);
   });
@@ -165,8 +148,6 @@ describe("activityTrend", () => {
 
 describe("trendPeak", () => {
   it("is the largest value across BOTH series, so they share one scale", () => {
-    // Two series on two scales is a chart that invites exactly the comparison
-    // it cannot support.
     const points = [
       { day: "a", created: 3, updated: 9 },
       { day: "b", created: 7, updated: 1 },

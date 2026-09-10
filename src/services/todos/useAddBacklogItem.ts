@@ -12,13 +12,7 @@ import { applySubtaskInserted, applyTodoUpdated } from "./cache";
 import { boardEntryOnActiveSprint } from "./backlog";
 import { addBacklogItem } from "./todoApi";
 
-/**
- * Column and rank for a brand new item created straight into `sprintId` —
- * `boardEntryOnActiveSprint` when that Sprint is the board's active one,
- * null otherwise. The one place this hook decides "does this appear on the
- * Board the moment it exists", shared between `mutationFn`'s write and
- * `onMutate`'s optimistic row so the two cannot disagree.
- */
+// shared by mutationFn and onMutate so the write and the optimistic row can't disagree about whether this lands on the board
 function boardEntryFor(
   sprintId: string | null,
   sprints: Sprint[],
@@ -34,36 +28,10 @@ function boardEntryFor(
 
 export interface AddBacklogItemVars {
   title: string;
-  /** Defaults to Task, matching `useAddTodo`. `Epic` is the other type this
-   * view supports creating directly (M29's "at minimum: Epic, normal Task"). */
   type?: string;
-  /** Appends into this Sprint's own section when set; the ungrouped Backlog
-   * section — `sprint_id: null` — when omitted. */
   sprintId?: string | null;
 }
 
-/**
- * Create a work item straight into the Backlog view (M29).
- *
- * **A separate mutation from `useAddTodo`, for the reason `useAddSubtask`
- * is one.** This item needs a `backlog_rank`, computed over whichever
- * section it is being appended to — the Backlog itself, or one Sprint's —
- * never over a column's contents. It has no column *unless* `sprintId` is
- * the board's own active Sprint (M31), in which case `boardEntryFor` gives
- * it one immediately — the same rule `sprintAssignmentPatch` applies to an
- * existing item planned into a running Sprint, so "create inside an active
- * Sprint" and "drag into one" put a card in the same place.
- *
- * **A whole-row replace on success, not a slot-keeping correction** —
- * `applyTodoUpdated`, the same choice `useAddSubtask` makes and for the same
- * reason: every backlog create is already an append, so there is no chosen
- * gap for the server's own append to disagree with.
- *
- * The id is minted once, in `mutate` below, and threaded through both
- * `mutationFn` and `onMutate` as part of the same variables object — the
- * pattern every create mutation in this file uses, so the optimistic row and
- * the row the server writes back are always the same row.
- */
 export function useAddBacklogItem() {
   const queryClient = useQueryClient();
   const boardId = useBoardId();
@@ -123,7 +91,6 @@ export function useAddBacklogItem() {
         position: null,
         rank: entry?.rank ?? null,
         backlog_rank: backlogRankForAppend(section),
-        // Allocated by the M2-21 trigger, so the client cannot know it yet.
         board_key: null,
         type,
         priority: null,
@@ -158,9 +125,7 @@ export function useAddBacklogItem() {
     },
   });
 
-  // Minted here rather than in `onMutate`, for the reason `useAddTodo`
-  // records: it has to reach `mutationFn` too, and `onMutate` cannot add to
-  // the variables it was given.
+  // minted here, not in onMutate — it has to reach mutationFn too
   const mutate = (variables: AddBacklogItemVars) =>
     mutation.mutate({ ...variables, id: crypto.randomUUID() });
 

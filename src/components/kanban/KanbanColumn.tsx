@@ -23,43 +23,15 @@ interface Props {
   column: IColumn;
   indicator: TodoIndicator;
   dragHandleProps?: Record<string, unknown>;
-  /** A card is being dragged out of this column. */
   isDragSource?: boolean;
-  /** This column is the drop target for a card from another column. */
   transition?: { from: TransitionPill; to: TransitionPill } | null;
-  /**
-   * Nothing on this board may be picked up right now — a view sort is on, or the
-   * board is split into swimlanes. The drop indicators go with it: an indicator
-   * is a promise about where a card will land, and there is no honest answer.
-   */
+  // view sort or swimlanes on — nothing can be picked up, so no drop indicators either
   dragDisabled?: boolean;
-  /**
-   * Something on the board is being dragged right now.
-   *
-   * Read from the board rather than from `useDndContext()` inside each gap —
-   * see `DropZone`'s own note. This is the prop that took ~200 context
-   * subscribers out of the drag's render path (M9-05).
-   */
+  // read from the board, not useDndContext per gap — keeps ~200 gaps out of the drag's render path
   dragging?: boolean;
-  /**
-   * Whether `todos` is this column's complete list, in stored order.
-   *
-   * A new card's index is counted over what is rendered, and `applyTodoInserted`
-   * splices it into the whole column — the same mismatch `dropIndex.ts` exists
-   * for. A drop can be translated because it names the card it landed above; an
-   * insert into a filtered column has no such anchor at the end of the list, so
-   * this says so instead: the mid-column `+` is withheld and a new card appends.
-   */
+  // false when todos is a filtered subset — an insert has no anchor to splice at, so it just appends
   exactOrder?: boolean;
-  /**
-   * This column is one lane's slice of a column, not the column itself.
-   *
-   * It renders the same cards in the same shape, minus everything that belongs
-   * to the column as a whole: the header's menu (which would repeat once per
-   * lane), the Create button (a card created here would have to inherit the
-   * lane's dimension too) and the height cap (lanes stack, so the page scrolls
-   * rather than each column).
-   */
+  // one lane's slice of the column — no menu, no Create button, no height cap (those belong to the column as a whole)
   lane?: boolean;
   onCollapse: () => void;
   onSetLimit: () => void;
@@ -95,34 +67,19 @@ export default function KanbanColumn({
     disabled: dragDisabled,
   });
 
-  /**
-   * Every parent's subtask progress, for the card indicator (M27).
-   *
-   * Resolved here rather than per card: a board has a handful of columns and
-   * hundreds of cards, so this is a few observers over an array the board
-   * already holds instead of one per card — and the values handed down are
-   * primitives, which is what keeps `TodoContainer`'s memo intact during a
-   * drag (M9-05).
-   */
+  // one lookup per column, not per card
   const subtaskProgress = useSubtaskProgressByParent();
 
-  // Creating work is editor and above (M3-05). Gates the Create button, the
-  // hover-`+` on every gap, and the form itself — a viewer can still read the
-  // column and its cards.
   const { canEditTodos } = usePermissions();
 
-  /** Gap index the create form is open at, or `null` when it is closed. */
   const [creatingAt, setCreatingAt] = useState<number | null>(null);
-  /** True only for the opening render, so the skeleton plays once. */
   const [skeleton, setSkeleton] = useState(false);
   const [title, setTitle] = useState("");
 
   const addTodoMutation = useAddTodo();
   const formRef = useRef<HTMLDivElement>(null);
 
-  // Stable across renders, which is what lets `DropZone` be memoised (M9-05):
-  // it is handed to ~200 gaps, and a fresh closure per render would fail every
-  // memo comparison and put the gaps straight back into the drag's render path.
+  // stable identity so DropZone's memo holds across ~200 gaps
   const openAt = useCallback((gap: number) => {
     setCreatingAt(gap);
     setSkeleton(true);
@@ -142,9 +99,7 @@ export default function KanbanColumn({
 
       if (formRef.current?.contains(target)) return;
 
-      // The due-date and assignee panels are portalled to document.body, so
-      // they are outside the form in the DOM while being part of it in the UI.
-      // Without this, choosing a date closes the form and discards the draft.
+      // due-date/assignee panels are portalled outside the form's DOM subtree — without this, picking a date closes the form
       if (target instanceof Element && target.closest("[data-card-popover]")) {
         return;
       }
@@ -160,7 +115,6 @@ export default function KanbanColumn({
   }, [creatingAt]);
 
   useEffect(() => {
-    // Only the form at the bottom needs the list scrolled down to it.
     if (creatingAt !== todos.length) return;
 
     requestAnimationFrame(() => {
@@ -179,40 +133,21 @@ export default function KanbanColumn({
     addTodoMutation.mutate({
       title: trimmedTitle,
       column_id: id,
-      // Omitted appends, which is the only honest answer when the rendered list
-      // is not the whole column — `creatingAt` counts visible cards, and the
-      // insert splices into every card the column holds.
+      // creatingAt counts visible cards; append when the list is filtered so the index can't be wrong
       index: exactOrder ? creatingAt : undefined,
-      // Whatever the form's own controls collected. Both null when untouched,
-      // which is the behaviour creation had before they existed.
       ...draft,
     });
-    //clean input for the next title
     setTitle("");
-    // keep creating, now below the card we just added — no skeleton this time,
-    // the form is already open and the caret has to stay live
     setSkeleton(false);
     setCreatingAt(creatingAt + 1);
   };
-  //ref scroll
   const listRef = useRef<HTMLDivElement>(null);
 
   const isIndicatorHere = indicator?.columnId === id;
 
-  /**
-   * The `+` is pointless on the last gap (the Create button below already adds
-   * there) and on the gap whose form is currently open — and meaningless when
-   * the column is showing a subset, since the gap does not name a position the
-   * stored column has.
-   */
-  // A boolean rather than a closure, so `DropZone`'s memo compares equal on the
-  // gaps nothing happened to (M9-05). The handler itself is the one stable
-  // `openAt` above, and the gap tells it which index it is.
   const canAddAt = (gap: number) =>
     canEditTodos && exactOrder && gap < todos.length && creatingAt !== gap;
 
-  // One element, rendered at whichever gap `creatingAt` points to. Moving it
-  // remounts it, which re-runs its autoFocus.
   const createForm = (
     <TodoCreateForm
       ref={formRef}
@@ -230,25 +165,13 @@ export default function KanbanColumn({
       ref={setNodeRef}
       className={cn(
         "rounded-surface border-hairline relative flex w-[288px] shrink-0 flex-col overflow-hidden border transition-colors duration-150",
-        // **Height comes from the flex row, not from a pixel sum** (M17). It
-        // used to be `max-h-[calc(100vh-220px)]`, which hard-coded the height
-        // of every bar above the board — so the redesign that changed those
-        // bars would have left every column silently mis-sized. `h-full` inside
-        // a `min-h-0` parent gets the same cap from the layout that actually
-        // knows it.
-        //
-        // Lanes stack down the page, so a per-column cap would give every lane
-        // its own scrollbar. The board scrolls instead.
+        // height comes from the flex row, not a hardcoded pixel sum, so it survives changes to the bars above the board
         lane ? "h-fit" : "h-fit max-h-full",
         transition
           ? "bg-status-blue/10 ring-status-blue ring-2 ring-inset"
           : "bg-surface",
       )}
     >
-      {/* The category wash (M17). Absolutely positioned so it spans the header
-          AND the first card's airspace — a gradient stopped at the header's
-          bottom edge reads as a coloured rectangle no matter how soft its fade
-          is. `pointer-events-none` keeps it out of the drag path entirely. */}
       <div
         aria-hidden
         className={cn(
@@ -281,38 +204,21 @@ export default function KanbanColumn({
         />
       )}
 
-      {/* TODO LIST */}
       <div
         ref={listRef}
-        // `overflow-x-hidden` is load-bearing, not tidiness. `overflow-y-auto`
-        // alone leaves `overflow-x` at `visible`, and CSS promotes a `visible`
-        // axis to `auto` whenever the other axis is not `visible` — so the list
-        // silently gained a horizontal scrollbar. Anything overflowing by a
-        // sub-pixel then showed a thin sideways scroll inside the column: the
-        // vertical scrollbar eating width mid-drag, a focus ring, the gap's
-        // `-left-2` `+`. A column never scrolls sideways, so the x-axis is
-        // clipped and the promotion has nothing to act on.
+        // overflow-x-hidden is load-bearing: overflow-y-auto alone leaves x at "visible", which
+        // CSS then promotes to "auto" and the column gets a stray horizontal scrollbar
         className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-2 pt-2 pb-1"
       >
-        {/* Scoped to the cards: a card that throws costs this column its list,
-            not the header, the Create button, or the rest of the board. */}
+        {/* a card that throws only costs this column its list, not the rest of the board */}
         <ErrorBoundary>
           <div
             className={cn(
               "flex min-h-10 flex-col",
-              // The `DropZone`s below are `h-2.5`, and they were carrying the
-              // spacing between cards as a side effect of being drop targets —
-              // so switching off dragging (a view sort, or swimlanes) took the
-              // gaps with them and left the cards flush, borders touching. The
-              // rhythm is the list's to own, not the drop targets': `gap-2.5`
-              // is the same 10px, applied only when nothing else supplies it.
+              // DropZones normally carry the card spacing as a side effect of being h-2.5 — fall back to gap when they're not rendered
               dragDisabled && "gap-2.5",
             )}
           >
-            {/* The gaps are both the drop targets and the hover-`+` create
-                affordance. With dragging off they would draw lines for a drop
-                that cannot happen, so they are not rendered at all — the Create
-                button below still adds to the column. */}
             {!dragDisabled && (
               <DropZone
                 columnId={id}
@@ -327,12 +233,6 @@ export default function KanbanColumn({
 
             {creatingAt === 0 && createForm}
 
-            {/* An empty column used to be a blank strip with a Create button
-                under it, which reads as a column that failed to load rather
-                than one with nothing in it. Suppressed while a card is in
-                flight over the board — the drop indicator is the clearer
-                message then — and while the create form is open, which is
-                already the answer to "there is nothing here". */}
             {todos.length === 0 && !dragging && creatingAt === null && (
               <EmptyState
                 size="sm"
@@ -347,9 +247,7 @@ export default function KanbanColumn({
                 <TodoItem
                   todo={todo}
                   dragDisabled={dragDisabled}
-                  // Two primitives, not the object (M27) — `TodoContainer` is
-                  // memoised and a fresh `{done,total}` per render would
-                  // break it for every card on the board.
+                  // primitives, not an object, so TodoContainer's memo isn't broken by a fresh {done,total} every render
                   subtaskDone={subtaskProgress.get(todo.id)?.done ?? 0}
                   subtaskTotal={subtaskProgress.get(todo.id)?.total ?? 0}
                 />
@@ -374,10 +272,6 @@ export default function KanbanColumn({
         </ErrorBoundary>
       </div>
 
-      {/* CREATE — no background of its own, so it follows the column's.
-          A lane has none: a card created inside "Sara Kim / In progress" would
-          have to inherit the lane's dimension as well as the column, and the
-          ungrouped board is one click away. */}
       {!lane && canEditTodos && (
         <div className="relative shrink-0 px-2.5 pt-1 pb-2.5">
           <button
@@ -394,14 +288,6 @@ export default function KanbanColumn({
   );
 }
 
-/**
- * A lane's column header: what the column is and how many cards of this lane are
- * in it, and nothing else.
- *
- * Rename, limits, delete and reorder belong to the column, not to one lane's
- * slice of it — repeating them once per lane would offer the same action five
- * times and make it ambiguous which one it applied to.
- */
 function LaneColumnHeader({
   headerTitle,
   category,

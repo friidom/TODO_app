@@ -41,9 +41,6 @@ const labels = (options: { label: string }[]) => options.map((o) => o.label);
 describe("filterOptions", () => {
   describe("assignee", () => {
     it("offers the two pseudo-values first, then the roster", () => {
-      // "Assigned to me" and "Unassigned" are what an assignee filter is asked
-      // for most; burying them under a roster would be this panel's own version
-      // of the problem it exists to fix.
       expect(values(filterOptions("assignee", ctx))).toEqual([
         "me",
         "none",
@@ -53,14 +50,10 @@ describe("filterOptions", () => {
     });
 
     it("omits the signed-in user, who is already 'Assigned to me'", () => {
-      // Two checkboxes for one person would have to be kept in agreement, and a
-      // shared URL is meant to mean "assigned to whoever opened it".
       expect(values(filterOptions("assignee", ctx))).not.toContain("u1");
     });
 
     it("names a member the same way the rest of the app does", () => {
-      // Falls through `memberName`, so a member with no full name is labelled
-      // by username rather than by a blank row.
       expect(labels(filterOptions("assignee", ctx))).toEqual([
         "Assigned to me",
         "Unassigned",
@@ -96,9 +89,6 @@ describe("filterOptions", () => {
   });
 
   it("offers every work type", () => {
-    // Generic over `WORK_TYPE_OPTIONS` — Epic is a work type like any other
-    // (M28-A), so filtering the board down to just its Epics needs no case
-    // of its own here.
     expect(values(filterOptions("type", ctx))).toEqual([
       "Task",
       "Bug",
@@ -109,8 +99,6 @@ describe("filterOptions", () => {
   });
 
   it("offers every priority plus 'no priority'", () => {
-    // The unset case is a real answer — a board where nothing is prioritised is
-    // exactly when someone filters for it.
     const options = filterOptions("priority", ctx);
 
     expect(values(options)).toEqual([
@@ -136,7 +124,7 @@ describe("matchOptions", () => {
   const options = filterOptions("assignee", ctx);
 
   it("returns the same array when nothing is typed", () => {
-    // Identity, not a copy — the rule `filterTodos` and `searchTodos` follow.
+    // identity, not a copy
     expect(matchOptions(options, "")).toBe(options);
     expect(matchOptions(options, "   ")).toBe(options);
   });
@@ -151,8 +139,6 @@ describe("matchOptions", () => {
   });
 
   it("collapses runs of whitespace, like the board's own search", () => {
-    // Two search boxes on one screen behaving differently is worse than either
-    // behaving imperfectly.
     expect(labels(matchOptions(options, "grace  hopper"))).toEqual([
       "Grace Hopper",
     ]);

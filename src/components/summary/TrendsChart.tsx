@@ -1,48 +1,15 @@
 import { trendPeak, type TrendPoint } from "@/services/views/trends";
 import SummaryCard, { WidgetEmpty } from "./SummaryCard";
 
-/**
- * The board's last week, as two lines (M18 polish).
- *
- * **Hand-rolled SVG, like the status donut, and for the same reason.** One chart
- * does not justify a charting dependency: recharts is ~90kB gzipped and brings
- * its own theming, fonts and animation opinions to a product that has all three
- * already. This is two paths per series and a few rules.
- *
- * **Two series, not three.** Completed-per-day is not derivable from this
- * schema and is not faked here — `services/views/trends.ts` records exactly why,
- * and what would make it possible. The `updated` series carries its own caveat,
- * stated in the panel's own subtitle rather than buried in a comment: it counts
- * items whose *latest* change fell on a day, because `updated_at` is the only
- * edit timestamp a row keeps.
- *
- * **Points sit at the centre of their day's slot**, at `(i + 0.5) × step`,
- * rather than at `i / (n - 1)`. A day is an interval, not an instant, and
- * centring is what lets the axis labels below line up under the vertices without
- * the first and last being half off the edge.
- *
- * **A fixed `viewBox` with `preserveAspectRatio="none"`**, so the chart stretches
- * to whatever width the panel has without recomputing anything on resize — the
- * points are laid out in an abstract 100×40 space and the browser scales it.
- * `vector-effect="non-scaling-stroke"` is what stops that stretch from making
- * the strokes thick and uneven, and it is on the grid rules too.
- */
-
-/** Plot-space height. Width is 100, so both are percentages in disguise. */
+// hand-rolled SVG rather than a charting lib — one chart doesn't justify a ~90kB dependency
 const PLOT_HEIGHT = 40;
-
-/** Headroom at the top, so a peak day's vertex is not clipped by the viewBox. */
 const HEADROOM = 3;
-
-/** Where the grid rules sit, as a share of the peak. */
 const GRID_LINES = [0, 0.5, 1];
 
 const SERIES = [
   {
     key: "created",
     label: "Created",
-    // The brand accent on the series that means "new work", which is the one
-    // the panel is mostly read for.
     tone: "text-brand",
     dot: "bg-brand",
     fill: "url(#summary-trend-created)",
@@ -61,26 +28,20 @@ export default function TrendsChart({
   className,
 }: {
   points: TrendPoint[];
-  /** The widget's span in the Summary's grid. */
   className?: string;
 }) {
   const peak = trendPeak(points);
   const step = points.length === 0 ? 0 : 100 / points.length;
 
-  /** Plot-space x for the centre of day `i`. */
+  // centered in the day's slot, not at i/(n-1), so a day (an interval) lines up under its axis label
   const xOf = (i: number) => (i + 0.5) * step;
 
-  /** Plot-space y for a count, with the top of the box reserved as headroom. */
   const yOf = (count: number) =>
     PLOT_HEIGHT - (count / peak) * (PLOT_HEIGHT - HEADROOM);
 
   return (
     <SummaryCard
       title="Activity trends"
-      // The caveat lives here rather than only in a code comment: `updated_at`
-      // holds the most recent change and nothing before it, so this is what the
-      // blue line actually counts. Saying it on the panel is the difference
-      // between a chart and a chart you can trust.
       hint="Items created, and items whose most recent change fell on that day"
       className={className}
       action={
@@ -101,10 +62,7 @@ export default function TrendsChart({
         <WidgetEmpty>Nothing to chart yet.</WidgetEmpty>
       ) : (
         <div className="flex gap-2.5 px-3.5 pb-3">
-          {/* The y axis, as HTML rather than SVG `<text>`: it inherits the
-              page's font and needs no transform to stay upright inside a
-              stretched viewBox. Three readings — peak, half, zero — because a
-              tick per unit is a ladder nobody climbs. */}
+          {/* HTML, not SVG text — inherits the page font and stays upright inside the stretched viewBox */}
           <div className="text-ink-3/70 text-micro flex w-6 shrink-0 flex-col justify-between py-px text-right tabular-nums">
             <span>{peak}</span>
             <span>{Math.round(peak / 2)}</span>
@@ -122,16 +80,10 @@ export default function TrendsChart({
                     .map((point) => point[series.key])
                     .join(", ")}`,
               ).join(". ")}
-              // 112px of plot: tall enough that a seven-point line has shape,
-              // short enough that the chart is a tier of the dashboard rather
-              // than a screen of its own.
               className="h-28 w-full"
             >
               <defs>
-                {/* `currentColor` in a stop resolves against the gradient
-                    element's own inherited colour, not the shape referencing
-                    it — so the class goes here, and the fill can never drift
-                    from the line it sits under. */}
+                {/* the tone class lives on the gradient itself — currentColor in a stop resolves against its own inherited color */}
                 <linearGradient
                   id="summary-trend-created"
                   x1="0"
@@ -197,9 +149,7 @@ export default function TrendsChart({
 
                 return (
                   <g key={series.key} className={series.tone}>
-                    {/* Closed down to the floor at the first and last vertex,
-                        so the fill sits under the line rather than under the
-                        whole box. */}
+                    {/* closed to the floor at both ends so the fill sits under the line, not the whole box */}
                     <path
                       d={`${line} L ${xOf(points.length - 1).toFixed(2)},${PLOT_HEIGHT} L ${xOf(0).toFixed(2)},${PLOT_HEIGHT} Z`}
                       fill={series.fill}
@@ -219,7 +169,6 @@ export default function TrendsChart({
               })}
             </svg>
 
-            {/* One cell per day, centred — the same slots the vertices sit in. */}
             <div className="mt-1.5 flex">
               {points.map((point) => (
                 <span
@@ -237,14 +186,7 @@ export default function TrendsChart({
   );
 }
 
-/**
- * `2026-08-14` → `14 Aug`.
- *
- * Built through `Date.UTC` and read back in UTC, so the formatter cannot shift
- * the label onto a neighbouring day — the string is already a local calendar day
- * by the time it reaches here, and re-parsing it as an instant is exactly how a
- * date drifts.
- */
+// Date.UTC in, UTC out — otherwise the formatter can shift the label onto a neighboring day
 function dayLabel(day: string): string {
   const [year, month, date] = day.split("-").map(Number);
 

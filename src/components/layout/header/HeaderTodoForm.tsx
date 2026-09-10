@@ -7,20 +7,6 @@ import { useColumns } from "@/services/columns/useColumnsApi";
 import { byRank } from "@/utils/rank";
 import { usePermissions } from "@/hooks/usePermissions";
 
-/**
- * The board's quick-add: **a button that becomes a field** (M17).
- *
- * It used to be a permanently open 256px input sitting in the board header —
- * the widest thing on the page, and an always-open text box is a strange thing
- * to make the primary call to action. Now it is the toolbar's one filled
- * control, and the field it opens is the same field: same mutation, same
- * leftmost-column target, same permission gate, same Enter-to-submit.
- *
- * Collapsing on blur and on Escape is what lets it be a button most of the
- * time. It stays open after a submit so a run of cards can be typed without
- * reaching for the mouse — the behaviour the always-open input had, kept where
- * it actually matters.
- */
 export default function HeaderTodoForm() {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -32,11 +18,7 @@ export default function HeaderTodoForm() {
   const addTodoMutation = useAddTodo();
   const { data: columns = [] } = useColumns();
 
-  // The board has no fixed set of columns, so a global quick-add needs a
-  // defined destination: the leftmost one. Picked by rank rather than array
-  // order, because the ["columns"] cache is patched optimistically and is not
-  // guaranteed to stay sorted. Copy first — sorting the cached array in place
-  // would mutate React Query's data.
+  // sorted by rank, not array order — the cache isn't guaranteed to stay sorted; copy first so this doesn't mutate it
   const targetColumn = [...columns].sort(byRank)[0];
 
   function handleAddTodo() {
@@ -44,7 +26,6 @@ export default function HeaderTodoForm() {
 
     if (!title || !targetColumn) return;
 
-    // No `index` — appends to the end of the column.
     addTodoMutation.mutate({
       title,
       column_id: targetColumn.id,
@@ -59,9 +40,6 @@ export default function HeaderTodoForm() {
     setOpen(false);
   }
 
-  // Creating work is editor and above (M3-05). This is the toolbar's most
-  // prominent control, so leaving it there inert would be the loudest thing on
-  // the page for someone who cannot use it.
   if (!canEditTodos) return null;
 
   if (!open) {
@@ -85,9 +63,7 @@ export default function HeaderTodoForm() {
         e.preventDefault();
         handleAddTodo();
       }}
-      // Closing on blur has to survive focus moving *within* the form — from
-      // the input to the submit button — so it is checked on the form rather
-      // than the input, and only when focus has left the subtree entirely.
+      // checked on the form, not the input — focus can move to the submit button without leaving the form
       onBlur={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget)) close();
       }}

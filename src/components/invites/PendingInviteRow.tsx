@@ -8,18 +8,6 @@ import { useRevokeInvite } from "@/services/invites/useRevokeInvite";
 import type { BoardInvite } from "@/services/invites/invitesApi";
 import { cn } from "@/utils/cn";
 
-/**
- * One pending invitation: role, how long it has left, copy, revoke.
- *
- * Revoke asks first, inline. **Not `window.confirm`** — a native dialog blocks
- * the browser's event loop, and revoking is destructive in a way that is not
- * undoable: the row is deleted, so the link cannot be brought back and a new
- * one has a different token.
- *
- * The confirm state is per-row and local. Lifting it would let two rows think
- * they are the one being confirmed, and there is nothing else that needs to
- * know.
- */
 export default function PendingInviteRow({ invite }: { invite: BoardInvite }) {
   const [confirming, setConfirming] = useState(false);
 
@@ -41,8 +29,6 @@ export default function PendingInviteRow({ invite }: { invite: BoardInvite }) {
       </span>
 
       {revoke.error ? (
-        // Inline rather than a toast: the failure belongs to this row, and the
-        // mutation is `meta: { silent: true }` so nothing else reports it.
         <span className="text-status-red shrink-0 text-xs">
           Could not revoke
         </span>

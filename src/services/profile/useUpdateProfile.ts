@@ -9,8 +9,6 @@ export default function useUpdateProfile() {
   return useMutation({
     mutationFn: updateProfile,
 
-    // The key comes from the profile being saved rather than from useAuth, so
-    // it cannot disagree with the entry useProfile(user?.id) reads.
     onMutate: async (profile) => {
       const key = queryKeys.profile(profile.id);
 
@@ -31,13 +29,10 @@ export default function useUpdateProfile() {
         return;
       }
 
-      // Nothing to restore: setQueryData(key, undefined) is a no-op, so the
-      // optimistic row would survive the failure. Drop the entry instead.
+      // setQueryData(key, undefined) is a no-op, so drop the entry instead of trying to restore nothing
       queryClient.removeQueries({ queryKey: context.key, exact: true });
     },
 
-    // The saved row, not the optimistic copy — column defaults and triggers
-    // decide what was actually stored.
     onSuccess: (saved) => {
       queryClient.setQueryData(queryKeys.profile(saved.id), saved);
     },

@@ -17,31 +17,7 @@ import {
   ResetPasswordPage,
 } from "./lazyPages";
 
-/**
- * The split (M9-03), and what governs which side of it a route lands on.
- *
- * `docs/FRONTEND.md` asks for *"lazy loading for large routes"*, and on this
- * app that is very nearly one route. `BoardPage` reaches @dnd-kit, five view
- * renderers, the comment thread, the activity drawer and every board modal;
- * everything else is a form or a sentence. Splitting it is most of the win, and
- * splitting the rest is what stops it being clawed back the next time one of
- * them grows.
- *
- * **Four routes stay eager, each for a reason rather than by omission:**
- *
- *   · `LoginPage` is the first paint for a signed-out visitor. Deferring it
- *     buys nothing — it *is* the initial bundle's job — and costs a spinner on
- *     the one screen that should feel instant.
- *   · `ForYouPage` is the first paint for a signed-in one (M21). Same argument
- *     as the login page: deferring the landing screen buys nothing and costs a
- *     spinner on the one route that should feel instant. It is also small — a
- *     list, a segmented control and three states — and reaches none of the
- *     board's heavy dependencies.
- *   · `NotFoundPage` and `RouteErrorPage` are the error paths. A page whose
- *     job is to work when something else did not must not itself depend on a
- *     chunk request succeeding — a failed lazy import inside an error boundary
- *     is a blank screen with no way out.
- */
+// login/ForYou stay eager since they're the first paint; error pages stay eager since a failed lazy import inside one is a dead end
 const deferred = (element: ReactNode) => (
   <Suspense fallback={<Loading />}>{element}</Suspense>
 );
@@ -51,11 +27,7 @@ export const router = createBrowserRouter([
     element: <ProtectedRoute />,
     errorElement: <RouteErrorPage />,
     children: [
-      // `/` is the personal hub as of M21. It used to redirect to the oldest
-      // board, which meant the app had no home — the first thing you saw was
-      // one arbitrary board rather than your own work. The board is still
-      // always addressed by id, so every open board has a shareable URL and
-      // the app still has one answer to "which board is this".
+      // "/" is the personal hub, not a redirect to an arbitrary board
       {
         path: "/",
         element: <ForYouPage />,
@@ -90,31 +62,21 @@ export const router = createBrowserRouter([
     ],
   },
 
-  // Outside both guards on purpose: it has to work signed in AND signed out.
-  // ProtectedRoute would bounce a signed-out visitor to /login and lose the
-  // token; PublicRoute would bounce a signed-in one to /. The page gates itself
-  // and carries the token through login via `?next=`.
+  // outside both guards — has to work signed in or out; page gates itself and carries the token via ?next=
   {
     path: "/invite/:token",
     element: deferred(<InvitePage />),
     errorElement: <RouteErrorPage />,
   },
 
-  // Outside both guards for a related but distinct reason (M22). A Supabase
-  // recovery link does not hand this page a token to redeem — it *signs the
-  // user in*, exchanging the URL fragment for a real session before the page
-  // renders. So PublicRoute would see that session and redirect to `/` before
-  // the password could be changed, which is precisely the screen the link
-  // exists to reach. The page waits for the session itself and says so when it
-  // never arrives.
+  // outside both guards — the recovery link signs the user in before this renders, so PublicRoute would redirect it away
   {
     path: "/reset-password",
     element: deferred(<ResetPasswordPage />),
     errorElement: <RouteErrorPage />,
   },
 
-  // Outside both guards on purpose: a signed-out visitor to a bad URL should
-  // be told the page does not exist, not bounced to /login as if it did.
+  // outside both guards — a bad URL should say so, not bounce to /login
   {
     path: "*",
     element: <NotFoundPage />,

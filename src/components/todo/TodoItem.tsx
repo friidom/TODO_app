@@ -14,36 +14,7 @@ import { useDoneFlash } from "@/stores/doneFlash";
 import type { Todo, TodoViewState } from "@/types/data";
 import { taskKey } from "@/utils/taskKey";
 
-/**
- * The container behind a card: state, writes and drag registration (M5-02).
- *
- * **Everything `TodoCard` used to own and should not have.** The card held its
- * own rename state and called `useUpdateTodo` directly, which is precisely
- * what `docs/FRONTEND.md` uses it as the counter-example of. The split is the
- * conventional one: this knows about the row, the cache and the board; the
- * card knows about pixels.
- *
- * It also owns the draggable. That is behaviour, not rendering, and keeping it
- * here is what lets `id` and `column_id` stay out of the card's props
- * entirely — the card receives a `setNodeRef` and some handle props and never
- * learns what they are for.
- *
- * The three things a card cannot supply for itself are built here and passed
- * down as rendered nodes: the assignee picker (which fetches the roster), the
- * action menu (which needs a complete `Todo`), and the write callbacks.
- */
-/**
- * **Memoised, but it is the smaller half of the M9-05 fix.**
- *
- * This blocks the parent-render path — `handleDragOver` sets the indicator on
- * every pointer move, re-rendering `KanbanBoard` → `KanbanColumn`. It works
- * because `todo` is the cached row passed by reference (`todos/cache.ts`
- * returns untouched rows unchanged) and `dragDisabled` is a boolean.
- *
- * It could never have been enough on its own: `DraggableTodo` below subscribes
- * to dnd-kit's context, and context bypasses `memo`. The measurement that
- * mattered is on `DraggableTodo`.
- */
+// card owns pixels, this owns the row/cache/drag registration — memoised, but the real fix is the memo boundary on DraggableTodo below
 const TodoItem = memo(function TodoItem({
   todo,
   overlay = false,
@@ -51,8 +22,7 @@ const TodoItem = memo(function TodoItem({
   subtaskDone = 0,
   subtaskTotal = 0,
 }: { todo: Todo } & TodoViewState & SubtaskCounts) {
-  // Split so hooks are never called conditionally: the overlay copy is a plain
-  // card with no drag registration, the one in the column is draggable.
+  // split so hooks are never called conditionally
   if (overlay) return <TodoContainer todo={todo} overlay />;
 
   return (
@@ -65,15 +35,7 @@ const TodoItem = memo(function TodoItem({
   );
 });
 
-/**
- * Handed down rather than looked up (M27).
- *
- * The board computes every parent's progress once, in one pass, and passes
- * two numbers per card. A hook here instead would mean one subscription per
- * card over an array the board already holds — and, worse, a fresh object per
- * render, which would break the memo on `TodoContainer` that stops a drag
- * re-rendering all ~200 cards (M9-05). Primitives compare by value.
- */
+// handed down, not looked up — a hook per card would be a fresh object every render and break the memo below
 export interface SubtaskCounts {
   subtaskDone?: number;
   subtaskTotal?: number;
@@ -95,31 +57,13 @@ function DraggableTodo({
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: todo.id,
     data: { type: "todo", columnId: todo.column_id },
-    // @dnd-kit's own switch, rather than withholding the listeners: a disabled
-    // draggable is still registered, so nothing downstream has to cope with a
-    // card that exists on the board but not in the drag context.
     disabled: dragDisabled,
   });
 
-  /**
-   * dnd-kit's `listeners`, behind a stable identity.
-   *
-   * **Measured, not assumed:** across 1,643 `DraggableTodo` renders during one
-   * drag, `setNodeRef` changed identity 0 times and `attributes` twice, but
-   * `listeners` changed **1,224 times** — dnd-kit v6 rebuilds that object on
-   * most renders. It is spread into `handleProps`, so every rebuild produced a
-   * new `handleProps`, broke `TodoContainer`'s memo, and re-rendered all ~200
-   * cards with their icon subtrees. The handlers behave identically each time;
-   * only the wrapper churns, so the wrapper is what gets pinned.
-   *
-   * The keys are fixed by which sensors are registered (pointer, keyboard), so
-   * the wrapper set is built once and each entry forwards to whatever dnd-kit
-   * currently holds.
-   */
+  // dnd-kit rebuilds `listeners` on most renders (measured: 1,224/1,643 during one drag), which broke the memo below.
+  // pinning a stable wrapper here and forwarding through the ref is what stops every card re-rendering on a drag.
   const listenersRef = useRef(listeners);
 
-  // Updated after commit, not during render: the wrappers below only ever run
-  // from a DOM event, which is always after the commit that set this.
   useEffect(() => {
     listenersRef.current = listeners;
   });
@@ -140,29 +84,18 @@ function DraggableTodo({
     return out;
   }, [listenerKeys]);
 
-  // Stable across the re-renders `useDraggable` forces on this component, so
-  // the memo on `TodoContainer` below actually holds. Rebuilt only when the
-  // card's own identity changes — not when the drag moves.
   const handleProps = useMemo(
     () => ({
       ...attributes,
       ...stableListeners,
-      // M9-02. `attributes` already carries role, tabIndex and the
-      // aria-describedby pointing at dnd-kit's instructions; what it cannot
-      // know is what this particular card *is*. Without a label a screen
-      // reader reads the card's whole contents — two chip labels, a title, a
-      // date — as the name of a button.
+      // without this a screen reader reads the whole card body as the button's name
       "aria-label": itemLabel(taskKey(keyPrefix, todo.board_key), todo.title),
-      // Overrides dnd-kit's "draggable", which describes the mechanism
-      // rather than the thing. "card" is the word the rest of the product
-      // uses out loud.
       "aria-roledescription": "card",
     }),
     [attributes, stableListeners, keyPrefix, todo.board_key, todo.title],
   );
 
-  // No transform is applied on purpose: the card stays exactly where it is and
-  // only the DragOverlay follows the cursor.
+  // no transform here — the card stays put, only the DragOverlay follows the cursor
   return (
     <TodoContainer
       todo={todo}
@@ -176,18 +109,7 @@ function DraggableTodo({
   );
 }
 
-/**
- * **The memo boundary sits here, below `useDraggable`** (M9-05).
- *
- * `DraggableTodo` above subscribes to dnd-kit's context, and context updates
- * bypass `memo` — so memoising `TodoItem` could never stop a drag from
- * re-rendering all 200 cards, which the profiler showed it doing (`TodoCard`
- * x203 in a 122ms commit). The subscription has to stay where it is; what can
- * move is the expensive part. `DraggableTodo` still re-renders on every `over`
- * change — it is a hook and one element — and everything costly below it,
- * `TodoCard` with its date, work-type, assignee and menu controls, is skipped
- * for every card but the one that actually changed.
- */
+// the memo boundary sits here, below useDraggable — context updates bypass memo, so memoising higher up wouldn't stop a drag re-rendering every card
 const TodoContainer = memo(function TodoContainer({
   todo,
   overlay = false,
@@ -203,27 +125,21 @@ const TodoContainer = memo(function TodoContainer({
     handleProps?: Record<string, unknown>;
   }) {
   const [editing, setEditing] = useState(false);
-  // `todos.title` is nullable in the schema; the draft is always a string, so
-  // a null card title starts the input empty rather than as `null`.
   const [draft, setDraft] = useState(todo.title ?? "");
 
-  // board_id travels with every patch: updateTodo upserts, so it needs the
-  // row's board to propose a valid row when the card's own INSERT has not
-  // landed yet. `useTodoPatch` is the single `updateTodo` call site.
   const patch = useTodoPatch(todo);
 
   const { canEditTodos } = usePermissions();
   const { openTask } = useOpenTask();
   const keyPrefix = useKeyPrefix();
 
-  // Only the real card rings — never the drag overlay's copy of it.
+  // only the real card celebrates, never the drag overlay's copy
   const celebrate = useDoneFlash(
     (state) => state.todoId === todo.id && !overlay && !dragging,
   );
 
   function save() {
-    // Empty reverts and an unchanged title is not a write: both close the
-    // editor without touching the row.
+    // empty reverts, unchanged is a no-op — both just close the editor
     if (draft.trim() === "" || draft === todo.title) {
       setDraft(todo.title ?? "");
       setEditing(false);
@@ -258,9 +174,7 @@ const TodoContainer = memo(function TodoContainer({
       onEstimateChange={(estimate) => patch({ estimate })}
       subtaskDone={subtaskDone}
       subtaskTotal={subtaskTotal}
-      // Not gated on canEditTodos: opening the panel is a read, and the menu
-      // that used to be the only way in is editor-only. Withheld on the drag
-      // overlay, which is a picture of a card rather than one.
+      // opening the panel is a read, not gated on canEditTodos — just withheld on the overlay copy
       onOpen={overlay ? undefined : () => openTask(todo.id)}
       assignee={
         <AssigneeControl

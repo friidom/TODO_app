@@ -15,21 +15,8 @@ import {
   type SprintPatch,
 } from "./sprintsApi";
 
-/**
- * Every sprint on the open board (M30).
- *
- * One query per board, like `useColumns` — the Backlog page, the Task
- * Detail Sprint field and Sprint Details all read this same entry rather
- * than each fetching their own slice, so a sprint created in one no longer
- * needs a second round trip to appear in the other.
- *
- * **No realtime handler reads this cache.** `todos`/`columns` have one
- * because a drag on someone else's client has to appear on this one without
- * a refetch; a sprint's own fields change rarely enough, and only through
- * this board's own editors, that the mutations below patching their own
- * cache is enough for this milestone. Reopen if boards start collaborating
- * on sprint planning live.
- */
+// one cache entry per board, shared by Backlog, Task Detail's Sprint field, and Sprint Details.
+// no realtime channel — sprint fields change rarely enough that the mutations below patching their own cache is enough for now.
 export function useSprints() {
   const boardId = useBoardId();
 
@@ -43,12 +30,7 @@ export function useSprints() {
   });
 }
 
-/** One sprint by id, read out of the board's own cached list rather than a
- * second query — the same choice `useTodoHierarchy` makes for a single
- * `Todo`, for the same reason: the list is already loaded, already
- * invalidated by every mutation below, and a sprint is small enough that
- * fetching one on its own would be a second answer to a question the list
- * already has. */
+// found in the already-loaded list rather than a second query — a sprint is small enough that fetching one alone is pointless
 export function useSprint(sprintId: string | null | undefined) {
   const { data: sprints = [], isPending, error } = useSprints();
 
@@ -96,18 +78,7 @@ export function useUpdateSprint() {
   });
 }
 
-/**
- * Starts a future sprint. Bulk-assigns a column to every one of its items
- * that has none yet — the RPC's own write, not this hook's — so the Board
- * has new cards on it the moment this settles.
- *
- * **Invalidates rather than patches `todos`.** The RPC can move an
- * unbounded number of rows in one write, and computing what changed
- * client-side would mean re-deriving the same "first todo-category column"
- * logic the database just ran. A refetch is one request for an action that
- * is already a deliberate, infrequent click — not a drag this app optimises
- * the way it optimises `useTodoDrop`.
- */
+// invalidates todos instead of patching — the RPC bulk-assigns a column to an unbounded number of rows server-side
 export function useStartSprint() {
   const queryClient = useQueryClient();
   const boardId = useBoardId();
@@ -129,17 +100,7 @@ export function useStartSprint() {
   });
 }
 
-/**
- * Deletes a sprint, and invalidates `todos` for the same reason
- * `useStartSprint` does: the write moves an unbounded number of rows that
- * this hook never sees. Here it is the `on delete set null` foreign key
- * rather than an RPC body doing the moving — every item the sprint held has
- * its `sprint_id` cleared server-side, so the cached array is stale in as
- * many rows as the sprint was holding.
- *
- * The sprint list itself is patched rather than invalidated, matching every
- * other mutation here: exactly one row leaves it, and which one is known.
- */
+// invalidates todos — deleting the sprint clears sprint_id on every item it held via ON DELETE SET NULL
 export function useDeleteSprint() {
   const queryClient = useQueryClient();
   const boardId = useBoardId();
@@ -158,8 +119,6 @@ export function useDeleteSprint() {
   });
 }
 
-/** Completes an active sprint, same reasoning as `useStartSprint` for why
- * `todos` is invalidated rather than patched. */
 export function useCompleteSprint() {
   const queryClient = useQueryClient();
   const boardId = useBoardId();

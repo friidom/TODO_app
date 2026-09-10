@@ -53,10 +53,7 @@ describe("addDays", () => {
   });
 
   it("does not drift across a DST boundary", () => {
-    // The whole reason the arithmetic is UTC. In a zone that springs forward on
-    // 2026-03-29, a local-time +24h lands at 01:00 on the 30th — still the
-    // 30th — but the autumn fallback lands at 23:00 on the SAME day, and a
-    // local getDate() would repeat it.
+    // this is why the arithmetic is UTC, not local time
     expect(addDays("2026-03-28", 1)).toBe("2026-03-29");
     expect(addDays("2026-03-29", 1)).toBe("2026-03-30");
     expect(addDays("2026-10-24", 1)).toBe("2026-10-25");
@@ -66,8 +63,7 @@ describe("addDays", () => {
 
 describe("addMonths", () => {
   it("clamps into the target month rather than rolling forward", () => {
-    // The bug this exists to prevent: Date rolls 31 Jan + 1 month to 3 March,
-    // so pressing "next" from a 31-day month would skip February entirely.
+    // native Date rolls 31 Jan + 1 month to 3 March — this is the fix
     expect(addMonths("2026-01-31", 1)).toBe("2026-02-28");
     expect(addMonths("2028-01-31", 1)).toBe("2028-02-29");
     expect(addMonths("2026-03-31", -1)).toBe("2026-02-28");
@@ -82,7 +78,6 @@ describe("addMonths", () => {
 
 describe("startOfWeek", () => {
   it("goes back to Monday", () => {
-    // 2026-08-16 is a Sunday; its week began Monday the 10th.
     expect(startOfWeek("2026-08-16")).toBe("2026-08-10");
     expect(startOfWeek("2026-08-10")).toBe("2026-08-10");
     expect(startOfWeek("2026-08-11")).toBe("2026-08-10");
@@ -120,7 +115,6 @@ describe("monthMatrix", () => {
   });
 
   it("brackets the month with its neighbours", () => {
-    // August 2026 begins on a Saturday, so the grid opens on 27 July.
     const days = monthMatrix("2026-08-16");
 
     expect(days[0]).toBe("2026-07-27");
@@ -161,16 +155,12 @@ describe("isSameMonth", () => {
   it("dims only the padding days", () => {
     expect(isSameMonth("2026-08-01", "2026-08-16")).toBe(true);
     expect(isSameMonth("2026-07-31", "2026-08-16")).toBe(false);
-    // Same month number, different year — not the same month.
     expect(isSameMonth("2025-08-16", "2026-08-16")).toBe(false);
   });
 });
 
 describe("groupByDueDay", () => {
   it("keys by the calendar day, never by a converted instant", () => {
-    // Midnight UTC is the convention `fromCalendarDay` writes. Read back with
-    // a local getDate() this is the 13th for anyone west of Greenwich, which
-    // is the conversion the module refuses to do.
     const item = todo({ due_date: "2026-08-14T00:00:00+00:00" });
 
     expect([...groupByDueDay([item]).keys()]).toEqual(["2026-08-14"]);
@@ -234,16 +224,11 @@ describe("offscreenCount", () => {
 
 describe("DAY_ITEM_LIMIT", () => {
   it("gives a week cell more room than a month cell", () => {
-    // The overflow rule is one sentence for both layouts; only the limit
-    // varies, with the height the layout gives a cell.
     expect(DAY_ITEM_LIMIT.week).toBeGreaterThan(DAY_ITEM_LIMIT.month);
   });
 
   it("bounds the month and does NOT bound the week, so the rule terminates", () => {
-    // The month cell escalates to the week. The week has nowhere to escalate
-    // to, so it lists everything and scrolls — a finite limit here would leave
-    // "+N more" re-opening the layout it is already in, which is a dead
-    // control on precisely the busiest day.
+    // month overflow escalates to week view; week has nowhere left to escalate to, so it just scrolls
     expect(Number.isFinite(DAY_ITEM_LIMIT.month)).toBe(true);
     expect(Number.isFinite(DAY_ITEM_LIMIT.week)).toBe(false);
   });

@@ -29,10 +29,6 @@ export default function RegisterForm() {
 
   const availability = useUsernameAvailability(username);
 
-  // Rendered instead of the form once the account exists but the address has
-  // not been confirmed. Replacing the form rather than sitting above it: the
-  // fields are done with, and leaving them editable invites a second signup
-  // for the address that was just used.
   if (register.isSuccess && register.data.needsConfirmation) {
     return (
       <div className="text-center">
@@ -52,7 +48,6 @@ export default function RegisterForm() {
     );
   }
 
-  /** Drop stale feedback as soon as the user acts on it. */
   function clearFeedback(field: keyof AuthFieldErrors) {
     setErrors((prev) => (prev[field] ? { ...prev, [field]: undefined } : prev));
 
@@ -62,9 +57,6 @@ export default function RegisterForm() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    // Trimmed for the request too, not only for the check — a padded address
-    // would otherwise register an account nobody can log into. Same reasoning
-    // for the username, which is stored lowercased.
     const trimmedEmail = email.trim();
     const canonicalUsername = normalizeUsername(username);
     const fieldErrors = validateAuthForm(
@@ -73,23 +65,14 @@ export default function RegisterForm() {
       canonicalUsername,
     );
 
-    // Checked here rather than inside `validateAuthForm`, which serves a form
-    // that has no such field. A confirmation only means something once the
-    // password itself is acceptable — reporting "they do not match" underneath
-    // "too short" is two complaints about one mistake.
+    // only check confirm-password once the password itself passes — no point stacking two complaints about one field
     if (!fieldErrors.password) {
       const mismatch = validateConfirmPassword(password, confirmPassword);
 
       if (mismatch) fieldErrors.confirmPassword = mismatch;
     }
 
-    // **The last look at availability before committing.** It closes the window
-    // between the debounced answer and the click, but not the one between the
-    // click and confirmation — nothing here can, because the profile row is not
-    // written until the address is confirmed. `profiles_username_lower_key` is
-    // what actually guarantees uniqueness, and `provision_user` settles a
-    // genuine race by taking the next free name rather than failing to
-    // provision the account at all.
+    // last check before committing — the DB unique constraint is what actually guarantees this, this just closes most of the window
     if (!fieldErrors.username && availability.status === "taken") {
       fieldErrors.username = "That username is already taken.";
     }
@@ -115,8 +98,6 @@ export default function RegisterForm() {
           placeholder="ada_lovelace"
           autoComplete="username"
           value={username}
-          // The field's own error wins over the live status: it is the more
-          // specific of the two and it is the one the submit acted on.
           error={errors.username}
           disabled={register.isPending}
           onChange={(value) => {
@@ -158,9 +139,6 @@ export default function RegisterForm() {
         }}
       />
 
-      {/* New in M22. Registration had no confirmation at all, so a typo in the
-          one password field created an account nobody could sign in to — and
-          with no reset flow that was unrecoverable. */}
       <PasswordInput
         id="register-confirm-password"
         label="Confirm password"
@@ -174,7 +152,6 @@ export default function RegisterForm() {
         }}
       />
 
-      {/* Whatever the server said — address already registered, weak password. */}
       {register.isError && (
         <p
           role="alert"
@@ -202,18 +179,7 @@ export default function RegisterForm() {
   );
 }
 
-/**
- * The live verdict on the username, under the field.
- *
- * **Deliberately not an error.** A name being taken is not a mistake anybody
- * made, and rendering it in the same red as "Enter a valid email address"
- * would say it was. `invalid` is the one status that *is* the user's typing,
- * and it is the one that borrows the error colour.
- *
- * `idle` renders nothing at all rather than a placeholder line: reserving space
- * under an untouched field draws the eye to a question nobody has been asked
- * yet.
- */
+// "taken" isn't rendered as an error — nobody did anything wrong. only "invalid" borrows the error color.
 function UsernameStatusLine({
   availability,
 }: {
@@ -254,8 +220,6 @@ function UsernameStatusLine({
     );
   }
 
-  // `error`. The check is advice, not a gate — the database decides — so a
-  // failed lookup must not read as a refusal or block the submit.
   return (
     <p className="text-ink-3 mt-1.5 text-xs">
       Could not check that username right now.

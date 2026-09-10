@@ -31,9 +31,7 @@ describe("byRank", () => {
   });
 
   it("falls back to position when a rank is missing", () => {
-    // The state between the migration and the backfill, and the state of a row
-    // written by an older client. It must sort where it belongs rather than
-    // jumping to the front, which is what a `?? 0` would have done.
+    // must sort where it belongs, not jump to the front like a `?? 0` would
     const rows = [row(3072), row(null, 2), row(1024)];
 
     expect(
@@ -45,8 +43,6 @@ describe("byRank", () => {
   });
 
   it("puts the two scales in the same space", () => {
-    // position 2 is what the backfill would have written as 2 * RANK_GAP, so a
-    // mixed column is correctly ordered rather than merely not crashing.
     expect(byRank(row(null, 2), row(2 * RANK_GAP))).toBe(0);
   });
 });
@@ -61,8 +57,7 @@ describe("rankBetween", () => {
   });
 
   it("halves above the first card rather than subtracting", () => {
-    // `after - RANK_GAP` would march into negative numbers on a column that is
-    // repeatedly prepended to; halving keeps every rank positive.
+    // subtracting would march into negative numbers on repeated prepends
     expect(rankBetween(null, 1024)).toBe(512);
     expect(rankBetween(null, 512)).toBe(256);
   });
@@ -80,9 +75,7 @@ describe("rankBetween", () => {
   });
 
   it("REPORTS EXHAUSTION RATHER THAN COLLIDING", () => {
-    // The failure M6-06 exists for. Two adjacent doubles have no value between
-    // them, and returning either endpoint would put two cards on one rank —
-    // an undefined order, which is the defect M6-A is removing.
+    // adjacent doubles have no value between them — returning an endpoint would put two cards on one rank
     const a = 1;
     const b = a + Number.EPSILON;
 
@@ -90,8 +83,6 @@ describe("rankBetween", () => {
   });
 
   it("exhausts after repeated midpoints into the same gap, and not before", () => {
-    // The plan's M6-04 test as a unit test: "50 consecutive drags of the same
-    // card between two neighbours → precision holds or rebalance fires".
     let before = 1024;
     const after = 2048;
     let steps = 0;
@@ -107,12 +98,10 @@ describe("rankBetween", () => {
       before = next;
       steps += 1;
 
-      // A guard so a bug cannot hang the suite instead of failing it.
+      // don't hang the suite if this stops terminating
       if (steps > 200) break;
     }
 
-    // Comfortably past the 50 the plan names, and bounded — so the rebalance is
-    // a rare round trip rather than a constant one.
     expect(steps).toBeGreaterThan(50);
     expect(steps).toBeLessThan(200);
   });
@@ -151,8 +140,6 @@ describe("neighboursAt", () => {
   });
 
   it("takes the cards either side of an interior gap", () => {
-    // The off-by-one worth pinning: `index` is a gap, so the card above it is
-    // index - 1 and the card below it is index.
     expect(neighboursAt(ordered, 1)).toEqual({ before: 1024, after: 2048 });
     expect(neighboursAt(ordered, 2)).toEqual({ before: 2048, after: 3072 });
   });
@@ -178,8 +165,7 @@ describe("rankForDrop", () => {
   });
 
   it("appends when the index is past the end", () => {
-    // A gap index beyond the column is what a filtered board can produce; it
-    // means the bottom, not an error.
+    // a filtered board can produce a gap index beyond the column — treat it as the bottom
     expect(rankForDrop(column, 99)).toBe(3072 + RANK_GAP);
   });
 

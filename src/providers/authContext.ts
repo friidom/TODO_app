@@ -1,16 +1,11 @@
 import { createContext } from "react";
 import type { User } from "@supabase/supabase-js";
 
-// Split out of AuthProvider.tsx so that file only exports its component:
-// react-refresh cannot fast-refresh a module that mixes components with other
-// exports.
-
+// split out so AuthProvider.tsx only exports a component — react-refresh can't fast-refresh a mixed module
 export type AuthState = {
   user: User | null;
   loading: boolean;
 };
 
-// No default value: a `useAuth()` outside the provider is a mounting bug, and a
-// plausible-looking default ({ user: null, loading: false }) would hide it by
-// bouncing the user to /login instead.
+// no default value — a plausible one like { user: null, loading: false } would hide a missing provider instead of throwing
 export const AuthContext = createContext<AuthState | undefined>(undefined);

@@ -1,15 +1,5 @@
-/**
- * How long ago something happened, in the shortest honest form.
- *
- * Added by M17 for the board header's "Last updated" chip. Deliberately tiny
- * and deliberately not `Intl.RelativeTimeFormat`: that formats a *number and a
- * unit you have already chosen*, so it does none of the work here — picking the
- * unit is the whole job — and it would produce "2 minutes ago" where the chip
- * has room for "2m ago".
- *
- * Pure, so it takes `now` rather than reading the clock: a function that reads
- * the clock cannot be tested without freezing time.
- */
+// Not Intl.RelativeTimeFormat — that needs a unit already chosen, and picking the unit is the whole job here.
+// Takes `now` instead of reading the clock so it's testable without freezing time.
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -18,39 +8,23 @@ const DAY = 24 * HOUR;
 export function relativeTime(
   iso: string | null,
   now: number = Date.now(),
-  /**
-   * Drop the trailing "ago" and shorten "just now" to "now".
-   *
-   * For a stamp that is already understood as an age by where it sits — the
-   * right edge of an activity row, opposite the sentence it dates. "ago" is four
-   * characters of the column width in a narrow widget, saying what the position
-   * already said. The default is unchanged, so every existing caller keeps its
-   * long form.
-   */
   { short = false }: { short?: boolean } = {},
 ): string | null {
   if (!iso) return null;
 
   const then = new Date(iso).getTime();
 
-  // A string the browser cannot parse is not a time, and rendering "NaNm ago"
-  // is worse than rendering nothing.
   if (Number.isNaN(then)) return null;
 
   const elapsed = now - then;
   const suffix = short ? "" : " ago";
 
-  // A clock skew between the server's timestamp and the browser's puts this in
-  // the future by a few seconds. "just now" is the truthful reading of that;
-  // "-1m ago" is not.
+  // clock skew can put this a few seconds in the future — "just now" is honest, "-1m ago" isn't
   if (elapsed < MINUTE) return short ? "now" : "just now";
 
   if (elapsed < HOUR) return `${Math.floor(elapsed / MINUTE)}m${suffix}`;
 
   if (elapsed < DAY) return `${Math.floor(elapsed / HOUR)}h${suffix}`;
 
-  // Days all the way up, with no weeks or months: this labels board activity,
-  // and past a few days the exact figure stops mattering while a wrong unit
-  // still reads as a bug.
   return `${Math.floor(elapsed / DAY)}d${suffix}`;
 }

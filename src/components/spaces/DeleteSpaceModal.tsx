@@ -12,20 +12,7 @@ import {
 import { useDeleteSpace } from "@/services/spaces/useDeleteSpace";
 import type { ISpace } from "@/types/data";
 
-/**
- * Delete a space. **No typed confirmation, deliberately.**
- *
- * A board deletion destroys work for everyone on it, so `DeleteBoardModal`
- * makes you type the name. Deleting a space destroys a folder: every board
- * inside survives, unchanged, and drops out of the space — `boards.space_id`
- * is `on delete set null`. Demanding the same ceremony for both would teach
- * people to type past the one that matters.
- *
- * **What it does now say is what happens to the boards**, in the sentence
- * rather than in a footnote, because "delete" is a frightening word for an
- * action that deletes nothing but a label. That is the whole of the
- * accident-prevention here: an accurate description beats a second click.
- */
+// No typed confirmation — unlike deleting a board, this only deletes a folder; boards inside just drop out (space_id is on delete set null).
 export default function DeleteSpaceModal({
   space,
   boardCount,

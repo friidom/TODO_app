@@ -1,18 +1,7 @@
 import { FIELD_INPUT, FIELD_INPUT_INVALID } from "@/components/ui/fieldInput";
 import { cn } from "@/utils/cn";
 
-/**
- * One labelled credential field.
- *
- * Shared by both forms for the aria wiring rather than the markup: `id`,
- * `aria-invalid` and `aria-describedby` have to agree with the error paragraph's
- * `id`, and four hand-written copies of that agreement is four chances for a
- * screen reader to be told nothing is wrong. Here the ids are derived from one
- * prop and cannot drift.
- *
- * The visible `<label>` is new — the fields used to be placeholder-only, which
- * leaves the form unlabelled the moment anyone types.
- */
+// Shared between both forms mainly for the aria wiring — id/aria-invalid/aria-describedby derive from one prop instead of drifting across copies.
 export default function AuthField({
   id,
   label,
@@ -26,7 +15,6 @@ export default function AuthField({
 }: {
   id: string;
   label: string;
-  /** `text` since M10-01, for the username field. */
   type: "email" | "password" | "text";
   value: string;
   onChange: (value: string) => void;

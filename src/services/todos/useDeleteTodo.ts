@@ -9,14 +9,10 @@ export function useDeleteTodo() {
   const queryClient = useQueryClient();
   const boardId = useBoardId();
 
-  //? Optimistic Update
-
   return useMutation({
     mutationFn: deleteTodo,
 
-    //before request
     onMutate: async (id) => {
-      //stop all quaries
       await queryClient.cancelQueries({
         queryKey: queryKeys.todos(boardId),
       });
@@ -24,7 +20,6 @@ export function useDeleteTodo() {
       const previousTodos =
         queryClient.getQueryData<Todo[]>(queryKeys.todos(boardId)) ?? [];
 
-      //filtered todos
       queryClient.setQueryData<Todo[]>(queryKeys.todos(boardId), (old = []) =>
         applyTodoDeleted(old, id),
       );
@@ -41,11 +36,7 @@ export function useDeleteTodo() {
     },
 
     onSuccess: (id) => {
-      // Drop the detail entry too (M5-06). Without this a task deleted from
-      // the board behind an open panel leaves the panel rendering a ghost —
-      // the row is gone from the board cache but its own entry still holds it,
-      // and nothing refetches. Removing the entry makes the panel resolve to
-      // null and show its not-found state.
+      // also drop the detail entry, or an open panel keeps rendering the deleted row as a ghost
       queryClient.removeQueries({ queryKey: queryKeys.todo(id), exact: true });
     },
 

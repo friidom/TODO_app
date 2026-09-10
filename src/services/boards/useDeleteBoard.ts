@@ -27,16 +27,9 @@ export function useDeleteBoard() {
     },
 
     onSuccess: (_data, id) => {
-      // Drop the detail entry rather than leaving a cached row for a board
-      // that no longer exists.
       queryClient.removeQueries({ queryKey: queryKeys.board(id) });
 
-      // The board's columns and todos are gone server-side by cascade, and as
-      // of M2-11 both keys are board-scoped, so they can finally be evicted
-      // here — the note that used to stand in for this said to do it "at which
-      // point", and this is that point. Without it a board id that is reused by
-      // the router (Back, or a stale link) would render from a cache entry
-      // describing a board that no longer exists.
+      // columns/todos are gone server-side by cascade — evict so Back or a stale link doesn't render a dead board from cache
       queryClient.removeQueries({ queryKey: queryKeys.columns(id) });
       queryClient.removeQueries({ queryKey: queryKeys.todos(id) });
     },

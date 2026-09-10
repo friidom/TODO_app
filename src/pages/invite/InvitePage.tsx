@@ -7,32 +7,13 @@ import { inviteErrorMessage } from "@/services/invites/inviteError";
 import { useAcceptInvite } from "@/services/invites/useAcceptInvite";
 import { toast } from "@/stores/toasts";
 
-/**
- * `/invite/:token` — where an invite link is redeemed.
- *
- * **Routed outside both guards**, unlike every other page. `ProtectedRoute`
- * would bounce a signed-out visitor to `/login` and lose the token on the way;
- * `PublicRoute` would bounce a signed-in one to `/`. This page is the only one
- * that has to work in both states, so it does its own gating.
- *
- * The signed-out path is `?next=`: the visitor goes to login, the token rides
- * along in the query string, and `useLogin` / `useRegister` / `PublicRoute`
- * each send them back here afterwards. Register matters more than login —
- * someone being invited to a board usually does not have an account yet.
- *
- * Nothing about the board is shown before acceptance, and that is deliberate
- * rather than an omission: `board_invites` is readable only by the board's
- * owners and admins, so there is no query a token holder could run to learn
- * the board's name. Adding a preview RPC would mean a way to probe a token
- * without spending it, for the sake of one line of copy.
- */
+// routed outside both auth guards, since it needs to work whether the visitor is signed in or not
 export default function InvitePage() {
   const { token } = useParams<{ token: string }>();
   const { user, loading } = useAuth();
 
   if (loading) return <Loading />;
 
-  // A route with no token cannot match, but the param is typed as optional.
   if (!token) return <Navigate to="/" replace />;
 
   if (!user) {
@@ -51,9 +32,6 @@ function AcceptInvite({ token }: { token: string }) {
   function handleAccept() {
     accept.mutate(token, {
       onSuccess: ({ status, board_id }) => {
-        // 'already_member' stays on this page and says so — navigating
-        // straight to the board would look identical to a successful join and
-        // leave the person wondering whether the link did anything.
         if (status === "accepted") {
           toast.success("You've joined the board");
           navigate(`/boards/${board_id}`, { replace: true });
@@ -89,8 +67,6 @@ function AcceptInvite({ token }: { token: string }) {
       body="Accept to join. The role you get was chosen by whoever sent the link."
     >
       {accept.error && (
-        // Mapped, never raw: this reader is not a member of anything yet, and
-        // a Postgres message would describe the backend to a stranger.
         <p className="bg-status-red/15 text-status-red mb-3 rounded-lg px-4 py-3 text-sm">
           {inviteErrorMessage(accept.error)}
         </p>
@@ -123,7 +99,6 @@ function AcceptInvite({ token }: { token: string }) {
   );
 }
 
-/** The one card shape all three states share, so they are one page. */
 function InviteCard({
   icon,
   title,

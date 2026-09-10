@@ -1,47 +1,13 @@
-/**
- * The three status categories a column can have. Fixed set — users pick one,
- * they never define their own, which is why `columns.category` is a checked
- * text field rather than its own table.
- *
- * Colours live here and not in the DB: they are presentation, so changing the
- * palette is an edit, not a migration.
- *
- * Keep each class a whole literal string — Tailwind scans source text, so a
- * composed `bg-[${hex}]` would emit no CSS and the pills would render bare.
- */
+// colours live here, not the DB — they're presentation, so retuning is an edit, not a migration.
+// keep each class a full literal string — Tailwind scans source text, a composed bg-[${hex}] emits no CSS.
 export const COLUMN_CATEGORIES = {
   todo: {
     swatch: "bg-[#dcdfe4]",
     pill: "bg-[#dcdfe4] text-[#172b4d]",
-    /** Theme-aware dot, for surfaces that follow the shell tokens. */
     dot: "bg-brand",
-    /**
-     * The same colour as text, which is what an SVG `currentColor` stroke
-     * needs (M18's status donut). A `bg-` utility cannot paint a stroke, and
-     * the alternative — a raw hex in the chart — would be a fourth place the
-     * palette lives.
-     */
+    // same colour as text — an SVG currentColor stroke needs this, bg- utilities can't paint a stroke
     tone: "text-brand",
-    /**
-     * The column header's wash (M17).
-     *
-     * Token-derived rather than the hard-coded hexes `pill` and `swatch` carry:
-     * those predate the shell tokens and only read correctly on a light
-     * surface, which is why they are confined to the transition pills. A wash
-     * sits at the top of every column in both themes, so it has to be a token
-     * with an alpha.
-     *
-     * **An atmospheric wash over the top of the COLUMN, not a band behind the
-     * header.** A gradient confined to a 44px header is a coloured rectangle
-     * with a soft bottom edge — the eye still reads a bar. Spilling it down
-     * past the header into the first card's airspace is what makes the colour
-     * belong to the column rather than sit on it, and it is why the opacity can
-     * drop to 10%: a tall gradient carries at a lower intensity than a short
-     * one.
-     *
-     * `todo` is purple — the one place the brand accent is spent on something
-     * that is not an action, and it is spent at a tenth.
-     */
+    // spills past the header into the first card's row on purpose, so the wash reads as the column's, not a band behind the header
     band: "bg-gradient-to-b from-brand/10 via-brand/[0.03] to-transparent",
   },
   in_progress: {
@@ -68,31 +34,16 @@ export const CATEGORY_OPTIONS = Object.entries(COLUMN_CATEGORIES).map(
 
 export const DEFAULT_CATEGORY: ColumnCategory = "todo";
 
-/**
- * A column's title, as the user wrote it. Nullable in the schema, so a null
- * renders as nothing.
- *
- * This is deliberately *not* run through `t()`. Titles used to be i18n keys,
- * which meant a user who renamed a column to "todo" had it silently rendered
- * as whatever the locale mapped that word to, and the seeded English titles
- * never matched a key at all — they resolved to themselves, so ru and uz users
- * read English and it looked correct only by accident. Only `category`, a
- * fixed set the user picks from and cannot invent, is translatable.
- */
+// not run through t() — titles are user text, not i18n keys; renaming a column to "todo" used to render as a translation
 export function columnTitle(title?: string | null): string {
   return title ?? "";
 }
 
-/**
- * i18n key for a category's label. The labels themselves live in the locale
- * files rather than here, so there is one copy of each rather than an English
- * one in this module and a translated one beside it.
- */
 export function categoryLabelKey(category: ColumnCategory): string {
   return `columnCategory.${category}`;
 }
 
-/** Falls back to `todo` so rows written before the migration still render. */
+// falls back to todo so rows written before the migration still render
 export function categoryOf(category?: string | null) {
   return (
     COLUMN_CATEGORIES[category as ColumnCategory] ?? COLUMN_CATEGORIES.todo

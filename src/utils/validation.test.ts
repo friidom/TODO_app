@@ -96,8 +96,6 @@ describe("hasErrors", () => {
 
 describe("validateAuthForm — the username field (M10-01)", () => {
   it("checks the username only when the form has one", () => {
-    // The login form passes two arguments and must not be told it is missing a
-    // field it does not render.
     expect(validateAuthForm("someone@example.com", "123456").username).toBe(
       undefined,
     );
@@ -126,8 +124,6 @@ describe("validateAuthForm — the username field (M10-01)", () => {
   });
 
   it("makes hasErrors fail on a username alone", () => {
-    // Before M10-01 hasErrors only looked at email and password, so a bad
-    // username would have submitted.
     expect(hasErrors({ username: "Username is required." })).toBe(true);
   });
 });
@@ -138,8 +134,6 @@ describe("validateConfirmPassword — the second field (M22)", () => {
   });
 
   it("asks for the confirmation before complaining about a mismatch", () => {
-    // "They do not match" is technically true of an empty field and reads like
-    // an accusation about something nobody has filled in yet.
     expect(validateConfirmPassword("hunter22", "")).toBe(
       "Confirm your password.",
     );
@@ -152,10 +146,6 @@ describe("validateConfirmPassword — the second field (M22)", () => {
   });
 
   it("COMPARES UNTRIMMED — spaces are part of a password", () => {
-    // Trimming one side would let these pass as a match and then store only one
-    // of them, producing an account nobody can sign in to. Registration had no
-    // confirmation at all before M22, and with no reset flow that was
-    // unrecoverable — which is why this check exists.
     expect(validateConfirmPassword("  hunter22", "hunter22")).toBe(
       "Passwords do not match.",
     );
@@ -173,8 +163,6 @@ describe("validateConfirmPassword — the second field (M22)", () => {
 
 describe("hasErrors — the confirm field (M22)", () => {
   it("MAKES A MISMATCHED FORM FAIL", () => {
-    // The same regression M10-01 fixed for `username`: a new member of the
-    // error shape that `hasErrors` does not know about lets the form submit.
     expect(hasErrors({ confirmPassword: "Passwords do not match." })).toBe(
       true,
     );

@@ -1,18 +1,6 @@
 import type { ReactNode } from "react";
 import { SquareKanbanIcon } from "lucide-react";
 
-/**
- * The frame both auth pages sit in.
- *
- * One component rather than two identical page wrappers, because that is
- * precisely the pair that drifts: they were `bg-violet-600` holding a white
- * card — the last two screens still wearing colours from before the token
- * system, and the first thing anyone sees of the product.
- *
- * The wordmark sits **outside** the card. Sign-in is the one screen with no
- * navigation, so the product has to name itself somewhere, and putting it above
- * the card keeps the card about the one thing it is asking for.
- */
 export default function AuthShell({
   title,
   subtitle,
@@ -22,14 +10,10 @@ export default function AuthShell({
   title: string;
   subtitle: string;
   children: ReactNode;
-  /** The cross-link to the other auth page. */
   footer: ReactNode;
 }) {
   return (
     <div className="bg-canvas relative flex min-h-dvh flex-col items-center justify-center overflow-hidden px-5 py-10">
-      {/* A single soft wash behind the card, at a tenth — the same restraint the
-          board's column headers use. It gives a very dark page somewhere to
-          look without becoming the glow the rest of the product avoids. */}
       <div
         aria-hidden
         className="from-brand/10 pointer-events-none absolute inset-x-0 top-0 h-80 bg-gradient-to-b to-transparent"

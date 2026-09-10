@@ -7,11 +7,6 @@ import {
   applyCommentUpdated,
 } from "./cache";
 
-/**
- * `created_at` is what a thread is ordered by, so the fixtures take it as a
- * minute and build the rest — what is under test is identity and ordering, and
- * neither cares about the other five columns.
- */
 const comment = (id: string, minute: number, over: Partial<Comment> = {}) =>
   ({
     id,
@@ -37,8 +32,7 @@ describe("applyCommentInserted", () => {
   });
 
   it("puts an out-of-order arrival in posting order", () => {
-    // Two clients posting in the same minute can arrive either way round, and
-    // a thread that reads differently on each screen is the bug this avoids.
+    // two clients posting the same minute can arrive either way round
     const thread = [comment("a", 1), comment("c", 3)];
 
     expect(ids(applyCommentInserted(thread, comment("b", 2)))).toEqual([
@@ -49,8 +43,7 @@ describe("applyCommentInserted", () => {
   });
 
   it("IGNORES AN ECHO OF THIS CLIENT'S OWN COMMENT", () => {
-    // M6-10's rule, one table further out: the client mints the uuid, so its
-    // own insert comes back carrying an id the cache already holds.
+    // client mints the uuid, so its own insert echoes back with an id the cache already holds
     const mine = comment("mine", 1, { content: "posted locally" });
     const thread = [mine];
 
@@ -86,7 +79,7 @@ describe("applyCommentUpdated", () => {
 
     expect(result[0].content).toBe("edited");
     expect(result[0].updated_at).toBe("2026-08-18T10:00:00.000Z");
-    // Untouched rows keep their identity, so React re-renders one comment.
+    // untouched rows keep their identity, so React re-renders one comment
     expect(result[1]).toBe(thread[1]);
   });
 

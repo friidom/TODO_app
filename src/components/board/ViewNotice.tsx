@@ -2,20 +2,6 @@ import { InboxIcon, LockIcon } from "lucide-react";
 
 import type { BoardView } from "@/hooks/useBoardView";
 
-/**
- * What the view is doing to the board, said out loud.
- *
- * Two things a user can otherwise be left guessing at:
- *
- * - **Cards will not drag.** Silently inert drag handles read as a bug. The
- *   board names the reason — the sort or the grouping it is under — and offers
- *   the one click that undoes it. Columns still reorder: their order is stored
- *   order whatever the cards are doing, so that drop never became ambiguous.
- * - **The board looks empty but is not.** A filter that matches nothing renders
- *   an empty board, which is indistinguishable from a board with no work on it.
- *
- * Neither is shown unless it applies, so an ordinary board carries no chrome.
- */
 export default function ViewNotice({
   view,
   visibleCount,
@@ -23,13 +9,9 @@ export default function ViewNotice({
 }: {
   view: BoardView;
   visibleCount: number;
-  /** The list has no drag to lose, so only the board asks for this. */
   showDragHint?: boolean;
 }) {
-  // A search that matches nothing empties the board exactly as a filter does,
-  // and leaves the same question behind. Named separately because the undo is
-  // a different button: telling someone to clear a filter they never set sends
-  // them to the wrong control.
+  // tracked separately from the filter empty-state because the undo button differs
   const query = view.query.trim();
   const empty = visibleCount === 0 && (view.filterCount > 0 || query !== "");
   const drag = showDragHint && view.dndDisabled;

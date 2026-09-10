@@ -6,26 +6,6 @@ import type { Todo } from "@/types/data";
 import { cn } from "@/utils/cn";
 import CalendarChip from "./CalendarChip";
 
-/**
- * The work items with no due date (M19).
- *
- * **M19 makes this a decision and this is the answer: a side strip you can drag
- * from.** The milestone's own words are the reason — *"a calendar that silently
- * hides a third of the board is the same lie the filtered task count was fixed
- * to avoid"* — and on a real board undated work is not a third but most of it.
- * Dropping them off the calendar entirely was the other option on the table; it
- * loses the one gesture that makes a calendar useful for planning, which is
- * dragging something undated onto a day.
- *
- * **It is also a drop target, and that is what makes the gesture reversible.**
- * Dragging a card back here clears `due_date` through the same write that set
- * it. A one-way affordance would mean the only way to undo a mistaken drop is
- * to find the card, open it and clear the field.
- *
- * Collapsible, because a board with sixty undated items should not force a
- * permanent 16rem tax on the grid — and the header keeps reporting the count
- * while collapsed, so closing it is not the same as hiding it.
- */
 export default function UndatedStrip({
   todos,
   keyPrefix,
@@ -43,10 +23,7 @@ export default function UndatedStrip({
   onToggle: () => void;
   onOpenTask: (id: string) => void;
 }) {
-  // Registered whether or not the strip is open: a droppable that unmounts
-  // when collapsed would make the clear-date gesture depend on a panel being
-  // open, and @dnd-kit measures on drag start, so a target that appears
-  // mid-drag is not measured at all.
+  // registered even while collapsed — dnd-kit measures drop targets at drag start, so one that appears mid-drag never gets picked up
   const { setNodeRef, isOver } = useDroppable({
     id: "undated",
     data: { day: null },

@@ -12,29 +12,22 @@ import {
   applyTodoUpdated,
 } from "./cache";
 
-// Ids are uuids in the schema (M2-14). These take a number and stringify it,
-// so the fixtures and the expectations below stay readable — what is under
-// test is identity and ordering, and neither cares about the format.
+// ids are uuids in the schema — these just stringify a number for readable fixtures
 const todo = (id: number, column_id: string, position: number): Todo =>
   ({
     id: String(id),
     column_id,
     position,
-    // Derived from the position exactly as `20260814121000_backfill_ranks.sql`
-    // derives it, so a fixture built by index is the board the backfill would
-    // have produced.
     rank: (position + 1) * RANK_GAP,
     title: `todo ${id}`,
   }) as Todo;
 
-/** Ids of a column, in stored order, back as numbers. */
 const column = (todos: Todo[], columnId: string) =>
   todos
     .filter((it) => it.column_id === columnId)
     .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
     .map((it) => Number(it.id));
 
-/** Positions of a column, in stored order. */
 const positions = (todos: Todo[], columnId: string) =>
   todos
     .filter((it) => it.column_id === columnId)
@@ -97,9 +90,7 @@ describe("applyTodoInserted", () => {
 });
 
 describe("applyTodoConfirmed", () => {
-  // Since M2-14 the client mints the id, so the pending row and the server's
-  // answer are the same row — id 7 in both. What still differs is the
-  // position: the user dropped the card at slot 1, the server appended it.
+  // client mints the id, so pending and server rows share it — only the position differs
   const pendingRow = { ...todo(7, "a", 1), title: "typed by the user" };
   const server = todo(7, "a", 3);
 
@@ -123,9 +114,7 @@ describe("applyTodoConfirmed", () => {
   it("falls back to the server position when the row is gone", () => {
     const result = applyTodoConfirmed(board(), server);
 
-    // Deleted mid-flight: nothing matched, so nothing changed — and the caller
-    // reading the position back off the result gets the server's, which is
-    // what tells `useAddTodo` there is no reorder to write.
+    // deleted mid-flight, nothing matched — falling back to the server position tells useAddTodo there's no reorder to write
     expect(result).toEqual(board());
     expect(result.find((it) => it.id === "7")).toBeUndefined();
   });
@@ -145,15 +134,10 @@ describe("applyTodoUpdated", () => {
   });
 
   it("replaces rather than merges, so a stale field does not survive", () => {
-    // `priority` rather than `description`: M5-07 narrowed the board's rows to
-    // the twelve columns the UI reads, and `description` is no longer one of
-    // them — the field this asserts about has to be a field the cache holds.
     const todos = [{ ...todo(1, "a", 0), priority: "high" }];
     const result = applyTodoUpdated(todos, todo(1, "a", 0));
 
-    // Undefined, not null: the `todo()` helper builds a partial row, so the
-    // replacement simply has no `priority` key — which is the point. A merge
-    // would have carried "high" across.
+    // a merge would have carried "high" across
     expect(result[0].priority).toBeUndefined();
   });
 
@@ -185,9 +169,7 @@ describe("applyTodoDeleted", () => {
   it("leaves the gap in the surviving positions", () => {
     const result = applyTodoDeleted(board(), "2");
 
-    // Deliberate: useDeleteTodo invalidates in onSettled, so the server's
-    // numbering arrives moments later. Renumbering here would be a second
-    // answer that has to agree with it.
+    // deliberate — useDeleteTodo's onSettled invalidate fixes the numbering moments later
     expect(column(result, "a")).toEqual([1, 3]);
     expect(positions(result, "a")).toEqual([0, 2]);
   });
@@ -209,7 +191,6 @@ describe("applyTodoDeleted", () => {
 });
 
 describe("applyTodoMoved", () => {
-  /** Ids of a column in display order — by rank, which is what M6-A orders by. */
   const ranked = (todos: Todo[], columnId: string) =>
     todos
       .filter((it) => it.column_id === columnId)
@@ -217,9 +198,6 @@ describe("applyTodoMoved", () => {
       .map((it) => Number(it.id));
 
   it("writes the column and the rank onto exactly one row", () => {
-    // The heart of M6-04. A move used to renumber both affected columns and
-    // write every card in them; now the card carries its own place, so one
-    // field on one row is the entire change.
     const todos = board();
     const result = applyTodoMoved(todos, todos[0], "b", 1536);
 
@@ -255,10 +233,7 @@ describe("applyTodoMoved", () => {
   });
 
   it("LEAVES THE SOURCE COLUMN'S RANKS ALONE", () => {
-    // The property the whole milestone exists for. The cards left behind are
-    // not rewritten, so a second editor's concurrent drag cannot be reverted
-    // by this one — under dense positions every one of them was written from a
-    // possibly-stale snapshot, and last write won.
+    // cards left behind aren't rewritten, so a concurrent drag by someone else can't be reverted by this one
     const todos = board();
     const result = applyTodoMoved(todos, todos[0], "b", 1536);
 
@@ -279,9 +254,7 @@ describe("applyTodoMoved", () => {
   });
 
   describe("immutability", () => {
-    // This is what makes rollback possible: onMutate snapshots the cached
-    // array, and the cache holds these very objects. Writing in place would
-    // corrupt the snapshot, leaving onError nothing to restore.
+    // this is what makes rollback possible — onMutate snapshots the array, writing in place would corrupt it
     it("never mutates the input", () => {
       const todos = board();
       const before = todos.map((it) => ({ ...it }));
@@ -299,8 +272,7 @@ describe("applyTodoMoved", () => {
 
       expect(todos.some((original) => original === moved)).toBe(false);
 
-      // Everything else is shared by reference, so React re-renders exactly
-      // the card that moved.
+      // everything else shared by reference, so React re-renders only the card that moved
       const others = result.filter((row) => row.id !== "1");
 
       for (const row of others) {
@@ -318,7 +290,6 @@ describe("applyBacklogMoved", () => {
     const moved = result.find((it) => it.id === "1");
 
     expect(moved?.backlog_rank).toBe(1536);
-    // Untouched by a same-section reorder's patch.
     expect(moved?.sprint_id).toBe(todos[0].sprint_id);
     expect(moved?.column_id).toBe(todos[0].column_id);
   });
@@ -364,11 +335,7 @@ describe("applyBacklogMoved", () => {
   });
 });
 
-/**
- * M27. Subtasks live in the same `["todos", boardId]` array as cards — that is
- * what lets the parent panel and the card indicator read them without a second
- * query — so the cache functions have to hold up with both kinds in one array.
- */
+// subtasks live in the same ["todos", boardId] array as cards, so these functions need to hold up with both kinds mixed in
 describe("applySubtaskInserted", () => {
   const subtask = (id: number, parent: string): Todo =>
     ({
@@ -389,17 +356,12 @@ describe("applySubtaskInserted", () => {
   });
 
   it("does NOT renumber the cards in the column the subtask sits in", () => {
-    // The whole reason this is not `applyTodoInserted`: that one buckets by
-    // `column_id` and hands the bucket to `insertDense`, which rewrites the
-    // position of every card in it. A subtask shares a column with cards —
-    // that is what gives it a status — but occupies no slot among them.
+    // a subtask shares a column with cards (that's what gives it a status) but occupies no slot among them
     const todos = board();
     const before = positions(todos, "a");
 
     const result = applySubtaskInserted(todos, subtask(99, "1"));
 
-    // Cards only. The subtask's own position stays null, which is the other
-    // half of the same point: it was never given a slot to hold.
     const cards = result.filter((row) => row.parent_id == null);
 
     expect(positions(cards, "a")).toEqual(before);
@@ -416,8 +378,7 @@ describe("applySubtaskInserted", () => {
   });
 
   it("ignores an id it already holds — the echo rule", () => {
-    // The client mints the uuid, so a realtime insert caused by this client
-    // arrives carrying the id already in the array.
+    // client mints the uuid, so a realtime insert this client caused arrives with an id already in the array
     const mine = subtask(99, "1");
     const todos = applySubtaskInserted(board(), mine);
 
@@ -464,11 +425,7 @@ describe("applyTodoDeleted — with subtasks in the array", () => {
   });
 
   it("leaves a deleted parent's children behind, which is why the delete refetches", () => {
-    // The database cascades (`todos_parent_id_fkey`), but this function
-    // removes exactly one id — it cannot know what the server also deleted.
-    // `useDeleteTodo`'s `onSettled` invalidate is what repairs the array, and
-    // this test pins that the optimistic frame genuinely needs it rather than
-    // leaving a future reader to assume the cascade is mirrored here.
+    // the db cascades the delete, but this function only removes the one id it's told — useDeleteTodo's onSettled invalidate repairs the rest
     const todos = [...board(), subtask(98, "1")];
 
     const result = applyTodoDeleted(todos, "1");

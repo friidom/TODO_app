@@ -8,24 +8,7 @@ import { useMoveTodo } from "@/services/todos/useMoveTodo";
 import { byRank } from "@/utils/rank";
 import { cn } from "@/utils/cn";
 
-/**
- * The card's status.
- *
- * **Status is not a field.** It is which column the card is in, which is why
- * this writes nothing of its own: it calls `useMoveTodo`, the same path the
- * three-dot menu uses and the same mutation a drag ends in. Nothing here
- * duplicates the move, the ordering, or the done-flash.
- *
- * The options are the board's real columns, read from `useColumns` and sorted
- * by `position` so the menu reads in the order the board does. Nothing is
- * hard-coded — a board with columns called Backlog and Shipped offers exactly
- * those.
- *
- * Unlike the other card controls this one is not controlled by a parent, and
- * deliberately so: moving a card is meaningful only once the card exists, so
- * there is no create-form counterpart to share a value with. The create form
- * picks its column by being opened inside one.
- */
+// Status isn't a field — it's which column the card is in, so this just calls useMoveTodo, same as the menu and a drag.
 export default function StatusControl({
   todoId,
   columnId,
@@ -81,8 +64,6 @@ export default function StatusControl({
                   role="menuitemradio"
                   aria-checked={selected}
                   onClick={() => {
-                    // Moving a card to where it already is is a write that
-                    // changes nothing; skip it rather than round-trip.
                     if (!selected) moveTo(column);
                     close();
                   }}

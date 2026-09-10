@@ -7,11 +7,6 @@ import {
   type GapRef,
 } from "./keyboardDrag";
 
-/**
- * A column of gaps around cards. `cards` are the ids top to bottom, so a column
- * of two cards has three gaps: above the first, between them, below the second.
- * That is exactly the shape `DropZone` mounts on the board.
- */
 function column(columnId: string, cards: string[]): GapRef[] {
   return Array.from({ length: cards.length + 1 }, (_, index) => ({
     id: `todo-gap:${columnId}:${index}`,
@@ -22,7 +17,6 @@ function column(columnId: string, cards: string[]): GapRef[] {
   }));
 }
 
-/** Gaps between columns, the `column-gap:<index>` droppables. */
 function columnGaps(columns: string[]): GapRef[] {
   return Array.from({ length: columns.length + 1 }, (_, index) => ({
     id: `column-gap:${index}`,
@@ -35,8 +29,6 @@ function columnGaps(columns: string[]): GapRef[] {
 
 describe("isArrowKey", () => {
   it("claims the four arrows and nothing else", () => {
-    // Everything else has to reach the browser: Space and Enter drop, Escape
-    // cancels, and Tab must still move focus.
     expect(isArrowKey("ArrowUp")).toBe(true);
     expect(isArrowKey("ArrowRight")).toBe(true);
     expect(isArrowKey("Escape")).toBe(false);
@@ -46,14 +38,11 @@ describe("isArrowKey", () => {
 });
 
 describe("nextTodoGap — within a column", () => {
-  // Card "b" is being dragged: it sits against gaps 1 and 2.
+  // card "b" is being dragged, sits against gaps 1 and 2
   const gaps = column("c1", ["a", "b", "c"]);
   const columns = ["c1", "c2"];
 
   it("STEPS OVER THE GAPS THE CARD ALREADY SITS AGAINST", () => {
-    // From gap 1 (immediately above "b"), one press down must land at gap 3 —
-    // below "c". Gap 2 is the other side of the card being dragged, so
-    // stopping there would be a press that visibly did nothing.
     const result = nextTodoGap(
       gaps,
       columns,
@@ -96,8 +85,6 @@ describe("nextTodoGap — within a column", () => {
   });
 
   it("moves one gap at a time when the dragged card is elsewhere", () => {
-    // Dragging a card from another column through this one: no gap here
-    // touches it, so every press advances by exactly one.
     const result = nextTodoGap(
       gaps,
       columns,
@@ -128,8 +115,6 @@ describe("nextTodoGap — across columns", () => {
   });
 
   it("clamps the depth to what the destination has", () => {
-    // c2 has four gaps (0-3); coming from depth 2 in a taller column would
-    // otherwise ask for one that does not exist.
     const tall = [
       ...column("c1", ["a", "b", "c", "d"]),
       ...column("c2", ["x"]),
@@ -197,7 +182,7 @@ describe("nextTodoGap — across columns", () => {
 });
 
 describe("nextColumnGap", () => {
-  // Column "b" is being dragged: it sits against gaps 1 and 2.
+  // column "b" is being dragged, sits against gaps 1 and 2
   const gaps = columnGaps(["a", "b", "c"]);
 
   it("steps over the gaps the column already sits against", () => {
@@ -211,8 +196,6 @@ describe("nextColumnGap", () => {
   });
 
   it("IGNORES UP AND DOWN — columns are a horizontal list", () => {
-    // Not "does something arbitrary": a vertical key with no vertical meaning
-    // must leave the drag exactly where it is.
     expect(nextColumnGap(gaps, 1, "ArrowUp", "b")).toBeNull();
     expect(nextColumnGap(gaps, 1, "ArrowDown", "b")).toBeNull();
   });

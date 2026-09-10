@@ -23,23 +23,7 @@ const TABS = [
 
 type ActivityTab = (typeof TABS)[number]["key"];
 
-/**
- * One work item's Activity section (M25) — the tabbed shell the reference
- * screenshots specify, replacing the bare `<CommentThread>` this modal used
- * to mount directly.
- *
- * **A shell over three things that already exist, and one placeholder.**
- * "Comments" is the unmodified `CommentThread`; "History" is
- * `TodoHistoryList`; "All" merges the two read-only, newest first, reusing
- * both surfaces' own row components (`CommentRow`, `HistoryRow`) rather than
- * inventing a third rendering. "Work log" has no backing table and is not
- * built — a plain placeholder pane, per this milestone's explicit scope.
- *
- * **Only "Comments" can write.** `CommentThread`'s composer is part of that
- * component; "All" and "History" render existing rows and stop there, so
- * there is exactly one place a comment gets posted from, however it is later
- * read.
- */
+// tabbed shell over CommentThread + TodoHistoryList — "All" merges both read-only, "Work log" has no backing table yet
 export default function ActivitySection({
   todoId,
   boardId,
@@ -93,7 +77,6 @@ export default function ActivitySection({
   );
 }
 
-/** Comments and history, interleaved newest first, read-only. */
 function AllFeed({
   todoId,
   boardId,
@@ -155,9 +138,7 @@ function AllFeed({
           );
         }
 
-        // Same skip rule `TodoHistoryList` applies: an unrenderable action
-        // (deleted, or one this build does not recognise yet) drops out of
-        // the merged feed rather than showing a blank row.
+        // unrenderable actions drop out rather than showing a blank row
         const change = describeHistoryChange(entry.activity, names);
 
         if (!change) return null;
@@ -177,8 +158,6 @@ function AllFeed({
   );
 }
 
-/** Work log is out of scope for this milestone — a plain pane, not a control
- * that looks like it does something. */
 function WorkLogPlaceholder() {
   return (
     <div className="text-ink-3 flex items-center gap-2 py-1 text-sm">

@@ -5,12 +5,10 @@ import { cn } from "@/utils/cn";
 interface Props {
   index: number;
   active: boolean;
-  /** Column directly left / right of the gap — used to skip no-op drops. */
   beforeId?: string;
   afterId?: string;
 }
 
-/** The empty space between two columns — also the board's horizontal gutter. */
 export default function ColumnDropZone({
   index,
   active,

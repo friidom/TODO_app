@@ -3,11 +3,7 @@ import { describe, expect, it } from "vitest";
 import { groupActivitiesByDay } from "./activityGroups";
 import type { Activity } from "@/types/data";
 
-/**
- * Local times throughout, built with `new Date(y, m, d, h)` rather than an ISO
- * string with a zone: the module groups by the VIEWER's day, so a fixture
- * written in UTC would pass or fail depending on where the test ran.
- */
+// local times throughout, not ISO+zone — grouping is by the viewer's day, so a UTC fixture would be flaky depending on where tests run
 function at(date: Date): Activity {
   return {
     id: `act-${date.getTime()}`,
@@ -92,8 +88,6 @@ describe("groupActivitiesByDay", () => {
   });
 
   it("splits midnight across two days", () => {
-    // The boundary case the whole module exists to get right: 23:59 and 00:01
-    // are two minutes apart and belong to different headers.
     const days = groupActivitiesByDay(
       [at(new Date(2026, 7, 16, 0, 1)), at(new Date(2026, 7, 15, 23, 59))],
       NOW,
@@ -113,8 +107,6 @@ describe("groupActivitiesByDay", () => {
   });
 
   it("does not guess a day for an unparseable timestamp", () => {
-    // Not "Today". A header is a claim about when something happened, and this
-    // is the one row where that is unknown.
     const broken: Activity = { ...at(NOW), created_at: "not a time" };
 
     const days = groupActivitiesByDay([broken], NOW);

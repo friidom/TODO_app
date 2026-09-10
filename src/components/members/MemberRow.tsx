@@ -4,15 +4,7 @@ import { roleLabel, roleStyle } from "./roleStyles";
 import type { BoardMember } from "@/services/members/membersApi";
 import { cn } from "@/utils/cn";
 
-/**
- * One member of a board, in the context rail.
- *
- * Renders only what `board_roster` returns — `id`, `username`, `full_name`,
- * `avatar_url`, `role`, `joined_at`. There is no `email` and no `bio` to fall
- * back to, deliberately: the RPC's return list is the exposure boundary, so a
- * field that is not here is a field the database will not give the client.
- */
-
+// Renders only what board_roster returns — no email, no bio. The RPC's return list is the exposure boundary.
 export default function MemberRow({
   member,
   isCurrentUser = false,
@@ -45,8 +37,6 @@ export default function MemberRow({
         {roleLabel(member.role)}
       </span>
 
-      {/* Renders nothing unless this caller may act on this member, so the
-          Owner's row and a viewer's view of any row carry no control at all. */}
       <MemberActions member={member} />
     </li>
   );

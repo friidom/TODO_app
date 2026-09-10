@@ -15,20 +15,7 @@ import { useUpdateSpace } from "@/services/spaces/useUpdateSpace";
 import type { ISpace } from "@/types/data";
 import { cn } from "@/utils/cn";
 
-/**
- * Create a space, or rename one. One component, because the form is one field
- * and two components would be one field twice.
- *
- * `space` present means rename. The parent unmounts this on close, so the field
- * resets for free — the idiom `CreateColumnModal` established.
- *
- * **Restyled in M22.** It was the last dialog still wearing `border-app`,
- * `hover:bg-muted`, `rounded-xl` and a `text-2xl font-bold` heading — classes
- * from before the token system — so a rename dialog and the board dialog a
- * click away looked like two different products. It now uses the same
- * `FIELD_INPUT` every other form field in the app uses and the shared action
- * shells in `dialogChrome.ts`.
- */
+// space present means rename; the parent unmounts this on close so the field resets for free.
 export default function SpaceFormModal({
   space,
   onClose,
@@ -44,9 +31,7 @@ export default function SpaceFormModal({
   const mutation = space ? updateSpace : createSpace;
   const trimmed = title.trim();
 
-  // The column's own constraint is 1–60 characters trimmed. Matching it here
-  // turns a database error into a disabled button; the constraint is still what
-  // enforces it, because this form is not the only writer.
+  // mirrors the DB's 60-char constraint so this fails as a disabled button, not a server error
   const tooLong = trimmed.length > 60;
 
   function handleSubmit(e: React.FormEvent) {

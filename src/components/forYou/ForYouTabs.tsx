@@ -6,30 +6,13 @@ import {
 } from "@/services/forYou/feed";
 import { cn } from "@/utils/cn";
 
-/**
- * The five filters, as one segmented control (M21).
- *
- * **The same shell the timeline's scale toggle wears** — one bordered box,
- * hairline-separated, `HEADER_CONTROL_ACTIVE` on the selected segment — because
- * it is the same kind of control: a small, fixed set of mutually exclusive
- * views over one thing. Building a second look for it is how a product ends up
- * with four tab styles.
- *
- * **It scrolls sideways rather than wrapping on a narrow screen.** Five labels
- * do not fit on a phone, and the two alternatives are worse: wrapping puts the
- * control on two lines and pushes the feed down, and a dropdown hides four of
- * the five options behind a tap. A horizontal scroller keeps the row one line
- * tall and keeps every option one gesture away. `-mx-*` plus matching padding
- * lets it bleed to the screen edge, so the last tab is not clipped mid-word by
- * the page gutter.
- */
+// scrolls sideways instead of wrapping on narrow screens — a dropdown would hide 4 of 5 options behind a tap
 export default function ForYouTabs({
   value,
   counts,
   onChange,
 }: {
   value: ForYouTab;
-  /** Badge numbers, per tab. Absent or zero renders no badge. */
   counts?: Partial<Record<ForYouTab, number>>;
   onChange: (tab: ForYouTab) => void;
 }) {

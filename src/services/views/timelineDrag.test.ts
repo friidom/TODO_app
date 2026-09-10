@@ -22,14 +22,13 @@ import {
   type DayRange,
 } from "./timelineDrag";
 
-/** A track 420px wide over 42 day-columns — 10px each, so the sums are legible. */
+// 420px over 42 day-columns — 10px each, so the sums are legible.
 const WEEK_TRACK = { width: 420, ticks: 42 };
 
 function range(start: string, end: string): DayRange {
   return { start, end };
 }
 
-/** The columns a `weeks` window starting on this Monday actually holds. */
 function weekTicks(first: string, count = 42): string[] {
   return Array.from({ length: count }, (_, i) => {
     const ms = Date.UTC(
@@ -67,29 +66,23 @@ function todo(over: Partial<Todo> = {}): Todo {
 describe("snapping a pointer to the axis", () => {
   it("puts a pointer in the column it is over", () => {
     expect(tickAtOffset(0, WEEK_TRACK.width, WEEK_TRACK.ticks)).toBe(0);
-    // 10px per column, so 35px is a third of the way into the fourth.
     expect(tickAtOffset(35, WEEK_TRACK.width, WEEK_TRACK.ticks)).toBe(3);
     expect(tickAtOffset(419, WEEK_TRACK.width, WEEK_TRACK.ticks)).toBe(41);
   });
 
   it("CLAMPS rather than answering off the track", () => {
-    // A drag past either edge means the last column it can reach, not "no
-    // answer" — a gesture that leaves the window must still be committable.
     expect(tickAtOffset(-200, WEEK_TRACK.width, WEEK_TRACK.ticks)).toBe(0);
     expect(tickAtOffset(9_999, WEEK_TRACK.width, WEEK_TRACK.ticks)).toBe(41);
   });
 
   it("survives a track that has not been laid out yet", () => {
-    // A measurement taken before the grid has width would otherwise divide by
-    // zero and place every bar at NaN.
+    // width 0 would otherwise divide by zero and place every bar at NaN
     expect(tickAtOffset(50, 0, 42)).toBe(0);
     expect(ticksMoved(50, 0, 42)).toBe(0);
   });
 
   it("measures travel in whole columns, rounding to the nearest", () => {
     expect(ticksMoved(30, WEEK_TRACK.width, WEEK_TRACK.ticks)).toBe(3);
-    // Half a column plus a pixel reads as one step: the bar goes where the eye
-    // already believes it went.
     expect(ticksMoved(6, WEEK_TRACK.width, WEEK_TRACK.ticks)).toBe(1);
     expect(ticksMoved(4, WEEK_TRACK.width, WEEK_TRACK.ticks)).toBe(0);
     expect(ticksMoved(-30, WEEK_TRACK.width, WEEK_TRACK.ticks)).toBe(-3);
@@ -111,7 +104,6 @@ describe("moving a bar", () => {
   });
 
   it("preserves it across a month boundary and a leap day", () => {
-    // The two places naive day arithmetic breaks. February 2028 has 29 days.
     const across = moveRange(range("2026-08-28", "2026-09-04"), 5);
 
     expect(across).toEqual({ start: "2026-09-02", end: "2026-09-09" });
@@ -133,14 +125,10 @@ describe("moving a bar", () => {
   it("does nothing at all for a drag that ended where it started", () => {
     const before = range("2026-08-21", "2026-08-30");
 
-    // Identity, not merely equality: nothing downstream should re-render for a
-    // gesture that moved no columns.
     expect(moveRange(before, 0)).toBe(before);
   });
 
   it("steps a whole week per column at the month scale", () => {
-    // The scale's span is applied by the caller; this is the arithmetic it
-    // relies on. A Friday task still starts on a Friday.
     const after = moveRange(range("2026-08-21", "2026-08-28"), 1 * 7);
 
     expect(after).toEqual({ start: "2026-08-28", end: "2026-09-04" });
@@ -169,10 +157,6 @@ describe("resizing", () => {
 });
 
 describe("start can never exceed end", () => {
-  // `todos_date_range_check` rejects an inverted range outright, so a gesture
-  // that could produce one is a gesture that throws 23514 at the user mid-drag.
-  // Both directions clamp to the shortest thing that can be said instead.
-
   it("clamps a start dragged past the end", () => {
     const after = resizeStart(range("2026-08-21", "2026-08-30"), "2026-09-15");
 
@@ -198,8 +182,6 @@ describe("start can never exceed end", () => {
   });
 
   it("allows a one-day range, which the constraint does too", () => {
-    // `start = due` is a one-day task and the CHECK permits equality — the
-    // most common shape a small task takes.
     expect(resizeEnd(range("2026-08-21", "2026-08-30"), "2026-08-21")).toEqual({
       start: "2026-08-21",
       end: "2026-08-21",
@@ -218,7 +200,6 @@ describe("drawing a new range", () => {
   });
 
   it("reads the same swept RIGHT TO LEFT", () => {
-    // The anchor is where the gesture began, not where it is lower.
     expect(draftRange(8, 4, ticks, "weeks")).toEqual(
       draftRange(4, 8, ticks, "weeks"),
     );
@@ -272,26 +253,21 @@ describe("status visualization", () => {
   });
 
   it("fills completely for DONE work, whatever the dates say", () => {
-    // Done is done: a task finished early does not show as three-quarters.
     expect(progressRatio("done", august, "2026-08-02")).toBe(1);
     expect(progressRatio("done", august, "2026-09-30")).toBe(1);
   });
 
   it("fills IN PROGRESS by how much of its window has passed", () => {
-    // Ten days, five elapsed including today.
     expect(progressRatio("in_progress", august, "2026-08-05")).toBeCloseTo(0.5);
     expect(progressRatio("in_progress", august, "2026-08-01")).toBeCloseTo(0.1);
   });
 
   it("clamps in progress outside its own window", () => {
-    // Not started yet, and overdue. Neither is a negative or a 140% bar.
     expect(progressRatio("in_progress", august, "2026-07-01")).toBe(0);
     expect(progressRatio("in_progress", august, "2026-09-30")).toBe(1);
   });
 
   it("treats an unknown category as planned, exactly as categoryOf does", () => {
-    // A row written before the category column existed still renders; it does
-    // not throw and it does not claim progress.
     expect(progressRatio(null, august, "2026-08-05")).toBe(0);
     expect(progressRatio(undefined, august, "2026-08-05")).toBe(0);
     expect(progressRatio("archived", august, "2026-08-05")).toBe(0);
@@ -314,8 +290,6 @@ describe("which dates a gesture may write", () => {
   });
 
   it("writes BOTH for an undated item being scheduled for the first time", () => {
-    // Drawing a range on the axis IS the act of supplying them, so neither is
-    // being invented.
     expect(scheduleFields(false, false)).toEqual({
       writeStart: true,
       writeEnd: true,
@@ -323,8 +297,6 @@ describe("which dates a gesture may write", () => {
   });
 
   it("NEVER INVENTS the missing half of a point", () => {
-    // A task with only a due date knows nothing about when it starts. Dragging
-    // the diamond says the due date moved; it does not say a start appeared.
     expect(scheduleFields(false, true)).toEqual({
       writeStart: false,
       writeEnd: true,
@@ -352,7 +324,6 @@ describe("a task with no dates", () => {
   it("is not given dates by being drawn on — the write is what schedules it", () => {
     const bare = todo();
 
-    // The gesture produces a range; the row is untouched until it is committed.
     draftRange(4, 8, weekTicks("2026-08-17"), "weeks");
 
     expect(bare.start_date).toBeNull();
@@ -361,13 +332,7 @@ describe("a task with no dates", () => {
 });
 
 describe("persistence", () => {
-  /**
-   * The round trip a reload actually makes: a range becomes the two stored
-   * instants, the board query hands those back, and `timelineItems` places the
-   * bar again. Anything lost in `fromCalendarDay` / `toCalendarDay` — a
-   * timezone applied on one side and not the other — moves the bar by a day
-   * here, which is the bug this convention exists to prevent.
-   */
+  // round trips through fromCalendarDay/toCalendarDay — a timezone slip on one side moves the bar by a day
   function reload(planned: DayRange) {
     const [item] = timelineItems([
       todo({
@@ -413,8 +378,6 @@ describe("persistence", () => {
   });
 
   it("round-trips a one-day range as a range, not a point", () => {
-    // The distinction is how much is known, not how wide the result is — a
-    // task drawn on one column has a real, deliberate span of one day.
     expect(reload(range("2026-08-21", "2026-08-21"))).toEqual({
       start: "2026-08-21",
       end: "2026-08-21",

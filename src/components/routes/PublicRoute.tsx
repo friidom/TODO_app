@@ -10,10 +10,7 @@ export default function PublicRoute() {
   if (loading) return <Loading />;
 
   if (user) {
-    // Honours `next` for the same reason useLogin does, but covers a case the
-    // mutation cannot: someone who was ALREADY signed in — in another tab, or
-    // from a live session — following an invite link. They never submit the
-    // form, so this guard is the only thing that sends them on.
+    // covers someone already signed in (another tab) hitting an invite link — they never submit the login form
     return <Navigate to={safeNext(searchParams.get("next")) ?? "/"} replace />;
   }
 

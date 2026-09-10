@@ -7,31 +7,7 @@ import { formatDue } from "@/utils/dueDate";
 import { Row } from "./TimelineRow";
 import { ROW_HEIGHT, trackColumns } from "./timelineAxis";
 
-/**
- * Planning something that does not exist yet (M20-B).
- *
- * **A row of its own at the foot of the axis**, which is where the Jira
- * timeline in the brief puts its create affordance and is the only unambiguous
- * place for it: sweeping across an *existing* item's row would be a gesture
- * whose meaning depends on whether it happened to miss that item's bar.
- *
- * **Press-and-sweep and click are the same gesture, not two.** `draftRange`
- * returns one column when the anchor and the pointer are on the same one, so a
- * click is a one-column range and a sweep is a longer one, with no branch
- * anywhere and no separate "click to create" path to keep in step.
- *
- * **The title input lives in the rail, not floating over the range.** A form
- * anchored to the drawn columns would be a 28px-wide box at the `weeks` scale
- * and would hang off the right edge of the window for anything planned late in
- * the period. The rail is a known width (`--timeline-rail`), is already sticky,
- * and is where the reference puts it — so the range stays legible as a ghost bar on the track
- * while you type its name beside it.
- *
- * It collects a title and nothing else. Status is which column a card is in and
- * this form is not inside one, so the task lands in the board's first column;
- * everything else is the task detail's job, which is where the create card in a
- * column leaves it too.
- */
+// click and sweep are the same gesture — a click is just a one-column range
 export default function TimelineCreateRow({
   ticks,
   scale,
@@ -49,9 +25,7 @@ export default function TimelineCreateRow({
 }: {
   ticks: string[];
   scale: TimelineScale;
-  /** The sweep in progress. */
   draft: DayRange | null;
-  /** The range that has been swept and is waiting for a title. */
   pending: DayRange | null;
   today: string;
   locale?: string;
@@ -59,33 +33,14 @@ export default function TimelineCreateRow({
   onBegin: (event: React.PointerEvent) => void;
   onSubmit: (title: string) => void;
   onCancel: () => void;
-  /**
-   * The affordance's own wording (M28-B) — "Create task" for the board's
-   * default row and each Epic's own nested one, "Create epic" for the one row
-   * that mints a new Epic instead. The gesture underneath is identical either
-   * way: sweep a range, type a name, commit through the same `onCreate`.
-   */
   label?: string;
   placeholder?: string;
-  /** Matches `RowRail`'s own `indent` — a Task created from inside an
-   * expanded Epic group is a nested row, and its create form is one too. */
   indent?: boolean;
 }) {
   const range = pending ?? draft;
-
-  // `placeItem` rather than the tick indices directly, so a ghost clips at the
-  // window edge exactly as a real bar does — one rule for where a range sits.
   const place = range ? placeItem(range, ticks, scale) : null;
 
-  /**
-   * The input is **uncontrolled**, and keyed by the range it was opened on.
-   *
-   * A controlled value would need a piece of state and an effect to clear it
-   * between one create and the next — a `setState` inside an effect, which is a
-   * cascading render for a job the key already does: a new range is a new
-   * input, empty, with `autoFocus` landing the caret in it. Nothing reads the
-   * draft except the submit, and the submit has the element in hand.
-   */
+  // uncontrolled input, keyed by the range — a new range is a new empty input, no state/effect needed to clear it
   const submit = (value: string) => {
     const trimmed = value.trim();
 
@@ -115,8 +70,6 @@ export default function TimelineCreateRow({
 
                 if (event.key === "Escape") onCancel();
               }}
-              // Losing focus without a title is an abandoned gesture, not a
-              // draft worth keeping open across the rest of the board.
               onBlur={(event) => {
                 if (!event.currentTarget.value.trim()) onCancel();
               }}
@@ -131,9 +84,6 @@ export default function TimelineCreateRow({
         ) : (
           <button
             type="button"
-            // Focuses nothing on its own: there is no range yet, so it explains
-            // the gesture rather than replacing it with a second entry point
-            // that would have to invent a default period.
             onPointerDown={interactive ? onBegin : undefined}
             disabled={!interactive}
             className="text-ink-3 hover:text-ink focus-visible:ring-brand text-mini -mx-1 flex min-w-0 flex-1 items-center gap-1.5 rounded px-1 text-left font-medium transition-colors outline-none focus-visible:ring-2 disabled:opacity-50"
@@ -144,9 +94,6 @@ export default function TimelineCreateRow({
         )}
       </div>
 
-      {/* THE DRAW SURFACE. The whole track, so there is no target to miss —
-          "drag anywhere on the empty row" is the brief's wording and this is
-          it literally. */}
       <div
         onPointerDown={interactive && !pending ? onBegin : undefined}
         className={cn(
@@ -161,11 +108,7 @@ export default function TimelineCreateRow({
             aria-hidden
             style={{ gridColumn: `${place.index + 1} / span ${place.span}` }}
             className={cn(
-              // `h-5` and `rounded-[3px]` are `TimelineBar`'s own geometry: what you
-              // sweep is exactly the size and shape of the bar it turns into.
               "border-brand bg-brand/25 mx-px flex h-5 items-center rounded-[3px] border border-dashed",
-              // Solid once it is committed and waiting for a name: dashed says
-              // "still being drawn", and it is no longer being drawn.
               pending && "border-solid",
             )}
           />
@@ -175,7 +118,6 @@ export default function TimelineCreateRow({
   );
 }
 
-/** `24 Aug – 28 Aug`, or one day when that is all it is. */
 function rangeLabel(range: DayRange, today: string, locale?: string): string {
   const start = formatDue(range.start, today, locale);
 

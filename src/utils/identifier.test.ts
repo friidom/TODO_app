@@ -17,12 +17,9 @@ describe("telling an email from a username", () => {
   });
 
   it("PARTITIONS THE SPACE EXACTLY — a username cannot contain an @", () => {
-    // The database enforces the same pattern in `profiles_username_shape`, so
-    // there is no ambiguous middle for this rule to get wrong.
     expect(identifierKind("")).toBe("username");
     expect(identifierKind("not an email")).toBe("username");
-    // Malformed, but unambiguously *intended* as an address — which is the
-    // branch that then reports "enter a valid email address".
+    // malformed but unambiguously meant as an address
     expect(identifierKind("ada@")).toBe("email");
     expect(identifierKind("@ada")).toBe("email");
   });
@@ -30,8 +27,7 @@ describe("telling an email from a username", () => {
 
 describe("normalising what gets sent", () => {
   it("trims an email but preserves its case", () => {
-    // The local part of an address is case-sensitive by RFC. Folding it is
-    // Supabase's business, not this function's.
+    // local part is case-sensitive by RFC — folding it is Supabase's business
     expect(normalizeIdentifier("  Ada@Example.com  ")).toEqual({
       kind: "email",
       value: "Ada@Example.com",
@@ -45,9 +41,6 @@ describe("normalising what gets sent", () => {
   });
 
   it("uses THE SAME normaliser registration uses", () => {
-    // The property that matters: if the canonical form ever changes, login and
-    // registration change together. A second lowercase here would be a second
-    // definition that could drift.
     for (const raw of ["ADA", " Ada ", "ada", "AdA_1"]) {
       expect(normalizeIdentifier(raw).value).toBe(normalizeUsername(raw));
     }
@@ -71,13 +64,10 @@ describe("validating the login field", () => {
   });
 
   it("reports a malformed address as an address problem", () => {
-    // It has an @, so the user was clearly typing an email — telling them to
-    // check their username would be actively unhelpful.
     expect(validateIdentifier("ada@")).toBe("Enter a valid email address.");
   });
 
   it("names BOTH possibilities for a malformed username", () => {
-    // No @, so we cannot know which they meant. The message must not guess.
     expect(validateIdentifier("ad")).toBe(
       "Enter a valid email address or username.",
     );
@@ -87,9 +77,7 @@ describe("validating the login field", () => {
   });
 
   it("NEVER reports whether an account exists", () => {
-    // Existence is the server's answer, and asking it here would build exactly
-    // the enumeration oracle `login_email_for` is written to avoid. Every
-    // well-formed identifier passes validation, real or not.
+    // would build an enumeration oracle otherwise — every well-formed identifier passes, real or not
     expect(validateIdentifier("definitely_not_a_user_99")).toBeUndefined();
     expect(validateIdentifier("nobody@nowhere.example")).toBeUndefined();
   });

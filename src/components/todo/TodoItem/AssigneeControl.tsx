@@ -9,44 +9,19 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useBoardMembers } from "@/services/members/useBoardMembers";
 import { cn } from "@/utils/cn";
 
-/**
- * The card's assignee: an avatar when set, an outline button when not.
- *
- * The people list comes from `useBoardMembers`, the same `board_roster` RPC the
- * context rail uses — never `board_members`, which is self-read only and would
- * offer a picker containing just yourself. Because both call the same
- * board-scoped key, the roster is fetched once for the whole board however many
- * cards are on it.
- *
- * The panel mounts only while open, so a board's cards do not each hold a
- * subscription to the roster before anyone has asked to assign anything.
- *
- * **Controlled, like `DueDateControl`.** It reports the chosen member through
- * `onChange` and never writes. The create form and an existing card therefore
- * share this one picker — the card's parent patches through `updateTodo`, the
- * create form's holds the id until submit.
- */
 export default function AssigneeControl({
   boardId,
   value: assigneeId,
   onChange,
   alwaysVisible = false,
 }: {
-  /**
-   * The board whose roster to offer. Taken from the card rather than from
-   * `useBoardId()` so it is present for a card created a moment ago, and so the
-   * roster shown and the row written can never disagree.
-   */
   boardId: string;
   value: string | null;
   onChange: (value: string | null) => void;
-  /** Keep the trigger visible instead of revealing it on card hover. */
   alwaysVisible?: boolean;
 }) {
   const { mounted, close, triggerProps, panelProps } = useCardPopover();
 
-  // Read-only here: the trigger needs the assignee's avatar, and this hits the
-  // cache entry the rail already populates rather than a request of its own.
   const { data: members } = useBoardMembers(boardId);
   const assignee = members?.find((member) => member.id === assigneeId) ?? null;
 
@@ -76,8 +51,6 @@ export default function AssigneeControl({
             </AvatarFallback>
           </Avatar>
         ) : (
-          // An assignee id with no matching roster row — a member removed from
-          // the board — falls here rather than rendering a blank avatar.
           <span
             className={cn(
               "border-hairline text-ink-3 hover:text-ink-2 grid size-6 place-items-center rounded-full border border-dashed transition-colors",
@@ -114,10 +87,6 @@ export default function AssigneeControl({
   );
 }
 
-/**
- * Split out so `useBoardMembers` and the mutation are only subscribed while the
- * panel is open.
- */
 function MemberList({
   boardId,
   assigneeId,

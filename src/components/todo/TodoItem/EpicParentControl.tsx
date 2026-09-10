@@ -7,39 +7,11 @@ import { useKeyPrefix } from "@/hooks/useKeyPrefix";
 import { taskKey } from "@/utils/taskKey";
 import { cn } from "@/utils/cn";
 
-/**
- * The Epic a Task belongs to — a chip when set, a dashed "no epic" chip when
- * not (M28-A).
- *
- * **Compact and Jira-like, per the milestone's own instruction — not a
- * second modal.** Every other Field in this rail is a trigger plus a small
- * floating panel (`useCardPopover`, the same plumbing `StatusControl` and
- * `PriorityControl` already use), and an Epic picker is exactly that: a
- * short list of the board's Epics, one click to attach, one more to detach.
- *
- * **Controlled, like every sibling control.** It reports the chosen Epic's
- * id (or `null` to clear) through `onChange` and never writes; the caller
- * patches through the existing `useTodoPatch` → `updateTodo` path —
- * `parent_id` has been in `TodoPatch`'s allow-list since M27, so no new
- * mutation exists for this, only a new caller of the one that was already
- * there.
- *
- * **The list is exactly the board's Epics**, via `useEpics()` — not "every
- * work item", not "every top-level item". `enforce_work_item_hierarchy`
- * would refuse anything else as a Parent for a Task, so offering only what
- * would succeed is the honest version of the control, the same argument
- * `permissions.ts`'s own doc comment makes for hiding what would fail.
- *
- * **No `boardId` prop**, matching `StatusControl` rather than
- * `AssigneeControl`: this panel opens only from inside a task already open
- * on one board, `useEpics()` reads the same route the modal itself does, and
- * there is no query key here for an explicit id to disambiguate.
- */
+// list is exactly the board's Epics — anything else would be refused by enforce_work_item_hierarchy anyway
 export default function EpicParentControl({
   value: epicId,
   onChange,
 }: {
-  /** The current parent id -- expected to be an Epic's id, or null. */
   value: string | null;
   onChange: (value: string | null) => void;
 }) {

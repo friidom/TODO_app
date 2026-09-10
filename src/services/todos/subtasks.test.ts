@@ -61,8 +61,6 @@ describe("parentOf", () => {
   });
 
   it("is null, not a throw, when the parent is not (yet) in the array", () => {
-    // A transient cache gap must never read as an invalid hierarchy — every
-    // caller treats this the same as "no parent".
     const child = todo({ id: "b", parent_id: "missing" });
 
     expect(parentOf([child], child)).toBeNull();
@@ -87,8 +85,6 @@ describe("isGenuineSubtask / canHaveSubtasks / canPickEpicParent", () => {
   });
 
   it("refuses to let a genuine subtask own subtasks — the two-level rule", () => {
-    // The UI half of `enforce_work_item_hierarchy`: a subtask must not be
-    // offered an "Add subtask" action, because the database would refuse it.
     const parent = todo({ id: "a" });
     const child = todo({ id: "b", parent_id: "a" });
     const todos = [parent, child];
@@ -152,8 +148,6 @@ describe("childrenOf", () => {
   });
 
   it("is the same lookup for an Epic's Tasks as for a Task's Subtasks", () => {
-    // The whole reason M28-A needed no second relationship mechanism: "who
-    // are this row's children" is one question regardless of what the row is.
     const todos = [
       epic({ id: "e" }),
       todo({ id: "t1", parent_id: "e" }),
@@ -259,7 +253,6 @@ describe("topLevelTodos", () => {
   });
 
   it("defaults to visible when the parent is not (yet) in the array", () => {
-    // A transient cache gap must never silently remove a real card.
     const orphan = todo({ id: "b", parent_id: "missing" });
 
     expect(topLevelTodos([orphan]).map((t) => t.id)).toEqual(["b"]);
@@ -321,9 +314,6 @@ describe("subtaskProgress", () => {
   });
 
   it("derives doneness from the column's category, never a field", () => {
-    // M2-15's rule, which this milestone inherits rather than reinterprets:
-    // there is no completion flag on a row. Moving a subtask into the done
-    // column is the only thing that completes it.
     const inProgress = todo({
       id: "b",
       parent_id: "a",
@@ -367,9 +357,6 @@ describe("subtaskProgressByParent", () => {
   });
 
   it("agrees with subtaskProgress computed one parent at a time", () => {
-    // The two exist for different call sites — one map for the board, one
-    // count for the open panel — and they must never disagree about a number
-    // the user can see in both places at once.
     const todos = [
       todo({ id: "a" }),
       todo({ id: "a1", parent_id: "a", column_id: "col-done" }),
@@ -394,8 +381,6 @@ describe("subtaskProgressByParent", () => {
   });
 
   it("does not create an entry for an Epic from its own Tasks", () => {
-    // A Task under an Epic is not a Subtask, so it must not feed the Epic's
-    // count here — the plan defers an Epic's own progress bar to M31.
     const todos = [
       epic({ id: "e" }),
       todo({ id: "t1", parent_id: "e", column_id: "col-done" }),
@@ -406,8 +391,6 @@ describe("subtaskProgressByParent", () => {
   });
 
   it("still counts a Task-under-Epic's own genuine subtasks", () => {
-    // The Task occupies the Task position regardless of who its parent is,
-    // so it must still show a progress bar for ITS children.
     const todos = [
       epic({ id: "e" }),
       todo({ id: "t", parent_id: "e" }),
@@ -446,8 +429,6 @@ describe("epicTaskProgress", () => {
   });
 
   it("does not count a Task's own genuine subtasks toward its Epic", () => {
-    // The mirror of `subtaskProgressByParent`'s own Task-under-Epic test: a
-    // Subtask's parent is a Task, never an Epic, so it must not feed this map.
     const todos = [
       epic({ id: "e" }),
       todo({ id: "t", parent_id: "e", column_id: "col-todo" }),

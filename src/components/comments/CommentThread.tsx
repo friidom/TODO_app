@@ -26,45 +26,12 @@ import type { Comment } from "@/types/data";
 import { cn } from "@/utils/cn";
 import { relativeTime } from "@/utils/relativeTime";
 
-/**
- * One work item's discussion, inside the task detail modal (M7-03).
- *
- * **It lives under the description rather than in the details rail.** The left
- * column of the modal is what someone wrote and the right is what the system
- * knows; a comment is unambiguously the former. It is also the one section that
- * grows without bound, which is why it goes below a description of fixed height
- * and inside the column that already scrolls.
- *
- * **Nothing is fetched until a task is open.** `useComments` is enabled on the
- * work item id, which is M7's stated risk answered in the place it was raised:
- * *"do not join comments into the board fetch; load them per open work item."*
- *
- * **People come from the roster the board already has.** Same as `ActivityFeed`:
- * `board_roster` is in cache before this mounts, so a thread costs one query and
- * renders each author's *current* name and face rather than a snapshot of them.
- * An author the roster does not know — someone removed from the board since
- * they wrote — still renders, as an anonymous disc. Their words did not stop
- * existing when their membership did.
- *
- * **Permission gating here is UX and never enforcement.** Every rule is already
- * a policy in M7-01, so a control this hides is a call that would have been
- * refused anyway. What it buys is honesty: an edit button that always fails
- * reads as a broken product rather than as somebody else's comment.
- */
 export default function CommentThread({
   todoId,
   hideHeading = false,
 }: {
   todoId: string;
-  /**
-   * Skip the "Comments" heading below (M25).
-   *
-   * Additive, defaulted off so every existing call site is unaffected. The
-   * one caller that sets it is `ActivitySection`'s "Comments" tab — the tab
-   * bar above this component already says "Comments," and a second heading
-   * repeating the word directly under it would be a Jira-reference mismatch
-   * of the tidying kind, not a redesign of anything this component does.
-   */
+  // ActivitySection's Comments tab already says "Comments" above this, so it passes true to skip the redundant heading
   hideHeading?: boolean;
 }) {
   const boardId = useBoardId();
@@ -80,8 +47,6 @@ export default function CommentThread({
       {!hideHeading && (
         <h3 className="text-ink-3 text-mini mb-3 flex items-center gap-2 font-semibold tracking-[0.08em] uppercase">
           Comments
-          {/* The count only once there is one. A "0" beside the heading is a
-              label for an absence the empty state below already explains. */}
           {count > 0 && (
             <span className="text-ink-3/70 tabular-nums">{count}</span>
           )}
@@ -101,8 +66,6 @@ export default function CommentThread({
           ))}
         </div>
       ) : error ? (
-        // Deliberately not a toast: the failure belongs to this section, and a
-        // toast would leave an empty thread reading as "no comments yet".
         <p className="text-status-red text-sm">
           Could not load this discussion.
         </p>
@@ -130,32 +93,18 @@ export default function CommentThread({
         </ol>
       )}
 
-      {/* Hidden rather than disabled for a non-member. A composer nobody may
-          use is a control that raises the question of why it is there — and
-          `canComment` is false only while the roster loads or for someone with
-          no role at all, neither of whom should be invited to type. */}
       {canComment && <Composer todoId={todoId} />}
     </section>
   );
 }
 
-/**
- * One comment: who, when, what, and — only for the people entitled to them —
- * the two controls that change it.
- *
- * **Exported (M25).** `ActivitySection`'s "All" tab interleaves comments with
- * history and renders each comment through this exact function — reusing it
- * rather than hand-rolling a second, read-only comment row is what "use the
- * existing comments implementation... do not redesign it" means in practice.
- * No change to the component itself was needed for that reuse to work.
- */
+// exported so ActivitySection's "All" tab can reuse it for the interleaved feed
 export function CommentRow({
   comment,
   author,
   todoId,
 }: {
   comment: Comment;
-  /** Undefined for an author the roster no longer holds. */
   author: BoardMember | undefined;
   todoId: string;
 }) {
@@ -176,9 +125,7 @@ export function CommentRow({
   function save() {
     const next = editedValue(draft ?? "", comment.content);
 
-    // Null covers unchanged and blanked alike. Blanking reverts, because a
-    // comment with no text has no representation — deleting is the other
-    // control, and it asks first.
+    // null covers unchanged and blanked-out alike — blanking reverts, since there's no such thing as an empty comment
     if (next === null) {
       setDraft(null);
       return;
@@ -195,8 +142,6 @@ export function CommentRow({
       <Avatar size="sm" className="mt-0.5 shrink-0">
         <AvatarImage src={author?.avatar_url ?? undefined} alt="" />
         <AvatarFallback className="bg-elevated text-ink-2 text-micro font-semibold">
-          {/* A dash rather than an invented initial for someone the roster has
-              not caught up with — the same choice `PresenceStack` makes. */}
           {author ? memberInitial(author) : "–"}
         </AvatarFallback>
       </Avatar>
@@ -209,8 +154,6 @@ export function CommentRow({
 
           <time
             dateTime={comment.created_at}
-            // The absolute time as a tooltip, because a column of relative
-            // stamps says how long ago and never when.
             title={new Date(comment.created_at).toLocaleString()}
             className="text-ink-3 text-xs"
           >
@@ -233,9 +176,7 @@ export function CommentRow({
               value={draft ?? ""}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(event) => {
-                // Escape marks itself handled so the modal's own listener does
-                // not take the whole task with it — the rule every nested
-                // dismissible here follows.
+                // stop Escape bubbling to the modal, or it closes the whole task
                 if (event.key === "Escape") {
                   event.preventDefault();
                   setDraft(null);
@@ -275,10 +216,6 @@ export function CommentRow({
           </div>
         ) : (
           <>
-            {/* `whitespace-pre-wrap` and `break-words` together are what the
-                plan's "long content wraps" asks for: the first keeps the
-                paragraph breaks somebody typed, the second stops an unbroken
-                URL widening the modal. */}
             <p className="text-ink-2 mt-0.5 text-sm leading-relaxed break-words whitespace-pre-wrap">
               {comment.content}
             </p>
@@ -297,9 +234,6 @@ export function CommentRow({
 
                 {mayDelete &&
                   (confirmingDelete ? (
-                    // Inline rather than a modal. A dialog over a dialog for
-                    // one sentence of text is more ceremony than the thing
-                    // being removed, and the row is still on screen to see.
                     <span className="flex items-center gap-2 text-xs">
                       <span className="text-ink-3">Delete this comment?</span>
 
@@ -336,9 +270,6 @@ export function CommentRow({
           </>
         )}
 
-        {/* The mutations' own failures, in the row they belong to. The
-            QueryClient's MutationCache toasts them as well; this is what says
-            *which* comment did not save once the toast is gone. */}
         {(update.isError || remove.isError) && !editing && (
           <p className="text-status-red mt-1 text-xs">
             {update.isError ? "That edit did not save." : null}
@@ -350,7 +281,6 @@ export function CommentRow({
   );
 }
 
-/** The composer. Posts on ⌘/Ctrl+Enter as well as on the button. */
 function Composer({ todoId }: { todoId: string }) {
   const [draft, setDraft] = useState("");
   const add = useAddComment();
@@ -358,17 +288,11 @@ function Composer({ todoId }: { todoId: string }) {
   const value = commentValue(draft);
 
   function post() {
-    // Null is empty or whitespace-only. The button is disabled for both, so
-    // this is the keyboard path — and the database refuses them regardless.
     if (value === null) return;
 
     add.mutate({ todoId, content: value });
 
-    // Cleared immediately rather than in `onSuccess`. The write is optimistic,
-    // so the comment is already in the thread below; leaving the text in the
-    // box would show it twice and invite a second post of it. A failure rolls
-    // the thread back and toasts, which is the same contract every other
-    // optimistic surface here has.
+    // cleared right away, not in onSuccess — the write is optimistic so it's already in the thread below
     setDraft("");
   }
 
@@ -392,9 +316,6 @@ function Composer({ todoId }: { todoId: string }) {
         <button
           type="button"
           onClick={post}
-          // Disabled on empty and whitespace-only, which is `commentValue`'s
-          // whole job — the constraint in M7-01 refuses both, and a disabled
-          // button is a better answer than a check-constraint violation.
           disabled={value === null || add.isPending}
           className={cn(
             "bg-brand rounded-control px-3 py-1.5 text-xs font-medium text-white",

@@ -14,7 +14,6 @@ const col = (id: string, position: number): IColumn =>
     title: id.toUpperCase(),
   }) as IColumn;
 
-/** Ids in stored order. */
 const order = (columns: IColumn[]) =>
   columns
     .slice()
@@ -55,8 +54,6 @@ describe("applyColumnUpdated", () => {
   });
 
   it("leaves fields the patch omits alone", () => {
-    // A rename does not carry the limits, which is why this merges rather
-    // than replaces.
     const columns = [{ ...col("a", 0), max_limit: 5 }];
     const result = applyColumnUpdated(columns, { id: "a", title: "Renamed" });
 

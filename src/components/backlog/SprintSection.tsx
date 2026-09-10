@@ -20,29 +20,6 @@ import { cn } from "@/utils/cn";
 import BacklogDropZone from "./BacklogDropZone";
 import BacklogRow from "./BacklogRow";
 
-/**
- * One Sprint's own section of the Backlog view (M30): its compact "Sprint
- * Details" header — name, dates, goal, state, item count, Story Point
- * totals — and the work items planned into it.
- *
- * **The header is the Sprint Details view.** A separate modal would repeat
- * every one of these fields for no reason: the header already has to show
- * them for the page to be useful at all, so this section *is* the detail
- * view rather than a summary that opens a longer one.
- *
- * **Gap-precise drop targets (M31-C).** Each row sits between two
- * always-mounted `BacklogDropZone`s — the same "N rows, N+1 gaps" shape
- * `KanbanColumn.tsx` gives the Board — so a drag can land exactly between
- * two specific items, not merely "somewhere in this section". This
- * section's own `useDroppable` is the coarse "which section is the pointer
- * over" target `useBacklogDnd`'s collision detection resolves first, and
- * doubles as the drop target when the section is empty (no gaps to be
- * nearest to) — the same fallback `KanbanColumn`'s own container gives an
- * empty column. Ordering within a section is `backlog_rank`, one of two
- * fractional-rank fields a card carries — its own, separate from the
- * Board's `rank` — and is now drag-reorderable (`registry.ts`'s
- * `canReorder: true` for this view).
- */
 export default function SprintSection({
   section,
   sprints,
@@ -53,14 +30,8 @@ export default function SprintSection({
   onDelete,
 }: {
   section: SprintSectionData;
-  /** Every open sprint on the board — threaded down to each row's own
-   * `SprintControl`, so moving an item here into a different sprint does
-   * not need a second query. */
   sprints: Sprint[];
   columns: IColumn[];
-  /** The page's current drop target, or null when nothing is being
-   * dragged — read only for the gaps whose `sectionKey` names this Sprint,
-   * the same way `KanbanColumn` reads the Board's shared `indicator`. */
   indicator: BacklogIndicator | null;
   onEdit: (sprint: Sprint) => void;
   onComplete: (sprint: Sprint) => void;
@@ -134,12 +105,7 @@ export default function SprintSection({
               </button>
             )}
 
-            {/* Future sprints only. An active sprint's exit is "Complete
-                sprint" — it decides where unfinished work goes and keeps the
-                record of what shipped, which deleting would throw away — and
-                a completed one has no section here at all
-                (`buildBacklogBoard` filters it out). Same lifecycle shape
-                `start_sprint`/`complete_sprint` already enforce. */}
+            {/* future sprints only — an active one exits via Complete sprint, not delete */}
             {canEditTodos && sprint.state === "future" && (
               <button
                 type="button"
@@ -174,11 +140,6 @@ export default function SprintSection({
           </p>
         </div>
 
-        {/* The Story Point totals sit here, beside the Sprint's own actions,
-            not in the meta line above — the Jira reference's "22  0  123
-            [Complete sprint]" cluster. Never gated on `canEditTodos`: a
-            viewer reads these totals the same as an editor, only the
-            actions beside them are edit-only. */}
         <div className="flex shrink-0 items-center gap-2.5">
           {points.total > 0 && (
             <span

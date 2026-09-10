@@ -21,51 +21,7 @@ const ICONS: Record<ViewMode, LucideIcon> = {
   backlog: LayersIcon,
 };
 
-/**
- * The views a board can be looked at through (M17).
- *
- * **Driven by M16's registry, not by a list kept here.** `VIEW_MODES` is the
- * single definition of what a view is, so M19 and M20 appear in this row by
- * adding a registry entry and an icon — not by editing a tab array that would
- * then be a second place a view exists.
- *
- * Switching a tab changes one search param and nothing else, so the filter,
- * search, sort and grouping the user set survive the flip. That is what makes
- * Board and List one product rather than two screens, and it comes free from
- * all four living in the same URL.
- *
- * **Calendar left this list in M19 and Timeline in M20**, and each cost exactly
- * one icon below — because the row is driven by `VIEW_MODES` rather than by an
- * array kept here. That was the point of building it this way.
- *
- * **The placeholder list is gone with them.** M17 rendered the two unbuilt
- * views as inert, low-contrast tabs so the shell was visibly prepared; both are
- * built now, so the mechanism has nothing left to hold and staying would mean
- * keeping an empty array and a second render path against the day someone
- * invents a sixth view. The commit that adds one can add it back.
- *
- * Underline tabs with a brand accent on the active one. Pass 2 tried a
- * contained pill group; the mockup is explicit that these are underlines, and
- * it is the right call — a pill group competes with the four bordered controls
- * to its right, where an underline sits under the content it names.
- */
-
-/**
- * The tab shell, worn by the live tabs and the placeholders alike.
- *
- * The two had drifted into different heights, paddings, type sizes and gaps
- * while sitting in the same row, which is the sort of thing that reads as
- * "unfinished" without anyone being able to point at what is wrong.
- *
- * `h-full min-h-12` is what brings the underline down **to** the toolbar's
- * bottom border rather than leaving it floating in the middle of the row. The
- * tabs used to be `h-9` in a centred track, so the accent under the selected
- * view had no relationship to the line beneath it.
- *
- * It stops at touching rather than overlapping: a `-mb-px` would be clipped by
- * the row's own `overflow-x-auto`, which the tab strip needs so it can scroll
- * sideways on a phone instead of squeezing the controls beside it.
- */
+// driven by VIEW_MODES from the registry, not a tab list kept here — a new view means one registry entry + icon
 const TAB =
   "flex h-full min-h-12 shrink-0 items-center gap-1.5 border-b-2 px-2.5 text-meta transition-colors";
 

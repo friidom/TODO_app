@@ -13,7 +13,6 @@ import {
 
 describe("describePosition", () => {
   it("is one-based and names the column", () => {
-    // "position 0" is a programmer's answer to a question a person asked.
     expect(describePosition(0, 4, "In Progress")).toBe(
       "position 1 of 4 in In Progress",
     );
@@ -21,8 +20,7 @@ describe("describePosition", () => {
   });
 
   it("takes the number of PLACES, not the number of cards", () => {
-    // A column of three cards has four gaps. Passing the card count would put
-    // the last position out of range of its own total.
+    // a column of three cards has four gaps — card count would put the last position out of range
     expect(describePosition(3, 4, "Todo")).toBe("position 4 of 4 in Todo");
   });
 });
@@ -49,9 +47,6 @@ describe("announcements", () => {
   });
 
   it("SAYS SO OUT LOUD when there is no drop target", () => {
-    // The board offers no target when the gap under the item is the one it
-    // already occupies. Silence there would read as a broken drag; this says
-    // "you are back where you started".
     expect(announceMovedOver("KAN-12", null)).toBe(
       "KAN-12 is not over a drop position.",
     );
@@ -62,9 +57,6 @@ describe("announcements", () => {
   });
 
   it("does not repeat the key instructions on every lift", () => {
-    // dnd-kit reads SCREEN_READER_INSTRUCTIONS when the item takes focus.
-    // Repeating three sentences per pick-up is what makes people turn
-    // announcements off.
     const picked = announcePickedUp("KAN-12", "position 1 of 4 in Todo");
 
     expect(picked).not.toContain("arrow keys");
@@ -78,8 +70,6 @@ describe("announcements", () => {
   });
 
   it("names all three keys in the focus instructions", () => {
-    // Nothing on screen says a card can be lifted, so this is the only place
-    // the interaction is discoverable without a mouse.
     expect(SCREEN_READER_INSTRUCTIONS).toContain("space");
     expect(SCREEN_READER_INSTRUCTIONS).toContain("arrow keys");
     expect(SCREEN_READER_INSTRUCTIONS).toContain("escape");
@@ -94,8 +84,6 @@ describe("itemLabel", () => {
   });
 
   it("carries a card that has no key yet on its title alone", () => {
-    // board_key is allocated by a trigger, so an in-flight card has none. The
-    // label must not read "null, Fix the login bug".
     expect(itemLabel(null, "Fix the login bug")).toBe("Fix the login bug");
   });
 

@@ -30,17 +30,13 @@ describe("boardIdsInScope", () => {
   });
 
   it("asks for nothing while the route param is unresolved", () => {
-    // The board page renders before `useParams` has an id on the first paint.
-    // An empty list means "no queries yet", which is the state the disabled
-    // query already modelled.
     expect(
       boardIdsInScope({ kind: "board", boardId: undefined }, boards),
     ).toEqual([]);
   });
 
   it("does not filter a board scope through the board list", () => {
-    // The open board must render before `useBoards()` resolves; checking
-    // membership here would blank it for a tick.
+    // the open board must render before useBoards() resolves
     expect(boardIdsInScope({ kind: "board", boardId: "unknown" }, [])).toEqual([
       "unknown",
     ]);
@@ -53,8 +49,7 @@ describe("boardIdsInScope", () => {
   });
 
   it("treats a null space as the unfiled group", () => {
-    // Where a board shared with you lives: its space belongs to someone else,
-    // so RLS never returns the space row and the board reads as unfiled (M15).
+    // a board shared with you: its space belongs to someone else, RLS never returns that row
     expect(boardIdsInScope({ kind: "space", spaceId: null }, boards)).toEqual([
       "c",
     ]);
@@ -65,9 +60,7 @@ describe("boardIdsInScope", () => {
   });
 
   it("returns ids in a stable order whatever order the boards arrive in", () => {
-    // The id list keys the queries beneath it. If it reordered on every
-    // refetch of the board list, every board query would be torn down and
-    // restarted for nothing.
+    // this list keys the queries beneath it — reordering would tear down and restart every one
     const shuffled = [boards[2], boards[0], boards[1]];
 
     expect(boardIdsInScope({ kind: "all" }, shuffled)).toEqual(

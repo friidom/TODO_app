@@ -46,7 +46,7 @@ function board(over: Partial<IBoard> = {}): IBoard {
   } as IBoard;
 }
 
-/** A fixed "now": Friday 21 August 2026, mid-morning, local time. */
+// Friday 21 August 2026, mid-morning, local time.
 const NOW = new Date(2026, 7, 21, 10, 30);
 
 function item(at: string, over: Partial<Todo> = {}): FeedItem {
@@ -60,10 +60,8 @@ describe("tab param", () => {
     expect(isForYouTab("workedon")).toBe(true);
     expect(isForYouTab("viewed")).toBe(true);
 
-    // A hand-edited `?tab=` is untrusted input, like every other param.
     expect(isForYouTab("everything")).toBe(false);
-    // Starred was built and removed — an old bookmark must fall back to the
-    // default rather than resolve to a tab that no longer renders.
+    // removed tab — an old bookmark should fall back to default, not resolve to nothing
     expect(isForYouTab("starred")).toBe(false);
     expect(isForYouTab("")).toBe(false);
     expect(isForYouTab(null)).toBe(false);
@@ -82,17 +80,12 @@ describe("building feed items", () => {
   });
 
   it("leaves the key null while a card is still in flight", () => {
-    // `board_key` is trigger-assigned, so an optimistic row genuinely has none.
     const [row] = toFeedItems([todo({ board_key: null })], [board()]);
 
     expect(row.key).toBeNull();
   });
 
   it("DROPS A ROW WHOSE BOARD THE USER CANNOT SEE", () => {
-    // The security property, as a unit test. Every query behind this page is
-    // RLS-filtered, so this should never happen — but if a row for a board
-    // absent from the caller's own board list ever arrives, it must not be
-    // rendered, and certainly not rendered without saying where it is from.
     const mine = todo({ board_id: "b-1" });
     const theirs = todo({ board_id: "b-someone-else" });
 
@@ -123,7 +116,6 @@ describe("building feed items", () => {
   });
 
   it("takes an explicit date, which is what the worked-on/viewed tabs use", () => {
-    // Worked on is ordered by when you touched it, not by when the row changed.
     const [row] = toFeedItems([todo()], [board()], () => "2026-08-19T12:00:00Z");
 
     expect(row.at).toBe("2026-08-19T12:00:00Z");
@@ -146,8 +138,6 @@ describe("merging sources", () => {
   });
 
   it("NEVER SHOWS ONE WORK ITEM TWICE", () => {
-    // Recommended is a union of "assigned to me" and "recently updated", and a
-    // task that is both would otherwise appear in the feed twice.
     const shared = todo();
 
     const merged = mergeFeed(
@@ -176,16 +166,13 @@ describe("merging sources", () => {
 });
 
 describe("period boundaries", () => {
-  // NOW is Friday 21 August 2026. Monday of that week is the 17th; the previous
-  // Monday is the 10th; the month begins on the 1st.
+  // NOW is Friday 21 August 2026 — that week's Monday is the 17th, previous Monday the 10th.
 
   it("puts today in today", () => {
     expect(periodOf("2026-08-21", NOW)).toBe("today");
   });
 
   it("puts a future day in today rather than inventing a bucket", () => {
-    // Clock skew between the server's stamp and the browser's can land a few
-    // seconds ahead. "Today" is the truthful reading of that.
     expect(periodOf("2026-08-22", NOW)).toBe("today");
   });
 
@@ -195,7 +182,6 @@ describe("period boundaries", () => {
 
   it("puts the rest of this week in 'earlier this week'", () => {
     expect(periodOf("2026-08-19", NOW)).toBe("week");
-    // Monday itself is still this week.
     expect(periodOf("2026-08-17", NOW)).toBe("week");
   });
 
@@ -215,10 +201,6 @@ describe("period boundaries", () => {
   });
 
   it("uses CALENDAR boundaries, not elapsed durations", () => {
-    // Monday the 17th stays "this week" all the way to Sunday the 23rd — six
-    // days later — and becomes "last week" the moment the calendar week turns,
-    // not 168 hours after the fact. An elapsed-duration rule would flip it
-    // mid-week and the row would appear to move for no reason.
     const sunday = new Date(2026, 7, 23, 23, 0);
     const monday = new Date(2026, 7, 24, 0, 30);
 
@@ -228,16 +210,13 @@ describe("period boundaries", () => {
   });
 
   it("prefers the NARROWER bucket where two could claim a day", () => {
-    // On Tuesday the 18th, Monday the 17th is both "yesterday" and the start of
-    // this week. "Yesterday" is the more useful of the two true answers, and
-    // the ordering in `periodOf` is what guarantees it wins.
+    // Tuesday the 18th: Monday the 17th is both "yesterday" and start-of-week — yesterday should win
     const tuesday = new Date(2026, 7, 18, 9, 0);
 
     expect(periodOf("2026-08-17", tuesday)).toBe("yesterday");
   });
 
   it("treats Sunday as the end of its week, not the start", () => {
-    // Sunday 23 August. Its week still begins on Monday the 17th.
     const sunday = new Date(2026, 7, 23, 9, 0);
 
     expect(periodOf("2026-08-17", sunday)).toBe("week");
@@ -245,17 +224,12 @@ describe("period boundaries", () => {
   });
 
   it("lets a week span a month boundary", () => {
-    // Wednesday 2 September 2026. Its week began on Monday 31 August, so the
-    // 31st is "earlier this week" despite being in the previous month — the
-    // week bucket is a week, not "this month, but recent". The Sunday before
-    // it is last week, and neither is swallowed by "earlier this month", which
-    // would otherwise claim both for being in August.
+    // week of Wed 2 Sep began Mon 31 Aug — the 31st is "this week" despite being in the previous month
     const september = new Date(2026, 8, 2, 9, 0);
 
     expect(periodOf("2026-08-31", september)).toBe("week");
     expect(periodOf("2026-08-30", september)).toBe("lastweek");
     expect(periodOf("2026-08-25", september)).toBe("lastweek");
-    // Genuinely older than last week, and in a previous month.
     expect(periodOf("2026-08-20", september)).toBe("older");
   });
 });
@@ -285,7 +259,6 @@ describe("grouping the feed", () => {
   });
 
   it("OMITS EMPTY PERIODS", () => {
-    // Three items from this morning is one header, not six with five apologies.
     const groups = groupFeed(
       [item("2026-08-21T09:00:00Z"), item("2026-08-21T08:00:00Z")],
       NOW,
@@ -321,12 +294,6 @@ describe("grouping the feed", () => {
 });
 
 describe("current-user filtering", () => {
-  /**
-   * The assignee filter is `.eq("assignee_id", userId)` in Postgres, so this
-   * asserts the property the query provides rather than re-implementing it:
-   * a row that reaches the feed for the Assigned tab belongs to the caller, and
-   * the row renderer's "is this mine" test agrees with it.
-   */
   it("marks a row as mine only when I am the assignee", () => {
     const rows = toFeedItems(
       [

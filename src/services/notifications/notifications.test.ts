@@ -88,9 +88,6 @@ describe("unread", () => {
   });
 
   it("treats NULL as unread and any timestamp as read", () => {
-    // The column is a nullable timestamp rather than a boolean, so "unread" is
-    // exactly `read_at === null` — an empty string would be a read row with a
-    // broken stamp, not an unread one.
     expect(isUnread(notification({ read_at: null }))).toBe(true);
     expect(isUnread(notification({ read_at: "2026-08-21T10:00:00Z" }))).toBe(
       false,
@@ -100,8 +97,6 @@ describe("unread", () => {
 
 describe("where a notification goes", () => {
   it("opens an assignment as the task, on its own board", () => {
-    // The existing detail surface, addressed the way `useOpenTask` addresses
-    // it — there is no notification-owned task view to keep in step.
     expect(
       notificationTarget(
         notification({ type: "assigned", board_id: "b-9", entity_id: "t-4" }),
@@ -118,8 +113,7 @@ describe("where a notification goes", () => {
   });
 
   it("HAS NO TARGET when the thing it refers to is gone", () => {
-    // `entity_id` is deliberately not a foreign key, so the row survives its
-    // subject. It must render as a record, never as a link to nothing.
+    // entity_id isn't a foreign key — the row outlives its subject and must never link to nothing
     expect(
       notificationTarget(notification({ type: "assigned", entity_id: null })),
     ).toBeNull();
@@ -158,9 +152,7 @@ describe("what a notification says", () => {
   });
 
   it("survives an actor whose account has since been deleted", () => {
-    // `actor_id` is `on delete set null` and the trigger may have found no
-    // name. "Someone" is the honest rendering; an empty string is a bug on
-    // screen.
+    // actor_id is on delete set null — "Someone" beats an empty string on screen
     const { title } = notificationText(
       notification({ type: "assigned", payload: { todo_title: "X" } }),
     );
@@ -179,12 +171,7 @@ describe("what a notification says", () => {
 });
 
 describe("current-user isolation", () => {
-  /**
-   * The real enforcement is RLS — `user_id = auth.uid()` on select — so this
-   * asserts the property the client relies on rather than re-implementing the
-   * check: every row that reaches the inbox is addressed to one person, and
-   * nothing here derives a row for anybody else.
-   */
+  // real enforcement is RLS (user_id = auth.uid()) — this just pins that the client never widens the set itself
   it("never produces a row for another user from one addressed to me", () => {
     const mine = notification({ user_id: "u-me" });
 
@@ -211,25 +198,18 @@ describe("matching a notification to its invitation (M23)", () => {
   });
 
   it("returns null for every other type", () => {
-    // An assignment's entity_id is a TODO id. Handing that to the invite
-    // lookup would match nothing at best and the wrong thing at worst.
     expect(
       inviteIdOf(notification({ type: "assigned", entity_id: "t-1" })),
     ).toBeNull();
   });
 
   it("returns null when the invitation it described is gone", () => {
-    // `entity_id` is deliberately not a foreign key, so the row outlives its
-    // subject — the panel must render it as a record, not offer buttons.
     expect(
       inviteIdOf(notification({ type: "invite", entity_id: null })),
     ).toBeNull();
   });
 
   it("NEVER exposes a token — the inbox stores an id only", () => {
-    // The security property: a token is a credential, and a row every client
-    // fetches must not carry one. The token comes from `my_pending_invites`,
-    // which is scoped to the caller inside the RPC.
     const row = notification({ type: "invite", entity_id: "inv-1" });
 
     expect(JSON.stringify(row)).not.toMatch(/token/i);

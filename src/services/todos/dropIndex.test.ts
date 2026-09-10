@@ -14,10 +14,8 @@ const todo = (id: string, position: number): Todo =>
     title: `todo ${id}`,
   }) as Todo;
 
-/** `[A, B, C, D]` in one column, stored in that order. */
 const column = () => [todo("A", 0), todo("B", 1), todo("C", 2), todo("D", 3)];
 
-/** Ids of a column after a move, in display order — by rank, as of M6-A. */
 const order = (todos: Todo[], columnId: string) =>
   todos
     .filter((it) => it.column_id === columnId)
@@ -29,22 +27,15 @@ describe("resolveDropIndex", () => {
     it("keeps an upward move where the line was drawn", () => {
       const full = column();
 
-      // Gap 1 sits between A and B. Dragging C there means "above B".
       expect(resolveDropIndex(full, full, 1, "C")).toBe(1);
     });
 
-    // The bug this function exists to fix. Gap 3 sits between C and D, so a card
-    // dropped there belongs above D — but the raw gap index, counted over a list
-    // that still contains the dragged card, was one too many once the card was
-    // removed.
+    // the off-by-one this function fixes: a gap index counted with the dragged card still in the list overshoots by one
     it("corrects a downward move that used to overshoot", () => {
       const full = column();
 
       expect(resolveDropIndex(full, full, 3, "A")).toBe(2);
 
-      // End to end, through the two steps `useTodoDrop` actually runs: resolve
-      // the gap the user saw into an index over the column *without* the
-      // dragged card, then turn that index into a rank between its neighbours.
       const index = resolveDropIndex(full, full, 3, "A");
       const destination = full.filter((it) => it.id !== "A");
       const rank = rankForDrop(destination, index);
@@ -53,7 +44,6 @@ describe("resolveDropIndex", () => {
 
       const moved = applyTodoMoved(full, full[0], "a", rank!);
 
-      // A between C and D is [B, C, A, D], not [B, C, D, A].
       expect(order(moved, "a")).toEqual(["B", "C", "A", "D"]);
     });
 
@@ -71,8 +61,6 @@ describe("resolveDropIndex", () => {
   });
 
   describe("across columns", () => {
-    // The dragged card is not in the destination, so nothing is removed and the
-    // anchor's own index is the answer.
     it("uses the anchor's index unchanged", () => {
       const destination = [todo("X", 0), todo("Y", 1)];
 
@@ -86,9 +74,7 @@ describe("resolveDropIndex", () => {
   });
 
   describe("with a filter hiding rows", () => {
-    // The user sees [A, D] and drops between them. That gap means "above D",
-    // which is index 3 of the real column — not index 1, which is where the
-    // rendered count would have put it, on top of B.
+    // user sees [A, D], drops between them — that's index 3 of the real column, not 1
     it("counts hidden rows the user cannot see", () => {
       const full = column();
       const visible = [full[0], full[3]];
@@ -100,9 +86,6 @@ describe("resolveDropIndex", () => {
       const full = column();
       const visible = [full[0], full[1]];
 
-      // Below B, with C and D hidden beneath it, means the end of the column —
-      // there is no card to name, and the alternative would be silently
-      // choosing one of the two the user cannot see.
       expect(resolveDropIndex(full, visible, 2, "X")).toBe(4);
     });
 
@@ -116,16 +99,12 @@ describe("resolveDropIndex", () => {
       const full = column();
       const visible = [full[1], full[3]];
 
-      // Dropping A above D: D is at index 3 of the full column, index 2 once A
-      // is taken out.
       expect(resolveDropIndex(full, visible, 1, "A")).toBe(2);
     });
   });
 
   it("appends rather than misplacing when the anchor is the dragged card", () => {
-    // Unreachable from the board — `touchesActive` suppresses the gaps either
-    // side of the dragged card — but answering it is what keeps this function
-    // independent of that suppression.
+    // unreachable from the board (touchesActive suppresses it), but keeps this function correct independent of that
     const full = column();
 
     expect(resolveDropIndex(full, full, 0, "A")).toBe(3);

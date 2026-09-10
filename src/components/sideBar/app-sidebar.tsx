@@ -22,48 +22,14 @@ import NotificationsButton from "@/components/notifications/NotificationsButton"
 import { useProfile } from "@/services/profile/useProfile";
 import { cn } from "@/utils/cn";
 
-/**
- * The application's navigation rail.
- *
- * **Cut to what exists, in M17.** It used to carry three sections of mostly
- * inert entries — My Tasks, Boards, Members, Integrations, Reports, plus a
- * Views group listing Calendar and Timeline — so six placeholders outnumbered
- * the live items and the one thing the sidebar is *for*, the Spaces → Boards
- * tree, was the smallest thing in it.
- *
- * What is left: For You, Notifications, the board tree, and a footer.
- *
- * **The Invitations section is gone (M23).** It existed because stage 1 sent no
- * email, so an addressed invitation would otherwise reach nobody — a real gap,
- * filled by a section that appeared and vanished depending on whether anything
- * was pending. Invitations are notifications now and live in the inbox with
- * Accept and Decline on the row, which is one place to look for "something
- * needs my attention" instead of two.
- * Views moved to the board's own toolbar, where switching one does not mean
- * travelling to the sidebar and back.
- *
- * **The footer holds the account, and only the account.** Theme and language
- * lived here briefly and moved on to the profile page: a preference is
- * something you set once and then want out of the way, and two of them wedged
- * beside an avatar made the busiest corner of the sidebar the one carrying the
- * least-used controls. The profile row is the way to them.
- *
- * A *live* entry navigates because a route exists for it in
- * `components/routes/Routes.tsx`. A *placeholder* renders at lower contrast and
- * does not respond to a click — a placeholder that navigates to a 404 is worse
- * than one that visibly waits.
- */
-
 type Item = {
   label: string;
   icon: LucideIcon;
-  /** Present only when a route exists. Absent means placeholder. */
+  // present only when a route exists — absent means placeholder
   to?: string;
 };
 
 const WORKSPACE: Item[] = [
-  // "For You" as of M21, and not just a rename: `/` now renders the personal
-  // hub rather than redirecting to whichever board happened to be oldest.
   { label: "For You", icon: CircleUserRoundIcon, to: "/" },
   // { label: "Dashboard", icon: SquareKanbanIcon },
 ];
@@ -90,11 +56,7 @@ function NavItem({ item }: { item: Item }) {
     );
   }
 
-  // This vendored SidebarMenuButton is base-ui's `render` prop, not Radix's
-  // `asChild`, so the link is passed as an element and the children below are
-  // rendered into it. NavLink's own render-prop form is unavailable for the
-  // same reason, hence the explicit pathname comparison — exact, so For You at
-  // "/" is not active on every board URL.
+  // explicit pathname comparison, exact — so For You at "/" isn't "active" on every board URL
   const isActive = location.pathname === item.to;
 
   return (
@@ -129,18 +91,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SquareKanbanIcon className="size-4" />
           </span>
 
-          {/* The one place Josefin Sans survives (M17): a display face belongs
-              on a logotype and nowhere near 12px board text. */}
           <span className="text-ink font-wordmark text-base font-semibold tracking-tight">
             Veylo
           </span>
         </div>
 
-        {/* No collapse trigger here, deliberately. This sidebar is
-            `collapsible="offcanvas"`, so a collapsed sidebar is a sidebar with
-            no width — a trigger inside it would hide with it and there would be
-            no way back. It lives in `BoardIdentity` instead, which is always on
-            screen. */}
+        {/* no collapse trigger here — sidebar is collapsible="offcanvas", so a trigger inside would hide with it */}
       </SidebarHeader>
 
       <SidebarContent className="gap-1">
@@ -150,8 +106,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               <NavItem key={item.label} item={item} />
             ))}
 
-            {/* Beside For You, because both answer "what is mine" rather than
-                "what is on this board" (M22). */}
             <NotificationsButton />
           </SidebarMenu>
         </SidebarGroup>

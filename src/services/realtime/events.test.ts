@@ -48,7 +48,6 @@ function column(over: Partial<IColumn> = {}): IColumn {
   } as IColumn;
 }
 
-/** A payload in the shape Supabase delivers one. */
 function change<T>(
   eventType: RowChange<T>["eventType"],
   parts: { new?: Partial<T>; old?: Partial<T> },
@@ -72,9 +71,6 @@ describe("applyTodoEvent — INSERT", () => {
   });
 
   it("IGNORES AN ECHO OF THIS CLIENT'S OWN INSERT", () => {
-    // The whole of M6-10, and the reason it is one line: the client mints the
-    // uuid (M2-14), so its own event carries the id already in the cache. A
-    // second copy of the card is what this prevents.
     const mine = todo({ id: "mine", title: "Local", position: 7 });
     const board = [mine];
 
@@ -83,8 +79,6 @@ describe("applyTodoEvent — INSERT", () => {
     const result = applyTodoEvent(board, change("INSERT", { new: echoed }));
 
     expect(result).toHaveLength(1);
-    // Untouched, not replaced: the optimistic row holds the slot the user
-    // dropped it in, and the mutation's own onSuccess reconciles it.
     expect(result[0]).toBe(mine);
   });
 
@@ -120,15 +114,11 @@ describe("applyTodoEvent — UPDATE", () => {
     const result = applyTodoEvent(board, change("UPDATE", { new: moved }));
 
     expect(result[0].column_id).toBe("c-2");
-    // The rank the SENDER chose, carried through rather than recomputed —
-    // recomputing would put the card somewhere different on every receiver.
     expect(result[0].rank).toBe(250);
     expect(result[0].title).toBe("Renamed on the way");
   });
 
   it("drops an update for a row it does not have, rather than inventing it", () => {
-    // A missed INSERT. Convergence is the re-subscribe resync's job, not this
-    // function's — inserting from an UPDATE would be a second mechanism.
     const board = [todo({ id: "a" })];
 
     const result = applyTodoEvent(
@@ -142,8 +132,6 @@ describe("applyTodoEvent — UPDATE", () => {
 
 describe("applyTodoEvent — DELETE", () => {
   it("removes by the primary key, which is all a delete payload carries", () => {
-    // REPLICA IDENTITY DEFAULT: `old` is the id and nothing else. See the
-    // M6-07 migration for why it is not widened.
     const board = [todo({ id: "a" }), todo({ id: "b" })];
 
     const result = applyTodoEvent(
@@ -155,8 +143,6 @@ describe("applyTodoEvent — DELETE", () => {
   });
 
   it("is a no-op for an id from another board", () => {
-    // The DELETE subscription is unfiltered, so ids from boards this client is
-    // not looking at do arrive. They must cost nothing.
     const board = [todo({ id: "a" })];
 
     expect(
@@ -210,8 +196,6 @@ describe("applyColumnEvent", () => {
   });
 
   it("does not mutate the array it is given", () => {
-    // Same contract every cache function here follows: the cached array is the
-    // rollback snapshot for any mutation in flight.
     const board = [column({ id: "c-a" })];
     const before = [...board];
 
@@ -221,19 +205,8 @@ describe("applyColumnEvent", () => {
   });
 });
 
-/**
- * M6-12 · concurrency.
- *
- * The Testing Checklist's concurrency section, as far as it can be pinned
- * without a socket: every row below is two clients' events arriving at one
- * cache in a particular order, which is exactly what these pure functions take.
- * What stays manual is the transport — that two browsers *deliver* these
- * payloads — and it is recorded as such in `docs/REALTIME_VERIFICATION.md`.
- */
-describe("applyTodoEvent — M6-12 concurrency", () => {
+describe("applyTodoEvent — concurrency", () => {
   it("keeps a local optimistic card when a remote insert lands beside it", () => {
-    // The client's own row is already in the cache under its minted uuid; a
-    // stranger's insert into the same column must not cost it.
     const board = [todo({ id: "mine", column_id: "c-1", rank: 100 })];
 
     const result = applyTodoEvent(
@@ -245,8 +218,6 @@ describe("applyTodoEvent — M6-12 concurrency", () => {
   });
 
   it("gives one winner and no orphan when two clients move the same card", () => {
-    // Both moves are whole-row UPDATEs for one id. Last write wins, and the
-    // card cannot end up in two columns because the row is replaced, not added.
     const board = [todo({ id: "a", column_id: "c-1", rank: 100 })];
 
     const viaFirst = applyTodoEvent(
@@ -265,9 +236,6 @@ describe("applyTodoEvent — M6-12 concurrency", () => {
   });
 
   it("keeps both cards when two clients drag different cards in one column", () => {
-    // This is what M6-A's single-row rank writes buy. Under the old dense
-    // renumbering each sender wrote the whole column from its own snapshot, so
-    // the second event silently reverted the first sender's card.
     const board = [
       todo({ id: "a", column_id: "c-1", rank: 100 }),
       todo({ id: "b", column_id: "c-1", rank: 200 }),
@@ -288,10 +256,6 @@ describe("applyTodoEvent — M6-12 concurrency", () => {
   });
 
   it("takes the last write whole, without inventing a merge", () => {
-    // Field-level last-write-wins is what the payload gives us: the row is
-    // replaced by the sender's copy, so a field the second sender did not set
-    // reverts rather than surviving from the first. Merging would be a rule
-    // neither client agreed to.
     const base = todo({ id: "a", title: "Original", priority: null });
 
     const afterFirst = applyTodoEvent(
@@ -309,8 +273,6 @@ describe("applyTodoEvent — M6-12 concurrency", () => {
   });
 
   it("converges when an update overtakes its insert", () => {
-    // Out-of-order delivery: the update for a row we do not have is dropped
-    // rather than invented, and the insert that follows still lands.
     const board = [todo({ id: "a" })];
     const late = todo({ id: "late", title: "Edited" });
 
@@ -340,8 +302,6 @@ describe("applyTodoEvent — M6-12 concurrency", () => {
   });
 
   it("does not mutate the array it is given", () => {
-    // The cached array is the rollback snapshot of any mutation in flight, so
-    // an event arriving mid-drag must not renumber the rows onError restores.
     const board = [todo({ id: "a", column_id: "c-1" })];
     const before = [...board];
 
@@ -359,14 +319,6 @@ describe("applyTodoEvent — M6-12 concurrency", () => {
   });
 });
 
-/**
- * M7-04 · comment events.
- *
- * The routing — which thread a payload belongs to — is `useBoardRealtime`'s and
- * is not testable without a query client. What is testable is everything that
- * decides what happens once the right array is in hand, which is where the
- * duplicate-comment and lost-edit failures would live.
- */
 let commentSeq = 0;
 
 function comment(over: Partial<Comment> = {}): Comment {
@@ -397,9 +349,6 @@ describe("applyCommentEvent", () => {
   });
 
   it("IGNORES AN ECHO OF THIS CLIENT'S OWN COMMENT", () => {
-    // The duplicate-comment failure, and it is the same one line as M6-10's:
-    // the client mints the uuid (M7-02), so its own insert comes back carrying
-    // an id the thread already holds.
     const mine = comment({ id: "mine", content: "posted locally" });
     const thread = [mine];
 
@@ -409,8 +358,6 @@ describe("applyCommentEvent", () => {
     );
 
     expect(result).toHaveLength(1);
-    // Untouched, not replaced — and the array identity survives, so the open
-    // thread does not re-render for its own echo.
     expect(result[0]).toBe(mine);
     expect(result).toBe(thread);
   });
@@ -426,7 +373,6 @@ describe("applyCommentEvent", () => {
   });
 
   it("puts an out-of-order arrival in posting order", () => {
-    // Two people posting in the same second can be delivered either way round.
     const thread = [
       comment({ id: "a", created_at: "2026-08-18T09:00:00.000Z" }),
       comment({ id: "c", created_at: "2026-08-18T09:02:00.000Z" }),
@@ -457,8 +403,6 @@ describe("applyCommentEvent", () => {
     );
 
     expect(result[0].content).toBe("after");
-    // The trigger's stamp comes through, which is what puts the "edited"
-    // marker on the other client's copy.
     expect(result[0].updated_at).toBe("2026-08-18T10:00:00.000Z");
   });
 
@@ -485,9 +429,6 @@ describe("applyCommentEvent", () => {
   });
 
   it("is a no-op for a delete whose comment is in another thread", () => {
-    // The DELETE subscription is unfiltered, so ids from work items this client
-    // does not have open do arrive — and the caller hands this whichever thread
-    // it is searching. A miss must cost nothing.
     const thread = [comment({ id: "a" })];
 
     expect(

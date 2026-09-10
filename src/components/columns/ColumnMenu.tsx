@@ -11,12 +11,9 @@ import {
 interface Props {
   onSetLimit: () => void;
   onDelete: () => void;
-  /** Omitted at the board's edges, where the move would do nothing. */
   onMoveLeft?: () => void;
   onMoveRight?: () => void;
-  /** The last column has nowhere to hand its work to. */
   canDelete: boolean;
-  /** Controlled so the header can keep the trigger visible while it is open. */
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }

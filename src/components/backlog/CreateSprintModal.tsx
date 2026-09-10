@@ -15,20 +15,7 @@ import { useCreateSprint, useUpdateSprint } from "@/services/sprints/useSprints"
 import type { Sprint } from "@/types/data";
 import { fromCalendarDay, toCalendarDay } from "@/utils/dueDate";
 
-/**
- * Create a sprint, or edit one's own fields (M30).
- *
- * One component for both, the same reason `SpaceFormModal` is: `sprint`
- * present means edit, the parent unmounts this on close so the fields reset
- * for free, and a create form and an edit form asking for the same four
- * things would otherwise be two components drifting apart one prop at a
- * time.
- *
- * **Never edits `state`.** Starting and completing a sprint are lifecycle
- * transitions with their own server-side bulk writes (`start_sprint` /
- * `complete_sprint`) — see the migration's own header — not a field this
- * form's plain `update` may touch.
- */
+// never edits `state` — starting/completing a sprint goes through the start_sprint/complete_sprint RPCs, not this plain update
 export default function CreateSprintModal({
   sprint,
   onClose,
@@ -51,9 +38,7 @@ export default function CreateSprintModal({
   const mutation = sprint ? updateSprint : createSprint;
   const trimmed = name.trim();
 
-  // Same shape as `todos_date_range_check` — an inverted pair is refused by
-  // `sprints_date_range_check`, so this turns that database error into a
-  // disabled button rather than a toast after the fact.
+  // mirrors sprints_date_range_check — disables the button instead of letting the DB reject it
   const inverted = Boolean(startDate && endDate && startDate > endDate);
 
   function handleSubmit(e: React.FormEvent) {

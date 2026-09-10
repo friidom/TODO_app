@@ -2,7 +2,6 @@ import { Component, type ReactNode } from "react";
 
 interface Props {
   children: ReactNode;
-  /** Replaces the default panel. Receives a reset that clears the error. */
   fallback?: (error: Error, reset: () => void) => ReactNode;
 }
 
@@ -10,16 +9,6 @@ interface State {
   error: Error | null;
 }
 
-/**
- * Catches a render throw from its subtree.
- *
- * Without one of these anywhere, a single card that throws blanks the whole
- * application — React unmounts the entire tree when nothing catches. Wrapped
- * around each column's card list, the rest of the board survives.
- *
- * No logging here: React 19 already reports caught errors with a component
- * stack, and a second copy would say nothing new.
- */
 export default class ErrorBoundary extends Component<Props, State> {
   state: State = { error: null };
 

@@ -7,11 +7,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-/**
- * Shown whenever a column's work-item count falls outside its limits. Always
- * visible — unlike the collapse and menu controls, this one is the reason the
- * user needs to look at the header at all.
- */
 export default function LimitWarning({
   message,
   side = "bottom",

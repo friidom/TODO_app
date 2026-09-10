@@ -24,13 +24,7 @@ function todo(over: Partial<Todo> & { id: string }): Todo {
     backlog_rank: null,
     type: "Task",
     title: `todo ${over.id}`,
-    // Monotonic across the whole file, not `% 10` — `byBacklogRank` now
-    // falls back to `created_at` to break a tie between two unranked rows
-    // (both default to `backlog_rank: null` here), so a wrapping counter
-    // would silently reintroduce "the order the row happened to land in this
-    // particular array", the exact bug that fallback exists to remove.
-    // `Date.UTC` normalises overflow past 59 seconds correctly, so this stays
-    // ordered for any number of calls a single test file makes.
+    // monotonic across the whole file — byBacklogRank falls back to created_at to break ties
     created_at: new Date(Date.UTC(2026, 7, 1, 0, 0, seq)).toISOString(),
     ...over,
   } as Todo;
@@ -64,29 +58,14 @@ function column(over: Partial<IColumn> & { id: string }): IColumn {
   } as IColumn;
 }
 
-/**
- * The Board's own visibility rule.
- *
- * `column_id` is the necessary fact and `sprint_id` can only take a card
- * away: a card committed to a Sprint that is not the running one is withheld
- * until that Sprint starts, and everything else in a column is on the Board.
- * This is the independence the sprints migration designed the two columns
- * around — see `backlog.ts`'s module doc for the pass that conflated them and
- * what it broke.
- */
 describe("isOnBoard", () => {
   it("no active Sprint: unplanned work in a column still shows", () => {
-    // The board a user had before Sprints existed, and the board a brand new
-    // user has today. Nothing has claimed these cards, so nothing withholds
-    // them.
     expect(
       isOnBoard(todo({ id: "a", column_id: "col-1", sprint_id: null }), null),
     ).toBe(true);
   });
 
   it("no active Sprint: a card committed to a Sprint stays off", () => {
-    // Planned into a future Sprint. It keeps its column, but it is not
-    // uncommitted work and it is not this-Sprint work, so it waits.
     expect(
       isOnBoard(todo({ id: "b", column_id: "col-1", sprint_id: "s-1" }), null),
     ).toBe(false);
@@ -103,36 +82,24 @@ describe("isOnBoard", () => {
   });
 
   it("active Sprint: an item with no column at all does not qualify", () => {
-    // Planned into the active Sprint but not yet started onto the Board —
-    // `start_sprint` hasn't run, or ran before this item was added to it.
     expect(
       isOnBoard(todo({ id: "a", column_id: null, sprint_id: "s-1" }), "s-1"),
     ).toBe(false);
   });
 
   it("active Sprint: a Future Sprint's item stays off, even with a column", () => {
-    // The one exclusion the Sprint model is actually for: work committed
-    // somewhere else does not leak onto the running board.
     expect(
       isOnBoard(todo({ id: "b", column_id: "col-1", sprint_id: "s-2" }), "s-1"),
     ).toBe(false);
   });
 
   it("active Sprint: a no-Sprint item is on the board alongside it", () => {
-    // Ad-hoc work — the card someone typed straight into a column. It sits
-    // beside the Sprint's own cards rather than being hidden by them, which
-    // is what keeps the quick-add from creating invisible cards.
     expect(
       isOnBoard(todo({ id: "c", column_id: "col-1", sprint_id: null }), "s-1"),
     ).toBe(true);
   });
 
   it("starting a Sprint makes its planned items eligible: column_id is what start_sprint writes", () => {
-    // `start_sprint` (the RPC) bulk-assigns a column to every item of the
-    // Sprint it starts that has none yet — this is the client-side half of
-    // that contract: once a Sprint's item has both the matching sprint_id
-    // and the column the RPC gave it, isOnBoard flips from false to true
-    // with no other input changing.
     const planned = todo({ id: "a", column_id: null, sprint_id: "s-1" });
 
     expect(isOnBoard(planned, "s-1")).toBe(false);
@@ -143,10 +110,6 @@ describe("isOnBoard", () => {
   });
 
   it("completing a Sprint leaves its unfinished work on the board as unplanned", () => {
-    // `complete_sprint` rehomes everything not in a done column to the
-    // destination Sprint, or to the Backlog (sprint_id null) — it does not
-    // clear column_id. Under this rule that card stays visible as unplanned
-    // work rather than vanishing the moment the Sprint ends.
     const carried = todo({ id: "a", column_id: "col-1", sprint_id: null });
 
     expect(isOnBoard(carried, null)).toBe(true);
@@ -160,7 +123,6 @@ describe("buildBacklogBoard — sprint sections", () => {
 
     const board = buildBacklogBoard([], [future, active]);
 
-    // Ordered by rank, not creation order.
     expect(board.sprintSections.map((s) => s.sprint.id)).toEqual([
       "s-2",
       "s-1",
@@ -224,10 +186,6 @@ describe("buildBacklogBoard — unplanned", () => {
   });
 
   it("lists a work item already on the Board, as long as it has no sprint", () => {
-    // A pre-M29 task, already on the Board and never touched by sprint
-    // planning, must still surface here — this is exactly what makes it
-    // plannable into a Sprint from this page. It stays on the Board at the
-    // same time, because Board membership is `column_id` alone.
     const onBoard = todo({ id: "t-1", sprint_id: null, column_id: "col-1" });
 
     const board = buildBacklogBoard([onBoard], []);
@@ -376,7 +334,7 @@ describe("sprintAssignmentPatch", () => {
     const first = todo({ id: "f", sprint_id: "sprint-1", backlog_rank: 1000 });
     const second = todo({ id: "g", sprint_id: "sprint-1", backlog_rank: 2000 });
 
-    // Gap 1 sits between `first` and `second`.
+    // gap 1 sits between first and second
     const patch = sprintAssignmentPatch(
       moving,
       "sprint-1",
@@ -390,12 +348,7 @@ describe("sprintAssignmentPatch", () => {
   });
 
   it("excludes a genuine Subtask from the destination section's neighbour lookup", () => {
-    // The bug this guards: `todos` here is the raw board cache, "cards and
-    // Subtasks alike" — and a genuine Subtask always carries `sprint_id:
-    // null`, so an unfiltered destination section would seat it as a real
-    // neighbour of the ungrouped Backlog the moment a drop targets it, even
-    // though `visible` (what `dropIndex` was actually counted over) never
-    // rendered it at all.
+    // regression: an unfiltered raw cache seats the hidden subtask as a real neighbour of the drop
     const parent = todo({ id: "parent-task", sprint_id: null });
     const subtask = todo({
       id: "hidden-subtask",
@@ -407,9 +360,6 @@ describe("sprintAssignmentPatch", () => {
     const second = todo({ id: "b", sprint_id: null, backlog_rank: 2000 });
     const moving = todo({ id: "e", sprint_id: "sprint-1", backlog_rank: 9000 });
 
-    // Gap 1, as the user saw it: between `first` and `second` — the
-    // Subtask, invisible on the page, was never one of the two rows either
-    // side of the indicator.
     const patch = sprintAssignmentPatch(
       moving,
       null,
@@ -419,14 +369,12 @@ describe("sprintAssignmentPatch", () => {
       1,
     );
 
-    // Without the fix this lands at 1250 — between `first` (1000) and the
-    // Subtask (1500) — instead of between `first` and `second`.
+    // without the fix this lands at 1250, between first and the invisible subtask
     expect(patch.backlog_rank).toBe(1500);
   });
 
   it("dropIndex exhaustion falls back to appending", () => {
     const moving = todo({ id: "e", sprint_id: null, backlog_rank: 9000 });
-    // Two neighbours with no room between them.
     const tied1 = todo({ id: "f", sprint_id: "sprint-1", backlog_rank: 1000 });
     const tied2 = todo({ id: "g", sprint_id: "sprint-1", backlog_rank: 1000 });
 
@@ -443,11 +391,7 @@ describe("sprintAssignmentPatch", () => {
   });
 
   it("a reorder within the same section only changes backlog_rank — column/sprint untouched", () => {
-    // An item already on the Board (has a column) but with no Sprint, being
-    // dragged to a new position among the Backlog's own ungrouped items —
-    // the M31-C regression this guards: the old "leaving every Sprint"
-    // branch would have cleared `column_id` on every in-place reorder too,
-    // since `targetSprintId` trivially equals `todo.sprint_id` here.
+    // regression: the old "leaving every sprint" branch cleared column_id on in-place reorders too
     const moving = todo({
       id: "e",
       sprint_id: null,
@@ -469,23 +413,8 @@ describe("sprintAssignmentPatch", () => {
   });
 });
 
-/**
- * The property the whole Backlog drag exists to satisfy: **the position the
- * insertion indicator showed is the position that gets persisted.**
- *
- * This drives the real pipeline end to end — `buildBacklogBoard` for the
- * rendered list, `resolveDropIndex` for the gap→stored-index translation and
- * `sprintAssignmentPatch` for the write — rather than testing any one of them
- * in isolation, because every bug this suite was written for lived in the
- * *seam* between them rather than inside one.
- *
- * The two lists are deliberately built from differently-ordered inputs. That
- * is not artificial: `visible` comes from `useVisibleTodos()`, whose `manual`
- * ordering is `orderByBoard` (column, then Board rank), while `full` comes
- * from the raw `["todos", boardId]` cache in fetch order. They are the same
- * rows in a different sequence, and the ordering must converge for the drop
- * to mean anything.
- */
+// the property that matters: wherever the drop indicator showed is where the card actually lands.
+// runs the real pipeline end to end since past bugs lived in the seam between its pieces, not inside one of them.
 describe("drop position — one source of truth", () => {
   const columns = [
     { id: "todo-1", board_id: "b-1", title: "To do", category: "todo" },
@@ -506,21 +435,15 @@ describe("drop position — one source of truth", () => {
     );
   }
 
-  /** The order the page renders, which is the order the user drags among. */
   const rendered = (rows: Todo[]) =>
     buildBacklogBoard(rows, [])
       .unplanned.map((row) => row.id)
       .join("");
 
-  /**
-   * One complete drag of `id` onto gap `gap`, exactly as `useBacklogDragEnd`
-   * performs it, returning the board afterwards.
-   */
   function drag(rows: Todo[], id: string, gap: number): Todo[] {
-    // What the page rendered — and what the gap index was counted over.
     const visible = buildBacklogBoard(rows, []).unplanned;
 
-    // The stored list, reached from the cache in its own (different) order.
+    // stored list, reached in the cache's own (different) fetch order
     const full = rows
       .slice()
       .reverse()
@@ -565,17 +488,11 @@ describe("drop position — one source of truth", () => {
   it("survives repeated reordering — every drop lands where it was shown", () => {
     let rows = section();
 
-    // Twelve consecutive drags across every gap, each asserted against the
-    // order the indicator promised for that specific drop. A single drag
-    // landing correctly proves little; the failure this guards only appeared
-    // once some rows had a real rank and others still did not.
     for (let i = 0; i < 12; i += 1) {
       const before = buildBacklogBoard(rows, []).unplanned;
       const mover = before[i % before.length].id;
       const gap = (i * 3) % (before.length + 1);
 
-      // Where the user was told it would land: splice the mover in above the
-      // row the gap sits on, over the list as rendered.
       const anchor = before[gap]?.id ?? null;
       const without = before.filter((row) => row.id !== mover);
       const at =

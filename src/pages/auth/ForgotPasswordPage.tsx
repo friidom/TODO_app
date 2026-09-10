@@ -8,19 +8,7 @@ import { FORM_SUBMIT } from "@/components/ui/fieldInput";
 import { useRequestPasswordReset } from "@/services/auth/usePasswordReset";
 import { validateEmail } from "@/utils/validation";
 
-/**
- * Step one of getting back in (M22).
- *
- * **The product had no way back at all before this.** Forgetting a password
- * meant the account was gone — no reset, no recovery, nothing in the codebase
- * — which is why this is the piece of the polish pass that mattered most.
- *
- * **The success state is the same whether or not the address exists**, and it
- * is worded to say so. Confirming "we sent you a link" only for real accounts
- * turns this screen into an account-existence oracle that needs no password and
- * no rate limit to walk. Supabase behaves this way at its end too; the
- * mutation deliberately does not inspect the result.
- */
+// Success message is identical whether or not the address exists — otherwise this screen is an account-existence oracle.
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string>();
@@ -58,9 +46,6 @@ export default function ForgotPasswordPage() {
             a new password. It expires in an hour.
           </p>
 
-          {/* Deliberately here rather than as an auto-retry: a resend that fires
-              on its own is how someone ends up with four links, three of which
-              are dead by the time they read the mail. */}
           <button
             type="button"
             onClick={() => request.reset()}
@@ -96,8 +81,6 @@ export default function ForgotPasswordPage() {
           }}
         />
 
-        {/* A transport failure, not a wrong address — the mutation cannot tell
-            you whether the account exists and does not try. */}
         {request.isError && (
           <p
             role="alert"

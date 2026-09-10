@@ -309,17 +309,51 @@ _Permission Model_ in `docs/IMPLEMENTATION_PLAN.md`.
 
 ## attachments
 
-Task files.
+Task files. Built in M32 (`20260831090000_create_attachments.sql`). The field
+list below is what shipped; it differs from what this document predicted, and
+the differences are each deliberate.
 
 Fields
 
 - id
+- board_id
 - todo_id
-- uploaded_by
+- uploader_id
+- filename
 - storage_path
-- file_name
+- size_bytes
 - mime_type
 - created_at
+
+`board_id` is the policy key, denormalised from the work item exactly as
+`comments.board_id` is, and pinned to it by the composite foreign key
+`(todo_id, board_id) → todos (id, board_id)` on cascade — the M3-18 pattern.
+It was absent from the prediction above; without it every policy evaluation
+would join out to `todos` to find the board, on every row.
+
+`uploader_id` is nullable and `on delete set null`, unlike
+`comments.author_id`, which is `not null` and cascades. A comment is its
+author's words; a file is a contribution to a work item the board collectively
+owns, so deleting an account must not delete files other people are working
+from. It follows `todos.creator_id` instead.
+
+`size_bytes` was not predicted and is needed: the list shows a size, and
+reading it off the storage object would be a request per row.
+
+There is no `updated_at` and no UPDATE grant of any kind. An attachment is
+immutable — every column is either the identity of a stored object or a fact
+about the bytes that were stored — so a rename is a delete and a re-upload.
+
+Any member may read. **Editors and above may upload** — the content matrix, not
+the comment matrix; a file stored on somebody else's board is content. The
+uploader, plus admins and owners, may delete. See _Permission Model_ in
+`docs/IMPLEMENTATION_PLAN.md`.
+
+The bytes live at `storage_path` in the private `task-attachments` bucket,
+keyed `<board_id>/<todo_id>/<attachment_id>.<ext>` — no user-supplied text,
+because the storage policies read the first path segment as the board. Reads
+are signed URLs; there is no public URL. `storage_path` is UNIQUE, which is
+what makes the row and the object one pair.
 
 ---
 

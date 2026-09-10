@@ -8,42 +8,19 @@ import { byRank } from "@/utils/rank";
 import type { TodoIndicator } from "./useKanbanDnd";
 
 interface BoardDragEndParams {
-  /** Every todo on the board — the flat array the drop mutation rewrites. */
   todos: Todo[];
-  /**
-   * What each column actually rendered, keyed by column id.
-   *
-   * Not the same thing as `todos` grouped: a filter, a sort or a swimlane means
-   * the user is looking at a subset, in an order of their choosing. The gap they
-   * dropped into is numbered over *this*, and `resolveDropIndex` is what turns
-   * that number back into one the stored column understands.
-   */
+  // What each column actually rendered, keyed by id — not the same as `todos` grouped, since a filter/sort/swimlane narrows it.
   visibleByColumn: Record<string, Todo[]>;
-  /** Columns sorted by position: the indices `columnIndicator` counts. */
   orderedColumns: IColumn[];
   activeTodo: Todo | null;
   activeColumn: IColumn | null;
   indicator: TodoIndicator;
   columnIndicator: number | null;
   resetDrag: () => void;
-  /**
-   * The column-reorder write, passed in rather than done here because the
-   * header menu's arrows perform the same one — two callers, one
-   * implementation. M2-18 moves it into `useColumnReorder`.
-   */
   moveColumn: (from: number, to: number) => void;
 }
 
-/**
- * What a drag means once it ends, and what the board looks like while one is
- * in flight. `docs/FRONTEND.md`: *"Business logic should never live inside UI
- * components."* This is the logic that used to sit inline in `KanbanBoard`'s
- * JSX — 45 lines of it, inside the `onDragEnd` prop.
- *
- * Deliberately not a `useCallback`: `DndContext` is not memoised, so a stable
- * identity would buy nothing, and the handler closes over almost every piece
- * of drag state.
- */
+// Not a useCallback — DndContext isn't memoised, and this closes over almost every piece of drag state anyway.
 export function useBoardDragEnd({
   todos,
   visibleByColumn,
@@ -64,8 +41,7 @@ export function useBoardDragEnd({
       const from = orderedColumns.findIndex((c) => c.id === active.id);
 
       if (from !== -1 && columnIndicator !== null) {
-        // The gap index counts the dragged column itself while it sits to the
-        // left of the target, so shift by one.
+        // gap index counts the dragged column itself while it's left of the target, so shift by one
         const to =
           from < columnIndicator ? columnIndicator - 1 : columnIndicator;
 
@@ -82,9 +58,7 @@ export function useBoardDragEnd({
         (c) => c.id === indicator.columnId,
       );
 
-      // Landing in a done column is worth celebrating; reordering inside one
-      // the card already sat in is not. Fired before the mutation so the ring
-      // rides the optimistic move, not the network round-trip.
+      // fired before the mutation so it rides the optimistic move, not the network round-trip
       if (
         destination?.category === "done" &&
         destination.id !== activeTodo.column_id
@@ -92,9 +66,7 @@ export function useBoardDragEnd({
         flashDone(activeTodo.id);
       }
 
-      // The gap the user saw, translated into the index `applyTodoMoved` splices
-      // at. The two are not the same number — see `dropIndex.ts` — and were only
-      // ever accidentally equal on an unfiltered board dragged upwards.
+      // translates the visible gap into the stored-array index — see dropIndex.ts for why they differ
       const index = resolveDropIndex(
         todos
           .filter((todo) => todo.column_id === indicator.columnId)
@@ -115,9 +87,6 @@ export function useBoardDragEnd({
     resetDrag();
   };
 
-  // A card on its way to another column: the destination gets highlighted and
-  // both headers swap to the transition state. Same-column drags are just
-  // reordering, so they stay quiet.
   const sourceId = activeTodo?.column_id ?? null;
   const destinationId = activeTodo ? indicator.columnId : null;
   const crossColumn = !!destinationId && destinationId !== sourceId;

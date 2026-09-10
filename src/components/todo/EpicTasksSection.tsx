@@ -25,33 +25,14 @@ import { byRank } from "@/utils/rank";
 import { cn } from "@/utils/cn";
 import { taskKey } from "@/utils/taskKey";
 
-/** Same shape as `SubtasksSection`'s table — Work · Priority · Assignee ·
- * Status — kept as a separate constant rather than shared, so a change to
- * one table's columns is not silently a change to both. */
+// Same shape as SubtasksSection's grid, kept separate so a column change to one isn't silently a change to both.
 const TASK_GRID =
   "grid items-center gap-x-2 px-3 grid-cols-[3.75rem_minmax(0,1fr)_1.5rem_1.5rem_7.5rem]";
 
-/**
- * One Epic's own Tasks (M28-A) — the container side of the hierarchy, sitting
- * where `SubtasksSection` sits for a Task, and never mounted alongside it:
- * `TaskDetailModal` renders exactly one of the two, decided by
- * `useTodoHierarchy`.
- *
- * **No progress bar.** The plan defers an Epic's own progress indicator to
- * M31 — this is a list of what the Epic contains, not a measure of how
- * finished it is, and `subtaskProgressByParent` (the card indicator's own
- * source) deliberately excludes Epic-parented rows from its count for the
- * same reason.
- *
- * **Two ways in, one relationship mechanism.** Creating a Task here and
- * picking an existing one both end at the same write — `parent_id =
- * epic.id` — through the existing `useAddTodo`/`useUpdateTodo` mutations.
- * Neither is a new path; this component is a second way to reach the one
- * `parent_id` column M27 introduced.
- */
+// Never mounted alongside SubtasksSection — TaskDetailModal renders exactly one, decided by useTodoHierarchy.
 export default function EpicTasksSection({ epic }: { epic: Todo }) {
   const { tasks, isPending } = useEpicTasks(epic.id);
-  const { canEditTodos } = usePermissions();
+  const { canEditTodos } = usePermissions();  
 
   const [collapsed, setCollapsed] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -165,9 +146,6 @@ export default function EpicTasksSection({ epic }: { epic: Todo }) {
   );
 }
 
-/** One Task belonging to this Epic — identical columns to `SubtasksSection`'s
- * row, kept as a sibling rather than a shared component (see the module
- * doc). */
 function EpicTaskRow({ task }: { task: Todo }) {
   const { openTask } = useOpenTask();
   const patch = useTodoPatch(task);
@@ -233,10 +211,6 @@ function EpicTaskRow({ task }: { task: Todo }) {
   );
 }
 
-/**
- * The two ways in: type a title to create one, or pick one that already
- * exists. Both end at the same `parent_id = epic.id` write.
- */
 function AddEpicTaskPanel({
   epic,
   onDone,
@@ -282,14 +256,7 @@ function AddEpicTaskPanel({
   );
 }
 
-/**
- * Create a new Task under this Epic — the same single-line flow
- * `AddSubtaskRow` uses, targeting `useAddTodo` instead of `useAddSubtask`:
- * unlike a Subtask, a Task under an Epic is a real board card and belongs in
- * a real column, so it goes through the ordinary create path with `parent_id`
- * riding along, not the Subtask-specific one that deliberately skips column
- * placement.
- */
+// Goes through useAddTodo, not useAddSubtask — a Task under an Epic is a real board card, unlike a Subtask.
 function NewEpicTaskRow({ epic, onDone }: { epic: Todo; onDone: () => void }) {
   const [title, setTitle] = useState("");
   const { data: columns = [] } = useColumns();
@@ -297,10 +264,7 @@ function NewEpicTaskRow({ epic, onDone }: { epic: Todo; onDone: () => void }) {
 
   const value = title.trim();
 
-  // The board's own first column, by rank — the same "start where new work
-  // starts" default a brand-new card gets from the header's quick-add form.
-  // An Epic has no column of its own for a child to inherit the way a
-  // Subtask inherits its Task's.
+  // board's first column by rank — an Epic has no column of its own to inherit
   const firstColumn = columns.slice().sort(byRank)[0];
 
   function submit() {
@@ -349,16 +313,6 @@ function NewEpicTaskRow({ epic, onDone }: { epic: Todo; onDone: () => void }) {
   );
 }
 
-/**
- * Assign an existing top-level (or other-Epic) Task to this Epic.
- *
- * The candidate list is exactly `canPickEpicParent` — the same predicate
- * `EpicParentControl` filters by, read the other direction: everything that
- * could legally choose this Epic as its parent, minus what already has.
- * Offering anything wider (a Subtask, another Epic, this Epic's own
- * existing Tasks) would be offering a write the database refuses or a
- * no-op.
- */
 function ExistingTaskPicker({
   epic,
   onDone,

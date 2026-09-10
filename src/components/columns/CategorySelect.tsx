@@ -21,13 +21,6 @@ interface Props {
   onChange: (value: ColumnCategory) => void;
 }
 
-/**
- * Swatch + label picker for a column's status category.
- *
- * `useTranslation` rather than i18next's bare `t`, so switching language
- * re-renders the label instead of leaving the previous one until something
- * else happens to re-render this.
- */
 export default function CategorySelect({ value, onChange }: Props) {
   const { t } = useTranslation();
 

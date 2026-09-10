@@ -23,25 +23,7 @@ import {
   useUpdateMemberRole,
 } from "@/services/members/useMemberMutations";
 
-/**
- * Change a member's role, or remove them.
- *
- * **Renders nothing at all when the actor may not act on this member** — no
- * disabled trigger, no greyed menu. The Owner's row is the case that matters:
- * the plan is explicit that the UI should not offer a control with no
- * explanation for the one role no control can change. `canActOnMember` is what
- * decides, and it refuses the Owner before it looks at rank, so this is absent
- * on that row for every caller including the Owner themselves.
- *
- * The options come from `assignableRoles`, so an admin sees viewer and editor
- * and an owner also sees admin — and neither is ever offered `owner`, because
- * ownership is not grantable through membership management. Nothing here
- * re-derives those rules; both come from `permissions.ts`.
- *
- * Removal confirms inline rather than through `window.confirm`, which blocks
- * the event loop — the same pattern `PendingInviteRow` uses, so destructive
- * confirmation looks the same wherever it appears.
- */
+// renders nothing at all when the actor can't act on this member — no disabled trigger, just absent (owner's row, always)
 export default function MemberActions({ member }: { member: BoardMember }) {
   const [open, setOpen] = useState(false);
   const [confirmingRemove, setConfirmingRemove] = useState(false);
@@ -78,8 +60,6 @@ export default function MemberActions({ member }: { member: BoardMember }) {
         <DropdownMenuRadioGroup
           value={member.role}
           onValueChange={(next) => {
-            // Selecting the role they already hold is a write that changes
-            // nothing; skip it rather than round-trip.
             if (next !== member.role) {
               updateRole.mutate({ userId: member.id, role: next });
             }

@@ -1,83 +1,28 @@
-/**
- * Who is looking at this board right now (M6-11).
- *
- * **Presence is not persisted and touches no cache.** It lives in the channel
- * and nowhere else: no table, no query key, no write path, and no fallback to
- * the member roster — a member with the tab closed is not present. The plan
- * asks for
- * "who is viewing the board, via the presence channel", and anything durable
- * would be a second, slower answer to a question whose whole value is that it is
- * live — plus a row to clean up after every crashed tab.
- *
- * Pure, so the reduction from Supabase's presence state to a list of people is
- * testable without a socket.
- */
+// Lives entirely in the channel — no table, no cache, no fallback to the roster. A closed tab is simply not present.
 
-/** What each client tracks about itself. Nothing but identity and when. */
 export interface PresenceMeta {
   user_id: string;
   at: string;
 }
 
-/**
- * Supabase's presence state, structurally.
- *
- * Keyed by presence key — this channel uses the user's id, so two tabs from one
- * person collapse into one entry rather than showing them twice. Each key holds
- * an array because a key *can* have several connections; the reduction below
- * does not care how many.
- */
+// keyed by presence key (the user's id here), each holding an array since one person can have several tabs open
 export type PresenceState = Record<string, PresenceMeta[]>;
 
-/**
- * **Everyone** currently connected to this board, by user id, in a stable order.
- *
- * **Self is included, and excluding it was the bug.** The first version filtered
- * the viewer out on the theory that "who else is here" was the question — which
- * made the list read one short of the truth in every case and, with two people
- * on a board, made A see exactly one avatar (B) and B see exactly one (A). Both
- * clients were working perfectly and both looked broken, because a roster that
- * silently omits you cannot be checked against what you can see.
- *
- * The list is the presence state and nothing else: a user appears here because
- * their socket is on this channel, and disappears when it goes. It is never
- * derived from the board's membership — a member with the tab closed is not
- * present, and presence is not a permission.
- *
- * Sorted by id rather than by arrival: presence state has no reliable ordering
- * across clients, and a list that reshuffles as people's sockets reconnect would
- * make avatars swap places for no reason anyone can see. No entry is special —
- * the viewer takes their place in that order like everyone else.
- */
+// self is included on purpose — excluding it used to make a 2-person board show each person exactly one avatar, not two
 export function viewersFrom(state: PresenceState): string[] {
   const ids = new Set<string>();
 
   for (const entries of Object.values(state)) {
-    // A key can hold several connections — the same person in two tabs — and
-    // the Set is what makes that one avatar rather than two.
     for (const entry of entries) {
       if (entry?.user_id) ids.add(entry.user_id);
     }
   }
 
+  // sorted rather than by arrival order — presence has no stable cross-client ordering, so this avoids avatars reshuffling on reconnect
   return [...ids].sort();
 }
 
-/**
- * Whether two rosters name the same people.
- *
- * **This is a render guard, not a nicety.** `viewersFrom` builds a fresh array
- * every time, and `sync` fires far more often than the roster actually changes:
- * Phoenix re-emits it after the initial state message, after every diff, and
- * after each rejoin — so re-tracking the same person, or a socket that blinks,
- * produces an identical list under a new reference. Handing that to `setState`
- * re-renders `BoardPage`, and `BoardPage` renders the whole active view, so a
- * presence heartbeat would repaint every card on the board.
- *
- * Comparing element-wise is sound *because* `viewersFrom` sorts: two rosters
- * with the same members always have them in the same order, so equal length
- * plus equal positions is equality of the set, with no allocation to check it.
- */
+// guards against re-rendering the whole board on every presence heartbeat, which fires far more often than the roster actually changes
 export function sameViewers(a: string[], b: string[]): boolean {
   if (a === b) return true;
   if (a.length !== b.length) return false;

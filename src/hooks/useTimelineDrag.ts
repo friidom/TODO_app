@@ -14,79 +14,35 @@ import {
   type DragMode,
 } from "@/services/views/timelineDrag";
 
-/**
- * Planning gestures on the axis: move a bar, drag an end, draw a new range.
- *
- * Pointer events rather than @dnd-kit, because a Gantt gesture isn't discrete.
- * The board's DnD resolves which gap between two cards, the calendar's resolves
- * which day cell — both are drop targets. Here the bar's *width* follows the
- * pointer, so the answer is a continuous position on one axis. Droppables would
- * mean 42 per row, measured every drag, to recover one division of the track.
- *
- * Not a second DnD architecture though: no drop targets, no collision
- * detection, no overlay. It reads the axis this view already defines and commits
- * through the same mutation hook every other date control uses.
- *
- * Why this doesn't re-render the board on every pointer move: raw pointer data
- * lives in a ref and never renders. State holds only the snapped result, written
- * through an equality check. Snapping is what makes that cheap — the output is a
- * column index, so dragging 200px across five columns produces five values, not
- * two hundred. TimelineRow is memoised and every other row keeps `draft: null`.
- *
- * The track is measured once per gesture, on pointerdown. A
- * getBoundingClientRect() in the move handler would be a forced layout per
- * frame, which is the actual cost people mean by "expensive drag".
- */
-
-/** The "+ Create Epic" row's own key — the Timeline's only create gesture
- * (M28-B removed plain top-level Task rows, see `timelineHierarchy.ts`;
- * M31-B removed each Epic's own "+ Create task" row). */
+// Pointer events, not @dnd-kit — a bar's width follows the pointer continuously, there's no discrete drop target to resolve.
+// Raw pointer position lives in a ref and never renders; state only holds the snapped column, so a drag costs a few renders, not one per frame.
 export const CREATE_EPIC_KEY = "__create-epic__";
 
-/**
- * How far a *move* must travel before it stops being a click. 8px, matching the
- * board's and the calendar's PointerSensor exactly — a bar is also a click
- * target, so this is the line between "I tapped this" and "I am moving this".
- *
- * Only `move` uses it. A resize edge and the create row aren't click targets,
- * and making someone travel 8px before a handle responds is latency with
- * nothing bought.
- */
+// 8px, matching the board/calendar sensors — a bar is also a click target.
 const MOVE_THRESHOLD = 8;
 
-/** What a gesture is acting on. `todo` is null only for the create row. */
 export interface DragTarget {
   key: string;
   todo: Schedulable | null;
-  /** `"draw"` sweeps out a new range; the rest edit an existing one. */
   mode: DragMode | "draw";
-  /** The range the gesture starts from. Null when drawing. */
   base: DayRange | null;
 }
 
-/** The live gesture, as the ref holds it. Never in state — see the note above. */
 interface Gesture extends DragTarget {
   originX: number;
   trackLeft: number;
   trackWidth: number;
   anchorTick: number;
-  /** Whether the pointer has travelled far enough for this to count. */
   live: boolean;
   range: DayRange | null;
 }
 
 export interface TimelineDrag {
-  /** Attach to the element whose box is exactly the track. */
   trackRef: React.RefObject<HTMLDivElement | null>;
-  /** The range being shown for one row, in place of its stored one. */
   draft: { key: string; range: DayRange } | null;
-  /** A gesture is in progress — used to suppress hover affordances. */
   dragging: boolean;
   begin: (event: React.PointerEvent, target: DragTarget) => void;
-  /**
-   * Whether the click that just fired was the tail of a drag and should be
-   * ignored. Consumes the flag, so it answers true at most once.
-   */
+  // Consumes the flag, so it answers true at most once.
   consumeClick: () => boolean;
 }
 
@@ -99,18 +55,8 @@ export function useTimelineDrag({
 }: {
   ticks: string[];
   scale: TimelineScale;
-  /** False for a viewer, who may read the timeline but not plan on it. */
   enabled: boolean;
-  /** Commit for an existing item. Resolves once the write has settled. */
   onSchedule: (todo: Schedulable, range: DayRange) => Promise<unknown>;
-  /**
-   * A create row swept out a range — open its title form on it.
-   *
-   * The key is `gesture.key` unchanged (M28-B): there are several create
-   * rows now — the "+ Create epic" row and one per expanded Epic group — so
-   * the caller needs to know *which* one just drew a range before it can
-   * decide where the pending form belongs.
-   */
   onDraw: (key: string, range: DayRange) => void;
 }): TimelineDrag {
   const trackRef = useRef<HTMLDivElement | null>(null);
@@ -121,33 +67,17 @@ export function useTimelineDrag({
     null,
   );
 
-  /**
-   * A gesture is in flight. Distinct from `dragging`, which is the narrower "it
-   * has travelled far enough to count". Window listeners have to attach the
-   * moment a pointer goes down, including for a move that may still turn out to
-   * be a click, and the ref alone would never re-run the effect.
-   */
+  // Broader than `dragging` — set the moment a pointer goes down, before we know if it'll turn into a click.
   const [active, setActive] = useState(false);
   const [dragging, setDragging] = useState(false);
 
-  /**
-   * The axis and the commit callbacks as they are *now*.
-   *
-   * Listeners attach once per gesture, so closing over these directly would pin
-   * them to the render that started it: a paging step mid-drag would snap
-   * against the previous window, and a stale onSchedule would commit through a
-   * mutation object that had moved on.
-   *
-   * Written in an effect with no dependency array rather than during render —
-   * that runs after every commit, the earliest a ref may be touched.
-   */
+  // Refreshed every render so a long-lived window listener never closes over a stale mutation.
   const latest = useRef({ ticks, scale, onSchedule, onDraw });
 
   useEffect(() => {
     latest.current = { ticks, scale, onSchedule, onDraw };
   });
 
-  /** The range a pointer at `clientX` implies, given the gesture in flight. */
   const rangeAt = useCallback((gesture: Gesture, clientX: number) => {
     const { ticks: axis, scale: zoom } = latest.current;
 
@@ -163,8 +93,7 @@ export function useTimelineDrag({
     if (!gesture.base) return null;
 
     if (gesture.mode === "move") {
-      // In columns, then in days — so one step at the `months` scale is a whole
-      // week and a task that began on a Wednesday still begins on a Wednesday.
+      // Steps in columns, not days, so a week-scale step keeps the same weekday.
       const steps = ticksMoved(
         clientX - gesture.originX,
         gesture.trackWidth,
@@ -176,22 +105,11 @@ export function useTimelineDrag({
 
     const day = axis[tick()];
 
-    // An end dropped on a column takes that whole column: the bar you released
-    // over is the period you meant. At the `weeks` scale the two are the same
-    // day and this is a no-op.
     return gesture.mode === "start"
       ? resizeStart(gesture.base, day)
       : resizeEnd(gesture.base, columnEnd(day, zoom));
   }, []);
 
-  /**
-   * The gesture is now real: dress the whole document for it.
-   *
-   * On the body rather than the bar, because the pointer spends most of a drag
-   * elsewhere and a cursor reverting the moment it leaves the 16px bar reads as
-   * the drag having been dropped. Same for user-select: a sweep across the track
-   * passes over every task title in the rail.
-   */
   const engage = useCallback((mode: DragMode | "draw") => {
     document.body.style.setProperty(
       "cursor",
@@ -219,8 +137,6 @@ export function useTimelineDrag({
 
     if (!gesture) return;
 
-    // A gesture that never travelled far enough is a click. Nothing to commit,
-    // nothing to suppress — the bar's own onClick should open the task.
     if (!gesture.live || !gesture.range) {
       setDraft(null);
 
@@ -236,10 +152,6 @@ export function useTimelineDrag({
     }
 
     if (gesture.mode === "draw" && !gesture.todo) {
-      // A create row: no row to write yet, so the range becomes the form's
-      // opening value and the draft is handed over with it. `gesture.key`
-      // says which create row this was, so the caller can route the pending
-      // title to the same one.
       setDraft(null);
       latest.current.onDraw(gesture.key, gesture.range);
 
@@ -255,14 +167,7 @@ export function useTimelineDrag({
     const committed = gesture.range;
 
     const settled = () => {
-      // Only if this row's draft is still the one this gesture wrote. A second
-      // drag started before the first write landed owns the bar now.
-      //
-      // Compared by value, not identity: the move handler keeps the previous
-      // draft object whenever the snapped result is unchanged (that's the render
-      // gate), so by the end of a drag the two routinely hold equal ranges in
-      // different objects. A reference check would leave the draft pinned
-      // forever, freezing the bar where it was dropped.
+      // Compared by value, not identity — the move handler reuses the draft object when unchanged, so a ref check would never clear.
       setDraft((current) =>
         current?.key === gesture.key &&
         current.range.start === committed.start &&
@@ -272,8 +177,6 @@ export function useTimelineDrag({
       );
     };
 
-    // Held until the write settles rather than dropped here — see
-    // `useTimelineSchedule` on why that is the frame with no snap-back.
     latest.current
       .onSchedule(gesture.todo, gesture.range)
       .then(settled, settled);
@@ -281,20 +184,15 @@ export function useTimelineDrag({
 
   const begin = useCallback(
     (event: React.PointerEvent, target: DragTarget) => {
-      // Left button only, and never a second gesture on top of a live one.
       if (!enabled || event.button !== 0 || gestureRef.current) return;
 
-      // A resize or sweep sets the suppression flag but produces no click on the
-      // bar to spend it — the handles are siblings of the button, not inside it.
-      // Left alone it would swallow the *next* genuine click, so a task would
-      // refuse to open once after every resize.
+      // Reset here — a resize/sweep sets this flag but fires no click of its own to consume it.
       suppressClickRef.current = false;
 
       const track = trackRef.current;
 
       if (!track || latest.current.ticks.length === 0) return;
 
-      // The one layout read of the whole gesture.
       const box = track.getBoundingClientRect();
 
       if (box.width <= 0) return;
@@ -311,7 +209,6 @@ export function useTimelineDrag({
         trackLeft: box.left,
         trackWidth: box.width,
         anchorTick,
-        // A move has to earn the gesture; a handle and the create row do not.
         live: target.mode !== "move",
         range: null,
       };
@@ -319,9 +216,6 @@ export function useTimelineDrag({
       gestureRef.current = gesture;
       setActive(true);
 
-      // Capture on the element that was pressed, so the gesture survives the
-      // pointer leaving the row — which it will, since a bar is 16px tall and
-      // people drag in arcs.
       event.currentTarget.setPointerCapture?.(event.pointerId);
 
       if (gesture.live) {
@@ -330,17 +224,12 @@ export function useTimelineDrag({
         gesture.range = range;
         engage(gesture.mode);
 
-        // A press with no travel on the create row is already a valid
-        // one-column range, which is what makes "click to create" and "drag to
-        // create" the same gesture rather than two.
         if (range) setDraft({ key: gesture.key, range });
       }
     },
     [enabled, rangeAt, engage],
   );
 
-  // Bound to the window rather than the bar, so a pointer that outruns the
-  // element still steers the gesture. Attached only while one is in flight.
   useEffect(() => {
     if (!active) return;
 
@@ -363,8 +252,6 @@ export function useTimelineDrag({
 
       gesture.range = range;
 
-      // THE render gate. Snapping means this is false for most moves, so a
-      // drag costs one render per column crossed rather than one per frame.
       setDraft((current) =>
         current?.key === gesture.key &&
         current.range.start === range.start &&
@@ -394,7 +281,6 @@ export function useTimelineDrag({
     };
   }, [active, rangeAt, finish, engage]);
 
-  // A gesture cannot outlive the view it was measured against.
   useEffect(() => () => finish(false), [finish]);
 
   const consumeClick = useCallback(() => {

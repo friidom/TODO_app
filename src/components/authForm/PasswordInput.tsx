@@ -4,24 +4,7 @@ import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { FIELD_INPUT, FIELD_INPUT_INVALID } from "@/components/ui/fieldInput";
 import { cn } from "@/utils/cn";
 
-/**
- * A password field you can look at (M22).
- *
- * **Its own component rather than a flag on `AuthField`.** The reveal button
- * has to sit *inside* the field's box, which means a positioned wrapper, extra
- * right padding on the input and a piece of state — none of which the four
- * non-password fields should carry. `AuthField` stays the plain case; this is
- * the one with a control in it.
- *
- * **The value is never touched — only `type` changes.** That sounds obvious and
- * is the bug worth naming: implementations that swap the input for a text
- * clone, or that mirror the value into a second piece of state, lose the
- * caret position, break the browser's password manager, and can drop
- * characters typed during the swap. One element, one value, one attribute.
- *
- * `autoComplete` is still whatever the caller passes (`current-password`,
- * `new-password`) so managers keep working while revealed.
- */
+// Only `type` toggles, the value is never touched — swapping in a text clone or mirroring the value loses caret position and breaks password managers.
 export default function PasswordInput({
   id,
   label,
@@ -42,9 +25,7 @@ export default function PasswordInput({
   disabled?: boolean;
   autoComplete: string;
   placeholder?: string;
-  /** Quiet helper text under the field — the password rule, typically. */
   hint?: string;
-  /** Rendered opposite the label: the "Forgot password?" link on sign-in. */
   labelAction?: React.ReactNode;
 }) {
   const [revealed, setRevealed] = useState(false);
@@ -80,8 +61,6 @@ export default function PasswordInput({
           aria-invalid={Boolean(error)}
           aria-describedby={describedBy}
           onChange={(e) => onChange(e.target.value)}
-          // `pr-10` reserves the button's column so a long password scrolls
-          // under the label rather than behind the icon.
           className={cn(FIELD_INPUT, "pr-10", error && FIELD_INPUT_INVALID)}
         />
 
@@ -89,9 +68,6 @@ export default function PasswordInput({
           type="button"
           onClick={() => setRevealed((on) => !on)}
           disabled={disabled}
-          // A real button, so it is reachable by Tab and operable by Enter and
-          // Space with no key handling of our own. `aria-pressed` says it is a
-          // toggle; the label says what pressing it will do next.
           aria-label={revealed ? "Hide password" : "Show password"}
           aria-pressed={revealed}
           aria-controls={id}

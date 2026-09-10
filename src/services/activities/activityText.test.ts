@@ -35,8 +35,6 @@ describe("describeActivity — work items", () => {
   });
 
   it("falls back to the title when the key was never allocated", () => {
-    // `board_key` comes from a BEFORE INSERT trigger, so a card deleted while
-    // its insert was still in flight has a title and no key.
     const line = describeActivity(
       entry({ action: "created", payload: { title: "Fix it" } }),
       CTX,
@@ -64,8 +62,6 @@ describe("describeActivity — work items", () => {
   });
 
   it("still reads when the source column has been deleted", () => {
-    // The trigger snapshots the title, but a card that was in no column at all
-    // snapshots null — the sentence has to survive that too.
     const line = describeActivity(
       entry({
         action: "moved",
@@ -120,8 +116,6 @@ describe("describeActivity — work items", () => {
   });
 
   it("carries the destination status as the chip", () => {
-    // The half of an entry people scan for: the sentence says what happened,
-    // the chip says where it landed.
     const line = describeActivity(
       entry({
         action: "moved",
@@ -157,7 +151,6 @@ describe("describeActivity — work items", () => {
   });
 
   it("does not link an item that is no longer on the board", () => {
-    // The rule that keeps a feed row from opening a "Task not found" modal.
     const line = describeActivity(
       entry({
         entity_id: "todo-gone",
@@ -182,8 +175,6 @@ describe("describeActivity — work items", () => {
 
 describe("describeActivity — field changes", () => {
   it("spells a priority the way the rest of the product does", () => {
-    // Through `PRIORITIES`, so the feed cannot call `highest` anything the
-    // sort, the filter and the card chip do not.
     const line = describeActivity(
       entry({
         action: "priority_changed",
@@ -262,9 +253,7 @@ describe("describeActivity — field changes", () => {
     expect(line.detail).toEqual({ label: "Type", value: "Bug" });
   });
 
-  it("reads a description change with no value in the detail (M25)", () => {
-    // The migration's own rule: description carries no from/to, so there is
-    // nothing to put in a chip even though the sentence is a real event.
+  it("reads a description change with no value in the detail", () => {
     const line = describeActivity(
       entry({
         action: "description_changed",
@@ -277,7 +266,7 @@ describe("describeActivity — field changes", () => {
     expect(line.detail).toBeNull();
   });
 
-  it("reads an estimate change (M25)", () => {
+  it("reads an estimate change", () => {
     const line = describeActivity(
       entry({
         action: "estimate_changed",
@@ -290,10 +279,7 @@ describe("describeActivity — field changes", () => {
     expect(line.detail).toEqual({ label: "Estimate", value: "5" });
   });
 
-  it("reads an estimate cleared to null as None (M25)", () => {
-    // The null-vs-zero distinction M24-A's constraint protects has to survive
-    // the trip through the payload too: a cleared estimate reads "None", not
-    // "0" and not a blank chip.
+  it("reads an estimate cleared to null as None", () => {
     const line = describeActivity(
       entry({
         action: "estimate_changed",
@@ -305,7 +291,7 @@ describe("describeActivity — field changes", () => {
     expect(line.detail).toEqual({ label: "Estimate", value: "None" });
   });
 
-  it("reads a written zero estimate as 0, not as None (M25)", () => {
+  it("reads a written zero estimate as 0, not as None", () => {
     const line = describeActivity(
       entry({
         action: "estimate_changed",
@@ -379,9 +365,6 @@ describe("describeActivity — membership", () => {
   });
 
   it("still names someone who has been removed from the roster", () => {
-    // The removal entry is written by the same trigger that removes them, so
-    // by the time anyone reads it the roster no longer lists them. This is the
-    // case M7-05's "must still explain itself" rule is really about.
     const line = describeActivity(
       entry({
         entity_type: "member",
@@ -397,7 +380,6 @@ describe("describeActivity — membership", () => {
 
 describe("describeActivity — unknown events", () => {
   it("renders a true sentence rather than throwing", () => {
-    // Reachable if a later migration adds an event this build predates.
     const line = describeActivity(
       entry({ entity_type: "todo", action: "estimated" }),
       CTX,
@@ -416,7 +398,7 @@ describe("describeActivity — unknown events", () => {
   });
 });
 
-describe("describeActivity — subtasks (M27)", () => {
+describe("describeActivity — subtasks", () => {
   it("reads a subtask added, naming the child", () => {
     const line = describeActivity(
       entry({ action: "subtask_added", payload: { board_key: 78 } }),
@@ -461,7 +443,7 @@ describe("describeActivity — subtasks (M27)", () => {
   });
 });
 
-describe("describeActivity — epics (M28-A)", () => {
+describe("describeActivity — epics", () => {
   it("reads a task added to an epic, naming the task", () => {
     const line = describeActivity(
       entry({ action: "task_added_to_epic", payload: { board_key: 78 } }),
@@ -546,9 +528,7 @@ describe("describeActivity — epics (M28-A)", () => {
     expect(line.text).toBe("made KAN-23 a subtask");
   });
 
-  it("renders a pre-M28-A row exactly as before (no type fields at all)", () => {
-    // The backward-compatibility case: rows written before this migration
-    // have `from`/`to` only, and could never have had an Epic parent.
+  it("renders an old row with no type fields exactly as before", () => {
     const gained = describeActivity(
       entry({
         action: "parent_changed",

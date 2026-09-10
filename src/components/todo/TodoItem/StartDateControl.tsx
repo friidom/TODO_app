@@ -12,40 +12,16 @@ import {
 } from "@/utils/dueDate";
 import { cn } from "@/utils/cn";
 
-/**
- * When a work item is meant to *begin* (M20).
- *
- * **`DueDateControl`'s shape, which is what the plan asked for** — the same
- * popover, the same `DatePanel`, the same "receives the instant to store" idiom
- * that lets a control serve both a saved row and a draft. What it deliberately
- * does *not* copy is the tone: a due date shouts overdue in red and today in
- * amber because a deadline that has passed is news, whereas a start date in the
- * past is the ordinary state of every task already underway. Colouring it would
- * paint most of a healthy board red.
- *
- * **The value is a `timestamptz` holding midnight UTC**, exactly like
- * `due_date` — see `20260817090000_todos_start_date.sql` for why the column is
- * not the `date` the plan first named, and `utils/dueDate.ts` for the
- * convention both now share. Nothing here converts a timezone: the stored value
- * is sliced to a day and a chosen day is written back with an explicit `Z`.
- *
- * **`notAfter` keeps the range valid before the write.** `todos_date_range_check`
- * refuses `start_date > due_date`, so the days past the due date are disabled
- * rather than offered and then rejected.
- */
+// Unlike the due date, this one never turns red for being in the past — a start date behind today is just a task already underway.
 export default function StartDateControl({
   value: startDate,
   onChange,
   notAfter,
   alwaysVisible = false,
 }: {
-  /** The stored instant, or null. */
   value: string | null;
-  /** Receives the instant to store, or null to clear. */
   onChange: (value: string | null) => void;
-  /** The item's due date as a stored instant, where one is known. */
   notAfter?: string | null;
-  /** Keep the trigger visible instead of revealing it on row hover. */
   alwaysVisible?: boolean;
 }) {
   const { mounted, close, triggerProps, panelProps } = useCardPopover();
@@ -78,10 +54,7 @@ export default function StartDateControl({
             "coarse:opacity-100 opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
         )}
       >
-        {/* The glyph stays even once a date is set, unlike the due date's: this
-            control sits in a labelled field beside another date, and a bare
-            "Aug 12" in each row would make the two impossible to tell apart at
-            a glance. */}
+        {/* icon stays even with a date set, so this doesn't get confused with the due date beside it */}
         <PlayIcon className="size-3" strokeWidth={startDate ? 2.5 : 2} />
         {startDate && formatDue(startDate, todayISO(), i18n.language)}
       </button>

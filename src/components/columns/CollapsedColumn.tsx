@@ -12,14 +12,7 @@ interface Props {
   onExpand: () => void;
 }
 
-/**
- * The narrow rail a collapsed column shrinks to. Reads top to bottom: title,
- * count, the limit warning if there is one, then the control to bring it back.
- *
- * It carries its own draggable with the same id and `type: "column"` data as
- * the expanded one, so a collapsed column reorders exactly like any other. Only
- * one of the two renders at a time, so the ids never collide.
- */
+// Same draggable id/type as the expanded column — only one of the two ever renders, so ids never collide.
 export default function CollapsedColumn({
   column,
   headerTitle,
@@ -37,15 +30,10 @@ export default function CollapsedColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        // Height from the flex row, matching the expanded column (M17). The
-        // `max-h-[calc(100vh-220px)]` this replaced hard-coded the height of
-        // every bar above the board, which the redesign changed.
         "group/rail rounded-surface border-hairline bg-surface flex h-fit max-h-full w-11 shrink-0 flex-col items-center gap-3 border py-3",
         isDragging && "opacity-40",
       )}
     >
-      {/* Title and count are the drag handle, matching the expanded column
-          where only the header starts a drag. */}
       <div
         {...attributes}
         {...listeners}
@@ -65,7 +53,6 @@ export default function CollapsedColumn({
 
       {breach && <LimitWarning message={breach} side="right" />}
 
-      {/* Hover-only, like the collapse button on an expanded column. */}
       <button
         type="button"
         onClick={onExpand}
