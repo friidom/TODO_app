@@ -5,16 +5,21 @@ import type { Request, RequestHandler, Response } from "express";
 import { toAppError } from "../../lib/errors.js";
 import { requireActor } from "../../middleware/requireAuth.js";
 import { clearRefreshCookie, REFRESH_COOKIE, setRefreshCookie } from "./auth.cookies.js";
-import {
-  forgotPasswordSchema,
-  loginSchema,
-  logoutSchema,
-  registerSchema,
-  resetPasswordSchema,
-  usernameAvailableSchema,
+import type {
+  ForgotPasswordInput,
+  LoginInput,
+  LogoutQuery,
+  RegisterInput,
+  ResetPasswordInput,
+  UsernameAvailableQuery,
 } from "./auth.schema.js";
 import * as authService from "./auth.service.js";
 import type { AuthResult, RequestMeta } from "./auth.service.js";
+
+// These casts ASSUME validate() ran. auth.routes.ts wires one for every route
+// below, and the cast is sound only while that stays true — drop a validate()
+// and the service silently receives raw input wearing a validated type. The
+// type system cannot catch that, so the schema and the route belong together.
 
 function metaOf(req: Request): RequestMeta {
   const ip = req.ip;
@@ -51,13 +56,13 @@ function sendSession(res: Response, result: AuthResult, status: number): void {
 }
 
 export const register: RequestHandler = async (req, res) => {
-  const input = registerSchema.parse(req.body);
+  const input = req.body as RegisterInput;
 
   sendSession(res, await authService.register(input, metaOf(req)), 201);
 };
 
 export const login: RequestHandler = async (req, res) => {
-  const input = loginSchema.parse(req.body);
+  const input = req.body as LoginInput;
 
   sendSession(res, await authService.login(input, metaOf(req)), 200);
 };
@@ -83,7 +88,7 @@ export const refresh: RequestHandler = async (req, res) => {
 };
 
 export const logout: RequestHandler = async (req, res) => {
-  const { all } = logoutSchema.parse(req.query);
+  const { all } = req.query as LogoutQuery;
 
   await authService.logout(refreshTokenOf(req), all === "true");
 
@@ -97,7 +102,7 @@ export const me: RequestHandler = async (req, res) => {
 };
 
 export const forgotPassword: RequestHandler = async (req, res) => {
-  const { email } = forgotPasswordSchema.parse(req.body);
+  const { email } = req.body as ForgotPasswordInput;
 
   await authService.forgotPassword(email);
 
@@ -105,7 +110,7 @@ export const forgotPassword: RequestHandler = async (req, res) => {
 };
 
 export const resetPassword: RequestHandler = async (req, res) => {
-  const input = resetPasswordSchema.parse(req.body);
+  const input = req.body as ResetPasswordInput;
 
   await authService.resetPassword(input);
 
@@ -115,7 +120,7 @@ export const resetPassword: RequestHandler = async (req, res) => {
 };
 
 export const usernameAvailable: RequestHandler = async (req, res) => {
-  const { username } = usernameAvailableSchema.parse(req.query);
+  const { username } = req.query as UsernameAvailableQuery;
 
   res.json({ available: await authService.usernameAvailable(username) });
 };

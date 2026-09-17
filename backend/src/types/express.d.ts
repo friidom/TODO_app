@@ -1,8 +1,13 @@
-// Optional because the type can't express "set by requireAuth" —
-// requireActor() does that check at runtime instead.
+import type { BoardRole } from "../lib/permissions.js";
+
+// Both are optional because the type cannot express "set by an earlier
+// middleware". requireActor() and requireBoard() do that check at runtime, and
+// both throw a 500 rather than a 401/404 — reaching a handler without its
+// middleware is a wiring bug, not something a client did.
 declare module "express-serve-static-core" {
   interface Request {
     actor?: { id: string };
+    board?: { id: string; role: BoardRole };
   }
 }
 

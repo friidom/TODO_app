@@ -1,7 +1,13 @@
 import { createHash } from "node:crypto";
 
-// Must stay in sync with the profiles_username_shape CHECK and
-// src/utils/username.ts. B6-08 decides which of the three survive.
+// B6-08, decided: the rule lives in TWO places, not three — the database
+// (profiles_username_shape + profiles_username_lower_key, the guarantee) and
+// this file (validation, plus the suffix resolution a CHECK cannot do).
+//
+// src/utils/username.ts is the third copy and is deliberately kept for now:
+// deleting it today would cost the sign-up form its instant feedback while the
+// frontend still talks to Supabase. B8 removes it, once the form calls
+// GET /auth/username-available instead.
 
 export const USERNAME_MIN_LENGTH = 3;
 export const USERNAME_MAX_LENGTH = 30;

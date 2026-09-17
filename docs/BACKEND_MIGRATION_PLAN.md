@@ -2,8 +2,8 @@
 
 **Strategy:** CLEAN START. We build a new database and a new backend from scratch. **No existing Supabase data is preserved.** All current data is disposable test data.
 
-**Status:** living document. **B0–B5 are complete** (see §16). Everything from B6 onward is unbuilt.
-**Revised:** 2026-09-17 — B5 landed; §21.5–21.8 closed; a second board-deletion defect found and fixed (migration `0008`).
+**Status:** living document. **B0–B6 are complete** (see §16). Everything from B7 onward is unbuilt.
+**Revised:** 2026-09-17 — B6 landed: the RLS replacement is in middleware, with a shared parity fixture keeping the two permission matrices honest.
 **Companion documents:**
 - `docs/SUPABASE_DATABASE_AUDIT.md` — what the current database looks like. **This is now the specification for the new schema**, not just background reading.
 - `docs/IMPLEMENTATION_PLAN.md` — the product roadmap (M0–M32) that produced the current system.
@@ -90,7 +90,9 @@ And what it **adds**, which is easy to miss:
 
 **B0–B5 are done.** `backend/` builds, validates its environment with Zod at boot, owns one `pg` pool that Prisma borrows through `PrismaPg`, serves `GET /health` (process + database) and a mounted `/api/v1`, maps PostgreSQL SQLSTATEs to HTTP statuses, and can write as a known actor through `withActor`. The 15-table schema is applied from eight hand-written SQL migrations (0001–0006 create it; 0007 and 0008 fix the board-deletion defect in §21.11 and §21.12) and verified against the catalogs.
 
-**Authentication is live.** Register, login by email or username, `/me`, rotating refresh sessions, logout, password reset and username availability all work end to end — argon2id hashes, a 15-minute access JWT held in memory, and an opaque refresh token stored only as `sha256` behind an HttpOnly cookie. `POST /auth/register` reproduces `provision_user` in one transaction: account, profile, "My Space", "My Board" and its four columns. The database holds no rows. The next step is **B6: authorization**.
+**Authorization is live too.** `requireAuth → boardAccess → requireRole → validate` is the chain every B7 route will sit behind. `boardAccess` answers 404 rather than 403 for a non-member, so non-membership is indistinguishable from non-existence, and one shared resolver derives the board from a `:todoId`, `:columnId`, `:sprintId`, `:commentId` or `:attachmentId` before checking membership — a pasted id from another board 404s.
+
+**Authentication is live.** Register, login by email or username, `/me`, rotating refresh sessions, logout, password reset and username availability all work end to end — argon2id hashes, a 15-minute access JWT held in memory, and an opaque refresh token stored only as `sha256` behind an HttpOnly cookie. `POST /auth/register` reproduces `provision_user` in one transaction: account, profile, "My Space", "My Board" and its four columns. The database holds no rows beyond what a probe or a manual test puts there. The next step is **B7: the REST API modules**.
 
 ---
 
@@ -1791,35 +1793,41 @@ Plus two specific to this migration:
 
 ---
 
-## B6 — Backend authorization replacing RLS
+## B6 — Backend authorization replacing RLS ✅ DONE
 
 **Goal.** The permission model, reproduced in Express, with tests.
 
 **Why it exists.** ~30 RLS policies are about to stop existing. Without an equivalent, this migration is a downgrade in safety dressed up as an upgrade in architecture.
 
-**Prerequisites.** B5.
+**Prerequisites.** B5 ✅.
 
 **Tasks.**
 
-- **B6-01** — Copy `src/services/members/permissions.ts` to `backend/src/lib/permissions.ts` **with its test file**, plus a parity test across the two packages.
-- **B6-02** — `boards.repo.accessibleBoardIds(actor)` — the one function (§10.7). Document it in the file as the swap point.
-- **B6-03** — `members.repo.roleOf(boardId, userId)`.
-- **B6-04** — `middleware/boardAccess.ts` — resolves `:boardId`, or derives it from `:todoId` / `:commentId` / `:attachmentId` / `:sprintId` through one shared resolver. **404, not 403,** for a non-member.
-- **B6-05** — `middleware/requireRole.ts`.
-- **B6-06** — `middleware/validate.ts` (Zod for body / params / query).
-- **B6-07** — Establish the repository convention: **every board-scoped repo function takes `boardId` first, as a required parameter** (§10.3). Write it down where it will be read.
-- **B6-08** — Resolve the username-rule duplication: the rules currently exist in SQL, in `utils/username.ts`, and will exist in the backend. **Keep two at most; record which and why.**
-- **B6-09** — Tests for the middleware in isolation: non-member → 404 · viewer on an editor route → 403 · a valid member gets `req.board.role` · a todo id from another board → 404.
+- **B6-01** ✅ — `lib/permissions.ts`, copied from `src/services/members/permissions.ts` unchanged apart from its header, which inverts: the backend copy is now the authority and the frontend one is the mirror. Its test file came with it. **Parity is a shared JSON fixture** — see the decision below.
+- **B6-02** ✅ — `modules/boards/boards.repo.ts#accessibleBoardIds(actor)`. Membership alone is the whole answer, because `boards_add_owner_membership` gives every board an owner row, so "owner ∪ member" collapses to "member". Documented in the file as the swap point.
+- **B6-03** ✅ — `modules/members/members.repo.ts#roleOf(boardId, userId)`, a primary-key lookup on `(board_id, user_id)`. Returns null for a non-member **and** for a role outside the matrix — an unrecognised role is a broken row, and "no access" is the only safe reading of it.
+- **B6-04** ✅ — `middleware/boardAccess.ts`. One shared resolver covers `:boardId` and five child params — `:columnId`, `:todoId`, `:sprintId`, `:commentId`, `:attachmentId`. (`:columnId` is not in the original list, but §11.5 routes `/columns/:columnId`, so it belongs to the same resolver.) **404, not 403**, for a non-member, for a board that does not exist, and for a malformed id — all three answer byte-identically.
+- **B6-05** ✅ — `middleware/requireRole.ts`. 403, not 404, because membership is already established by the time it runs.
+- **B6-06** ✅ — `middleware/validate.ts` (Zod over body / params / query), reporting through the ZodError branch B5 added to `toAppError`, so there is still exactly one error shape. **B5's six `schema.parse()` call sites moved onto it**, and `auth:verify`'s 95 checks confirm the behaviour is unchanged.
+- **B6-07** ✅ — the repository convention is written down in `backend/src/modules/CONVENTIONS.md`, which is where someone adding a module will look.
+- **B6-08** ✅ — **decided: two copies, not three.** The database keeps the guarantee (`profiles_username_shape` + `profiles_username_lower_key`); `backend/src/lib/username.ts` keeps validation and the suffix resolution a CHECK cannot express. `src/utils/username.ts` is kept for now and **deleted in B8**, when the sign-up form calls `GET /auth/username-available` instead of holding its own regex — removing it today would cost that form its instant feedback while it still talks to Supabase. Recorded in `lib/username.ts` itself.
+- **B6-09** ✅ — `npm run db:verify-authz`, 41 checks over real HTTP against the real schema.
 
-**Expected result.** Any later route reads `requireAuth, boardAccess, requireRole("editor"), validate(schema), handler`.
+**Expected result.** Any later route reads `requireAuth, boardAccess, requireRole("editor"), validate(schema), handler`. ✅
 
-**Files affected.** `backend/src/middleware/**`, `lib/permissions.ts`, `modules/boards/boards.repo.ts`, `modules/members/members.repo.ts`.
+**Files affected.** `backend/src/middleware/{boardAccess,requireRole,validate}.ts`, `lib/permissions.ts`, `modules/boards/boards.repo.ts`, `modules/members/members.repo.ts`, `types/actor.ts`, `types/express.d.ts`, `modules/CONVENTIONS.md`, `db/verifyAuthz.ts`, plus `permissions-matrix.json` and a parity test in each package.
 
-**Risks.** 🔴 If `boardAccess` is wrong, every endpoint after it is wrong. 🟡 The 404-not-403 rule is counter-intuitive and will be "fixed" by someone unless the reason is in a comment.
+**Database changes.** **None.** Every table and index B6 needs was created in B3: `board_members` is keyed `(board_id, user_id)` for `roleOf`, and `board_members_user_id_idx` serves `accessibleBoardIds`. No migration.
 
-**Verification.** ☐ permissions parity test green in both packages ☐ all four B6-09 tests pass ☐ non-membership is indistinguishable from non-existence ☐ **`accessibleBoardIds` appears exactly once in the codebase**.
+**The parity decision (B6-01).** The two `permissions.ts` copies cannot import one another — the backend's `rootDir: src` makes a cross-package import fail `tsc --noEmit` — and a workspace package would add build tooling this project does not have. So `permissions-matrix.json` sits at the repo root with **228 generated cases** covering every exported function, and each package has an identical `permissions.parity.test.ts` that reads it with `readFileSync` and checks its own implementation. Drift fails a test in whichever package moved. **Verified by injecting a deliberate change** (`canAttach` widened to viewer) and confirming the backend test failed naming the exact rule.
 
-**Frontend changes.** None.
+**Risks.** 🔴 If `boardAccess` is wrong, every endpoint after it is wrong. 🟡 The 404-not-403 rule is counter-intuitive and will be "fixed" by someone unless the reason is in a comment — it is, at the branch and in CONVENTIONS.md. 🟡 One membership query per request; it is a primary-key lookup, and nobody should add a cache without measuring first.
+
+**⚠️ Carried forward.** §10.7 calls `accessibleBoardIds` "the single swap point", but §10.4 has `boardAccess` read `roleOf` directly — so an org-wide reader (Director) would be listed a board by `accessibleBoardIds` and then 404'd by `boardAccess`. **Widening org-level read means changing both.** Not a defect today, because `orgRole` has one value; recorded here so it is not discovered at the moment someone builds the Director role.
+
+**Verification.** ☑ permissions parity test green in **both** packages, and proven to fail on injected drift ☑ all four B6-09 cases pass, plus the five child resolvers and the pairing check ☑ non-membership is byte-identical to non-existence ☑ **`accessibleBoardIds` is defined exactly once** ☑ B5's `auth:verify` still green at 95 checks after the validate refactor ☑ B4's two probes still green.
+
+**Frontend changes.** One new test file (`permissions.parity.test.ts`). No source change.
 
 ---
 
@@ -2032,8 +2040,8 @@ B2  Local PostgreSQL         ✅ done
 B3  Fresh schema             ✅ done
 B4  Connection + data access ✅ done
 B5  Authentication           ✅ done
-B6  Authorization            ⬜ NEXT
-B7  REST API modules  ──┬── B7-A boards/members/invites
+B6  Authorization            ✅ done
+B7  REST API modules  ⬜ NEXT ──┬── B7-A boards/members/invites
                         ├── B7-B columns/todos
                         ├── B7-C sprints
                         ├── B7-D comments/activity/notifications
@@ -2270,30 +2278,33 @@ Get the first one wrong and one request marks **every employee's** notifications
 
 # 20. Next implementation step
 
-> ### **B6 — Backend authorization replacing RLS**
+> ### **B7 — Core REST API modules**
 >
-> B5 gave every request a `req.actor`. ~30 RLS policies are about to stop existing, and without an equivalent this migration is a downgrade in safety dressed up as an upgrade in architecture.
+> Every endpoint in §11, with the RPC rules ported faithfully. B6 made the chain available, so each route is now `requireAuth, boardAccess, requireRole(...), validate(schema), handler` and the interesting work is the service layer, not the guarding.
 >
-> `accessibleBoardIds` · `roleOf` · `boardAccess` · `requireRole` · `validate` — §10 and §16.
+> Five sub-phases: **B7-A** boards/members/invites · **B7-B** columns/todos · **B7-C** sprints · **B7-D** comments/activity/notifications · **B7-E** the cross-board feed. B7-A first — everything else hangs off a board.
 
-## Before B6 starts
+## Before B7 starts
 
 | | Item | Status |
 |---|---|---|
-| 1 | §21.5–21.8 | ✅ closed by B5 — see the table at the top of §9 |
-| 2 | §21.10 database collation | ⬜ still open, blocks **B12**, not B6 |
-| 3 | §21.9 production file storage | ⬜ open, blocks **B10** |
-| 4 | Nothing to install — B6 adds no package | — |
+| 1 | The middleware chain | ✅ B6 |
+| 2 | `lib/permissions.ts` and its parity fixture | ✅ B6 |
+| 3 | The repo convention (`boardId` first, required) | ✅ `backend/src/modules/CONVENTIONS.md` |
+| 4 | §21.9 production file storage | ⬜ open, blocks **B10**, not B7 |
+| 5 | §21.10 database collation | ⬜ open, blocks **B12** |
+| 6 | Nothing to install for B7 | — |
 
-`src/services/members/permissions.ts` is the specification for `lib/permissions.ts`, and B6-01 requires a parity test across the two packages.
+`lib/rank.ts` is the one copy B7 still owes — `src/utils/rank.ts` ported with a parity test, the same treatment `permissions.ts` got in B6.
 
-## What NOT to do in B6
+## What NOT to do in B7
 
-- **Never run `prisma migrate dev`** (§8.7 rule 4).
-- **Never hand-edit `schema.prisma`.** It is generated by `prisma db pull`.
-- **Never use `$executeRawUnsafe`.** A parameterised `$queryRaw` tagged template is fine, and `auth.repo.ts#findUserByUsername` is the precedent: it exists to hit `profiles_username_lower_key`, which neither a Prisma `equals` nor `mode: "insensitive"` can use.
-- **404, not 403,** for a non-member. A 403 turns every board id into an existence oracle.
-- Do not put a role in the access token. It is deliberately absent (§9.2), and a role read per request is what makes a demotion immediate.
+- **Never run `prisma migrate dev`** (§8.7 rule 4); **never hand-edit `schema.prisma`**; **never use `$executeRawUnsafe`**.
+- **Do not read a board id from `req.params`, `req.body` or `req.query` in a handler.** `boardAccess` already validated one against membership and put it in `req.board.id`; reading it again bypasses that.
+- **Do not put an author or uploader rule in `requireRole`.** Rank cannot express them — call `canDeleteComment` / `canDeleteAttachment` from the service.
+- **Do not inline the membership query.** `accessibleBoardIds` is the swap point and must stay the only one.
+- **404, not 403,** for anything a non-member names.
+- Actor-derived fields (`creator_id`, `author_id`, `uploader_id`, `owner_id`) are **always set server-side and ignored if present in the body.**
 - Do not touch `src/` (the frontend) — that is B8.
 
 # 21. Open architectural decisions

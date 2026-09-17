@@ -1,0 +1,1330 @@
+{
+  "$comment": "Shared parity fixture for the board role matrix. Read independently by src/services/members/permissions.parity.test.ts and backend/src/lib/permissions.parity.test.ts. If the two implementations drift, one of those tests fails. null stands for a null or undefined argument. Regenerate only when a rule deliberately changes, and change both packages with it.",
+  "boardRoles": [
+    "viewer",
+    "editor",
+    "admin",
+    "owner"
+  ],
+  "roleRank": [
+    {
+      "role": "viewer",
+      "expected": 1
+    },
+    {
+      "role": "editor",
+      "expected": 2
+    },
+    {
+      "role": "admin",
+      "expected": 3
+    },
+    {
+      "role": "owner",
+      "expected": 4
+    },
+    {
+      "role": null,
+      "expected": null
+    },
+    {
+      "role": "",
+      "expected": null
+    },
+    {
+      "role": "nope",
+      "expected": null
+    },
+    {
+      "role": "Owner",
+      "expected": null
+    },
+    {
+      "role": "OWNER",
+      "expected": null
+    }
+  ],
+  "permissionsFor": [
+    {
+      "role": "viewer",
+      "expected": {
+        "role": "viewer",
+        "canReadBoard": true,
+        "canEditTodos": false,
+        "canManageColumns": false,
+        "canManageMembers": false,
+        "canManageAdmins": false,
+        "canDeleteBoard": false,
+        "canComment": true,
+        "canModerateComments": false,
+        "canAttach": false
+      }
+    },
+    {
+      "role": "editor",
+      "expected": {
+        "role": "editor",
+        "canReadBoard": true,
+        "canEditTodos": true,
+        "canManageColumns": true,
+        "canManageMembers": false,
+        "canManageAdmins": false,
+        "canDeleteBoard": false,
+        "canComment": true,
+        "canModerateComments": false,
+        "canAttach": true
+      }
+    },
+    {
+      "role": "admin",
+      "expected": {
+        "role": "admin",
+        "canReadBoard": true,
+        "canEditTodos": true,
+        "canManageColumns": true,
+        "canManageMembers": true,
+        "canManageAdmins": false,
+        "canDeleteBoard": false,
+        "canComment": true,
+        "canModerateComments": true,
+        "canAttach": true
+      }
+    },
+    {
+      "role": "owner",
+      "expected": {
+        "role": "owner",
+        "canReadBoard": true,
+        "canEditTodos": true,
+        "canManageColumns": true,
+        "canManageMembers": true,
+        "canManageAdmins": true,
+        "canDeleteBoard": true,
+        "canComment": true,
+        "canModerateComments": true,
+        "canAttach": true
+      }
+    },
+    {
+      "role": null,
+      "expected": {
+        "role": null,
+        "canReadBoard": false,
+        "canEditTodos": false,
+        "canManageColumns": false,
+        "canManageMembers": false,
+        "canManageAdmins": false,
+        "canDeleteBoard": false,
+        "canComment": false,
+        "canModerateComments": false,
+        "canAttach": false
+      }
+    },
+    {
+      "role": "",
+      "expected": {
+        "role": null,
+        "canReadBoard": false,
+        "canEditTodos": false,
+        "canManageColumns": false,
+        "canManageMembers": false,
+        "canManageAdmins": false,
+        "canDeleteBoard": false,
+        "canComment": false,
+        "canModerateComments": false,
+        "canAttach": false
+      }
+    },
+    {
+      "role": "nope",
+      "expected": {
+        "role": null,
+        "canReadBoard": false,
+        "canEditTodos": false,
+        "canManageColumns": false,
+        "canManageMembers": false,
+        "canManageAdmins": false,
+        "canDeleteBoard": false,
+        "canComment": false,
+        "canModerateComments": false,
+        "canAttach": false
+      }
+    },
+    {
+      "role": "Owner",
+      "expected": {
+        "role": null,
+        "canReadBoard": false,
+        "canEditTodos": false,
+        "canManageColumns": false,
+        "canManageMembers": false,
+        "canManageAdmins": false,
+        "canDeleteBoard": false,
+        "canComment": false,
+        "canModerateComments": false,
+        "canAttach": false
+      }
+    },
+    {
+      "role": "OWNER",
+      "expected": {
+        "role": null,
+        "canReadBoard": false,
+        "canEditTodos": false,
+        "canManageColumns": false,
+        "canManageMembers": false,
+        "canManageAdmins": false,
+        "canDeleteBoard": false,
+        "canComment": false,
+        "canModerateComments": false,
+        "canAttach": false
+      }
+    }
+  ],
+  "canEditComment": [
+    {
+      "userId": "u1",
+      "authorId": "u1",
+      "expected": true
+    },
+    {
+      "userId": "u1",
+      "authorId": "u2",
+      "expected": false
+    },
+    {
+      "userId": "u2",
+      "authorId": "u1",
+      "expected": false
+    },
+    {
+      "userId": "u2",
+      "authorId": "u2",
+      "expected": true
+    },
+    {
+      "userId": null,
+      "authorId": "u1",
+      "expected": false
+    },
+    {
+      "userId": null,
+      "authorId": "u2",
+      "expected": false
+    },
+    {
+      "userId": "",
+      "authorId": "u1",
+      "expected": false
+    },
+    {
+      "userId": "",
+      "authorId": "u2",
+      "expected": false
+    }
+  ],
+  "canDeleteComment": [
+    {
+      "actorRole": "viewer",
+      "userId": "u1",
+      "authorId": "u1",
+      "expected": true
+    },
+    {
+      "actorRole": "viewer",
+      "userId": "u2",
+      "authorId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "viewer",
+      "userId": null,
+      "authorId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "viewer",
+      "userId": "",
+      "authorId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "editor",
+      "userId": "u1",
+      "authorId": "u1",
+      "expected": true
+    },
+    {
+      "actorRole": "editor",
+      "userId": "u2",
+      "authorId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "editor",
+      "userId": null,
+      "authorId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "editor",
+      "userId": "",
+      "authorId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "admin",
+      "userId": "u1",
+      "authorId": "u1",
+      "expected": true
+    },
+    {
+      "actorRole": "admin",
+      "userId": "u2",
+      "authorId": "u1",
+      "expected": true
+    },
+    {
+      "actorRole": "admin",
+      "userId": null,
+      "authorId": "u1",
+      "expected": true
+    },
+    {
+      "actorRole": "admin",
+      "userId": "",
+      "authorId": "u1",
+      "expected": true
+    },
+    {
+      "actorRole": "owner",
+      "userId": "u1",
+      "authorId": "u1",
+      "expected": true
+    },
+    {
+      "actorRole": "owner",
+      "userId": "u2",
+      "authorId": "u1",
+      "expected": true
+    },
+    {
+      "actorRole": "owner",
+      "userId": null,
+      "authorId": "u1",
+      "expected": true
+    },
+    {
+      "actorRole": "owner",
+      "userId": "",
+      "authorId": "u1",
+      "expected": true
+    },
+    {
+      "actorRole": null,
+      "userId": "u1",
+      "authorId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": null,
+      "userId": "u2",
+      "authorId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": null,
+      "userId": null,
+      "authorId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": null,
+      "userId": "",
+      "authorId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "",
+      "userId": "u1",
+      "authorId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "",
+      "userId": "u2",
+      "authorId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "",
+      "userId": null,
+      "authorId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "",
+      "userId": "",
+      "authorId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "nope",
+      "userId": "u1",
+      "authorId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "nope",
+      "userId": "u2",
+      "authorId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "nope",
+      "userId": null,
+      "authorId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "nope",
+      "userId": "",
+      "authorId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "Owner",
+      "userId": "u1",
+      "authorId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "Owner",
+      "userId": "u2",
+      "authorId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "Owner",
+      "userId": null,
+      "authorId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "Owner",
+      "userId": "",
+      "authorId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "OWNER",
+      "userId": "u1",
+      "authorId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "OWNER",
+      "userId": "u2",
+      "authorId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "OWNER",
+      "userId": null,
+      "authorId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "OWNER",
+      "userId": "",
+      "authorId": "u1",
+      "expected": false
+    }
+  ],
+  "canDeleteAttachment": [
+    {
+      "actorRole": "viewer",
+      "userId": "u1",
+      "uploaderId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "viewer",
+      "userId": "u1",
+      "uploaderId": null,
+      "expected": false
+    },
+    {
+      "actorRole": "viewer",
+      "userId": "u2",
+      "uploaderId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "viewer",
+      "userId": "u2",
+      "uploaderId": null,
+      "expected": false
+    },
+    {
+      "actorRole": "viewer",
+      "userId": null,
+      "uploaderId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "viewer",
+      "userId": null,
+      "uploaderId": null,
+      "expected": false
+    },
+    {
+      "actorRole": "viewer",
+      "userId": "",
+      "uploaderId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "viewer",
+      "userId": "",
+      "uploaderId": null,
+      "expected": false
+    },
+    {
+      "actorRole": "editor",
+      "userId": "u1",
+      "uploaderId": "u1",
+      "expected": true
+    },
+    {
+      "actorRole": "editor",
+      "userId": "u1",
+      "uploaderId": null,
+      "expected": false
+    },
+    {
+      "actorRole": "editor",
+      "userId": "u2",
+      "uploaderId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "editor",
+      "userId": "u2",
+      "uploaderId": null,
+      "expected": false
+    },
+    {
+      "actorRole": "editor",
+      "userId": null,
+      "uploaderId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "editor",
+      "userId": null,
+      "uploaderId": null,
+      "expected": false
+    },
+    {
+      "actorRole": "editor",
+      "userId": "",
+      "uploaderId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "editor",
+      "userId": "",
+      "uploaderId": null,
+      "expected": false
+    },
+    {
+      "actorRole": "admin",
+      "userId": "u1",
+      "uploaderId": "u1",
+      "expected": true
+    },
+    {
+      "actorRole": "admin",
+      "userId": "u1",
+      "uploaderId": null,
+      "expected": true
+    },
+    {
+      "actorRole": "admin",
+      "userId": "u2",
+      "uploaderId": "u1",
+      "expected": true
+    },
+    {
+      "actorRole": "admin",
+      "userId": "u2",
+      "uploaderId": null,
+      "expected": true
+    },
+    {
+      "actorRole": "admin",
+      "userId": null,
+      "uploaderId": "u1",
+      "expected": true
+    },
+    {
+      "actorRole": "admin",
+      "userId": null,
+      "uploaderId": null,
+      "expected": true
+    },
+    {
+      "actorRole": "admin",
+      "userId": "",
+      "uploaderId": "u1",
+      "expected": true
+    },
+    {
+      "actorRole": "admin",
+      "userId": "",
+      "uploaderId": null,
+      "expected": true
+    },
+    {
+      "actorRole": "owner",
+      "userId": "u1",
+      "uploaderId": "u1",
+      "expected": true
+    },
+    {
+      "actorRole": "owner",
+      "userId": "u1",
+      "uploaderId": null,
+      "expected": true
+    },
+    {
+      "actorRole": "owner",
+      "userId": "u2",
+      "uploaderId": "u1",
+      "expected": true
+    },
+    {
+      "actorRole": "owner",
+      "userId": "u2",
+      "uploaderId": null,
+      "expected": true
+    },
+    {
+      "actorRole": "owner",
+      "userId": null,
+      "uploaderId": "u1",
+      "expected": true
+    },
+    {
+      "actorRole": "owner",
+      "userId": null,
+      "uploaderId": null,
+      "expected": true
+    },
+    {
+      "actorRole": "owner",
+      "userId": "",
+      "uploaderId": "u1",
+      "expected": true
+    },
+    {
+      "actorRole": "owner",
+      "userId": "",
+      "uploaderId": null,
+      "expected": true
+    },
+    {
+      "actorRole": null,
+      "userId": "u1",
+      "uploaderId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": null,
+      "userId": "u1",
+      "uploaderId": null,
+      "expected": false
+    },
+    {
+      "actorRole": null,
+      "userId": "u2",
+      "uploaderId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": null,
+      "userId": "u2",
+      "uploaderId": null,
+      "expected": false
+    },
+    {
+      "actorRole": null,
+      "userId": null,
+      "uploaderId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": null,
+      "userId": null,
+      "uploaderId": null,
+      "expected": false
+    },
+    {
+      "actorRole": null,
+      "userId": "",
+      "uploaderId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": null,
+      "userId": "",
+      "uploaderId": null,
+      "expected": false
+    },
+    {
+      "actorRole": "",
+      "userId": "u1",
+      "uploaderId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "",
+      "userId": "u1",
+      "uploaderId": null,
+      "expected": false
+    },
+    {
+      "actorRole": "",
+      "userId": "u2",
+      "uploaderId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "",
+      "userId": "u2",
+      "uploaderId": null,
+      "expected": false
+    },
+    {
+      "actorRole": "",
+      "userId": null,
+      "uploaderId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "",
+      "userId": null,
+      "uploaderId": null,
+      "expected": false
+    },
+    {
+      "actorRole": "",
+      "userId": "",
+      "uploaderId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "",
+      "userId": "",
+      "uploaderId": null,
+      "expected": false
+    },
+    {
+      "actorRole": "nope",
+      "userId": "u1",
+      "uploaderId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "nope",
+      "userId": "u1",
+      "uploaderId": null,
+      "expected": false
+    },
+    {
+      "actorRole": "nope",
+      "userId": "u2",
+      "uploaderId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "nope",
+      "userId": "u2",
+      "uploaderId": null,
+      "expected": false
+    },
+    {
+      "actorRole": "nope",
+      "userId": null,
+      "uploaderId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "nope",
+      "userId": null,
+      "uploaderId": null,
+      "expected": false
+    },
+    {
+      "actorRole": "nope",
+      "userId": "",
+      "uploaderId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "nope",
+      "userId": "",
+      "uploaderId": null,
+      "expected": false
+    },
+    {
+      "actorRole": "Owner",
+      "userId": "u1",
+      "uploaderId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "Owner",
+      "userId": "u1",
+      "uploaderId": null,
+      "expected": false
+    },
+    {
+      "actorRole": "Owner",
+      "userId": "u2",
+      "uploaderId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "Owner",
+      "userId": "u2",
+      "uploaderId": null,
+      "expected": false
+    },
+    {
+      "actorRole": "Owner",
+      "userId": null,
+      "uploaderId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "Owner",
+      "userId": null,
+      "uploaderId": null,
+      "expected": false
+    },
+    {
+      "actorRole": "Owner",
+      "userId": "",
+      "uploaderId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "Owner",
+      "userId": "",
+      "uploaderId": null,
+      "expected": false
+    },
+    {
+      "actorRole": "OWNER",
+      "userId": "u1",
+      "uploaderId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "OWNER",
+      "userId": "u1",
+      "uploaderId": null,
+      "expected": false
+    },
+    {
+      "actorRole": "OWNER",
+      "userId": "u2",
+      "uploaderId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "OWNER",
+      "userId": "u2",
+      "uploaderId": null,
+      "expected": false
+    },
+    {
+      "actorRole": "OWNER",
+      "userId": null,
+      "uploaderId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "OWNER",
+      "userId": null,
+      "uploaderId": null,
+      "expected": false
+    },
+    {
+      "actorRole": "OWNER",
+      "userId": "",
+      "uploaderId": "u1",
+      "expected": false
+    },
+    {
+      "actorRole": "OWNER",
+      "userId": "",
+      "uploaderId": null,
+      "expected": false
+    }
+  ],
+  "canActOnMember": [
+    {
+      "actorRole": "viewer",
+      "targetRole": "viewer",
+      "expected": false
+    },
+    {
+      "actorRole": "viewer",
+      "targetRole": "editor",
+      "expected": false
+    },
+    {
+      "actorRole": "viewer",
+      "targetRole": "admin",
+      "expected": false
+    },
+    {
+      "actorRole": "viewer",
+      "targetRole": "owner",
+      "expected": false
+    },
+    {
+      "actorRole": "viewer",
+      "targetRole": null,
+      "expected": false
+    },
+    {
+      "actorRole": "viewer",
+      "targetRole": "",
+      "expected": false
+    },
+    {
+      "actorRole": "viewer",
+      "targetRole": "nope",
+      "expected": false
+    },
+    {
+      "actorRole": "viewer",
+      "targetRole": "Owner",
+      "expected": false
+    },
+    {
+      "actorRole": "viewer",
+      "targetRole": "OWNER",
+      "expected": false
+    },
+    {
+      "actorRole": "editor",
+      "targetRole": "viewer",
+      "expected": false
+    },
+    {
+      "actorRole": "editor",
+      "targetRole": "editor",
+      "expected": false
+    },
+    {
+      "actorRole": "editor",
+      "targetRole": "admin",
+      "expected": false
+    },
+    {
+      "actorRole": "editor",
+      "targetRole": "owner",
+      "expected": false
+    },
+    {
+      "actorRole": "editor",
+      "targetRole": null,
+      "expected": false
+    },
+    {
+      "actorRole": "editor",
+      "targetRole": "",
+      "expected": false
+    },
+    {
+      "actorRole": "editor",
+      "targetRole": "nope",
+      "expected": false
+    },
+    {
+      "actorRole": "editor",
+      "targetRole": "Owner",
+      "expected": false
+    },
+    {
+      "actorRole": "editor",
+      "targetRole": "OWNER",
+      "expected": false
+    },
+    {
+      "actorRole": "admin",
+      "targetRole": "viewer",
+      "expected": true
+    },
+    {
+      "actorRole": "admin",
+      "targetRole": "editor",
+      "expected": true
+    },
+    {
+      "actorRole": "admin",
+      "targetRole": "admin",
+      "expected": false
+    },
+    {
+      "actorRole": "admin",
+      "targetRole": "owner",
+      "expected": false
+    },
+    {
+      "actorRole": "admin",
+      "targetRole": null,
+      "expected": false
+    },
+    {
+      "actorRole": "admin",
+      "targetRole": "",
+      "expected": false
+    },
+    {
+      "actorRole": "admin",
+      "targetRole": "nope",
+      "expected": false
+    },
+    {
+      "actorRole": "admin",
+      "targetRole": "Owner",
+      "expected": false
+    },
+    {
+      "actorRole": "admin",
+      "targetRole": "OWNER",
+      "expected": false
+    },
+    {
+      "actorRole": "owner",
+      "targetRole": "viewer",
+      "expected": true
+    },
+    {
+      "actorRole": "owner",
+      "targetRole": "editor",
+      "expected": true
+    },
+    {
+      "actorRole": "owner",
+      "targetRole": "admin",
+      "expected": true
+    },
+    {
+      "actorRole": "owner",
+      "targetRole": "owner",
+      "expected": false
+    },
+    {
+      "actorRole": "owner",
+      "targetRole": null,
+      "expected": false
+    },
+    {
+      "actorRole": "owner",
+      "targetRole": "",
+      "expected": false
+    },
+    {
+      "actorRole": "owner",
+      "targetRole": "nope",
+      "expected": false
+    },
+    {
+      "actorRole": "owner",
+      "targetRole": "Owner",
+      "expected": false
+    },
+    {
+      "actorRole": "owner",
+      "targetRole": "OWNER",
+      "expected": false
+    },
+    {
+      "actorRole": null,
+      "targetRole": "viewer",
+      "expected": false
+    },
+    {
+      "actorRole": null,
+      "targetRole": "editor",
+      "expected": false
+    },
+    {
+      "actorRole": null,
+      "targetRole": "admin",
+      "expected": false
+    },
+    {
+      "actorRole": null,
+      "targetRole": "owner",
+      "expected": false
+    },
+    {
+      "actorRole": null,
+      "targetRole": null,
+      "expected": false
+    },
+    {
+      "actorRole": null,
+      "targetRole": "",
+      "expected": false
+    },
+    {
+      "actorRole": null,
+      "targetRole": "nope",
+      "expected": false
+    },
+    {
+      "actorRole": null,
+      "targetRole": "Owner",
+      "expected": false
+    },
+    {
+      "actorRole": null,
+      "targetRole": "OWNER",
+      "expected": false
+    },
+    {
+      "actorRole": "",
+      "targetRole": "viewer",
+      "expected": false
+    },
+    {
+      "actorRole": "",
+      "targetRole": "editor",
+      "expected": false
+    },
+    {
+      "actorRole": "",
+      "targetRole": "admin",
+      "expected": false
+    },
+    {
+      "actorRole": "",
+      "targetRole": "owner",
+      "expected": false
+    },
+    {
+      "actorRole": "",
+      "targetRole": null,
+      "expected": false
+    },
+    {
+      "actorRole": "",
+      "targetRole": "",
+      "expected": false
+    },
+    {
+      "actorRole": "",
+      "targetRole": "nope",
+      "expected": false
+    },
+    {
+      "actorRole": "",
+      "targetRole": "Owner",
+      "expected": false
+    },
+    {
+      "actorRole": "",
+      "targetRole": "OWNER",
+      "expected": false
+    },
+    {
+      "actorRole": "nope",
+      "targetRole": "viewer",
+      "expected": false
+    },
+    {
+      "actorRole": "nope",
+      "targetRole": "editor",
+      "expected": false
+    },
+    {
+      "actorRole": "nope",
+      "targetRole": "admin",
+      "expected": false
+    },
+    {
+      "actorRole": "nope",
+      "targetRole": "owner",
+      "expected": false
+    },
+    {
+      "actorRole": "nope",
+      "targetRole": null,
+      "expected": false
+    },
+    {
+      "actorRole": "nope",
+      "targetRole": "",
+      "expected": false
+    },
+    {
+      "actorRole": "nope",
+      "targetRole": "nope",
+      "expected": false
+    },
+    {
+      "actorRole": "nope",
+      "targetRole": "Owner",
+      "expected": false
+    },
+    {
+      "actorRole": "nope",
+      "targetRole": "OWNER",
+      "expected": false
+    },
+    {
+      "actorRole": "Owner",
+      "targetRole": "viewer",
+      "expected": false
+    },
+    {
+      "actorRole": "Owner",
+      "targetRole": "editor",
+      "expected": false
+    },
+    {
+      "actorRole": "Owner",
+      "targetRole": "admin",
+      "expected": false
+    },
+    {
+      "actorRole": "Owner",
+      "targetRole": "owner",
+      "expected": false
+    },
+    {
+      "actorRole": "Owner",
+      "targetRole": null,
+      "expected": false
+    },
+    {
+      "actorRole": "Owner",
+      "targetRole": "",
+      "expected": false
+    },
+    {
+      "actorRole": "Owner",
+      "targetRole": "nope",
+      "expected": false
+    },
+    {
+      "actorRole": "Owner",
+      "targetRole": "Owner",
+      "expected": false
+    },
+    {
+      "actorRole": "Owner",
+      "targetRole": "OWNER",
+      "expected": false
+    },
+    {
+      "actorRole": "OWNER",
+      "targetRole": "viewer",
+      "expected": false
+    },
+    {
+      "actorRole": "OWNER",
+      "targetRole": "editor",
+      "expected": false
+    },
+    {
+      "actorRole": "OWNER",
+      "targetRole": "admin",
+      "expected": false
+    },
+    {
+      "actorRole": "OWNER",
+      "targetRole": "owner",
+      "expected": false
+    },
+    {
+      "actorRole": "OWNER",
+      "targetRole": null,
+      "expected": false
+    },
+    {
+      "actorRole": "OWNER",
+      "targetRole": "",
+      "expected": false
+    },
+    {
+      "actorRole": "OWNER",
+      "targetRole": "nope",
+      "expected": false
+    },
+    {
+      "actorRole": "OWNER",
+      "targetRole": "Owner",
+      "expected": false
+    },
+    {
+      "actorRole": "OWNER",
+      "targetRole": "OWNER",
+      "expected": false
+    }
+  ],
+  "assignableRoles": [
+    {
+      "role": "viewer",
+      "expected": []
+    },
+    {
+      "role": "editor",
+      "expected": []
+    },
+    {
+      "role": "admin",
+      "expected": [
+        "viewer",
+        "editor"
+      ]
+    },
+    {
+      "role": "owner",
+      "expected": [
+        "viewer",
+        "editor",
+        "admin"
+      ]
+    },
+    {
+      "role": null,
+      "expected": []
+    },
+    {
+      "role": "",
+      "expected": []
+    },
+    {
+      "role": "nope",
+      "expected": []
+    },
+    {
+      "role": "Owner",
+      "expected": []
+    },
+    {
+      "role": "OWNER",
+      "expected": []
+    }
+  ]
+}

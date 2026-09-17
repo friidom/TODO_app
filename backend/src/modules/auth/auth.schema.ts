@@ -41,3 +41,6 @@ export const logoutSchema = z.object({ all: z.enum(["true", "false"]).optional()
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+export type LogoutQuery = z.infer<typeof logoutSchema>;
+export type UsernameAvailableQuery = z.infer<typeof usernameAvailableSchema>;

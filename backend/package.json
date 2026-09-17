@@ -13,6 +13,7 @@
     "db:verify-actor": "tsx src/db/verifyWithActor.ts",
     "db:verify-errors": "tsx src/db/verifyErrors.ts",
     "auth:verify": "tsx src/db/verifyAuth.ts",
+    "db:verify-authz": "tsx src/db/verifyAuthz.ts",
     "db:migrate": "prisma migrate deploy",
     "db:status": "prisma migrate status",
     "db:pull": "prisma db pull",
