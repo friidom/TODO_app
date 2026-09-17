@@ -2,8 +2,8 @@
 
 **Strategy:** CLEAN START. We build a new database and a new backend from scratch. **No existing Supabase data is preserved.** All current data is disposable test data.
 
-**Status:** planning document. **B0 and B1 are complete** (see §16). Everything from B2 onward is unbuilt.
-**Revised:** 2026-09-15 — rewritten from the original data-preserving plan after the strategy change.
+**Status:** living document. **B0–B5 are complete** (see §16). Everything from B6 onward is unbuilt.
+**Revised:** 2026-09-17 — B5 landed; §21.5–21.8 closed; a second board-deletion defect found and fixed (migration `0008`).
 **Companion documents:**
 - `docs/SUPABASE_DATABASE_AUDIT.md` — what the current database looks like. **This is now the specification for the new schema**, not just background reading.
 - `docs/IMPLEMENTATION_PLAN.md` — the product roadmap (M0–M32) that produced the current system.
@@ -88,7 +88,9 @@ And what it **adds**, which is easy to miss:
 
 ## Where we are
 
-**B0–B4 are done.** `backend/` builds, validates its environment with Zod at boot, owns one `pg` pool that Prisma borrows through `PrismaPg`, serves `GET /health` (process + database) and a mounted `/api/v1`, maps PostgreSQL SQLSTATEs to HTTP statuses, and can write as a known actor through `withActor`. The 15-table schema is applied from seven hand-written SQL migrations (0001–0006 create it, 0007 fixes the board-deletion defect in §21.11) and verified against the catalogs. The database holds no rows. The next step is **B5: authentication**.
+**B0–B5 are done.** `backend/` builds, validates its environment with Zod at boot, owns one `pg` pool that Prisma borrows through `PrismaPg`, serves `GET /health` (process + database) and a mounted `/api/v1`, maps PostgreSQL SQLSTATEs to HTTP statuses, and can write as a known actor through `withActor`. The 15-table schema is applied from eight hand-written SQL migrations (0001–0006 create it; 0007 and 0008 fix the board-deletion defect in §21.11 and §21.12) and verified against the catalogs.
+
+**Authentication is live.** Register, login by email or username, `/me`, rotating refresh sessions, logout, password reset and username availability all work end to end — argon2id hashes, a 15-minute access JWT held in memory, and an opaque refresh token stored only as `sha256` behind an HttpOnly cookie. `POST /auth/register` reproduces `provision_user` in one transaction: account, profile, "My Space", "My Board" and its four columns. The database holds no rows. The next step is **B6: authorization**.
 
 ---
 
@@ -717,7 +719,20 @@ Everything stays behind `*.repo.ts`, so this remains reversible.
 
 # 9. Authentication
 
-**(proposed — B5)**
+**(built — B5 ✅, 2026-09-17)**
+
+**The four decisions this section waited on, as taken:**
+
+| # | Decision |
+|---|---|
+| §21.5 | Access **15m**, refresh **30d**, rotating. "Log out everywhere" ships: `POST /auth/logout?all=true` |
+| §21.6 | **Same origin / same site** in production → `SameSite=lax`, `Secure` in production, `Path=/api/v1/auth`. `COOKIE_SAMESITE` is configurable, and `none` without `Secure` refuses to start |
+| §21.7 | **≥ 10 characters, no composition rules, 128-byte cap.** The cap is in bytes because argon2 reads bytes |
+| §21.8 | **No SMTP yet.** `nodemailer` sits behind a `MailDriver` interface with a console driver for development. `AUTH_REQUIRE_EMAIL_VERIFICATION` defaults to false, and production refuses to start with it off — as it does with `MAIL_DRIVER=console` |
+
+**What was deferred, and why.** `POST /auth/verify-email` is **not built**: there is no table for a verification token (B3 created `sessions` and `password_reset_tokens` and nothing else), and with no SMTP there is nothing to send. What exists is the half that matters — `users.email_verified_at` and the login gate that reads it, so turning verification on is a table, a mailer and a route rather than a redesign. Adding it before SMTP would have been a migration for dead code.
+
+> ⚠️ **This blocks production, and the block is deliberate.** `config/env.ts` refuses to start in production with `AUTH_REQUIRE_EMAIL_VERIFICATION=false`, so a production deploy today would create accounts that can never sign in. **B12-08a** is the task that must close this before the first deployment; do not unblock it by turning the flag off.
 
 ## 9.1 What clean start removes from this section
 
@@ -785,7 +800,7 @@ In the new backend both collapse into one transactional service call, so the fai
 | `POST /auth/password/forgot` | **always** 200 whether or not the address exists. Rate-limit hard, by IP and by address |
 | `POST /auth/password/reset` | verify token, update hash, **revoke every session for that user** |
 | `GET /auth/username-available?username=` | replaces the `username_available` RPC. **Rate-limit it** — it is an enumeration endpoint by nature. Advisory only; the unique index remains the guarantee |
-| `POST /auth/verify-email` | consume a verification token |
+| ~~`POST /auth/verify-email`~~ | **deferred** — no token table, and no SMTP to send one. `users.email_verified_at` and the login gate exist |
 
 ### The password-reset flow gets simpler
 
@@ -793,9 +808,9 @@ Today the recovery link *signs the user in*, which is why `/reset-password` is r
 
 In the new flow the page reads `?token=` from the URL and POSTs it. No session, no special routing. Keep the route outside the guards anyway — a signed-in user may still be resetting.
 
-## 9.6 Security requirements (non-negotiable)
+## 9.6 Security requirements (non-negotiable) — **all met by B5**
 
-- `helmet()` for baseline headers; CORS locked to the exact frontend origin with `credentials: true`.
+- `helmet()` for baseline headers; CORS locked to the exact frontend origin with `credentials: true`. `contentSecurityPolicy` is disabled: nothing here serves HTML, and B10 sets its own on the one endpoint that returns a file. **`trust proxy` is B12-03's** — until it is set, every per-IP limit behind a proxy keys on the proxy.
 - `express-rate-limit` on `/auth/*`: strict per-IP on login/register/forgot, plus a per-account login counter with backoff.
 - Hash refresh tokens and reset tokens at rest. **The database must never contain a usable credential.**
 - Rotate refresh tokens; detect reuse.
@@ -980,19 +995,23 @@ Conventions:
 - Ids in request bodies are honoured where the client mints them today (`todos`, `comments`, `boards`, `spaces`) — load-bearing for optimistic updates.
 - Actor-derived fields (`creator_id`, `author_id`, `uploader_id`, `owner_id`, `actor_id`) are **always set server-side and ignored if present in the body.**
 
-## 11.1 Auth
+## 11.1 Auth — **built in B5**, and the one part of §11 that is not a proposal
 
 | Method | Endpoint | Purpose | Auth |
 |---|---|---|:-:|
 | POST | `/auth/register` | account + profile + space + board + 4 columns, one transaction | 🔓 |
 | POST | `/auth/login` | email **or** username + password | 🔓 |
 | POST | `/auth/refresh` | rotate | 🔓 (cookie) |
-| POST | `/auth/logout` | revoke this session | 🔐 |
+| POST | `/auth/logout` | revoke this session, or `?all=true` for every one | 🔓 (cookie) |
 | GET | `/auth/me` | who am I | 🔐 |
 | POST | `/auth/password/forgot` | send reset link; **always** 200 | 🔓 |
 | POST | `/auth/password/reset` | consume token, revoke sessions | 🔓 |
 | GET | `/auth/username-available?username=` | advisory | 🔓, rate-limited |
-| POST | `/auth/verify-email` | consume verification token | 🔓 |
+| ~~POST~~ | ~~`/auth/verify-email`~~ | deferred with the SMTP it needs — §9 | — |
+
+Logout is cookie-authenticated rather than the 🔐 first proposed: holding the refresh cookie is proof of possession of exactly what is being revoked, and demanding a live access token would strand a 30-day cookie on anyone whose access token had already expired.
+
+Register and login answer `{ user, needsVerification, accessToken, expiresIn }`, with the refresh token in a `Set-Cookie` and nowhere else; `/me` answers `{ user }`. `user` carries its `profile` inline, so a client learns who it is and what it is called in one call.
 
 ## 11.2 Users
 
@@ -1506,10 +1525,10 @@ Nothing is installed now. Each arrives with the milestone that needs it.
 |---|---|
 | **B3** | `prisma` (dev) · `@prisma/client` |
 | **B4** | `zod` — `pg` is already installed |
-| **B5** | `argon2` · `jsonwebtoken` · `cookie-parser` · `express-rate-limit` · `nodemailer` · `@types/*` |
+| **B5** ✅ | `argon2` · `jsonwebtoken` · `cookie-parser` · `express-rate-limit` · `nodemailer` · **`helmet`** (§9.6 required it; this list had missed it) · `@types/*` — **and `vitest`, brought forward from B11** because B5-13 asks for tests and a milestone that ships tests needs a runner. Pinned to the frontend's major so the repo has one |
 | **B9** | `socket.io` |
 | **B10** | `multer` · `@aws-sdk/client-s3` · `@types/multer` |
-| **B11** | `vitest` · `supertest` · `@types/supertest` |
+| **B11** | `supertest` · `@types/supertest` — `vitest` arrived with B5 |
 | later | `pino` · `pino-http` (replacing morgan) · `node-cron` |
 
 ## 15.4 Environment variables to add
@@ -1523,13 +1542,18 @@ DATABASE_URL=postgresql://postgres:p%40ssword@localhost:5432/todo_app
 # B11 — not needed yet (see §15.2c)
 TEST_DATABASE_URL=postgresql://postgres:p%40ssword@localhost:5432/todo_app_test
 
-# B5
-JWT_SECRET=<openssl rand -base64 48>
+# B5 — done. Every one of these is parsed by config/env.ts; JWT_SECRET is the
+# only one with no default, and the process refuses to start without it.
+JWT_SECRET=<openssl rand -base64 48>   # >= 32 characters
 ACCESS_TOKEN_TTL=15m
 REFRESH_TOKEN_TTL_DAYS=30
-COOKIE_SECURE=false                # true in production, always
-SMTP_HOST= / SMTP_PORT= / SMTP_USER= / SMTP_PASS= / MAIL_FROM=
+COOKIE_SECURE=false                # production refuses to start while false
+COOKIE_SAMESITE=lax                # none additionally requires COOKIE_SECURE
 APP_URL=http://localhost:5173      # for invite and reset links
+MAIL_DRIVER=console                # production refuses to start on console
+MAIL_FROM=TODO App <no-reply@todo.local>
+SMTP_HOST= / SMTP_PORT= / SMTP_USER= / SMTP_PASS=
+AUTH_REQUIRE_EMAIL_VERIFICATION=false   # production refuses to start while false
 
 # B10
 STORAGE_DRIVER=local
@@ -1552,7 +1576,9 @@ npm run db:pull     --prefix backend   # prisma db pull && generate (from B3)
 
 ## 15.6 CI
 
-`.github/workflows/ci.yml` gains a second job with a `postgres` service container. It should **run the migrations before the tests**, so the schema itself is exercised on every pull request:
+`.github/workflows/ci.yml` gained its second job in **B5**, without a service container: the backend suite is pure logic and needs no database, so the job is `npm ci` → `db:generate` → `build` → `test` under `working-directory: backend`. `db:generate` is not optional — `@prisma/client` is generated from the schema rather than vendored, so without it the build has no types to check against.
+
+**B11 adds the `postgres` service container** and the database half. It should **run the migrations before the tests**, so the schema itself is exercised on every pull request:
 
 ```
 npm ci --prefix backend
@@ -1722,39 +1748,46 @@ Plus two specific to this migration:
 
 ---
 
-## B5 — New authentication ⬜ NEXT
+## B5 — New authentication ✅ DONE
 
 **Goal.** Register, login, refresh, logout, `/me`, password reset, username availability.
 
 **Why it exists.** Every other endpoint needs `req.actor`. Nothing else can be built or tested first.
 
-**Prerequisites.** B4. The §21.5 (cookie/session shape), §21.6 (origin), §21.7 (password policy) and §21.8 (email) decisions.
+**Prerequisites.** B4 ✅. §21.5, §21.6, §21.7 and §21.8 — all four decided, recorded at the top of §9.
 
 **Tasks.**
 
-- **B5-01** — Install `argon2`, `jsonwebtoken`, `cookie-parser`, `express-rate-limit`.
-- **B5-02** — `lib/password.ts` — argon2id hash and verify. **One format. No bcrypt path.**
-- **B5-03** — `lib/tokens.ts` — access JWT sign/verify; refresh mint, hash, rotate, revoke-family.
-- **B5-04** — `POST /auth/register` — the full provisioning transaction (§9.3), idempotent, with `available_username`'s seed-and-suffix resolution.
-- **B5-05** — `POST /auth/login` (§9.4) — identifier resolution, **constant-time failure, one message for every failure mode**.
-- **B5-06** — `POST /auth/refresh` with rotation and reuse detection; `POST /auth/logout`.
-- **B5-07** — `middleware/requireAuth.ts` → `req.actor`.
-- **B5-08** — `GET /auth/me`.
-- **B5-09** — Password reset: forgot (always 200, rate-limited) + reset (revokes all sessions).
-- **B5-10** — `GET /auth/username-available`, rate-limited.
-- **B5-11** — Email: `nodemailer` behind a `MailDriver` interface with a console driver for development.
-- **B5-12** — Rate limits on `/auth/*`, per IP and per account.
-- **B5-13** — Tests: wrong password and unknown user produce **identical** status, body and roughly identical timing · a rotated refresh token is rejected and revokes its family · reset revokes sessions · registering twice with one email fails cleanly · registration is idempotent for provisioning · a new account gets exactly one board with four columns.
+- **B5-01** ✅ — `argon2` · `jsonwebtoken` · `cookie-parser` · `express-rate-limit` · `nodemailer` · `helmet` (§9.6 names it non-negotiable; §15.3's list had omitted it), plus `vitest` brought forward from B11 (§15.3).
+- **B5-02** ✅ — `lib/password.ts` — argon2id, explicit cost parameters, no bcrypt path. Plus `verifyDummyPassword()` against a precomputed, parameter-matched hash: **the dummy is precomputed rather than built at boot**, because a lazily created one makes the *first* unknown-user login slower than every later one — the same leak in a subtler form.
+- **B5-03** ✅ — `lib/tokens.ts` — access JWT (HS256, `sub`/`jti`, **`algorithms` pinned on verify**, no role claim); opaque 32-byte refresh and reset tokens, `sha256` at rest.
+- **B5-04** ✅ — `POST /auth/register`. `modules/users/users.service.ts#provisionUser` is the port of `provision_user`, idempotent, with `available_username`'s seed-and-suffix resolution split into a pure `usernameBase()` and a database loop. It runs inside `withActor(userId)`, so `add_owner_membership` → `log_member_activity` and the four `log_column_activity` inserts are all stamped with the new user.
+- **B5-05** ✅ — `POST /auth/login` — email or username, resolved server-side (this is what replaced `login_email_for`, which `anon` could call). One 401 and one message for every failure, and the dummy verify keeps the timing uniform.
+- **B5-06** ✅ — `POST /auth/refresh` with rotation and reuse detection; `POST /auth/logout` (+ `?all=true`). **The rotation transaction returns a verdict rather than throwing one**: a throw would roll back the family revocation it had just performed.
+- **B5-07** ✅ — `middleware/requireAuth.ts` → `req.actor`, plus `requireActor(req)`, which throws a **500** rather than a 401 when a route reached its controller without the middleware — that is a wiring bug, not a client error.
+- **B5-08** ✅ — `GET /auth/me`.
+- **B5-09** ✅ — `POST /auth/password/forgot` (always 200, rate-limited by IP *and* by address) and `/reset` (single-use, revokes every session and every other outstanding token).
+- **B5-10** ✅ — `GET /auth/username-available`, rate-limited, advisory.
+- **B5-11** ◑ — `nodemailer` behind a `MailDriver` with a console driver. **`POST /auth/verify-email` is deferred** — no token table, no SMTP (§9).
+- **B5-12** ✅ — `middleware/rateLimit.ts`. Login is limited per IP *and* per account, with `skipSuccessfulRequests` on the account limiter so only failures count.
+- **B5-13** ✅ — 85 unit tests (`npm test --prefix backend`) over hashing, tokens, username resolution, the error mapper and the request schemas; **95 integration checks** (`npm run auth:verify --prefix backend`) over the flows that need PostgreSQL — including log-out-everywhere, an expired refresh token and a deactivated account, added by the post-implementation review.
 
-**Expected result.** A user can be created and authenticated end to end with curl.
+**Expected result.** A user can be created and authenticated end to end with curl. ✅
 
-**Files affected.** `backend/src/modules/auth/**`, `lib/password.ts`, `lib/tokens.ts`, `middleware/requireAuth.ts`, `modules/users/**` (provisioning).
+**Files affected.** `backend/src/modules/auth/**`, `modules/users/**`, `lib/{password,tokens,username,identifier,mail,errors}.ts`, `middleware/{requireAuth,rateLimit}.ts`, `config/{env,constants}.ts`, `types/express.d.ts`, `app.ts`, `routes/index.ts`, `db/verifyAuth.ts`, `vitest.config.ts`, `.env.example`, `.github/workflows/ci.yml`, and migration `0008`.
 
-**Risks.** 🔴 The highest-risk milestone in the plan — mistakes here are silent. 🔴 The identical-failure-response requirement is easy to break with a helpful error message. 🟡 Cookie configuration depends on §21.6; get it wrong and login works locally and fails in production.
+**Two decisions worth naming, because both are departures.**
 
-**Verification.** ☐ register → login → `/me` → refresh → logout by curl ☐ wrong password and unknown user indistinguishable ☐ refresh reuse revokes the family ☐ cookie is HttpOnly + SameSite (+ Secure in production) ☐ rate limit trips ☐ **no password or token appears in any log line**.
+1. **`POST /auth/logout` does not require an access token.** §11.1 marks it 🔐. Holding the refresh cookie is proof of possession of exactly what is being revoked, and requiring a live access token would mean anyone who left a tab open too long keeps a 30-day cookie they cannot clear.
+2. **Request validation is `schema.parse()` in the controller, with a `ZodError` branch added to `toAppError`.** B6-06 lifts the parse into a `validate()` middleware; the error path it will report through already exists, so that is a refactor rather than a new surface. Only the field path and the rule are reported, never the value — on these routes the value is a password.
 
-**Frontend changes.** None yet.
+**Deferred out of B5 by the post-implementation review**, each recorded against the milestone that owns it: **M5 → B12-08a** (production enforces email verification that nothing can satisfy yet) and **M6 → B8-01a** (the client must single-flight refresh, or concurrent tabs trip reuse detection and revoke the family). Four other findings — a revoked token driving logout-all, a case-bypassable per-account rate limit, and two paths turning transient errors into forced logouts — were fixed before this commit and are covered by tests.
+
+**What B5 uncovered.** §21.12 — **the board-deletion defect 0007 fixed was only half fixed.** `log_column_activity` and `log_todo_activity` carried the same unguarded DELETE branch, so a board with so much as one column could not be deleted, and neither could its owner's account. Every provisioned board has four columns, so this was every board. Migration `0008` applies 0007's guard to both functions; the bodies were copied mechanically from 0006 and diffed, rather than retyped (§18.1).
+
+**Verification.** ☑ register → login → `/me` → refresh → logout ☑ wrong password and unknown user identical in status, body and timing (27ms vs 27ms) ☑ refresh reuse revokes the family, including the descendant the honest client held ☑ a **revoked** token cannot drive log-out-everywhere, a live one can ☑ an expired refresh token is rejected and its family revoked ☑ a deactivated account is refused on login, `/me` and refresh, indistinguishably from a wrong password ☑ cookie is HttpOnly + `SameSite` + `Path=/api/v1/auth`, and a rejected refresh clears it ☑ rate limit trips ☑ no password, hash or token in any response body or log line ☑ a new account gets exactly one board with four columns ☑ B4's `db:verify-actor` and `db:verify-errors` still pass ☑ all 963 frontend tests still pass.
+
+**Frontend changes.** None.
 
 ---
 
@@ -1837,6 +1870,7 @@ Plus two specific to this migration:
 **Tasks.**
 
 - **B8-01** — `src/services/api/client.ts` (§12.3), including the shared in-flight refresh promise and `AbortSignal` pass-through.
+- **B8-01a** — **Single-flight refresh, and it is not optional (B5 review, M6).** Refresh tokens rotate, and presenting an already-rotated one revokes the whole family (§9.2) — by design. So two concurrent `POST /auth/refresh` calls carrying the same cookie are indistinguishable from theft: one wins, the loser's conditional revoke matches no row, and the user is signed out of everything. Two tabs restoring a session on load is enough to trigger it. The client must therefore **deduplicate refresh into one in-flight promise per tab, and coordinate across tabs** — a `BroadcastChannel` or a `localStorage` lock — so only one refresh is ever in flight for one cookie. Everything else awaits its result.
 - **B8-02** — The **global** `VITE_API_MODE` flag (§12.2) — all modules at once, never half and half.
 - **B8-03 … B8-13** — Rewrite the 19 files **in the order in §12.6**, auth first. One commit per module; one branch for the lot.
 - **B8-14** — Cleanup: delete `services/api/supabase.ts`, remove `@supabase/supabase-js`, remove the `VITE_SUPABASE_*` stubs from `vitest.config.ts`, **remove `VITE_API_MODE` and every Supabase branch**.
@@ -1847,9 +1881,9 @@ Plus two specific to this migration:
 
 **Files affected.** 19 existing files, 1 new, plus `package.json`, `.env`, `vitest.config.ts`.
 
-**Risks.** 🔴 Attempting a mixed state — it cannot work (§12.2). 🔴 Leaving the dual-mode flag in "for now". 🟡 Losing `AbortSignal` handling. 🟡 A signature change rippling further than expected — `tsc -b` catches it, so build after every module.
+**Risks.** 🔴 Attempting a mixed state — it cannot work (§12.2). 🔴 Leaving the dual-mode flag in "for now". 🔴 **Refresh without single-flight (B8-01a)** — it presents as random, unreproducible logouts, and the cause is two tabs, not a bug in the server. 🟡 Losing `AbortSignal` handling. 🟡 A signature change rippling further than expected — `tsc -b` catches it, so build after every module.
 
-**Verification.** ☐ `npm run build` and `npm test` green ☐ **zero references to `supabase` under `src/`** ☐ B8-16's checklist executed and recorded ☐ optimistic drag still feels instant and still rolls back on a forced server error.
+**Verification.** ☐ `npm run build` and `npm test` green ☐ **zero references to `supabase` under `src/`** ☐ B8-16's checklist executed and recorded ☐ optimistic drag still feels instant and still rolls back on a forced server error ☐ **open the app in two tabs at once, with an expired access token, and confirm one refresh request is sent and neither tab is signed out.**
 
 **Frontend changes.** **Yes — this milestone is the frontend changes.**
 
@@ -1965,12 +1999,13 @@ Plus two specific to this migration:
 
 - **B12-01** — Provision PostgreSQL on the server. **Automated backups from day one**, plus point-in-time recovery if the setup allows. The Supabase project never had PITR — do not carry that forward.
 - **B12-02** — Dockerise the API: one image, env-driven.
-- **B12-03** — Reverse proxy with TLS, a body-size limit matching `MAX_UPLOAD_BYTES`, and **WebSocket upgrade support**.
+- **B12-03** — Reverse proxy with TLS, a body-size limit matching `MAX_UPLOAD_BYTES`, and **WebSocket upgrade support**. **Set `app.set("trust proxy", 1)` at the same time**: behind a proxy every request arrives from the proxy's address, so B5's per-IP rate limits would key the whole company to one bucket, and `sessions.ip` would record the proxy on every row. Set it to the number of proxies in front, never `true` — a permissive setting lets a client spoof `X-Forwarded-For` and walk around the limiter.
 - **B12-04** — File storage: a backed-up directory (local driver) or an S3-compatible service. **Whatever it is, it needs its own backup — a database dump does not contain the bytes.**
 - **B12-05** — Serve the built frontend, and set its production `VITE_API_URL`. Confirm the CORS and cookie configuration matches §21.6's answer.
 - **B12-06** — Monitoring: uptime check on `/health`, error tracking, log retention.
 - **B12-07** — Deploy pipeline: CI green → build image → migrate → deploy → smoke test.
 - **B12-08** — **Verify a restore** from a real backup into a scratch database. Schedule it quarterly, not once.
+- **B12-08a** — **Email verification must exist before production can enforce it (B5 review, M5).** `config/env.ts` refuses to start in production unless `AUTH_REQUIRE_EMAIL_VERIFICATION=true`, and B5 deliberately shipped no way to satisfy it: there is no verification-token table and no `POST /auth/verify-email` (§9). As it stands, **every account registered in production would be created unverified and could never sign in.** Before the first deploy: add the token table as a new forward-only migration, build `POST /auth/verify-email`, send the mail from the SMTP driver B12 configures, and re-send on request. **Do not unblock this by turning the flag off** — the guard is what stops an unverified deployment, and invites are matched by email address.
 - **B12-09** — First real users: create accounts, exercise the app, watch the logs.
 - **B12-10** — Decommission Supabase **only after** the new system has run cleanly for an agreed period.
 
@@ -1978,9 +2013,9 @@ Plus two specific to this migration:
 
 **Files affected.** `backend/Dockerfile`, deployment configuration, a runbook.
 
-**Risks.** 🔴 An unverified backup. 🟡 **WebSocket upgrade not configured on the proxy** — realtime silently degrades and nobody notices for weeks. 🟡 File storage on a server volume with no backup. 🟡 Decommissioning Supabase before anyone has really used the new system.
+**Risks.** 🔴 An unverified backup. 🔴 **Deploying before B12-08a** — the process will start, and then no one can sign in. 🟡 **WebSocket upgrade not configured on the proxy** — realtime silently degrades and nobody notices for weeks. 🟡 File storage on a server volume with no backup. 🟡 Decommissioning Supabase before anyone has really used the new system.
 
-**Verification.** ☐ restore tested from a real backup ☐ TLS valid ☐ **WebSocket upgrade confirmed in production — check the transport, not just that it works** ☐ file storage backed up ☐ monitoring alerts somewhere a human looks ☐ smoke test passes post-deploy.
+**Verification.** ☐ **register → receive the verification mail → verify → sign in, against the production configuration** ☐ restore tested from a real backup ☐ TLS valid ☐ **WebSocket upgrade confirmed in production — check the transport, not just that it works** ☐ file storage backed up ☐ monitoring alerts somewhere a human looks ☐ smoke test passes post-deploy.
 
 **Frontend changes.** Environment variables only.
 
@@ -1993,11 +2028,11 @@ Plus two specific to this migration:
 ```
 B0  Audit                    ✅ done
 B1  Express foundation       ✅ done
-B2  Local PostgreSQL         ⬜ NEXT
-B3  Fresh schema
-B4  Connection + data access
-B5  Authentication
-B6  Authorization
+B2  Local PostgreSQL         ✅ done
+B3  Fresh schema             ✅ done
+B4  Connection + data access ✅ done
+B5  Authentication           ✅ done
+B6  Authorization            ⬜ NEXT
 B7  REST API modules  ──┬── B7-A boards/members/invites
                         ├── B7-B columns/todos
                         ├── B7-C sprints
@@ -2052,7 +2087,7 @@ B7  REST API modules  ──┬── B7-A boards/members/invites
 | Not now | When |
 |---|---|
 | Installing any package | with the milestone that uses it (§15.3) |
-| Writing SQL | B3, after §21.1 and §21.4 are decided |
+| ~~Writing SQL~~ | *(done: B3. A schema change now is a new forward-only migration)* |
 | Touching `src/` | B8 |
 | — | *(query layer decided: Prisma, SQL-first — §8.7)* |
 | Organizations, teams, Director/Superadmin roles | a separate plan. §10.7 only keeps them cheap to add |
@@ -2235,37 +2270,35 @@ Get the first one wrong and one request marks **every employee's** notifications
 
 # 20. Next implementation step
 
-> ### **B5 — New authentication**
+> ### **B6 — Backend authorization replacing RLS**
 >
-> `users`, `sessions` and `password_reset_tokens` already exist from B3, and B4 gave B5 everything it needs: Zod-validated config, one pooled Prisma client, `withActor` for attributed writes, and an error middleware that already turns a duplicate-email insert into a 409.
+> B5 gave every request a `req.actor`. ~30 RLS policies are about to stop existing, and without an equivalent this migration is a downgrade in safety dressed up as an upgrade in architecture.
 >
-> Register · login (email **or** username) · refresh · logout · `/me` · password reset · username availability — §9 and §11.1.
+> `accessibleBoardIds` · `roleOf` · `boardAccess` · `requireRole` · `validate` — §10 and §16.
 
-## Before B5 starts
+## Before B6 starts
 
 | | Item | Status |
 |---|---|---|
-| 1 | §21.5 session shape — access TTL, refresh TTL, "log out everywhere" | ⬜ **needs your answer** |
-| 2 | §21.6 same-origin in production — decides the refresh cookie's `SameSite` | ⬜ **needs your answer** |
-| 3 | §21.7 password policy | ⬜ recommendation: ≥ 10 chars, no composition rules, 128-byte cap |
-| 4 | §21.8 SMTP / email verification | ⬜ **needs your answer** — blocks password reset and email invites |
-| 5 | Install `argon2`, `jsonwebtoken`, `express-rate-limit` | ⬜ first task of B5 |
-| 6 | ~~§21.11 board-deletion defect~~ | ✅ fixed by migration `0007` |
+| 1 | §21.5–21.8 | ✅ closed by B5 — see the table at the top of §9 |
+| 2 | §21.10 database collation | ⬜ still open, blocks **B12**, not B6 |
+| 3 | §21.9 production file storage | ⬜ open, blocks **B10** |
+| 4 | Nothing to install — B6 adds no package | — |
 
-`provision_user` (audit §9) is the specification for `POST /auth/register`: profile + space + board + four default columns, in **one transaction**, idempotent.
+`src/services/members/permissions.ts` is the specification for `lib/permissions.ts`, and B6-01 requires a parity test across the two packages.
 
-## What NOT to do in B5
+## What NOT to do in B6
 
 - **Never run `prisma migrate dev`** (§8.7 rule 4).
 - **Never hand-edit `schema.prisma`.** It is generated by `prisma db pull`.
-- **Never use `$executeRawUnsafe`.**
-- **Do not write `SET LOCAL app.actor_id = $1`** — use `withActor` (§8.5).
-- Do not store a refresh token in plaintext — `sessions.token_hash` is sha256 by design (§8.3).
+- **Never use `$executeRawUnsafe`.** A parameterised `$queryRaw` tagged template is fine, and `auth.repo.ts#findUserByUsername` is the precedent: it exists to hit `profiles_username_lower_key`, which neither a Prisma `equals` nor `mode: "insensitive"` can use.
+- **404, not 403,** for a non-member. A 403 turns every board id into an existence oracle.
+- Do not put a role in the access token. It is deliberately absent (§9.2), and a role read per request is what makes a demotion immediate.
 - Do not touch `src/` (the frontend) — that is B8.
 
 # 21. Open architectural decisions
 
-**Four of the original nine are now closed** and are kept struck through as a record. **One new one (21.10) blocks B3.** The rest block B5 or later; each has a recommendation, but a recommendation is not a decision (P9).
+**Eight of the eleven are now closed** and are kept struck through as a record. **Two remain open** — 21.9 blocks B10 and B12, 21.10 blocks B12 — and neither blocks B6. Each open one has a recommendation, but a recommendation is not a decision (P9).
 
 | # | Question | Blocks | Recommendation |
 |---|---|---|---|
@@ -2275,10 +2308,11 @@ Get the first one wrong and one request marks **every employee's** notifications
 | ~~21.4~~ | Drop `position` columns? | — | **CLOSED → keep them.** Inspection found nine active uses in `src/` (§8.5b). Dropping is deferred to M6-05 as its own expand → backfill → contract |
 | **21.10** | **Database collation.** `todo_app` is still `Russian_Russia.1251` / libc. B3 was applied onto it rather than waiting, so dev and a Linux production server will disagree on `ORDER BY` for text | **B12** (was B3) | **Still recommended: recreate with ICU `en-US`** (or `C`), §15.2d. Cheap while the only rows are throwaway; the app sorts in JS almost everywhere, so the practical blast radius is small — but `profiles_username_lower_key` and `citext` both lean on collation |
 | ~~**21.11**~~ | **CLOSED → fixed by migration `0007`.** **Board deletion was impossible.** `log_member_activity` (AFTER DELETE on `board_members`) inserts an `activities` row referencing `OLD.board_id`, but during a board-deletion cascade that board is already gone, so the insert violates `activities_board_id_fkey` and the whole delete fails. Every board has an owner membership (`boards_add_owner_membership`), so this fires for **every** board. Carried over verbatim from Supabase — `boardsApi.ts:80` `deleteBoard` would fail there too | — | **Done.** The DELETE branch's insert is now guarded by `if exists (select 1 from public.boards b where b.id = old.board_id)`. Ordinary member removal is still logged; only the entry that could not have survived its own statement is skipped. Pinned by Part 3 of `db:verify-actor` |
-| **21.5** | **Session shape:** access-token TTL, refresh TTL, and whether "log out everywhere" ships in v1 | **B5** | 15 min / 30 days / yes — it is one query once `sessions` exists |
-| **21.6** | **Will the frontend and API share an origin in production?** | **B5** (cookie flags) and **B12** | Same origin, or same registrable domain. It makes `SameSite=Lax` work and keeps CSRF exposure small. Cross-site pushes you to `SameSite=None; Secure` plus a CSRF token |
-| **21.7** | **Password policy** | **B5** | ≥ 10 characters, no composition rules, a 128-byte cap. GoTrue's 6-character default is too weak for a company system |
-| **21.8** | **Is SMTP available, and is email verification required?** | **B5** | Verification **required** in production — it is the only proof an address is real, and invites are matched by email. Auto-verify behind a dev-only flag until SMTP exists. **If no SMTP is available at all, invites-by-email and password reset both need a different answer** |
+| ~~**21.5**~~ | **Session shape** | — | **CLOSED → 15 min / 30 days / yes.** `ACCESS_TOKEN_TTL` and `REFRESH_TOKEN_TTL_DAYS` are configuration; "log out everywhere" is `POST /auth/logout?all=true`. The access token stays stateless, so revocation bites it only at expiry — that bound is the reason the access TTL is short and the refresh token is the revocable half |
+| ~~**21.6**~~ | **Will the frontend and API share an origin in production?** | **B12** confirms it | **CLOSED → same origin / same site.** `SameSite=lax`, `Secure` in production, `Path=/api/v1/auth`, and no CSRF token. `COOKIE_SAMESITE` is configurable for the day that changes, and `none` without `Secure` is refused at boot because browsers drop that pair silently. **Going cross-site later means adding CSRF protection, not just flipping the variable** |
+| ~~**21.7**~~ | **Password policy** | — | **CLOSED → ≥ 10 characters, no composition rules, a 128-byte cap.** In `config/constants.ts`, enforced by `auth.schema.ts` in characters and again by `password.ts` in bytes, because argon2 reads bytes and 40 emoji are 160 of them |
+| ~~**21.8**~~ | **Is SMTP available, and is email verification required?** | — | **CLOSED → no SMTP yet.** `nodemailer` is installed behind a `MailDriver`, and only the console driver is wired. `AUTH_REQUIRE_EMAIL_VERIFICATION=false` in development; production refuses to start with it off, and refuses to start on the console driver, so the shortcut cannot escape a laptop. `POST /auth/verify-email` is deferred with the SMTP it would need (§9). **Email invites (B7) still need this answered** — they are matched by address and have no console equivalent |
+| **21.12** | ~~**Board deletion was still impossible.**~~ | — | **CLOSED → fixed by migration `0008`.** 21.11 guarded `log_member_activity` and its probe used a board with a membership and nothing else, which passed. `log_column_activity` and `log_todo_activity` kept the same unguarded DELETE branch, so a board with one column hit `activities_board_id_fkey` and the delete failed — and since `boards.owner_id` → `profiles` → `users` all cascade, the owner's account could not be deleted either. Every provisioned board has four columns, so this was every board. Found by B5's auth probe failing to clean up after itself. **Both function bodies were copied from 0006 programmatically and diffed, not retyped** (§18.1) |
 | **21.9** | **Production file storage: a backed-up directory on the company server, or an S3-compatible service (MinIO, R2)?** | **B10**, **B12** | Either works. Local disk is simpler and legitimate on owned hardware; S3-compatible gives versioning and offsite copies more cheaply. **Whichever is chosen needs its own backup — under clean start, those files are the only copy** |
 
 ### Locked for B3 — settled, not to be relitigated
@@ -2301,6 +2335,9 @@ Get the first one wrong and one request marks **every employee's** notifications
 | SVG excluded from preview; CSP + `nosniff` on the preview endpoint | §14.4 |
 | Inventory: 15 tables · 22 CHECKs · 8 uniques · 24 indexes · 17 triggers · 12 trigger functions | §8.1 |
 | **`boards_add_owner_membership` must exist** or a new board's owner is locked out | audit §7.2b |
+| Access tokens carry **no role claim**; membership is read per request | §9.2, §10.4 |
+| Refresh and reset tokens are stored as `sha256` and never in plaintext | §9.2, §8.3 |
+| A DELETE-branch trigger that writes to `activities` must check the board still exists | §21.11, §21.12 |
 
 ### Closed by the clean-start strategy
 
@@ -2309,4 +2346,4 @@ Get the first one wrong and one request marks **every employee's** notifications
 
 ---
 
-**End of plan.** B0, B1 and B2 are built. B3 is not started, and 21.10 blocks it.
+**End of plan.** B0–B5 are built: the backend authenticates, and the database is still empty of anything but what a test puts there. B6 is next; 21.10 is the only open decision that blocks a milestone anyone is near, and it blocks B12.

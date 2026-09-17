@@ -31,3 +31,31 @@ jobs:
       # One line rather than one per file: adding a test no longer means
       # remembering to add it here.
       - run: npm test
+
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    env:
+      # prisma.config.ts resolves this eagerly even for `prisma generate`,
+      # which never connects; vitest.config.ts injects its own stub for tests.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/todo_app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - run: npm ci
+
+      - run: npm run db:generate # generates @prisma/client, needed for the build to typecheck
+
+      - run: npm run build
+
+      - run: npm test

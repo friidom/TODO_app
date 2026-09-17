@@ -7,9 +7,12 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "db:ping": "tsx src/db/ping.ts",
     "db:verify-actor": "tsx src/db/verifyWithActor.ts",
     "db:verify-errors": "tsx src/db/verifyErrors.ts",
+    "auth:verify": "tsx src/db/verifyAuth.ts",
     "db:migrate": "prisma migrate deploy",
     "db:status": "prisma migrate status",
     "db:pull": "prisma db pull",
@@ -20,21 +23,31 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
+    "argon2": "^0.45.1",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.3",
     "morgan": "^1.12.1",
+    "nodemailer": "^10.0.10",
     "pg": "^8.23.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/morgan": "^1.9.10",
     "@types/node": "^26.5.1",
+    "@types/nodemailer": "^8.0.2",
     "@types/pg": "^8.23.1",
     "prisma": "^7.10.0",
     "tsx": "^4.23.13",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "4.1.10"
   }
 }

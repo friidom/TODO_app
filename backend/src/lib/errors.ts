@@ -1,9 +1,12 @@
+import { ZodError } from "zod";
+
 export type ErrorCode =
   | "bad_request"
   | "unauthorized"
   | "forbidden"
   | "not_found"
   | "conflict"
+  | "too_many_requests"
   | "internal";
 
 // One table pairs code and status, so a call site cannot invent a combination
@@ -14,6 +17,7 @@ const STATUS: Record<ErrorCode, number> = {
   forbidden: 403,
   not_found: 404,
   conflict: 409,
+  too_many_requests: 429,
   internal: 500,
 };
 
@@ -64,6 +68,35 @@ function sqlStateOf(error: object): string | undefined {
   return typeof code === "string" && /^[0-9A-Z]{5}$/.test(code) ? code : undefined;
 }
 
+// The name of the constraint a 23505 violated, so callers can say which
+// unique value collided. The message beside it is skipped: it's in the
+// server's own locale (Russian, on this machine).
+export function uniqueConstraintOf(error: unknown): string | undefined {
+  if (error === null || typeof error !== "object") return undefined;
+
+  if (sqlStateOf(error) !== "23505") return undefined;
+
+  // The driver adapter reports it as { constraint: { index } }; a raw pg
+  // error carries a plain `constraint` string.
+  const adapter = (
+    error as {
+      meta?: { driverAdapterError?: { cause?: { constraint?: unknown } } };
+    }
+  ).meta?.driverAdapterError?.cause?.constraint;
+
+  if (typeof adapter === "string") return adapter;
+
+  if (adapter !== null && typeof adapter === "object") {
+    const index = (adapter as { index?: unknown }).index;
+
+    if (typeof index === "string") return index;
+  }
+
+  const direct = (error as { constraint?: unknown }).constraint;
+
+  return typeof direct === "string" ? direct : undefined;
+}
+
 // Prisma-level failures with no SQLSTATE behind them.
 const BY_PRISMA_CODE: Record<string, { code: ErrorCode; message: string }> = {
   P2025: { code: "not_found", message: "Not found." },
@@ -71,6 +104,22 @@ const BY_PRISMA_CODE: Record<string, { code: ErrorCode; message: string }> = {
 
 export function toAppError(error: unknown): AppError {
   if (error instanceof AppError) return error;
+
+  // Only the field path and rule are reported, never the value — on an auth
+  // route the value can be a password.
+  if (error instanceof ZodError) {
+    const [issue] = error.issues;
+    const path = issue?.path.join(".");
+
+    return new AppError(
+      "bad_request",
+      issue === undefined
+        ? "Invalid request."
+        : path
+          ? `${path}: ${issue.message}`
+          : issue.message,
+    );
+  }
 
   if (error !== null && typeof error === "object") {
     const sqlState = sqlStateOf(error);

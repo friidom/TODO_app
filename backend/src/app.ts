@@ -1,5 +1,7 @@
 import express, { type Request, type Response } from "express";
+import cookieParser from "cookie-parser";
 import cors from "cors";
+import helmet from "helmet";
 import morgan from "morgan";
 
 import { env } from "./config/env.js";
@@ -9,9 +11,13 @@ import { apiRouter } from "./routes/index.js";
 
 export const app = express();
 
+// contentSecurityPolicy off: nothing here serves HTML.
+app.use(helmet({ contentSecurityPolicy: false }));
+
 // credentials:true forbids origin "*", so the origin stays pinned to one value
 app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
 app.use(express.json());
+app.use(cookieParser());
 app.use(morgan(env.isProduction ? "combined" : "dev"));
 
 // Outside /api/v1 on purpose: uptime checks and load balancers should not have
