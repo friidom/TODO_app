@@ -7,7 +7,7 @@ import { RANK_GAP } from "../../lib/rank.js";
 // TODO_FIELDS in src/types/data.ts, in its order. The board's narrow slice:
 // description and creator_id are deliberately absent and only GET /todos/:id
 // returns them.
-const LIST_FIELDS = {
+export const LIST_FIELDS = {
   id: true,
   board_id: true,
   column_id: true,
@@ -49,7 +49,7 @@ export type TodoDetailRow = Omit<DetailRecord, "position" | "estimate"> & {
 
 // position is int8 (bigint, which JSON.stringify throws on) and estimate is
 // numeric (Decimal, which serialises as a string).
-function toRow<T extends { position: bigint | null; estimate: Prisma.Decimal | null }>(
+export function toRow<T extends { position: bigint | null; estimate: Prisma.Decimal | null }>(
   record: T,
 ): Omit<T, "position" | "estimate"> & { position: number | null; estimate: number | null } {
   return { ...record, position: toNumber(record.position), estimate: toNumber(record.estimate) };

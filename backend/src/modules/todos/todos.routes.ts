@@ -5,6 +5,8 @@ import { requireAuth } from "../../middleware/requireAuth.js";
 import { requireRole } from "../../middleware/requireRole.js";
 import { validate } from "../../middleware/validate.js";
 import * as controller from "./todos.controller.js";
+import { todoActivitiesRoutes } from "../activities/activities.routes.js";
+import { todoCommentsRoutes } from "../comments/comments.routes.js";
 import { createTodoSchema, moveTodoSchema, todoParamsSchema, upsertTodoSchema } from "./todos.schema.js";
 
 export const boardTodosRoutes = Router({ mergeParams: true });
@@ -59,3 +61,6 @@ todosRoutes.delete(
   validate({ params: todoParamsSchema }),
   controller.remove,
 );
+
+todosRoutes.use("/:todoId/comments", todoCommentsRoutes);
+todosRoutes.use("/:todoId/activities", todoActivitiesRoutes);

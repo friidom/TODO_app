@@ -1,7 +1,11 @@
 import { Router } from "express";
 
 import { authRoutes } from "../modules/auth/auth.routes.js";
+import { boardActivitiesRoutes } from "../modules/activities/activities.routes.js";
 import { boardCollectionRoutes, boardItemRoutes } from "../modules/boards/boards.routes.js";
+import { commentsRoutes } from "../modules/comments/comments.routes.js";
+import { meRoutes } from "../modules/feed/feed.routes.js";
+import { notificationsRoutes } from "../modules/notifications/notifications.routes.js";
 import { boardColumnsRoutes, columnsRoutes } from "../modules/columns/columns.routes.js";
 import {
   boardInviteesRoutes,
@@ -35,6 +39,9 @@ apiRouter.use("/invites", invitesRoutes);
 apiRouter.use("/columns", columnsRoutes);
 apiRouter.use("/todos", todosRoutes);
 apiRouter.use("/sprints", sprintsRoutes);
+apiRouter.use("/comments", commentsRoutes);
+apiRouter.use("/notifications", notificationsRoutes);
+apiRouter.use("/me", meRoutes);
 
 // Order matters only in that the collection router has no matching route for
 // /boards/<id>, so those fall through to boardScoped.
@@ -48,3 +55,4 @@ boardScoped.use("/invitees", boardInviteesRoutes);
 boardScoped.use("/columns", boardColumnsRoutes);
 boardScoped.use("/todos", boardTodosRoutes);
 boardScoped.use("/sprints", boardSprintsRoutes);
+boardScoped.use("/activities", boardActivitiesRoutes);
