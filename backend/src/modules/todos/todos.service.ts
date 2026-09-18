@@ -4,6 +4,7 @@ import { withActor } from "../../db/withActor.js";
 import { AppError, uniqueConstraintOf } from "../../lib/errors.js";
 import { rankForAppend } from "../../lib/rank.js";
 import type { Actor } from "../../types/actor.js";
+import * as membersRepo from "../members/members.repo.js";
 import type { BoardContext } from "../members/members.service.js";
 import * as todosRepo from "./todos.repo.js";
 import type { TodoDetailRow, TodoRow, TodoWrite } from "./todos.repo.js";
@@ -20,6 +21,22 @@ function conflictIfForeignId(error: unknown): unknown {
   return uniqueConstraintOf(error) === "todos_pkey"
     ? new AppError("conflict", "That id is already in use.")
     : error;
+}
+
+// An assignee who is not on the board is not merely meaningless.
+// notify_on_assignment writes them a notifications row carrying the board
+// title, the card title and the actor name -- all three chosen by the caller --
+// so without this check any editor of any board can put arbitrary text in any
+// account's inbox, and the invitee search hands them the ids to aim at.
+async function requireBoardMember(
+  board: BoardContext,
+  assigneeId: string | null | undefined,
+): Promise<void> {
+  if (assigneeId === undefined || assigneeId === null) return;
+
+  if ((await membersRepo.roleOf(board.id, assigneeId)) === null) {
+    throw new AppError("bad_request", "That person is not a member of this board.");
+  }
 }
 
 export function list(board: BoardContext): Promise<TodoRow[]> {
@@ -57,6 +74,8 @@ export async function create(
   board: BoardContext,
   input: CreateTodoInput,
 ): Promise<TodoDetailRow> {
+  await requireBoardMember(board, input.assignee_id);
+
   const write = writeFrom(input);
 
   // The append rank the client used to read for itself before sending. Only
@@ -89,6 +108,8 @@ export async function upsert(
   todoId: string,
   input: UpsertTodoInput,
 ): Promise<TodoDetailRow> {
+  await requireBoardMember(board, input.assignee_id);
+
   try {
     return await withActor(actor.id, (tx) =>
       todosRepo.upsert(tx, board.id, todoId, actor.id, writeFrom(input)),

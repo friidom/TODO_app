@@ -190,3 +190,67 @@ describe("no cross-board write leaves the other board changed", () => {
     expect(await prisma.todos.count({ where: { board_id: mallory.boardId } })).toBe(1);
   });
 });
+
+// notify_on_assignment writes the assignee a notification carrying the board
+// title, the card title and the actor name -- all three chosen by the caller.
+// Assigning to a non-member therefore puts arbitrary text in a stranger inbox,
+// and GET /boards/:id/invitees hands an admin the ids to aim at.
+describe("work cannot be assigned to someone who is not on the board", () => {
+  it("refuses the assignment and writes nothing to the stranger inbox", async () => {
+    const { alice, aliceColumn } = await twoBoards();
+    const victim = await makeUser("victim");
+
+    await client.patch(
+      "/api/v1/users/me",
+      { full_name: "Security Team" },
+      { token: alice.token },
+    );
+
+    const response = await client.post(
+      `/api/v1/boards/${alice.boardId}/todos`,
+      {
+        title: "Reset your password at evil.example",
+        column_id: aliceColumn,
+        assignee_id: victim.id,
+      },
+      { token: alice.token },
+    );
+
+    expect(response.status).toBe(400);
+    expect(await prisma.notifications.count({ where: { user_id: victim.id } })).toBe(0);
+    expect(await prisma.todos.count({ where: { assignee_id: victim.id } })).toBe(0);
+  });
+
+  it("refuses it on the upsert path too", async () => {
+    const { alice, aliceColumn } = await twoBoards();
+    const victim = await makeUser("victim");
+    const todo = await addTodo(alice, alice.boardId, aliceColumn, "mine");
+
+    const response = await client.patch(
+      `/api/v1/boards/${alice.boardId}/todos/${todo.id}`,
+      { assignee_id: victim.id },
+      { token: alice.token },
+    );
+
+    expect(response.status).toBe(400);
+    expect(await prisma.notifications.count({ where: { user_id: victim.id } })).toBe(0);
+  });
+
+  it("still allows assigning a real member", async () => {
+    const { alice, aliceColumn } = await twoBoards();
+    const colleague = await makeUser("colleague");
+
+    const { addMember } = await import("./fixtures.js");
+
+    await addMember(alice.boardId, colleague, "editor", alice.id);
+
+    const response = await client.post(
+      `/api/v1/boards/${alice.boardId}/todos`,
+      { title: "real work", column_id: aliceColumn, assignee_id: colleague.id },
+      { token: alice.token },
+    );
+
+    expect(response.status).toBe(201);
+    expect(await prisma.notifications.count({ where: { user_id: colleague.id } })).toBe(1);
+  });
+});
