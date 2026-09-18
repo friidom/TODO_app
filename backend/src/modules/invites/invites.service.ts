@@ -177,7 +177,7 @@ export async function decline(actor: Actor, credential: InviteCredential): Promi
     // caller and never passed in. Holding the token is not enough: a link
     // invite has no addressee at all and can only be revoked by an admin.
     const addressed = normalizeEmail(invite.email);
-    const caller = normalizeEmail((await invitesRepo.emailOf(actor.id))?.email);
+    const caller = normalizeEmail((await invitesRepo.emailOf(actor.id, tx))?.email);
 
     if (addressed === null || caller === null || addressed !== caller) throw notFound();
 
@@ -201,7 +201,7 @@ async function locate(
 
   if (invite === null) return null;
 
-  const profile = await invitesRepo.emailOf(actor.id);
+  const profile = await invitesRepo.emailOf(actor.id, tx);
   const mine = normalizeEmail(profile?.email);
   const addressed = normalizeEmail(invite.email);
 

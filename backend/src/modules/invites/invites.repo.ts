@@ -203,6 +203,12 @@ export function findProfileByEmail(
   });
 }
 
-export function emailOf(userId: string): Promise<{ email: string | null } | null> {
-  return prisma.profiles.findUnique({ where: { id: userId }, select: { email: true } });
+// Takes the transaction client when one is open. Reading through the global
+// client while holding a transaction borrows a SECOND connection from a pool of
+// ten, so enough concurrent accepts would each hold one and wait for another.
+export function emailOf(
+  userId: string,
+  client: Prisma.TransactionClient = prisma,
+): Promise<{ email: string | null } | null> {
+  return client.profiles.findUnique({ where: { id: userId }, select: { email: true } });
 }
