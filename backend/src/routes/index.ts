@@ -9,6 +9,7 @@ import {
   invitesRoutes,
 } from "../modules/invites/invites.routes.js";
 import { membersRoutes } from "../modules/members/members.routes.js";
+import { boardSprintsRoutes, sprintsRoutes } from "../modules/sprints/sprints.routes.js";
 import { boardTodosRoutes, todosRoutes } from "../modules/todos/todos.routes.js";
 import { spacesRoutes } from "../modules/spaces/spaces.routes.js";
 import { usersRoutes } from "../modules/users/users.routes.js";
@@ -33,6 +34,7 @@ apiRouter.use("/spaces", spacesRoutes);
 apiRouter.use("/invites", invitesRoutes);
 apiRouter.use("/columns", columnsRoutes);
 apiRouter.use("/todos", todosRoutes);
+apiRouter.use("/sprints", sprintsRoutes);
 
 // Order matters only in that the collection router has no matching route for
 // /boards/<id>, so those fall through to boardScoped.
@@ -45,3 +47,4 @@ boardScoped.use("/invites", boardInvitesRoutes);
 boardScoped.use("/invitees", boardInviteesRoutes);
 boardScoped.use("/columns", boardColumnsRoutes);
 boardScoped.use("/todos", boardTodosRoutes);
+boardScoped.use("/sprints", boardSprintsRoutes);
