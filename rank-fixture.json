@@ -1,0 +1,419 @@
+{
+  "$comment": "Shared parity fixture for the fractional rank arithmetic. Read independently by src/utils/rank.parity.test.ts and backend/src/lib/rank.parity.test.ts. If the two implementations drift, one of those tests fails instead of a board quietly disagreeing with the server about where a card goes. Expectations are generated from src/utils/rank.ts, never hand-written. Regenerate only when the arithmetic deliberately changes, and change both packages with it.",
+  "rankGap": 1024,
+  "byRank": [
+    {
+      "a": {
+        "rank": 1024,
+        "position": null
+      },
+      "b": {
+        "rank": 2048,
+        "position": null
+      },
+      "expected": -1024
+    },
+    {
+      "a": {
+        "rank": 2048,
+        "position": null
+      },
+      "b": {
+        "rank": 1024,
+        "position": null
+      },
+      "expected": 1024
+    },
+    {
+      "a": {
+        "rank": 1024,
+        "position": null
+      },
+      "b": {
+        "rank": 1024,
+        "position": null
+      },
+      "expected": 0
+    },
+    {
+      "a": {
+        "rank": null,
+        "position": 2
+      },
+      "b": {
+        "rank": 2048,
+        "position": null
+      },
+      "expected": 0
+    },
+    {
+      "a": {
+        "rank": null,
+        "position": 0
+      },
+      "b": {
+        "rank": null,
+        "position": 1
+      },
+      "expected": -1024
+    },
+    {
+      "a": {
+        "rank": null,
+        "position": null
+      },
+      "b": {
+        "rank": 1024,
+        "position": null
+      },
+      "expected": -1024
+    },
+    {
+      "a": {
+        "rank": 3072,
+        "position": null
+      },
+      "b": {
+        "rank": null,
+        "position": 2
+      },
+      "expected": 1024
+    }
+  ],
+  "rankBetween": [
+    {
+      "before": null,
+      "after": null,
+      "expected": 1024
+    },
+    {
+      "before": 2048,
+      "after": null,
+      "expected": 3072
+    },
+    {
+      "before": 0,
+      "after": null,
+      "expected": 1024
+    },
+    {
+      "before": null,
+      "after": 1024,
+      "expected": 512
+    },
+    {
+      "before": null,
+      "after": 512,
+      "expected": 256
+    },
+    {
+      "before": 1024,
+      "after": 2048,
+      "expected": 1536
+    },
+    {
+      "before": 1024,
+      "after": 1536,
+      "expected": 1280
+    },
+    {
+      "before": 2048,
+      "after": 1024,
+      "expected": null
+    },
+    {
+      "before": 1024,
+      "after": 1024,
+      "expected": null
+    },
+    {
+      "before": 1,
+      "after": 1.0000000000000002,
+      "expected": null
+    },
+    {
+      "before": null,
+      "after": 0,
+      "expected": null
+    },
+    {
+      "before": null,
+      "after": -10,
+      "expected": null
+    }
+  ],
+  "rankForAppend": [
+    {
+      "rows": [],
+      "expected": 1024
+    },
+    {
+      "rows": [
+        {
+          "rank": 2048,
+          "position": null
+        },
+        {
+          "rank": 1024,
+          "position": null
+        },
+        {
+          "rank": 3072,
+          "position": null
+        }
+      ],
+      "expected": 4096
+    },
+    {
+      "rows": [
+        {
+          "rank": null,
+          "position": 3
+        }
+      ],
+      "expected": 4096
+    },
+    {
+      "rows": [
+        {
+          "rank": null,
+          "position": null
+        }
+      ],
+      "expected": 1024
+    }
+  ],
+  "neighboursAt": [
+    {
+      "ordered": [
+        {
+          "rank": 1024,
+          "position": null
+        },
+        {
+          "rank": 2048,
+          "position": null
+        },
+        {
+          "rank": 3072,
+          "position": null
+        }
+      ],
+      "index": 0,
+      "expected": {
+        "before": null,
+        "after": 1024
+      }
+    },
+    {
+      "ordered": [
+        {
+          "rank": 1024,
+          "position": null
+        },
+        {
+          "rank": 2048,
+          "position": null
+        },
+        {
+          "rank": 3072,
+          "position": null
+        }
+      ],
+      "index": 1,
+      "expected": {
+        "before": 1024,
+        "after": 2048
+      }
+    },
+    {
+      "ordered": [
+        {
+          "rank": 1024,
+          "position": null
+        },
+        {
+          "rank": 2048,
+          "position": null
+        },
+        {
+          "rank": 3072,
+          "position": null
+        }
+      ],
+      "index": 2,
+      "expected": {
+        "before": 2048,
+        "after": 3072
+      }
+    },
+    {
+      "ordered": [
+        {
+          "rank": 1024,
+          "position": null
+        },
+        {
+          "rank": 2048,
+          "position": null
+        },
+        {
+          "rank": 3072,
+          "position": null
+        }
+      ],
+      "index": 3,
+      "expected": {
+        "before": 3072,
+        "after": null
+      }
+    },
+    {
+      "ordered": [
+        {
+          "rank": 1024,
+          "position": null
+        },
+        {
+          "rank": 2048,
+          "position": null
+        },
+        {
+          "rank": 3072,
+          "position": null
+        }
+      ],
+      "index": 99,
+      "expected": {
+        "before": 3072,
+        "after": null
+      }
+    },
+    {
+      "ordered": [
+        {
+          "rank": 1024,
+          "position": null
+        },
+        {
+          "rank": 2048,
+          "position": null
+        },
+        {
+          "rank": 3072,
+          "position": null
+        }
+      ],
+      "index": -5,
+      "expected": {
+        "before": null,
+        "after": 1024
+      }
+    },
+    {
+      "ordered": [],
+      "index": 0,
+      "expected": {
+        "before": null,
+        "after": null
+      }
+    }
+  ],
+  "rankForDrop": [
+    {
+      "column": [
+        {
+          "rank": 1024,
+          "position": null
+        },
+        {
+          "rank": 2048,
+          "position": null
+        },
+        {
+          "rank": 3072,
+          "position": null
+        }
+      ],
+      "index": 0,
+      "expected": 512
+    },
+    {
+      "column": [
+        {
+          "rank": 1024,
+          "position": null
+        },
+        {
+          "rank": 2048,
+          "position": null
+        },
+        {
+          "rank": 3072,
+          "position": null
+        }
+      ],
+      "index": 1,
+      "expected": 1536
+    },
+    {
+      "column": [
+        {
+          "rank": 1024,
+          "position": null
+        },
+        {
+          "rank": 2048,
+          "position": null
+        },
+        {
+          "rank": 3072,
+          "position": null
+        }
+      ],
+      "index": 3,
+      "expected": 4096
+    },
+    {
+      "column": [
+        {
+          "rank": 1024,
+          "position": null
+        },
+        {
+          "rank": 2048,
+          "position": null
+        },
+        {
+          "rank": 3072,
+          "position": null
+        }
+      ],
+      "index": 99,
+      "expected": 4096
+    },
+    {
+      "column": [
+        {
+          "rank": 3072,
+          "position": null
+        },
+        {
+          "rank": 1024,
+          "position": null
+        },
+        {
+          "rank": 2048,
+          "position": null
+        }
+      ],
+      "index": 1,
+      "expected": 1536
+    },
+    {
+      "column": [],
+      "index": 0,
+      "expected": 1024
+    }
+  ]
+}

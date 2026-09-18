@@ -1,4 +1,4 @@
-import type { NextFunction, Request, Response } from "express";
+import type { NextFunction, Request, RequestHandler, Response } from "express";
 
 import { prisma } from "../db/prisma.js";
 import { AppError } from "../lib/errors.js";
@@ -29,6 +29,8 @@ const CHILD_RESOLVERS = {
     prisma.comments.findUnique({ where: { id }, select: { board_id: true } }),
   attachmentId: (id: string) =>
     prisma.attachments.findUnique({ where: { id }, select: { board_id: true } }),
+  inviteId: (id: string) =>
+    prisma.board_invites.findUnique({ where: { id }, select: { board_id: true } }),
 } as const;
 
 type ChildParam = keyof typeof CHILD_RESOLVERS;
@@ -42,10 +44,10 @@ type Resolution =
   // without anything for it to resolve. A wiring bug, not a client error.
   | { kind: "unwired" };
 
-async function resolveBoardId(req: Request): Promise<Resolution> {
+async function resolveBoardId(req: Request, skip: ChildParam | undefined): Promise<Resolution> {
   const params = req.params as Record<string, string | undefined>;
   const declared = params.boardId;
-  const children = CHILD_PARAMS.filter((name) => params[name] !== undefined);
+  const children = CHILD_PARAMS.filter((name) => name !== skip && params[name] !== undefined);
 
   if (declared === undefined && children.length === 0) return { kind: "unwired" };
 
@@ -80,41 +82,58 @@ async function resolveBoardId(req: Request): Promise<Resolution> {
   return { kind: "board", boardId: agreed };
 }
 
-// requireAuth → boardAccess → requireRole(...) → validate(...) → handler.
+interface BoardAccessOptions {
+  // The child id this route upserts, and may therefore name before the row
+  // exists. §12.3 requires a PATCH on a todo whose insert is still in flight
+  // to CREATE it; the strict resolver would 404 that before the handler ran,
+  // which presents as a board that looks right and then silently reverts.
+  //
+  // The skipped id is never looked up, so this middleware no longer proves it
+  // belongs to req.board.id. THE HANDLER MUST SCOPE BY (id, board_id) — an
+  // upsert keyed on `id` alone lets one board overwrite another board's row.
+  //
+  // The route must also carry :boardId, or there is nothing left to resolve
+  // and it answers 500 rather than authorizing nothing.
+  mayNotExist?: ChildParam;
+}
+
+// requireAuth → boardAccess(…) → requireRole(…) → validate(…) → handler.
 // Sets req.board for everything downstream; nothing after this may read a
 // board id from the request again.
-export async function boardAccess(
-  req: Request,
-  _res: Response,
-  next: NextFunction,
-): Promise<void> {
-  try {
-    const actorId = requireActor(req);
-    const resolved = await resolveBoardId(req);
+export function boardAccess(options: BoardAccessOptions = {}): RequestHandler {
+  return async function resolveBoardAccess(
+    req: Request,
+    _res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    try {
+      const actorId = requireActor(req);
+      const resolved = await resolveBoardId(req, options.mayNotExist);
 
-    if (resolved.kind === "unwired") {
-      throw new AppError("internal", "Internal server error");
+      if (resolved.kind === "unwired") {
+        throw new AppError("internal", "Internal server error");
+      }
+
+      if (resolved.kind === "missing") {
+        next(notFound());
+
+        return;
+      }
+
+      const role = await roleOf(resolved.boardId, actorId);
+
+      if (role === null) {
+        next(notFound());
+
+        return;
+      }
+
+      req.board = { id: resolved.boardId, role };
+      next();
+    } catch (error) {
+      next(error);
     }
-
-    if (resolved.kind === "missing") {
-      next(notFound());
-
-      return;
-    }
-
-    const role = await roleOf(resolved.boardId, actorId);
-
-    if (role === null) {
-      next(notFound());
-
-      return;
-    }
-
-    req.board = { id: resolved.boardId, role };
-    next();
-  } catch (error) {
-    next(error);
-  }
+  };
 }
 
 export function requireBoard(req: Request): { id: string; role: BoardRole } {

@@ -6,7 +6,8 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     include: ["src/**/*.test.ts"],
-    exclude: ["**/node_modules/**", "**/dist/**"],
+    // *.int.test.ts matches the include glob too, and those need a database.
+    exclude: ["**/node_modules/**", "**/dist/**", "**/*.int.test.ts"],
     environment: "node",
     // config/env.ts throws at import when these are missing; dotenv won't
     // overwrite a variable that's already set, so these win over a real .env.

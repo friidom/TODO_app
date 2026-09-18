@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 
-import { DEFAULT_COLUMNS, RANK_GAP } from "../../config/constants.js";
+import { DEFAULT_COLUMNS } from "../../config/constants.js";
+import { RANK_GAP } from "../../lib/rank.js";
 
 export function usernameExists(tx: Prisma.TransactionClient, username: string): Promise<boolean> {
   return tx.profiles

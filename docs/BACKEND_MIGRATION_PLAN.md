@@ -883,7 +883,7 @@ requestContext → requireAuth → boardAccess(':boardId') → requireRole('edit
 **`boardAccess`** — the direct replacement for `accessible_board_ids()` + `board_role()`:
 
 ```
-boardId = req.params.boardId  OR  resolved from :todoId / :commentId / :attachmentId / :sprintId
+boardId = req.params.boardId  OR  resolved from :todoId / :columnId / :sprintId / :commentId / :attachmentId / :inviteId
 role    = membersRepo.roleOf(boardId, req.actor.id)
 if (!role) → 404 NOT FOUND          ← not 403
 req.board = { id: boardId, role }
@@ -892,7 +892,8 @@ req.board = { id: boardId, role }
 Two details that matter:
 
 - **404, not 403**, for a non-member. RLS returns an empty set today, so a non-member cannot distinguish "no such board" from "not yours". A 403 would turn every board id into an existence oracle. Same for todo, comment and attachment ids.
-- **One shared resolver** handles the routes whose path names a child rather than a board. It looks up the row's `board_id` **and then applies the same membership check**.
+- **One shared resolver** handles the routes whose path names a child rather than a board. It looks up the row's `board_id` **and then applies the same membership check**. Every child id present is resolved, and they must all name the same board.
+- **`boardAccess` is a factory, not a bare handler** — `boardAccess()` is the strict form. `boardAccess({ mayNotExist: "todoId" })` is the single exception, added in **B7-0** for PATCH-as-upsert: §12.3 requires a PATCH on a todo whose insert is still in flight to *create* the row, and the strict resolver 404s it before the handler runs. The named id is then never looked up, so **the handler must scope the write by `(id, board_id)`** — the compound unique exists for exactly that. Such a route must also carry `:boardId`, or nothing is left to resolve and it answers 500. See `backend/src/modules/CONVENTIONS.md`.
 
 **`requireRole(min)`** — `roleRank(req.board.role) >= RANK[min]`, else 403. That is `board_role(board_id) in ('owner','admin','editor')` in one line.
 
@@ -1019,11 +1020,16 @@ Register and login answer `{ user, needsVerification, accessToken, expiresIn }`,
 
 | Method | Endpoint | Purpose | Auth |
 |---|---|---|:-:|
-| GET | `/users/:userId` | public profile — used by avatars and comment authors | 🔐 |
+| GET | `/users/me` | own profile | 👤 |
 | PATCH | `/users/me` | `username`, `full_name`, `bio`, `avatar_url` | 👤 |
-| POST | `/users/me/avatar` | multipart; writes `<userId>/avatar.<ext>` | 👤 |
+| ~~GET~~ | ~~`/users/:userId`~~ | **cancelled in B7** — see below | — |
+| ~~POST~~ | ~~`/users/me/avatar`~~ | deferred to **B10** with the storage driver it needs | — |
 
 **No `PATCH /users/:id`.** Today's `profileApi.updateProfile` takes the id from the client and relies on RLS — the exact pattern that must not survive.
+
+**`GET /users/:userId` is not built, and that is a decision rather than an omission.** It was proposed at 🔐 — any signed-in user reading any profile. `docs/RLS_AUDIT.md` §327 prohibits exactly that: *"Future features extend this database API; they do not widen `profiles` RLS… Adding a co-member SELECT policy to `profiles` reintroduces exactly the `email`/`bio` exposure this task exists to prevent, and is prohibited."* `profiles` is self-only today, and `fetchProfile` issues `select("*")`, which includes `email`.
+
+Nothing needs it. `useProfile()` is self-only (`useProfile.ts:11` — `fetchProfile(user!.id)`), and every teammate-identity surface — comment authors, activity actors, assignee avatars, the member list — resolves through `useBoardMembers` → `board_roster`, which returns a fixed six-field list and withholds `email` and `bio`. **Teammate identity stays a board-scoped read.** If a future feature needs a profile outside a board, it gets its own endpoint with its own membership guard and its own explicit column list — not a widening of this one.
 
 ## 11.3 Spaces and boards
 
@@ -1472,11 +1478,13 @@ Current state, read from the live server on 2026-09-15:
 
 **This requires dropping and recreating `todo_app`.** That is safe *right now* — the database has **0 tables** — and will stop being safe the moment B3 creates the schema. **Nothing has been dropped: this needs explicit confirmation.** §15.2d has the exact commands.
 
-## 15.2c `todo_app_test` does not exist yet
+## 15.2c `todo_app_test` — **created in B7-0**
 
-The integration suite (B11) needs a second database it can truncate freely, and `TEST_DATABASE_URL` is not yet in `.env`.
+The integration suite needs a second database it can empty freely. It was scoped to B11; **B7-0 pulled it forward**, because B7's own acceptance criteria are DB-backed tests (concurrent invite accept, upsert-PATCH, every check in `create_invite` and `set_member_role`) and those cannot be written without one. Same precedent as `vitest` arriving early with B5.
 
-**Not needed until B11**, so this does not block B3. It is listed here so it is not discovered late.
+`todo_app_test` now exists and mirrors `todo_app` exactly — `LOCALE_PROVIDER icu`, `ICU_LOCALE 'en-US'` — so an `ORDER BY` in a test sorts the way it sorts in development. `TEST_DATABASE_URL` is in `backend/.env` and documented in `.env.example`.
+
+Two guards stop it ever pointing at development, because the suite empties every table: `vitest.integration.config.ts` refuses a URL whose database name does not end in `_test`, and `src/testing/db.ts` re-checks `current_database()` on the open connection before deleting anything.
 
 ## 15.2d Manual steps — nothing here has been run
 
@@ -1530,7 +1538,7 @@ Nothing is installed now. Each arrives with the milestone that needs it.
 | **B5** ✅ | `argon2` · `jsonwebtoken` · `cookie-parser` · `express-rate-limit` · `nodemailer` · **`helmet`** (§9.6 required it; this list had missed it) · `@types/*` — **and `vitest`, brought forward from B11** because B5-13 asks for tests and a milestone that ships tests needs a runner. Pinned to the frontend's major so the repo has one |
 | **B9** | `socket.io` |
 | **B10** | `multer` · `@aws-sdk/client-s3` · `@types/multer` |
-| **B11** | `supertest` · `@types/supertest` — `vitest` arrived with B5 |
+| ~~**B11**~~ | ~~`supertest` · `@types/supertest`~~ — **not installed.** B7-0 pulled the harness forward and `backend/src/testing/httpClient.ts` covers it in ~60 lines over the real `app` (`listen(0)` + `fetch`), the shape `verifyAuthz.ts` already proved. It also exposes `getSetCookie()` directly, which the refresh-rotation tests want. Add supertest only if something needs it |
 | later | `pino` · `pino-http` (replacing morgan) · `node-cron` |
 
 ## 15.4 Environment variables to add
@@ -1580,17 +1588,20 @@ npm run db:pull     --prefix backend   # prisma db pull && generate (from B3)
 
 `.github/workflows/ci.yml` gained its second job in **B5**, without a service container: the backend suite is pure logic and needs no database, so the job is `npm ci` → `db:generate` → `build` → `test` under `working-directory: backend`. `db:generate` is not optional — `@prisma/client` is generated from the schema rather than vendored, so without it the build has no types to check against.
 
-**B11 adds the `postgres` service container** and the database half. It should **run the migrations before the tests**, so the schema itself is exercised on every pull request:
+**B7-0 added the `postgres` service container** and the database half — brought forward from B11 with the harness (§15.2c). It runs the migrations before the tests, so the schema itself is exercised on every pull request:
 
 ```
-npm ci --prefix backend
-npm run lint --prefix backend
-npm run build --prefix backend
-npm run db:migrate --prefix backend      # prisma migrate deploy
-npm test --prefix backend
+npm ci
+npm run db:generate                      # @prisma/client is generated, not vendored
+npm run build                            # tsc — the only typecheck, and it covers the tests
+npm test                                 # unit suite; no database
+npm run db:migrate                       # prisma migrate deploy, against the service container
+npm run test:integration
 ```
 
 The existing frontend job is unchanged.
+
+**One known gap.** The service container initialises with the `postgres:18` image's default locale, while development is ICU `en-US`. Nothing asserts text ordering yet, so the two cannot disagree in practice; it is noted in `ci.yml` and revisited with §21.10 rather than fixed with an untested `POSTGRES_INITDB_ARGS`.
 
 ---
 
@@ -1839,10 +1850,24 @@ Plus two specific to this migration:
 
 **Prerequisites.** B6.
 
-**Sub-phases**, in dependency order:
+**Sub-phases**, in dependency order. **A read-only audit before B7-0 restructured these** — §16's original B7-A bundled spaces, boards, members and invites into one phase, and four things §11 assumed turned out not to hold. Both changes are recorded below.
 
-- **B7-A — Spaces, boards, members, invites.** Port `set_member_role`, `add_board_member`, `remove_board_member`, `leave_board`, `board_roster`, `create_invite`, `accept_invite`, `decline_invite`, `revoke_invite`, `search_board_invitees` — **each in the same order of checks, with the same messages** (§10.6).
+- **B7-0 — Foundation.** Seven gaps the audit demonstrated, none of them optional:
+  `lib/numeric.ts` (`JSON.stringify` **throws** on the `bigint` Prisma returns for `position`, and renders the `Decimal` it returns for `estimate` as the string `"5"` — so the first `/columns` or `/todos` response was a 500 either way) ·
+  `lib/rank.ts` + `rank-fixture.json` + a parity test in each package, the copy §20 said B7 still owed ·
+  `boardAccess` as a factory with the `mayNotExist` opt-in (§10.4) ·
+  `inviteId` added to the child resolver, without which `DELETE /invites/:inviteId` was a 500 on every call ·
+  page-size and invite constants ·
+  the DB-backed integration harness and its CI service container (§15.2c, §15.6) ·
+  five new rules in `backend/src/modules/CONVENTIONS.md`.
+  *Tests:* the parity fixture is generated from `src/utils/rank.ts` rather than hand-written, and was confirmed to **fail** on a deliberate `RANK_GAP` drift · `position` and `estimate` survive `JSON.stringify` as numbers · a nested router without `mergeParams` answers 500, pinning the claim `CONVENTIONS.md` makes.
+
+- **B7-A1 — Boards, spaces, `/users/me`.** The simplest full vertical slice, taken first so the chain — router → `boardAccess` → `requireRole` → `validate` → service → repo — has served real requests before anything privilege-sensitive is written.
+
+- **B7-A2 — Members and invites.** Port `board_roster`, `set_member_role`, `add_board_member`, `remove_board_member`, `leave_board`, `create_invite`, `accept_invite`, `decline_invite`, `revoke_invite`, `my_pending_invites`, `search_board_invitees` — **each in the same order of checks, with the same messages** (§10.6).
   *Tests:* two concurrent accepts of one invite admit exactly one · an admin cannot invite an admin · `'owner'` is refused everywhere it can be requested · expiry clamps to 1–30 days · a revoked token and a nonexistent token behave identically · a repeat accept by an existing member is a clean no-op.
+
+  **Why this is no longer bundled with boards.** An off-by-one in one of these rank comparisons *is* a privilege escalation, and `create_invite`'s own SQL names the shape (`null <= 3` is NULL, and an `if` on NULL does not branch, turning a deny into an allow) as "the single most dangerous shape in this file". Writing it on a router that has never served a request is the worst available sequencing; B7-A1 buys that proof cheaply.
 
 - **B7-B — Columns and todos.** Including `/move` (one row, rank taken from the client not recomputed), delete-with-rehome in one transaction, and `/rebalance`. Copy `src/utils/rank.ts` to `lib/rank.ts` with its tests and a parity test.
   *Tests:* **PATCH a todo id that does not exist yet → the row is created** (the optimistic-update invariant) · create assigns `board_key` · delete-then-create does not reuse the key · a move writes exactly one row · a hierarchy violation surfaces as a clean 400, not a 500 · the response field list matches `TODO_FIELDS` in `types/data.ts`.
@@ -2280,9 +2305,9 @@ Get the first one wrong and one request marks **every employee's** notifications
 
 > ### **B7 — Core REST API modules**
 >
-> Every endpoint in §11, with the RPC rules ported faithfully. B6 made the chain available, so each route is now `requireAuth, boardAccess, requireRole(...), validate(schema), handler` and the interesting work is the service layer, not the guarding.
+> Every endpoint in §11, with the RPC rules ported faithfully. B6 made the chain available, so each route is now `requireAuth, boardAccess(), requireRole(...), validate(schema), handler` and the interesting work is the service layer, not the guarding.
 >
-> Five sub-phases: **B7-A** boards/members/invites · **B7-B** columns/todos · **B7-C** sprints · **B7-D** comments/activity/notifications · **B7-E** the cross-board feed. B7-A first — everything else hangs off a board.
+> Seven sub-phases: **B7-0** foundation · **B7-A1** boards/spaces/`users/me` · **B7-A2** members/invites · **B7-B** columns/todos · **B7-C** sprints · **B7-D** comments/activity/notifications · **B7-E** the cross-board feed. The split of the original B7-A, and the reason for it, are in §16.
 
 ## Before B7 starts
 
@@ -2292,10 +2317,12 @@ Get the first one wrong and one request marks **every employee's** notifications
 | 2 | `lib/permissions.ts` and its parity fixture | ✅ B6 |
 | 3 | The repo convention (`boardId` first, required) | ✅ `backend/src/modules/CONVENTIONS.md` |
 | 4 | §21.9 production file storage | ⬜ open, blocks **B10**, not B7 |
-| 5 | §21.10 database collation | ⬜ open, blocks **B12** |
+| 5 | §21.10 database collation | ⬜ open, blocks **B12** — and see the revised finding there |
 | 6 | Nothing to install for B7 | — |
-
-`lib/rank.ts` is the one copy B7 still owes — `src/utils/rank.ts` ported with a parity test, the same treatment `permissions.ts` got in B6.
+| 7 | `lib/rank.ts` + parity fixture | ✅ **B7-0** |
+| 8 | `bigint` / `Decimal` JSON boundary | ✅ **B7-0** — was a 500 on the first board response |
+| 9 | `inviteId` in the child resolver | ✅ **B7-0** — was a 500 on every revoke |
+| 10 | DB-backed integration harness + CI service container | ✅ **B7-0**, pulled forward from B11 (§15.2c) |
 
 ## What NOT to do in B7
 
@@ -2305,7 +2332,9 @@ Get the first one wrong and one request marks **every employee's** notifications
 - **Do not inline the membership query.** `accessibleBoardIds` is the swap point and must stay the only one.
 - **404, not 403,** for anything a non-member names.
 - Actor-derived fields (`creator_id`, `author_id`, `uploader_id`, `owner_id`) are **always set server-side and ignored if present in the body.**
-- Do not touch `src/` (the frontend) — that is B8.
+- Do not touch `src/` (the frontend) — that is B8. **One exception, precedent set by B6:** a parity test may live there, because it changes no application code. `src/services/members/permissions.parity.test.ts` landed in `f541bc7`, and `src/utils/rank.parity.test.ts` landed in B7-0.
+- **Do not return a Prisma `bigint` or `Decimal` from a controller.** `lib/numeric.ts#toNumber` converts at the service boundary; a global `json replacer` cannot do it, because `JSON.stringify` calls `toJSON` before the replacer and a `Decimal` is already a string by then.
+- **Do not select `sprints` by `board_id` as if it were unique.** Prisma introspects the partial unique index `sprints_one_active_per_board` as a plain one, so `findUnique({ where: { board_id } })` type-checks and is wrong — a board has many sprints and at most one *active*.
 
 # 21. Open architectural decisions
 
@@ -2317,7 +2346,7 @@ Get the first one wrong and one request marks **every employee's** notifications
 | ~~21.2~~ | `users` + `profiles` as two tables, or one? | — | **CLOSED → two tables.** Profiles are readable by every board member; credentials are not |
 | ~~21.3~~ | Query layer? | — | **CLOSED → Prisma, SQL-first** (§8.7). SQL migrations are the source of truth; `schema.prisma` is generated by `prisma db pull`; `prisma migrate deploy` only; `prisma migrate dev` banned. `pg` retained for diagnostics and raw utilities |
 | ~~21.4~~ | Drop `position` columns? | — | **CLOSED → keep them.** Inspection found nine active uses in `src/` (§8.5b). Dropping is deferred to M6-05 as its own expand → backfill → contract |
-| **21.10** | **Database collation.** `todo_app` is still `Russian_Russia.1251` / libc. B3 was applied onto it rather than waiting, so dev and a Linux production server will disagree on `ORDER BY` for text | **B12** (was B3) | **Still recommended: recreate with ICU `en-US`** (or `C`), §15.2d. Cheap while the only rows are throwaway; the app sorts in JS almost everywhere, so the practical blast radius is small — but `profiles_username_lower_key` and `citext` both lean on collation |
+| **21.10** | **Database collation.** ⚠️ **The premise was stale — corrected in B7-0.** `todo_app` is **not** libc: it reports `datlocprovider = 'i'` with `datlocale = 'en-US'`, i.e. already ICU `en-US`, which is what this entry recommends. `datcollate`/`datctype` still read `Russian_Russia.1251`, which is the libc fallback for the parts ICU does not cover — that is what the original reading mistook for the whole answer | **B12** | **Verify, then close.** Confirm on the production host that the ICU provider is what actually orders text, and decide whether the remaining libc ctype matters for `citext` and `profiles_username_lower_key`. `todo_app_test` was created in B7-0 mirroring these settings, so dev and test already agree. The open risk is now **CI**, whose `postgres:18` container uses the image default (§15.6) |
 | ~~**21.11**~~ | **CLOSED → fixed by migration `0007`.** **Board deletion was impossible.** `log_member_activity` (AFTER DELETE on `board_members`) inserts an `activities` row referencing `OLD.board_id`, but during a board-deletion cascade that board is already gone, so the insert violates `activities_board_id_fkey` and the whole delete fails. Every board has an owner membership (`boards_add_owner_membership`), so this fires for **every** board. Carried over verbatim from Supabase — `boardsApi.ts:80` `deleteBoard` would fail there too | — | **Done.** The DELETE branch's insert is now guarded by `if exists (select 1 from public.boards b where b.id = old.board_id)`. Ordinary member removal is still logged; only the entry that could not have survived its own statement is skipped. Pinned by Part 3 of `db:verify-actor` |
 | ~~**21.5**~~ | **Session shape** | — | **CLOSED → 15 min / 30 days / yes.** `ACCESS_TOKEN_TTL` and `REFRESH_TOKEN_TTL_DAYS` are configuration; "log out everywhere" is `POST /auth/logout?all=true`. The access token stays stateless, so revocation bites it only at expiry — that bound is the reason the access TTL is short and the refresh token is the revocable half |
 | ~~**21.6**~~ | **Will the frontend and API share an origin in production?** | **B12** confirms it | **CLOSED → same origin / same site.** `SameSite=lax`, `Secure` in production, `Path=/api/v1/auth`, and no CSRF token. `COOKIE_SAMESITE` is configurable for the day that changes, and `none` without `Secure` is refused at boot because browsers drop that pair silently. **Going cross-site later means adding CSRF protection, not just flipping the variable** |
@@ -2357,4 +2386,4 @@ Get the first one wrong and one request marks **every employee's** notifications
 
 ---
 
-**End of plan.** B0–B5 are built: the backend authenticates, and the database is still empty of anything but what a test puts there. B6 is next; 21.10 is the only open decision that blocks a milestone anyone is near, and it blocks B12.
+**End of plan.** B0–B6 are built: the backend authenticates and authorizes. B7 is in progress — its foundation (B7-0) is complete, and §16 lists the remaining sub-phases. 21.9 blocks B10 and B12; 21.10's premise was found to be stale in B7-0 and now needs verifying rather than deciding.

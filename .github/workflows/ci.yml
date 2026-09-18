@@ -38,10 +38,32 @@ jobs:
       run:
         working-directory: backend
 
+    # B7 added the integration suite, so this job now needs a real database.
+    # The unit suite still does not: vitest.config.ts injects its own stub.
+    #
+    # This container initialises with the image default locale, while the
+    # development database is ICU en-US. Nothing asserts text ordering yet, so
+    # the two cannot disagree in practice — revisit with §21.10.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: todo_app_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
     env:
       # prisma.config.ts resolves this eagerly even for `prisma generate`,
       # which never connects; vitest.config.ts injects its own stub for tests.
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/todo_app
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/todo_app_test
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/todo_app_test
+      JWT_SECRET: ci-secret-that-is-at-least-32-characters-long
 
     steps:
       - uses: actions/checkout@v4
@@ -59,3 +81,9 @@ jobs:
       - run: npm run build
 
       - run: npm test
+
+      # Migrations run here rather than in a fixture, so the schema itself is
+      # exercised on every pull request.
+      - run: npm run db:migrate
+
+      - run: npm run test:integration

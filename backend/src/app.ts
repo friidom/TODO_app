@@ -18,7 +18,10 @@ app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
-app.use(morgan(env.isProduction ? "combined" : "dev"));
+// Skipped under test: an access log per request buries the assertion that failed.
+if (env.NODE_ENV !== "test") {
+  app.use(morgan(env.isProduction ? "combined" : "dev"));
+}
 
 // Outside /api/v1 on purpose: uptime checks and load balancers should not have
 // to track the API's version prefix.

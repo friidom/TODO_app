@@ -76,41 +76,65 @@ function buildApp() {
 
   // Every shape a B7 route can take, so the resolver is exercised the way it
   // will actually be used.
-  app.get("/b/:boardId", requireAuth, boardAccess, (req, res) => {
+  app.get("/b/:boardId", requireAuth, boardAccess(), (req, res) => {
     res.json({ board: requireBoard(req) });
   });
-  app.get("/b/:boardId/editor", requireAuth, boardAccess, requireRole("editor"), (req, res) => {
+  app.get("/b/:boardId/editor", requireAuth, boardAccess(), requireRole("editor"), (req, res) => {
     res.json({ board: requireBoard(req) });
   });
-  app.get("/b/:boardId/admin", requireAuth, boardAccess, requireRole("admin"), (req, res) => {
+  app.get("/b/:boardId/admin", requireAuth, boardAccess(), requireRole("admin"), (req, res) => {
     res.json({ board: requireBoard(req) });
   });
-  app.get("/b/:boardId/owner", requireAuth, boardAccess, requireRole("owner"), (req, res) => {
+  app.get("/b/:boardId/owner", requireAuth, boardAccess(), requireRole("owner"), (req, res) => {
     res.json({ board: requireBoard(req) });
   });
 
-  for (const param of ["todoId", "columnId", "sprintId", "commentId", "attachmentId"]) {
-    app.get(`/child/${param}/:${param}`, requireAuth, boardAccess, (req, res) => {
+  for (const param of [
+    "todoId",
+    "columnId",
+    "sprintId",
+    "commentId",
+    "attachmentId",
+    "inviteId",
+  ]) {
+    app.get(`/child/${param}/:${param}`, requireAuth, boardAccess(), (req, res) => {
       res.json({ board: requireBoard(req) });
     });
   }
 
   // Both ids present: the pairing must be real.
-  app.get("/b/:boardId/t/:todoId", requireAuth, boardAccess, (req, res) => {
+  app.get("/b/:boardId/t/:todoId", requireAuth, boardAccess(), (req, res) => {
     res.json({ board: requireBoard(req) });
   });
 
   // Two child ids and no :boardId — the shape that would slip past a resolver
   // that stopped at the first match.
-  app.get("/two/:todoId/:commentId", requireAuth, boardAccess, (req, res) => {
+  app.get("/two/:todoId/:commentId", requireAuth, boardAccess(), (req, res) => {
     res.json({ board: requireBoard(req) });
   });
-  app.get("/b/:boardId/two/:todoId/:commentId", requireAuth, boardAccess, (req, res) => {
+  app.get("/b/:boardId/two/:todoId/:commentId", requireAuth, boardAccess(), (req, res) => {
     res.json({ board: requireBoard(req) });
   });
 
+  // The upsert shape (§12.3): :todoId may name a row that does not exist
+  // yet, so it is deliberately NOT resolved and :boardId carries the scope.
+  app.get(
+    "/b/:boardId/upsert/:todoId",
+    requireAuth,
+    boardAccess({ mayNotExist: "todoId" }),
+    (req, res) => {
+      res.json({ board: requireBoard(req) });
+    },
+  );
+
+  // The same opt-in with no :boardId in the path. Skipping the child leaves
+  // nothing at all to resolve, so this must fail loudly rather than authorize.
+  app.get("/upsert/:todoId", requireAuth, boardAccess({ mayNotExist: "todoId" }), (_req, res) => {
+    res.json({ ok: true });
+  });
+
   // boardAccess with nothing to resolve — a wiring bug, not a client error.
-  app.get("/unwired", requireAuth, boardAccess, (_req, res) => {
+  app.get("/unwired", requireAuth, boardAccess(), (_req, res) => {
     res.json({ ok: true });
   });
 
@@ -239,6 +263,19 @@ async function main() {
       select: { id: true },
     });
 
+    const inviteA = await withActor(alice.id, (tx) =>
+      tx.board_invites.create({
+        data: {
+          board_id: alice.boardId,
+          token_hash: `probe-a-${crypto.randomUUID()}`,
+          role: "viewer",
+          expires_at: new Date(Date.now() + 86_400_000),
+          created_by: alice.id,
+        },
+        select: { id: true },
+      }),
+    );
+
     const columnB = await prisma.columns.findFirstOrThrow({
       where: { board_id: mallory.boardId },
       select: { id: true },
@@ -338,6 +375,7 @@ async function main() {
       ["sprintId", sprintA.id],
       ["commentId", commentA.id],
       ["attachmentId", attachmentA.id],
+      ["inviteId", inviteA.id],
     ];
 
     for (const [param, id] of children) {
@@ -417,6 +455,62 @@ async function main() {
       "board id plus one foreign child id is 404",
       tripleForged.status === 404,
       tripleForged.status,
+    );
+
+    // --- Part 4c: the upsert opt-in ----------------------------------------
+    console.log("\n--- Part 4c: mayNotExist, for PATCH-as-upsert ---");
+
+    const upsertAbsent = await get(
+      `/b/${alice.boardId}/upsert/${crypto.randomUUID()}`,
+      alice.token,
+    );
+
+    check(
+      "a todo id that does not exist yet still reaches the handler",
+      upsertAbsent.status === 200 &&
+        (upsertAbsent.body.board as { id: string })?.id === alice.boardId,
+      { status: upsertAbsent.status, board: upsertAbsent.body.board },
+    );
+
+    const upsertStrict = await get(`/child/todoId/${crypto.randomUUID()}`, alice.token);
+
+    check(
+      "...where the strict resolver on the same shape is still a 404",
+      upsertStrict.status === 404,
+      upsertStrict.status,
+    );
+
+    const upsertOutsider = await get(
+      `/b/${alice.boardId}/upsert/${crypto.randomUUID()}`,
+      mallory.token,
+    );
+
+    check(
+      "membership is still checked, on :boardId",
+      upsertOutsider.status === 404,
+      upsertOutsider.status,
+    );
+
+    // The uncomfortable one, asserted so nobody discovers it by accident:
+    // with the child skipped, a real id from another board is NOT rejected
+    // here, because boardAccess never looked it up. req.board still names
+    // board A, so the HANDLER is what must scope the write by
+    // (id, board_id) — which is why the compound unique exists on todos.
+    const upsertForeign = await get(`/b/${alice.boardId}/upsert/${todoB.id}`, alice.token);
+
+    check(
+      "a foreign todo id is NOT filtered here — the handler owns that scoping",
+      upsertForeign.status === 200 &&
+        (upsertForeign.body.board as { id: string })?.id === alice.boardId,
+      { status: upsertForeign.status, board: upsertForeign.body.board },
+    );
+
+    const upsertUnwired = await get(`/upsert/${crypto.randomUUID()}`, alice.token);
+
+    check(
+      "the opt-in without :boardId is a 500 — nothing left to resolve",
+      upsertUnwired.status === 500,
+      upsertUnwired.status,
     );
 
     // --- Part 5: wiring mistakes fail loudly --------------------------------
@@ -530,7 +624,7 @@ async function main() {
       roleWithoutBoard,
     );
 
-    const accessWithoutAuth = await runMiddleware(boardAccess, {
+    const accessWithoutAuth = await runMiddleware(boardAccess(), {
       params: { boardId: alice.boardId },
     });
 

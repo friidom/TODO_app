@@ -17,7 +17,8 @@
     "db:migrate": "prisma migrate deploy",
     "db:status": "prisma migrate status",
     "db:pull": "prisma db pull",
-    "db:generate": "prisma generate"
+    "db:generate": "prisma generate",
+    "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "type": "module",
   "private": true,
