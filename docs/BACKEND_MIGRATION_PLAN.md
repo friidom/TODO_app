@@ -1842,7 +1842,7 @@ Plus two specific to this migration:
 
 ---
 
-## B7 — Core REST API modules
+## B7 — Core REST API modules ✅ DONE
 
 **Goal.** Every endpoint in §11, with the RPC rules ported faithfully.
 
@@ -1882,11 +1882,42 @@ Plus two specific to this migration:
 
 **Expected result.** The whole API exists and is exercisable by curl and by integration tests, with no frontend involved.
 
+**Actual result.** 63 routes mounted; 141 unit tests and 302 integration tests, plus the four probes (authz 60, auth 95, actor 20, errors 14). Six commits, `a4c1822` → `7779f7f`.
+
+**What B7 changed outside `modules/`, and why.** Each of these was a defect the milestone's own tests found, not a refactor:
+
+| Change | Reason |
+|---|---|
+| `lib/numeric.ts` (new) | `JSON.stringify` **throws** on the bigint Prisma returns for `position`, and renders `estimate`'s Decimal as a string. Every board response was broken either way |
+| `lib/errors.ts` — `22021`/`22P05` added | A NUL byte in any text field answered **500**. `trim()` does not strip NUL and `.length` counts it, so every `z.string().trim().min(1)` accepted one |
+| `lib/errors.ts` — exposed http-errors | A malformed or oversized JSON body answered **500**; body-parser raises a `SyntaxError` carrying `status` and `expose` but no `code` |
+| `boardAccess` → factory | §12.3's upsert-PATCH cannot pass the strict resolver. See §10.4 |
+| `boardAccess` — `inviteId` resolver | `DELETE /invites/:inviteId` answered 500 on every call |
+| **migration `0009`** | §21.11/§21.12 a **third** time — see below |
+
+**Migration 0009 — the board-exists guard, third instance.** `todos.assignee_id` is `ON DELETE SET NULL`, so deleting a profile *updates* every todo assigned to them, firing `log_todo_activity`'s **UPDATE** branch, which inserts an `activities` row against `new.board_id`. When that profile is removed by a cascade also deleting the board, the board is already gone and `activities_board_id_fkey` refuses the insert — failing the whole DELETE. **0007 and 0008 guarded only the DELETE branches**, both assuming a vanishing board could only be reached by deleting a row.
+
+The user-visible effect: **an account with assigned work could not be deleted.** Reproduced before the fix (`delete from users` → `activities_board_id_fkey`, 0 rows), and `src/testing/cascades.int.test.ts` now exercises the *shapes* rather than the branches, so a fourth instance fails there. The function body was copied from 0008 programmatically and diffed, not retyped (§18.1).
+
+**Deliberate divergences from the legacy SQL**, each recorded rather than silent:
+
+- **`delete_column` also writes `rank`.** The original writes only `column_id` and `position`; it predates ranks by three days, and since every surface sorts by `rank ?? position * RANK_GAP` its "append" was invisible — rehomed cards interleaved by their old ranks. §10.6 asks for an append, so the port writes the key that actually orders them.
+- **The invite credential travels in the body**, not `/invites/:token/accept`. `morgan` writes `req.url` to the access log, and an invite token is a bearer credential.
+- **`GET /invites/mine` returns no token.** S3 hashes it, so it is unrecoverable; accept/decline take a token *or* an `invite_id` whose addressee matches the caller.
+- **`revoke_invite` answers 403** to a member below admin where the SQL answered its not-found. That is B6's decided 403/404 split; a non-member still gets the same 404 an unknown id gets.
+- **`start_sprint` and `complete_sprint` gained `requireRole("editor")`.** Both are `SECURITY INVOKER` and carried **no** authorization of their own — they inherited the gate from RLS, so deleting RLS left them open.
+
+**Accepted and recorded, not fixed.** Honouring a client-minted primary key and hiding whether that key is taken are mutually exclusive, so `POST /boards` with someone else's board id answers 409 where a fresh uuid answers 201. `BoardFormModal` mints the id and navigates to it before the response arrives, so the id must be honoured; the residual oracle costs 122 bits of guessing and reveals nothing about the board, which `GET` still answers 404 for.
+
+**Deferred, and flagged rather than assumed intentional.** `prune_activities` was never ported, so the one table with no natural bound now has no retention at all. The legacy default was 180 days. This needs a decision, not a silent default.
+
 **Files affected.** `backend/src/modules/**`, `lib/rank.ts`.
 
 **Risks.** 🔴 The rank comparisons in the membership and invite rules are exactly where an off-by-one becomes a privilege escalation. **Port them literally; do not simplify.** 🔴 Breaking the upsert contract breaks optimistic updates in a way that looks like a UI bug. 🟡 Forgetting the row lock in `accept_invite` creates a race that only appears under load.
 
-**Verification.** ☐ every check in `create_invite` and `set_member_role` has a test ☐ concurrent-accept test passes ☐ upsert-PATCH test passes ☐ rank parity test green ☐ owner immutability still fires (try to promote a second owner directly in SQL) ☐ the feed is board-scoped before `LIMIT`.
+**Verification.** ☑ every check in `create_invite` and `set_member_role` has a test ☑ concurrent-accept test passes ☑ upsert-PATCH test passes ☑ rank parity test green ☑ owner immutability still fires ☑ the feed is board-scoped before `LIMIT`.
+
+**One verification lesson worth keeping.** The first concurrent-accept test passed *without* the `FOR UPDATE` lock — two HTTP requests serialise on their own over a pool, so the end-to-end test proved nothing about the lock. `src/testing/rowLocks.int.test.ts` asserts the lock directly instead: hold it in one transaction, give a second a 400 ms `lock_timeout`, require it to fail. That one *does* fail when the lock is removed. **An end-to-end concurrency test is not evidence of a lock.**
 
 **Frontend changes.** None.
 
@@ -2303,7 +2334,19 @@ Get the first one wrong and one request marks **every employee's** notifications
 
 # 20. Next implementation step
 
-> ### **B7 — Core REST API modules**
+> ### **B8 — Frontend migration from Supabase to Express**
+>
+> B7 is complete: 63 routes, 141 unit tests, 302 integration tests, four green probes. The API is exercisable by curl with no frontend involved, which was its exit criterion.
+>
+> B8 points the React app at it, in the order in §12.6, auth first. Two things B7 learned that B8 needs: `PATCH` on a todo is `/boards/:boardId/todos/:todoId` rather than `/todos/:todoId` (§10.4 explains why the upsert cannot live at the shorter path), and the invite credential goes in the body rather than the URL. §12.5's signature changes are otherwise unaffected.
+>
+> B9 (realtime) and B10 (storage/attachments) can land after B8 — see §17. **§21.9 now blocks B10**, and it is the only open decision in front of the next milestone but one.
+
+---
+
+### The B7 sub-phases, as built
+
+> ### ~~**B7 — Core REST API modules**~~ ✅
 >
 > Every endpoint in §11, with the RPC rules ported faithfully. B6 made the chain available, so each route is now `requireAuth, boardAccess(), requireRole(...), validate(schema), handler` and the interesting work is the service layer, not the guarding.
 >
@@ -2386,4 +2429,4 @@ Get the first one wrong and one request marks **every employee's** notifications
 
 ---
 
-**End of plan.** B0–B6 are built: the backend authenticates and authorizes. B7 is in progress — its foundation (B7-0) is complete, and §16 lists the remaining sub-phases. 21.9 blocks B10 and B12; 21.10's premise was found to be stale in B7-0 and now needs verifying rather than deciding.
+**End of plan.** B0–B7 are built: the backend authenticates, authorizes, and serves its whole API. B8 is next and is the milestone the project exists for. 21.9 blocks B10 and B12; 21.10's premise was found to be stale in B7-0 and now needs verifying rather than deciding. One new item is open and belongs to nobody yet: `prune_activities` was never ported, so `activities` has no retention.

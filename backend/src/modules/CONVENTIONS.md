@@ -158,3 +158,22 @@ it belongs to `req.board.id`. The handler must scope the write by
 exactly this. An upsert keyed on `id` alone lets one board overwrite another's
 row. The route must also carry `:boardId`, or there is nothing left to resolve
 and it answers 500.
+
+## An end-to-end concurrency test is not evidence of a lock
+
+Two concurrent HTTP requests usually serialise on their own over a connection
+pool, so a test that fires both and asserts "exactly one won" passes whether or
+not the `FOR UPDATE` is there. This was verified: deleting the lock from
+`lockByTokenHash` left the concurrent-accept test green.
+
+Assert the lock itself instead — `src/testing/rowLocks.int.test.ts` holds it in
+one transaction, gives a second a short `lock_timeout`, and requires that one to
+fail. Keep the end-to-end test as well; it checks the invariant, not the lock.
+
+## A coerced query parameter needs `as unknown as`
+
+`req.query as SomeQuery` compiles while every field is a `string`, because
+Express's `ParsedQs` index signature overlaps. The moment a schema has a
+`z.coerce.number()`, `number` no longer overlaps and the cast is refused. Write
+`req.query as unknown as SomeQuery` — sound for the same reason the body cast
+is, because `validate()` replaced `req.query` with the parsed object.
