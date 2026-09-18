@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 
 import { DEFAULT_COLUMNS } from "../../config/constants.js";
+import { prisma } from "../../db/prisma.js";
 import { RANK_GAP } from "../../lib/rank.js";
 
 export function usernameExists(tx: Prisma.TransactionClient, username: string): Promise<boolean> {
@@ -87,5 +88,43 @@ export function findProfile(tx: Prisma.TransactionClient, userId: string) {
   return tx.profiles.findUnique({
     where: { id: userId },
     select: { id: true, username: true, full_name: true, bio: true, avatar_url: true },
+  });
+}
+
+const PROFILE_FIELDS = {
+  id: true,
+  username: true,
+  full_name: true,
+  bio: true,
+  avatar_url: true,
+  created_at: true,
+} satisfies Prisma.profilesSelect;
+
+export type ProfileRow = Prisma.profilesGetPayload<{ select: typeof PROFILE_FIELDS }>;
+
+// email is not in PROFILE_FIELDS. profiles is self-only today and the roster is
+// the only teammate-identity read; a profile shape that carries email is how
+// that boundary gets lost (RLS_AUDIT §327).
+export function findProfileById(userId: string): Promise<ProfileRow | null> {
+  return prisma.profiles.findUnique({ where: { id: userId }, select: PROFILE_FIELDS });
+}
+
+export interface ProfilePatch {
+  username?: string;
+  full_name?: string | null;
+  bio?: string | null;
+  avatar_url?: string | null;
+}
+
+export function updateProfile(userId: string, patch: ProfilePatch): Promise<ProfileRow> {
+  return prisma.profiles.update({
+    where: { id: userId },
+    data: {
+      ...(patch.username !== undefined && { username: patch.username }),
+      ...(patch.full_name !== undefined && { full_name: patch.full_name }),
+      ...(patch.bio !== undefined && { bio: patch.bio }),
+      ...(patch.avatar_url !== undefined && { avatar_url: patch.avatar_url }),
+    },
+    select: PROFILE_FIELDS,
   });
 }

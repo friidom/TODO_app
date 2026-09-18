@@ -84,3 +84,51 @@ describe("uniqueConstraintOf", () => {
     expect(uniqueConstraintOf(null)).toBeUndefined();
   });
 });
+
+describe("client input that the database or the parser refuses", () => {
+  it("maps a NUL byte (22021) to 400, not 500", () => {
+    const error = {
+      name: "PrismaClientKnownRequestError",
+      code: "P2039",
+      meta: { driverAdapterError: { cause: { originalCode: "22021" } } },
+    };
+
+    expect(toAppError(error).status).toBe(400);
+  });
+
+  it("maps an untranslatable character (22P05) to 400", () => {
+    const error = {
+      name: "PrismaClientKnownRequestError",
+      code: "P2039",
+      meta: { driverAdapterError: { cause: { originalCode: "22P05" } } },
+    };
+
+    expect(toAppError(error).status).toBe(400);
+  });
+
+  it("maps an exposed http-error, such as a malformed JSON body, to 400", () => {
+    const error = Object.assign(new SyntaxError("Unexpected end of JSON input"), {
+      status: 400,
+      statusCode: 400,
+      type: "entity.parse.failed",
+      expose: true,
+    });
+
+    const mapped = toAppError(error);
+
+    expect(mapped.status).toBe(400);
+    expect(mapped.code).toBe("bad_request");
+  });
+
+  it("does not turn an unexposed 5xx http-error into a client error", () => {
+    const error = Object.assign(new Error("boom"), { status: 500, expose: false });
+
+    expect(toAppError(error).status).toBe(500);
+  });
+
+  it("still leaves an unrecognised SQLSTATE as a 500", () => {
+    const error = { code: "40001" };
+
+    expect(toAppError(error).status).toBe(500);
+  });
+});

@@ -44,6 +44,11 @@ const BY_SQLSTATE: Record<string, { code: ErrorCode; message: string }> = {
   "23514": { code: "bad_request", message: "That value is not allowed." },
   "23502": { code: "bad_request", message: "A required field is missing." },
   "22P02": { code: "bad_request", message: "Malformed value." },
+  // A NUL byte in any text field. PostgreSQL cannot store one, so this is
+  // client input the database refuses rather than a bug: verified as a 500
+  // before this entry existed. 22P05 is the same family.
+  "22021": { code: "bad_request", message: "That value contains characters that cannot be stored." },
+  "22P05": { code: "bad_request", message: "That value contains characters that cannot be stored." },
   // Every ownership and membership invariant in 0006 refuses with this.
   "42501": { code: "forbidden", message: "That operation is not permitted." },
 };
@@ -102,6 +107,21 @@ const BY_PRISMA_CODE: Record<string, { code: ErrorCode; message: string }> = {
   P2025: { code: "not_found", message: "Not found." },
 };
 
+function isExposedHttpError(
+  error: unknown,
+): error is { status: number; message: string; expose: true } {
+  if (error === null || typeof error !== "object") return false;
+
+  const candidate = error as { status?: unknown; expose?: unknown; message?: unknown };
+
+  return (
+    candidate.expose === true &&
+    typeof candidate.status === "number" &&
+    candidate.status >= 400 &&
+    typeof candidate.message === "string"
+  );
+}
+
 export function toAppError(error: unknown): AppError {
   if (error instanceof AppError) return error;
 
@@ -119,6 +139,14 @@ export function toAppError(error: unknown): AppError {
           ? `${path}: ${issue.message}`
           : issue.message,
     );
+  }
+
+  // body-parser (and anything else built on http-errors) sets expose:true only
+  // for client errors, so a malformed JSON body arrives as a 400 rather than
+  // falling through to 500. Its own message is safe to show — that is what
+  // expose means.
+  if (isExposedHttpError(error)) {
+    return new AppError(error.status >= 500 ? "internal" : "bad_request", error.message);
   }
 
   if (error !== null && typeof error === "object") {
