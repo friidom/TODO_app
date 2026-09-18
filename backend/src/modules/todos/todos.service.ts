@@ -1,0 +1,129 @@
+import { randomUUID } from "node:crypto";
+
+import { withActor } from "../../db/withActor.js";
+import { AppError, uniqueConstraintOf } from "../../lib/errors.js";
+import { rankForAppend } from "../../lib/rank.js";
+import type { Actor } from "../../types/actor.js";
+import type { BoardContext } from "../members/members.service.js";
+import * as todosRepo from "./todos.repo.js";
+import type { TodoDetailRow, TodoRow, TodoWrite } from "./todos.repo.js";
+import type { CreateTodoInput, MoveTodoInput, UpsertTodoInput } from "./todos.schema.js";
+
+function notFound(): AppError {
+  return new AppError("not_found", "Not found.");
+}
+
+// The id belongs to a row on a board the caller cannot see, so the upsert's
+// where missed and the insert hit the primary key. Reported as a conflict
+// rather than silently writing to the other board.
+function conflictIfForeignId(error: unknown): unknown {
+  return uniqueConstraintOf(error) === "todos_pkey"
+    ? new AppError("conflict", "That id is already in use.")
+    : error;
+}
+
+export function list(board: BoardContext): Promise<TodoRow[]> {
+  return todosRepo.findByBoard(board.id);
+}
+
+export async function get(board: BoardContext, todoId: string): Promise<TodoDetailRow> {
+  const todo = await todosRepo.findOne(board.id, todoId);
+
+  if (todo === null) throw notFound();
+
+  return todo;
+}
+
+function writeFrom(input: UpsertTodoInput | CreateTodoInput): TodoWrite {
+  return {
+    ...(input.title !== undefined && { title: input.title }),
+    ...(input.description !== undefined && { description: input.description }),
+    ...(input.column_id !== undefined && { column_id: input.column_id }),
+    ...(input.type !== undefined && { type: input.type }),
+    ...(input.priority !== undefined && { priority: input.priority }),
+    ...(input.start_date !== undefined && { start_date: input.start_date }),
+    ...(input.due_date !== undefined && { due_date: input.due_date }),
+    ...(input.estimate !== undefined && { estimate: input.estimate }),
+    ...(input.assignee_id !== undefined && { assignee_id: input.assignee_id }),
+    ...(input.parent_id !== undefined && { parent_id: input.parent_id }),
+    ...(input.sprint_id !== undefined && { sprint_id: input.sprint_id }),
+    ...(input.rank !== undefined && { rank: input.rank }),
+    ...(input.backlog_rank !== undefined && { backlog_rank: input.backlog_rank }),
+  };
+}
+
+export async function create(
+  actor: Actor,
+  board: BoardContext,
+  input: CreateTodoInput,
+): Promise<TodoDetailRow> {
+  const write = writeFrom(input);
+
+  // The append rank the client used to read for itself before sending. Only
+  // computed when the card lands in a column and the client did not choose a
+  // rank of its own.
+  if (input.column_id != null && input.rank === undefined) {
+    const last = await todosRepo.lastInColumn(board.id, input.column_id);
+
+    write.rank = rankForAppend(last === null ? [] : [last]);
+    write.position = (last?.position ?? -1) + 1;
+  }
+
+  try {
+    return await withActor(actor.id, (tx) =>
+      todosRepo.upsert(tx, board.id, input.id ?? randomUUID(), actor.id, write),
+    );
+  } catch (error) {
+    throw conflictIfForeignId(error);
+  }
+}
+
+// PATCH is an upsert because a freshly created card can be patched before its
+// insert lands, and an update would silently match zero rows — the board would
+// look correct and then revert (§12.3). boardAccess is wired with
+// mayNotExist:"todoId" for this route, so the id is NOT resolved and the
+// scoping is entirely this compound-key write's job.
+export async function upsert(
+  actor: Actor,
+  board: BoardContext,
+  todoId: string,
+  input: UpsertTodoInput,
+): Promise<TodoDetailRow> {
+  try {
+    return await withActor(actor.id, (tx) =>
+      todosRepo.upsert(tx, board.id, todoId, actor.id, writeFrom(input)),
+    );
+  } catch (error) {
+    throw conflictIfForeignId(error);
+  }
+}
+
+export async function remove(actor: Actor, board: BoardContext, todoId: string): Promise<void> {
+  const removed = await withActor(actor.id, (tx) => todosRepo.remove(tx, board.id, todoId));
+
+  if (removed === 0) throw notFound();
+}
+
+// One row. The old dense-integer scheme renumbered a whole column from each
+// client's own snapshot, so two people dragging at once overwrote cards
+// neither had touched.
+export async function move(
+  actor: Actor,
+  board: BoardContext,
+  todoId: string,
+  input: MoveTodoInput,
+): Promise<void> {
+  const moved = await withActor(actor.id, (tx) =>
+    todosRepo.update(tx, board.id, todoId, { column_id: input.column_id, rank: input.rank }),
+  );
+
+  if (moved === 0) throw notFound();
+}
+
+export function rebalanceColumn(
+  actor: Actor,
+  board: BoardContext,
+  columnId: string,
+): Promise<number> {
+  return withActor(actor.id, (tx) => todosRepo.rebalanceColumn(tx, board.id, columnId));
+}
