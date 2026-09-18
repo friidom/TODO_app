@@ -247,6 +247,7 @@ model sprints {
   boards     boards    @relation(fields: [board_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   todos      todos[]
 
+  @@unique([id, board_id])
   @@index([board_id])
 }
 
@@ -281,7 +282,7 @@ model todos {
   profiles_todos_creator_idToprofiles  profiles?     @relation("todos_creator_idToprofiles", fields: [creator_id], references: [id], onUpdate: NoAction)
   todos                                todos?        @relation("todosTotodos", fields: [parent_id, board_id], references: [id, board_id], onDelete: Cascade, onUpdate: NoAction, map: "todos_parent_id_fkey")
   other_todos                          todos[]       @relation("todosTotodos")
-  sprints                              sprints?      @relation(fields: [sprint_id], references: [id], onUpdate: NoAction)
+  sprints                              sprints?      @relation(fields: [sprint_id, board_id], references: [id, board_id], onDelete: SetNull, onUpdate: NoAction, map: "todos_sprint_id_fkey")
 
   @@unique([board_id, board_key], map: "todos_board_key_unique")
   @@unique([id, board_id])
