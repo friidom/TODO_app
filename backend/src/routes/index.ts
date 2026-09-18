@@ -2,6 +2,12 @@ import { Router } from "express";
 
 import { authRoutes } from "../modules/auth/auth.routes.js";
 import { boardCollectionRoutes, boardItemRoutes } from "../modules/boards/boards.routes.js";
+import {
+  boardInviteesRoutes,
+  boardInvitesRoutes,
+  invitesRoutes,
+} from "../modules/invites/invites.routes.js";
+import { membersRoutes } from "../modules/members/members.routes.js";
 import { spacesRoutes } from "../modules/spaces/spaces.routes.js";
 import { usersRoutes } from "../modules/users/users.routes.js";
 
@@ -22,6 +28,7 @@ const boardScoped = Router({ mergeParams: true });
 apiRouter.use("/auth", authRoutes);
 apiRouter.use("/users", usersRoutes);
 apiRouter.use("/spaces", spacesRoutes);
+apiRouter.use("/invites", invitesRoutes);
 
 // Order matters only in that the collection router has no matching route for
 // /boards/<id>, so those fall through to boardScoped.
@@ -29,3 +36,6 @@ apiRouter.use("/boards", boardCollectionRoutes);
 apiRouter.use("/boards/:boardId", boardScoped);
 
 boardScoped.use("/", boardItemRoutes);
+boardScoped.use("/members", membersRoutes);
+boardScoped.use("/invites", boardInvitesRoutes);
+boardScoped.use("/invitees", boardInviteesRoutes);
