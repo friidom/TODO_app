@@ -1,7 +1,10 @@
 import { z } from "zod";
 
 const category = z.enum(["todo", "in_progress", "done"]);
-const limit = z.coerce.number().int().min(0).nullable().optional();
+// int4 is the column width, not an invented product rule: a larger value is an
+// overflow rather than a big limit.
+const INT4_MAX = 2_147_483_647;
+const limit = z.coerce.number().int().min(0).max(INT4_MAX).nullable().optional();
 
 export const createColumnSchema = z.object({
   title: z.string().trim().min(1).max(60),

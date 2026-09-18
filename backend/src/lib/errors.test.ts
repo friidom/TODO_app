@@ -132,3 +132,23 @@ describe("client input that the database or the parser refuses", () => {
     expect(toAppError(error).status).toBe(500);
   });
 });
+
+describe("values the database cannot hold", () => {
+  const withState = (state: string) => ({
+    name: "PrismaClientKnownRequestError",
+    code: "P2039",
+    meta: { driverAdapterError: { cause: { originalCode: state } } },
+  });
+
+  it("maps a number past the column width (22003) to 400", () => {
+    expect(toAppError(withState("22003")).status).toBe(400);
+  });
+
+  it("maps an unrepresentable date (22007) to 400", () => {
+    expect(toAppError(withState("22007")).status).toBe(400);
+  });
+
+  it("maps a datetime overflow (22008) to 400", () => {
+    expect(toAppError(withState("22008")).status).toBe(400);
+  });
+});

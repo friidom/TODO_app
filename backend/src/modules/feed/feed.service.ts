@@ -51,11 +51,19 @@ async function workedOn(actor: Actor, boardIds: string[], limit: number): Promis
 
   const rows = await prisma.todos.findMany({
     where: { id: { in: [...newest.keys()] }, board_id: { in: boardIds }, parent_id: null },
+    orderBy: [{ id: "desc" }],
     select: LIST_FIELDS,
   });
 
+  // The id tiebreak is not decoration: several rows written by one statement
+  // share created_at exactly, so without it two identical calls can return the
+  // same cards in a different order and the page jumps.
   return rows
     .map(toRow)
-    .sort((a, b) => (newest.get(b.id)?.getTime() ?? 0) - (newest.get(a.id)?.getTime() ?? 0))
+    .sort(
+      (a, b) =>
+        (newest.get(b.id)?.getTime() ?? 0) - (newest.get(a.id)?.getTime() ?? 0) ||
+        (a.id < b.id ? 1 : a.id > b.id ? -1 : 0),
+    )
     .slice(0, limit);
 }

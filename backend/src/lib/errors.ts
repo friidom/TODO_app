@@ -48,6 +48,12 @@ const BY_SQLSTATE: Record<string, { code: ErrorCode; message: string }> = {
   // client input the database refuses rather than a bug: verified as a 500
   // before this entry existed. 22P05 is the same family.
   "22021": { code: "bad_request", message: "That value contains characters that cannot be stored." },
+  // A number past the column width (int4) and a date PostgreSQL cannot
+  // represent. Both are reachable from an ordinary request body, so both are
+  // the client telling us something wrong rather than us being wrong.
+  "22003": { code: "bad_request", message: "That number is out of range." },
+  "22007": { code: "bad_request", message: "That date is not valid." },
+  "22008": { code: "bad_request", message: "That date is out of range." },
   "22P05": { code: "bad_request", message: "That value contains characters that cannot be stored." },
   // Every ownership and membership invariant in 0006 refuses with this.
   "42501": { code: "forbidden", message: "That operation is not permitted." },

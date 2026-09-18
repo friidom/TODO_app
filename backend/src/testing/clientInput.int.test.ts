@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
+import { prisma } from "../db/prisma.js";
 import { disconnect, resetDatabase } from "./db.js";
 import { makeUser } from "./fixtures.js";
 import { startTestServer, type TestClient } from "./httpClient.js";
@@ -112,5 +113,77 @@ describe("oversized and malformed bodies stay 4xx", () => {
 
     expect(response.status).toBeGreaterThanOrEqual(400);
     expect(response.status).toBeLessThan(500);
+  });
+});
+
+// Both reachable from an ordinary body, and both answered 500 before the
+// SQLSTATE map learned them: 22007 for a date PostgreSQL cannot represent,
+// 22003 for a number past the column width.
+describe("values the database cannot hold are 4xx, not 500", () => {
+  it("rejects a due_date PostgreSQL cannot represent", async () => {
+    const alice = await makeUser("alice");
+    const column = await prisma.columns.findFirstOrThrow({
+      where: { board_id: alice.boardId },
+      select: { id: true },
+    });
+
+    const response = await client.post(
+      `/api/v1/boards/${alice.boardId}/todos`,
+      { title: "x", column_id: column.id, due_date: "-000001-01-01T00:00:00Z" },
+      { token: alice.token },
+    );
+
+    expect(response.status).toBe(400);
+  });
+
+  it("rejects a sprint date PostgreSQL cannot represent", async () => {
+    const alice = await makeUser("alice");
+
+    const response = await client.post(
+      `/api/v1/boards/${alice.boardId}/sprints`,
+      { name: "S", start_date: "-000001-01-01T00:00:00Z" },
+      { token: alice.token },
+    );
+
+    expect(response.status).toBe(400);
+  });
+
+  it("rejects a column limit past int4", async () => {
+    const alice = await makeUser("alice");
+    const column = await prisma.columns.findFirstOrThrow({
+      where: { board_id: alice.boardId },
+      select: { id: true },
+    });
+
+    const response = await client.patch(
+      `/api/v1/columns/${column.id}`,
+      { max_limit: 1099511627776 },
+      { token: alice.token },
+    );
+
+    expect(response.status).toBe(400);
+  });
+
+  it("still accepts an ordinary date and an ordinary limit", async () => {
+    const alice = await makeUser("alice");
+    const column = await prisma.columns.findFirstOrThrow({
+      where: { board_id: alice.boardId },
+      select: { id: true },
+    });
+
+    expect(
+      (
+        await client.post(
+          `/api/v1/boards/${alice.boardId}/todos`,
+          { title: "x", column_id: column.id, due_date: "2026-12-31T00:00:00Z" },
+          { token: alice.token },
+        )
+      ).status,
+    ).toBe(201);
+
+    expect(
+      (await client.patch(`/api/v1/columns/${column.id}`, { max_limit: 8 }, { token: alice.token }))
+        .status,
+    ).toBe(200);
   });
 });
