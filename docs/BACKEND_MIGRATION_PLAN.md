@@ -1882,7 +1882,7 @@ Plus two specific to this migration:
 
 **Expected result.** The whole API exists and is exercisable by curl and by integration tests, with no frontend involved.
 
-**Actual result.** 63 routes mounted; 141 unit tests and 302 integration tests, plus the four probes (authz 60, auth 95, actor 20, errors 14). Six commits, `a4c1822` → `7779f7f`.
+**Actual result.** 63 routes mounted; 144 unit tests and 315 integration tests, plus the four probes (authz 60, auth 95, actor 20, errors 14). Eleven commits, `a4c1822` → `e390afc`, the last four being adversarial-review fixes.
 
 **What B7 changed outside `modules/`, and why.** Each of these was a defect the milestone's own tests found, not a refactor:
 
@@ -1910,6 +1910,36 @@ The user-visible effect: **an account with assigned work could not be deleted.**
 **Accepted and recorded, not fixed.** Honouring a client-minted primary key and hiding whether that key is taken are mutually exclusive, so `POST /boards` with someone else's board id answers 409 where a fresh uuid answers 201. `BoardFormModal` mints the id and navigates to it before the response arrives, so the id must be honoured; the residual oracle costs 122 bits of guessing and reveals nothing about the board, which `GET` still answers 404 for.
 
 **Deferred, and flagged rather than assumed intentional.** `prune_activities` was never ported, so the one table with no natural bound now has no retention at all. The legacy default was 180 days. This needs a decision, not a silent default.
+
+**What the adversarial review found after the milestone was written.** Two passes, one over B7-A1 and one over the rest, each hunting five attack dimensions and independently verifying every candidate. Six confirmed across both, none refuted on the second pass. Every one is now fixed and pinned by the attack itself as a regression test:
+
+| | Found | Why it mattered |
+|---|---|---|
+| 1 | A NUL byte in any text field → **500** | `trim()` does not strip NUL and `.length` counts it, so every `z.string().trim().min(1)` accepted one |
+| 2 | Malformed or oversized JSON body → **500** | body-parser's error carries `status` and `expose` but no `code`, so it fell past the map |
+| 3 | A date PostgreSQL cannot represent → **500** | `22007`, unmapped |
+| 4 | A column limit past int4 → **500** | `22003`, unmapped |
+| 5 | `GET /me/feed?tab=worked-on` had no total order | rows from one statement share `created_at`, so identical calls could differ |
+| 6 | **Work could be assigned to a non-member** | the real one — see below |
+
+**Finding 6 is the one worth reading.** `assignee_id` was validated as a uuid and never checked against `board_members`. That looks harmless, because assigning work to someone who cannot see the board is merely meaningless. But `notify_on_assignment` builds its payload from three strings the caller controls — `boards.title`, `todos.title` and the actor's `full_name` — and writes it to the assignee's inbox. Reproduced end to end from a freshly registered account with no relationship to the victim:
+
+```
+PATCH /users/me            {"full_name": "Security Team"}
+PATCH /boards/<own board>  {"title": "ACME Payroll"}
+POST  /boards/<own board>/todos
+      {"title": "Reset your password at evil.example", "assignee_id": "<a stranger>"}   -> 201
+
+victim inbox: {"actor_name": "Security Team",
+               "todo_title": "Reset your password at evil.example",
+               "board_title": "ACME Payroll"}
+```
+
+Provisioning makes every account the owner of its own board, so the editor gate is no obstacle, and `GET /boards/:boardId/invitees` supplies the ids to aim at. This was **not** a rule lost in the RLS retype — Supabase had the same gap. It contradicts `0005`'s own claim about `notifications` ("trigger-written only… no write path from the API means an entry cannot be faked"), which was true of the *table* and not of its *content*. The check now lives in `todos.service`, the same shape `members.service.add` uses for its target.
+
+**And one the review prompted rather than found.** Closing the cross-board write paths turned up `todos.sprint_id` as a plain FK where `column_id` and `parent_id` are composite — so a card could be filed into a sprint on another board. Migration `0010` makes it composite, which is what 0004's own comment on `todos_column_id_fkey` already argued for: *"board_id must agree on both sides, or board_id becomes a claim the client makes and authorization believes."*
+
+**Two review-process lessons, since the next milestone will want them.** A review agent left probe test files inside `backend/src`; because the integration suite shares one database and truncates between files, those probes wiped data out from under a concurrently running suite, producing 21 failures that looked like a real regression. Review prompts must forbid writes explicitly. And the first concurrent-accept test passed *without* the `FOR UPDATE` lock — see the verification note below.
 
 **Files affected.** `backend/src/modules/**`, `lib/rank.ts`.
 
