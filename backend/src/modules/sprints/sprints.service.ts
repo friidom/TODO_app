@@ -1,6 +1,7 @@
 import { withActor } from "../../db/withActor.js";
 import { AppError, uniqueConstraintOf } from "../../lib/errors.js";
 import { RANK_GAP } from "../../lib/rank.js";
+import { emitInvalidate } from "../../realtime/emit.js";
 import type { Actor } from "../../types/actor.js";
 import type { BoardContext } from "../members/members.service.js";
 import * as sprintsRepo from "./sprints.repo.js";
@@ -30,7 +31,7 @@ export async function create(
 ): Promise<SprintRow> {
   const highest = await sprintsRepo.maxRank(board.id);
 
-  return withActor(actor.id, (tx) =>
+  const created = await withActor(actor.id, (tx) =>
     sprintsRepo.insert(tx, {
       boardId: board.id,
       name: input.name,
@@ -40,6 +41,10 @@ export async function create(
       rank: (highest ?? 0) + RANK_GAP,
     }),
   );
+
+  emitInvalidate(board.id, ["sprints"]);
+
+  return created;
 }
 
 export async function update(
@@ -54,6 +59,8 @@ export async function update(
 
   if (changed === 0) throw notFound();
 
+  emitInvalidate(board.id, ["sprints"]);
+
   return require(board, sprintId);
 }
 
@@ -67,6 +74,10 @@ export async function remove(
   const removed = await withActor(actor.id, (tx) => sprintsRepo.remove(tx, board.id, sprintId));
 
   if (removed === 0) throw notFound();
+
+  // todos too: the set-null returns every card in it to the Backlog, and how
+  // many is not known here.
+  emitInvalidate(board.id, ["sprints", "todos"]);
 }
 
 // There is no "this board already has an active sprint" check, deliberately:
@@ -109,6 +120,10 @@ export async function start(
     throw error;
   }
 
+  // Starting bulk-assigns the board's first todo-category column to whatever
+  // the sprint holds without one — N rows, so one coarse event, not N.
+  emitInvalidate(board.id, ["sprints", "todos"]);
+
   return require(board, sprintId);
 }
 
@@ -146,6 +161,8 @@ export async function complete(
 
     if ((await sprintsRepo.setState(tx, board.id, sprintId, "completed")) === 0) throw notFound();
   });
+
+  emitInvalidate(board.id, ["sprints", "todos"]);
 
   return require(board, sprintId);
 }

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { AppError } from "../../lib/errors.js";
 import { canDeleteComment, canEditComment } from "../../lib/permissions.js";
+import { emitChange, emitDeleted } from "../../realtime/emit.js";
 import type { Actor } from "../../types/actor.js";
 import type { BoardContext } from "../members/members.service.js";
 import * as commentsRepo from "./comments.repo.js";
@@ -17,19 +18,23 @@ export function list(board: BoardContext, todoId: string): Promise<CommentRow[]>
 }
 
 // No withActor: nothing on comments reads app.actor_id.
-export function create(
+export async function create(
   actor: Actor,
   board: BoardContext,
   todoId: string,
   input: CreateCommentInput,
 ): Promise<CommentRow> {
-  return commentsRepo.insert({
+  const created = await commentsRepo.insert({
     id: input.id ?? randomUUID(),
     boardId: board.id,
     todoId,
     authorId: actor.id,
     content: input.content,
   });
+
+  emitChange(board.id, "comment", "INSERT", created);
+
+  return created;
 }
 
 // Authorship is not a rank, so this cannot live in requireRole: no role widens
@@ -56,6 +61,8 @@ export async function update(
 
   if (updated === null) throw notFound();
 
+  emitChange(board.id, "comment", "UPDATE", updated);
+
   return updated;
 }
 
@@ -73,4 +80,6 @@ export async function remove(
   }
 
   if ((await commentsRepo.remove(board.id, commentId)) === 0) throw notFound();
+
+  emitDeleted(board.id, "comment", commentId);
 }

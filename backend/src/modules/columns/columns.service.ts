@@ -1,6 +1,7 @@
 import { withActor } from "../../db/withActor.js";
 import { AppError } from "../../lib/errors.js";
 import { rankForAppend } from "../../lib/rank.js";
+import { emitChange, emitDeleted, emitInvalidate } from "../../realtime/emit.js";
 import type { Actor } from "../../types/actor.js";
 import type { BoardContext } from "../members/members.service.js";
 import * as todosRepo from "../todos/todos.repo.js";
@@ -23,7 +24,7 @@ export async function create(
 ): Promise<ColumnRow> {
   const last = await columnsRepo.lastOf(board.id);
 
-  return withActor(actor.id, (tx) =>
+  const created = await withActor(actor.id, (tx) =>
     columnsRepo.insert(tx, {
       boardId: board.id,
       title: input.title,
@@ -32,6 +33,10 @@ export async function create(
       rank: rankForAppend(last === null ? [] : [last]),
     }),
   );
+
+  emitChange(board.id, "column", "INSERT", created);
+
+  return created;
 }
 
 export async function update(
@@ -50,6 +55,8 @@ export async function update(
 
   if (column === null) throw notFound();
 
+  emitChange(board.id, "column", "UPDATE", column);
+
   return column;
 }
 
@@ -58,12 +65,20 @@ export async function move(
   board: BoardContext,
   columnId: string,
   input: MoveColumnInput,
-): Promise<void> {
+): Promise<ColumnRow> {
   const changed = await withActor(actor.id, (tx) =>
     columnsRepo.update(tx, board.id, columnId, { rank: input.rank }),
   );
 
   if (changed === 0) throw notFound();
+
+  const column = await columnsRepo.findOne(board.id, columnId);
+
+  if (column === null) throw notFound();
+
+  emitChange(board.id, "column", "UPDATE", column);
+
+  return column;
 }
 
 // One transaction, because a rehome that commits without its delete leaves the
@@ -96,8 +111,17 @@ export async function remove(
 
     return moved;
   });
+
+  // The column's removal is one row; the rehome is N, and which N is not worth
+  // describing when the client can refetch the board's cards in one request.
+  emitDeleted(board.id, "column", columnId);
+  emitInvalidate(board.id, ["todos"]);
 }
 
-export function rebalance(actor: Actor, board: BoardContext): Promise<number> {
-  return withActor(actor.id, (tx) => columnsRepo.rebalance(tx, board.id));
+export async function rebalance(actor: Actor, board: BoardContext): Promise<number> {
+  const count = await withActor(actor.id, (tx) => columnsRepo.rebalance(tx, board.id));
+
+  emitInvalidate(board.id, ["columns"]);
+
+  return count;
 }

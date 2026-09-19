@@ -4,6 +4,7 @@ import { withActor } from "../../db/withActor.js";
 import { AppError, uniqueConstraintOf } from "../../lib/errors.js";
 import { rankForAppend } from "../../lib/rank.js";
 import type { Actor } from "../../types/actor.js";
+import { emitChange, emitDeleted, emitInvalidate } from "../../realtime/emit.js";
 import * as membersRepo from "../members/members.repo.js";
 import type { BoardContext } from "../members/members.service.js";
 import * as todosRepo from "./todos.repo.js";
@@ -89,9 +90,13 @@ export async function create(
   }
 
   try {
-    return await withActor(actor.id, (tx) =>
+    const created = await withActor(actor.id, (tx) =>
       todosRepo.upsert(tx, board.id, input.id ?? randomUUID(), actor.id, write),
     );
+
+    emitChange(board.id, "todo", "INSERT", created);
+
+    return created;
   } catch (error) {
     throw conflictIfForeignId(error);
   }
@@ -111,9 +116,13 @@ export async function upsert(
   await requireBoardMember(board, input.assignee_id);
 
   try {
-    return await withActor(actor.id, (tx) =>
+    const saved = await withActor(actor.id, (tx) =>
       todosRepo.upsert(tx, board.id, todoId, actor.id, writeFrom(input)),
     );
+
+    emitChange(board.id, "todo", "UPDATE", saved);
+
+    return saved;
   } catch (error) {
     throw conflictIfForeignId(error);
   }
@@ -123,6 +132,11 @@ export async function remove(actor: Actor, board: BoardContext, todoId: string):
   const removed = await withActor(actor.id, (tx) => todosRepo.remove(tx, board.id, todoId));
 
   if (removed === 0) throw notFound();
+
+  emitDeleted(board.id, "todo", todoId);
+  // The card's own removal is precise; what it cascaded is not enumerable
+  // from here, so those two scopes are refetched rather than described.
+  emitInvalidate(board.id, ["comments", "attachments"]);
 }
 
 // One row. The old dense-integer scheme renumbered a whole column from each
@@ -133,18 +147,35 @@ export async function move(
   board: BoardContext,
   todoId: string,
   input: MoveTodoInput,
-): Promise<void> {
+): Promise<TodoDetailRow> {
   const moved = await withActor(actor.id, (tx) =>
     todosRepo.update(tx, board.id, todoId, { column_id: input.column_id, rank: input.rank }),
   );
 
   if (moved === 0) throw notFound();
+
+  // Re-read rather than echo the input: the emitted payload must be the same
+  // projection a GET would return, or a client could receive a shape it could
+  // not have selected.
+  const row = await todosRepo.findOne(board.id, todoId);
+
+  if (row === null) throw notFound();
+
+  emitChange(board.id, "todo", "UPDATE", row);
+
+  return row;
 }
 
-export function rebalanceColumn(
+export async function rebalanceColumn(
   actor: Actor,
   board: BoardContext,
   columnId: string,
 ): Promise<number> {
-  return withActor(actor.id, (tx) => todosRepo.rebalanceColumn(tx, board.id, columnId));
+  const count = await withActor(actor.id, (tx) =>
+    todosRepo.rebalanceColumn(tx, board.id, columnId),
+  );
+
+  emitInvalidate(board.id, ["todos"]);
+
+  return count;
 }

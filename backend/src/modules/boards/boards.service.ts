@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { withActor } from "../../db/withActor.js";
 import { AppError } from "../../lib/errors.js";
+import { emitInvalidate } from "../../realtime/emit.js";
 import type { Actor } from "../../types/actor.js";
 import * as boardsRepo from "./boards.repo.js";
 import type { BoardRow } from "./boards.repo.js";
@@ -37,14 +38,22 @@ export function create(actor: Actor, input: CreateBoardInput): Promise<BoardRow>
   );
 }
 
-export function update(
+export async function update(
   actor: Actor,
   boardId: string,
   patch: UpdateBoardInput,
 ): Promise<BoardRow> {
-  return withActor(actor.id, (tx) => boardsRepo.update(tx, boardId, patch));
+  const board = await withActor(actor.id, (tx) => boardsRepo.update(tx, boardId, patch));
+
+  emitInvalidate(boardId, ["boards"]);
+
+  return board;
 }
 
-export function remove(actor: Actor, boardId: string): Promise<void> {
-  return withActor(actor.id, (tx) => boardsRepo.remove(tx, boardId));
+// The cascade takes the columns, cards, comments and activity with it. The
+// room is told once; there is nothing left for a row-level event to describe.
+export async function remove(actor: Actor, boardId: string): Promise<void> {
+  await withActor(actor.id, (tx) => boardsRepo.remove(tx, boardId));
+
+  emitInvalidate(boardId, ["boards"]);
 }

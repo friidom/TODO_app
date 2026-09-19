@@ -2,6 +2,7 @@ import { withActor } from "../../db/withActor.js";
 import { AppError } from "../../lib/errors.js";
 import { assignableRoles, canActOnMember, type BoardRole } from "../../lib/permissions.js";
 import type { Actor } from "../../types/actor.js";
+import { emitInvalidate } from "../../realtime/emit.js";
 import { evictFromBoard } from "../../realtime/rooms.js";
 import * as membersRepo from "./members.repo.js";
 import type { AddMemberInput, SetMemberRoleInput } from "./members.schema.js";
@@ -55,6 +56,8 @@ export async function add(
     );
   }
 
+  emitInvalidate(board.id, ["members"]);
+
   return entryFor(board.id, input.user_id);
 }
 
@@ -85,6 +88,10 @@ export async function setRole(
     await membersRepo.updateRole(tx, board.id, userId, input.role);
   });
 
+  // No eviction: every board role may read, so a downgrade changes the verbs
+  // this person has and not whether they may watch the board.
+  emitInvalidate(board.id, ["members"]);
+
   return entryFor(board.id, userId);
 }
 
@@ -112,6 +119,7 @@ export async function remove(
   // After the commit, never inside it: a rollback that had already evicted
   // would log someone out of a board they are still a member of.
   await evictFromBoard(board.id, userId);
+  emitInvalidate(board.id, ["members"]);
 }
 
 // Takes no target: leave_board cannot be pointed at anyone else, which is what
@@ -124,6 +132,7 @@ export async function leave(actor: Actor, board: BoardContext): Promise<void> {
   await withActor(actor.id, (tx) => membersRepo.remove(tx, board.id, actor.id));
 
   await evictFromBoard(board.id, actor.id);
+  emitInvalidate(board.id, ["members"]);
 }
 
 async function entryFor(boardId: string, userId: string): Promise<membersRepo.RosterEntry> {
