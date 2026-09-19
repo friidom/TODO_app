@@ -1,9 +1,9 @@
 # TODO_app
 
 A collaborative work-management application — Jira-style boards, sprints and
-work-item hierarchy — built on React 19 and Supabase.
+work-item hierarchy — built on React 19 over a Node/Express API on PostgreSQL.
 
-Boards live in spaces, carry a four-role permission model enforced in Postgres,
+Boards live in spaces, carry a four-role permission model enforced server-side,
 and render through six views over one shared data pipeline. Changes made by one
 member appear on every other open client without a refetch.
 
@@ -31,7 +31,7 @@ item is on the board because it has a column, and a sprint holds whatever
 carries a `sprint_id` — an Epic or a Task alike.
 
 **Collaboration.** Board members in four roles (viewer, editor, admin, owner)
-with every rule enforced by Row Level Security rather than in React; link
+with every rule enforced in the API rather than in React; link
 invitations; comment threads; an activity feed and per-item history; presence;
 in-app notifications; and a personal "For You" hub spanning every board you can
 reach.
@@ -46,29 +46,73 @@ with screen-reader announcements, and optimistic updates throughout.
 |---|---|
 | Build | Vite 8, TypeScript 6 (`strict`) |
 | UI | React 19, Tailwind CSS v4 (CSS-first, no config file), vendored shadcn primitives on Radix + Base UI |
-| Data | Supabase — Postgres, Auth, Row Level Security, Realtime |
+| API | Node 24, Express 5, Prisma 7 — JWT access tokens with refresh-token rotation |
+| Data | PostgreSQL 18 |
 | State | TanStack Query as the only real state layer |
 | Drag and drop | `@dnd-kit/core`, hand-rolled (no `sortable`) |
 | Tests | Vitest |
 
-## Getting started
+## Docker
 
-Requires Node 24 and a Supabase project.
-
-Create a `.env` in the project root:
-
-```
-VITE_SUPABASE_URL=...
-VITE_SUPABASE_PUBLISHABLE_KEY=...
-```
-
-Both are inlined at build time, so changing either means a rebuild rather than
-a redeploy. The app throws at startup if either is missing.
+The whole stack — frontend, API and PostgreSQL — in one command. Requires
+Docker Desktop and nothing else: no Node, no PostgreSQL, no manual setup.
 
 ```bash
+docker compose up --build
+```
+
+Then open **http://localhost:3000** and register an account. Signing up creates
+your space, board and its four columns, so there is nothing to seed.
+
+| | |
+|---|---|
+| Frontend | http://localhost:3000 |
+| API health | http://localhost:4000/health |
+| PostgreSQL | `localhost:5433` — 5432 is left free for a native install |
+
+```bash
+docker compose logs -f      # follow the logs
+docker compose down         # stop — the database volume survives
+docker compose up -d        # start again on the same data
+docker compose up --build   # rebuild after changing code
+```
+
+Database data lives in a named Docker volume, `todo-app_pgdata`, so
+`docker compose down` followed by `docker compose up -d` keeps every account
+and board. Migrations need no attention: `prisma migrate deploy` runs before
+the API starts listening and does nothing once they are applied.
+
+> **`docker compose down -v` deletes that volume, and the database with it.**
+> It is not part of the normal workflow — use it only to reset deliberately.
+
+Two things behave differently here than they would in production. Mail is not
+sent: the console driver prints password-reset and invite links to
+`docker compose logs backend`. And realtime presence, attachments and avatar
+upload do not work, because those three still call Supabase — B9 and B10 move
+them to the API.
+
+## Getting started without Docker
+
+Requires Node 24 and a PostgreSQL 18 database.
+
+Create a `.env` in the project root for the frontend, and a `backend/.env` from
+`backend/.env.example` for the API:
+
+```
+VITE_API_URL=http://localhost:4000/api/v1
+```
+
+`VITE_*` variables are inlined at build time, so changing one means restarting
+the dev server rather than redeploying. The app throws at startup if
+`VITE_API_URL` is missing.
+
+```bash
+npm install && npm run dev          # frontend on :5173
+
+cd backend
 npm install
-npm run db:push   # apply the schema to your Supabase project
-npm run dev
+npm run db:migrate                  # apply migrations
+npm run dev                         # API on :4000
 ```
 
 ## Commands
@@ -80,13 +124,21 @@ npm run lint      # eslint
 npm test          # vitest
 npm run preview   # serve the built bundle
 
-npm run db:push   # apply pending migrations to the linked project
-npm run db:diff   # capture local schema changes as a new migration
-npm run db:types  # regenerate src/types/database.ts
 ```
 
-Schema changes go through the CLI and land in `supabase/migrations/`, never
-through the Supabase SQL editor. Migrations are forward-only.
+From `backend/`:
+
+```bash
+npm run dev       # tsx watch — API on :4000
+npm run build     # tsc
+npm test          # vitest, no database needed
+npm run db:migrate   # prisma migrate deploy
+npm run db:generate  # regenerate the Prisma client
+npm run test:integration   # needs TEST_DATABASE_URL
+```
+
+The schema lives in `backend/prisma/`. Migrations are forward-only — reversing
+one means writing another.
 
 CI runs `lint`, `build` and `test` on every push and pull request.
 

@@ -2,6 +2,19 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Code comments
+
+Minimize comments. Write a comment **only** where a competent developer could
+not understand the code without it — a non-obvious constraint, a workaround for
+a bug or API quirk, a deliberate choice that looks wrong, a security-critical
+reason invisible in the code. Only extremely necessary comments are allowed.
+
+Never write comments that restate the code, section banners, JSDoc on
+self-explanatory functions, tutorial commentary, or notes about future
+milestones. If a comment is needed to explain *what* the code does, rename
+things or split the function instead. Explanations belong in the chat response,
+not in the file.
+
 ## Commits
 
 Do **not** add a `Co-Authored-By: Claude ...` trailer to commit messages. The

@@ -1,0 +1,68 @@
+name: todo-app
+
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: todo_app
+      # ICU en-US matches the development database. Left to the image default,
+      # the container's own locale would decide ORDER BY and the two would
+      # disagree on text ordering.
+      POSTGRES_INITDB_ARGS: --locale-provider=icu --icu-locale=en-US
+    ports:
+      # 5433, because 5432 is the natively installed PostgreSQL on the dev machine.
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d todo_app"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    environment:
+      # development, not production: config/env.ts refuses to start in production
+      # unless COOKIE_SECURE, AUTH_REQUIRE_EMAIL_VERIFICATION and an SMTP mail
+      # driver are all set, and this demo has no TLS and no mail server. Real
+      # deployment is B12.
+      NODE_ENV: development
+      PORT: 4000
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/todo_app
+      JWT_SECRET: ${JWT_SECRET:-docker-demo-secret-change-me-at-least-32-chars}
+      # The browser's origin, not the backend's: nginx serves both.
+      CORS_ORIGIN: http://localhost:3000
+      APP_URL: http://localhost:3000
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:4000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      # Relative, so nothing about the host is baked into the bundle. nginx
+      # proxies it to the backend, which keeps the API on the browser's own
+      # origin — see nginx.conf. The Supabase placeholders default in Dockerfile.
+      args:
+        VITE_API_URL: /api/v1
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  pgdata:

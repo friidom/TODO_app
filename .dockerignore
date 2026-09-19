@@ -1,0 +1,22 @@
+node_modules
+dist
+backend
+
+.git
+.github
+.claude
+.codegraph
+graphify-out
+.mcp.json
+
+supabase
+docs
+scripts
+
+.env
+.env.*
+*.log
+
+# permissions-matrix.json and rank-fixture.json are NOT ignored: two *.test.ts
+# files import them and tsconfig.app.json typechecks tests, so `tsc -b` fails
+# without them.
