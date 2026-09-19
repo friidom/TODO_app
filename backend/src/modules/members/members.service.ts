@@ -2,6 +2,7 @@ import { withActor } from "../../db/withActor.js";
 import { AppError } from "../../lib/errors.js";
 import { assignableRoles, canActOnMember, type BoardRole } from "../../lib/permissions.js";
 import type { Actor } from "../../types/actor.js";
+import { evictFromBoard } from "../../realtime/rooms.js";
 import * as membersRepo from "./members.repo.js";
 import type { AddMemberInput, SetMemberRoleInput } from "./members.schema.js";
 
@@ -107,6 +108,10 @@ export async function remove(
 
     await membersRepo.remove(tx, board.id, userId);
   });
+
+  // After the commit, never inside it: a rollback that had already evicted
+  // would log someone out of a board they are still a member of.
+  await evictFromBoard(board.id, userId);
 }
 
 // Takes no target: leave_board cannot be pointed at anyone else, which is what
@@ -117,6 +122,8 @@ export async function leave(actor: Actor, board: BoardContext): Promise<void> {
   }
 
   await withActor(actor.id, (tx) => membersRepo.remove(tx, board.id, actor.id));
+
+  await evictFromBoard(board.id, actor.id);
 }
 
 async function entryFor(boardId: string, userId: string): Promise<membersRepo.RosterEntry> {
