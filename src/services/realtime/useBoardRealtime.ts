@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { supabase } from "@/services/api/supabase";
 import { useAuth } from "@/services/auth/useAuth";
 import { queryKeys } from "@/services/queryClient/queryKeys";
 import type { Comment, IColumn, Todo } from "@/types/data";
@@ -11,15 +10,13 @@ import {
   applyTodoEvent,
   type RowChange,
 } from "./events";
-import {
-  sameViewers,
-  viewersFrom,
-  type PresenceMeta,
-  type PresenceState,
-} from "./presence";
+import { sameViewers } from "./presence";
+import { ALL_SCOPES, keysForScopes } from "./keysForScopes";
+import { connectBoardSocket } from "./socket";
 
-// One channel per board. INSERT/UPDATE are filtered server-side; DELETE isn't, because these tables are REPLICA IDENTITY DEFAULT
-// and a delete payload only carries the primary key — a board_id filter would never match. Unfiltered, the handler just checks if it has the row.
+// One socket per board, opened here and torn down on unmount or board change.
+// The room is joined after the connection authenticates; membership is checked
+// server-side on that join, and again whenever it changes.
 export function useBoardRealtime(boardId: string | undefined): string[] {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -47,7 +44,7 @@ export function useBoardRealtime(boardId: string | undefined): string[] {
       );
     }
 
-    // Comments ride the board channel rather than a per-task one, so opening/closing tasks never subscribes anything.
+    // Comments ride the board socket rather than a per-task one, so opening/closing tasks never subscribes anything.
     function patchComments(change: RowChange<Comment>) {
       if (change.eventType === "DELETE") {
         const id = change.old?.id;
@@ -81,140 +78,65 @@ export function useBoardRealtime(boardId: string | undefined): string[] {
       );
     }
 
-    const boardFilter = `board_id=eq.${boardId}`;
+    function invalidate(keys: unknown[][]) {
+      for (const queryKey of keys) {
+        void queryClient.invalidateQueries({ queryKey });
+      }
+    }
 
-    const channel = supabase
-      .channel(`board:${boardId}`, {
-        config: {
-          presence: {
-            key: userId,
-            // realtime-js only requests the initial snapshot if this is set explicitly, or if a presence binding exists at subscribe() time.
-            enabled: true,
-          },
-        },
-      })
-      .on<Todo>(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "todos",
-          filter: boardFilter,
-        },
-        (payload) => patchTodos(payload as RowChange<Todo>),
-      )
-      .on<Todo>(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "todos",
-          filter: boardFilter,
-        },
-        (payload) => patchTodos(payload as RowChange<Todo>),
-      )
-      .on<Todo>(
-        "postgres_changes",
-        { event: "DELETE", schema: "public", table: "todos" },
-        (payload) => patchTodos(payload as RowChange<Todo>),
-      )
-      .on<IColumn>(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "columns",
-          filter: boardFilter,
-        },
-        (payload) => patchColumns(payload as RowChange<IColumn>),
-      )
-      .on<IColumn>(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "columns",
-          filter: boardFilter,
-        },
-        (payload) => patchColumns(payload as RowChange<IColumn>),
-      )
-      .on<IColumn>(
-        "postgres_changes",
-        { event: "DELETE", schema: "public", table: "columns" },
-        (payload) => patchColumns(payload as RowChange<IColumn>),
-      )
-      .on<Comment>(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "comments",
-          filter: boardFilter,
-        },
-        (payload) => patchComments(payload as RowChange<Comment>),
-      )
-      .on<Comment>(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "comments",
-          filter: boardFilter,
-        },
-        (payload) => patchComments(payload as RowChange<Comment>),
-      )
-      .on<Comment>(
-        "postgres_changes",
-        { event: "DELETE", schema: "public", table: "comments" },
-        (payload) => patchComments(payload as RowChange<Comment>),
-      )
-      // `sync` alone covers joins and leaves — Phoenix's onSync fires after the initial state and after every diff.
-      .on("presence", { event: "sync" }, () => {
-        const next = viewersFrom(
-          channel.presenceState<PresenceMeta>() as PresenceState,
-        );
+    const socket = connectBoardSocket();
 
-        // Returning `prev` when unchanged lets React bail out of the re-render — otherwise every socket blink repaints the view.
-        setViewers((prev) => (sameViewers(prev, next) ? prev : next));
+    let hasJoined = false;
+
+    socket.on("connect", () => {
+      socket.emit("board:join", boardId, (result) => {
+        if (!result?.ok) {
+          setViewers([]);
+
+          return;
+        }
+
+        // Reconnected after a drop — whatever happened in between was never
+        // delivered, so refetch rather than trying to reconstruct it.
+        if (hasJoined) invalidate(keysForScopes(ALL_SCOPES, boardId));
+
+        hasJoined = true;
       });
+    });
 
-    let hasSubscribed = false;
+    socket.on("todo:change", patchTodos);
+    socket.on("column:change", patchColumns);
+    socket.on("comment:change", patchComments);
 
-    void channel.subscribe((status) => {
-      // Presence is server-authoritative — nothing tells us our own roster went stale, so we clear it ourselves on drop.
-      if (
-        status === "CHANNEL_ERROR" ||
-        status === "TIMED_OUT" ||
-        status === "CLOSED"
-      ) {
-        setViewers((prev) => (prev.length === 0 ? prev : []));
+    socket.on("board:invalidate", ({ scopes }) => {
+      invalidate(keysForScopes(scopes, boardId));
+    });
 
-        return;
-      }
+    // Returning `prev` when unchanged lets React bail out of the re-render — otherwise every heartbeat repaints the view.
+    socket.on("presence:sync", (payload) => {
+      if (payload.boardId !== boardId) return;
 
-      if (status !== "SUBSCRIBED") return;
+      setViewers((prev) => (sameViewers(prev, payload.viewers) ? prev : payload.viewers));
+    });
 
-      if (hasSubscribed) {
-        // Reconnected after a drop — whatever happened in between was never delivered, so refetch.
-        void queryClient.invalidateQueries({ queryKey: todosKey });
-        void queryClient.invalidateQueries({ queryKey: columnsKey });
-        void queryClient.invalidateQueries({
-          queryKey: queryKeys.commentThreads(),
-        });
-      }
+    // Membership was removed, or the board was. Nothing more will arrive, and
+    // the roster on screen is already a lie.
+    socket.on("board:evicted", () => {
+      hasJoined = false;
+      setViewers([]);
+    });
 
-      hasSubscribed = true;
+    // Presence is server-authoritative — nothing tells us our own roster went stale, so we clear it ourselves on drop.
+    socket.on("disconnect", () => {
+      setViewers((prev) => (prev.length === 0 ? prev : []));
+    });
 
-      void channel.track({
-        user_id: userId,
-        at: new Date().toISOString(),
-      } satisfies PresenceMeta);
+    socket.on("connect_error", () => {
+      setViewers((prev) => (prev.length === 0 ? prev : []));
     });
 
     return () => {
-      // Known race: removeChannel's registry entry only clears once the server acks the leave, so a board revisited inside
-      // that window binds onto a channel that's already leaving. See docs/REALTIME_VERIFICATION.md.
-      void supabase.removeChannel(channel);
+      socket.disconnect();
       setViewers([]);
     };
   }, [boardId, userId, queryClient]);

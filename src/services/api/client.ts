@@ -1,5 +1,9 @@
 const baseUrl = import.meta.env.VITE_API_URL;
 
+// Exported so the socket can derive its origin from the same value rather
+// than reading the environment a second time.
+export { baseUrl as apiBaseUrl };
+
 // At module load, so a missing variable names itself at startup rather than
 // surfacing as an opaque failure on the first query.
 if (!baseUrl) {

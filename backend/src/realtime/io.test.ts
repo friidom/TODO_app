@@ -8,7 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { app } from "../app.js";
 import { env } from "../config/env.js";
 import { signAccessToken } from "../lib/tokens.js";
-import { createRealtimeServer, type RealtimeServer } from "./io.js";
+import { createRealtimeServer, SOCKET_PATH, type RealtimeServer } from "./io.js";
 
 let server: HttpServer;
 let io: RealtimeServer;
@@ -40,7 +40,12 @@ afterAll(async () => {
 type Attempt = { ok: true; socketId: string } | { ok: false; message: string };
 
 async function attempt(auth: Record<string, unknown>): Promise<Attempt> {
-  const socket = connect(url, { auth, transports: ["websocket"], reconnection: false });
+  const socket = connect(url, {
+    path: SOCKET_PATH,
+    auth,
+    transports: ["websocket"],
+    reconnection: false,
+  });
 
   try {
     return await new Promise<Attempt>((resolve) => {

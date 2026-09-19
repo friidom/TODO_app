@@ -4,7 +4,12 @@ import { io as connect, type Socket as ClientSocket } from "socket.io-client";
 
 import { app } from "../app.js";
 import { resetPresence } from "../realtime/presence.js";
-import { createRealtimeServer, setRealtimeServer, type RealtimeServer } from "../realtime/io.js";
+import {
+  createRealtimeServer,
+  setRealtimeServer,
+  SOCKET_PATH,
+  type RealtimeServer,
+} from "../realtime/io.js";
 
 const TIMEOUT = 3000;
 
@@ -54,6 +59,7 @@ export async function startRealtimeHarness(): Promise<RealtimeHarness> {
 
   async function connectAs(token: string): Promise<TestSocket> {
     const raw = connect(url, {
+      path: SOCKET_PATH,
       auth: { token },
       transports: ["websocket"],
       reconnection: false,

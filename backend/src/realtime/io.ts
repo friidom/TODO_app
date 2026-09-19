@@ -66,6 +66,8 @@ export type RealtimeSocket = Socket<
   SocketData
 >;
 
+export const SOCKET_PATH = "/api/v1/socket.io";
+
 export function boardRoom(boardId: string): string {
   return `board:${boardId}`;
 }
@@ -102,6 +104,10 @@ export function setRealtimeServer(io: RealtimeServer | null): void {
 // cover the handshake — the origin has to be pinned again here.
 export function createRealtimeServer(httpServer: HttpServer): RealtimeServer {
   const io: RealtimeServer = new Server(httpServer, {
+    // Under the API's own prefix so nginx needs no second location block, and
+    // so the socket is versioned with the API it belongs to. The refresh
+    // cookie is scoped to /api/v1/auth and is still not sent here.
+    path: SOCKET_PATH,
     cors: { origin: env.CORS_ORIGIN, credentials: true },
   });
 
