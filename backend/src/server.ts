@@ -1,9 +1,18 @@
+import { createServer } from "node:http";
+
 import { app } from "./app.js";
 import { describeDatabase, env } from "./config/env.js";
 import { closePool, describeError, ping } from "./db/client.js";
 import { prisma } from "./db/prisma.js";
+import { createRealtimeServer } from "./realtime/io.js";
 
-const server = app.listen(env.PORT, async () => {
+// Explicit, because Socket.IO needs the http.Server itself — app.listen()
+// creates one and returns it, but only after it is already bound.
+const server = createServer(app);
+
+const io = createRealtimeServer(server);
+
+server.listen(env.PORT, async () => {
   console.log(
     `[api] listening on http://localhost:${env.PORT} (${env.NODE_ENV})`,
   );
@@ -24,7 +33,10 @@ const server = app.listen(env.PORT, async () => {
 function shutdown(signal: string) {
   console.log(`\n[api] ${signal} received, shutting down…`);
 
-  server.close(async () => {
+  // io.close() disconnects every socket and closes the HTTP server it is
+  // attached to, so it replaces server.close() rather than preceding it —
+  // calling both raises ERR_SERVER_NOT_RUNNING.
+  io.close(async () => {
     // before closePool: Prisma borrows from that pool, so ending it first
     // would pull the connection out from under an in-flight query
     await prisma.$disconnect();
