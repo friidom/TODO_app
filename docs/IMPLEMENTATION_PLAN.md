@@ -640,7 +640,7 @@ Risk labels, applied to every task:
 | **M31 · Timeline improvements** | ◑ **Four of five candidates built 2026-08-28** | Epic row grouping, derived Epic bars, Sprint bands (`TimelineSprintBand.tsx`) and M31-C's Board–Sprint integration all shipped. **Dependency arrows did not** — they need `work_item_links`, which is M33, exactly as the candidate table predicted. Subtask progress reaches the Epic row as a badge rather than as bar shading. **This milestone also shipped the product's two worst defects**, both fixed 2026-08-29 — see its own section. (`f76a198`, `0e93871`) |
 | **M32 · Attachments** | ✅ **Built 2026-09-03** | `attachments` + the private `task-attachments` bucket, both in `20260831090000_create_attachments.sql`, and an Attachments section in the task detail panel. Followed the storage template; **did not** use M25's tab region, and its own section records why. |
 | **M33 · Later** | 🗺 Roadmap | Labels, work item links, saved filters, the command palette. **Now due for re-costing — M32 has landed.** |
-| **M34 · Superadmin, KPI & Analytics** | 🗺 **Planned 2026-09-19** · HIGH RISK | The first authorization axis that is not board-scoped. Nine phases in **Part IV-D**, applying `BACKEND_MIGRATION_PLAN.md` §10.7 rather than re-deciding it. Its central schema finding: completion has no timestamp and cannot be recovered from `activities`, so `todos.completed_at` is Phase C. **Explicitly not** online/offline monitoring. |
+| **M34 · Superadmin, KPI & Analytics** | 🗺 **Planned 2026-09-19** · HIGH RISK | The first authorization axis that is not board-scoped. Ten phases in **Part IV-D**, applying `BACKEND_MIGRATION_PLAN.md` §10.7 rather than re-deciding it. Its central schema finding: completion has no timestamp and cannot be recovered from `activities`, so `todos.completed_at` is Phase C. **Explicitly not** online/offline monitoring. |
 
 M10–M13 were roadmap direction added in the 2026-08-10 audit; M14–M20 in the 2026-08-14 revision; M21–M23 were built unplanned and recorded on 2026-08-26; M24–M33 are that same audit's forward roadmap. Appendix E records what is deliberately out of scope — **and it changed twice**: on 2026-08-14 for Calendar and Timeline, and on 2026-08-26 for Sprints.
 
@@ -3687,7 +3687,7 @@ Standing debt found by reading the repository, the 63 migration files and the gi
 ---
 # PART IV-D — SUPERADMIN, KPI & ANALYTICS (M34)
 
-**Added 2026-09-19.** One milestone, nine phases. It is numbered **M34** because M33 is the *Later* bucket rather than a feature, and because the numbering rule at the top of Part III holds: ids are historical, and the order to build in is stated per wave.
+**Added 2026-09-19** · visualization phase added 2026-09-19. One milestone, ten phases. It is numbered **M34** because M33 is the *Later* bucket rather than a feature, and because the numbering rule at the top of Part III holds: ids are historical, and the order to build in is stated per wave.
 
 **This is not Appendix E's administration console.** That row says *"Jira-style administration console (schemes, permission schemes, screens) — never in this shape"*, and it still stands. M34 builds **reporting and one settings table**; it does not build permission schemes, screens, field configurations or anything else whose purpose is to configure the product's configurability. The distinction is testable: M34 adds exactly one editable entity (`kpi_targets`) and otherwise only reads.
 
@@ -3759,6 +3759,15 @@ Column *deletion* rehomes todos server-side first, so it arrives as ordinary `to
 
 **D-10 · Aggregation is SQL, and the rows never leave the server.**
 Every admin endpoint returns computed figures — counts, sums, buckets — never raw `todos` or `activities` arrays for the client to reduce. At ~200 users this is not a performance optimisation; it is a privacy boundary. A "system activity" endpoint that ships raw rows has shipped every board's titles to the browser whatever the UI then chooses to render.
+
+**D-11 · The reporting periods are fixed, and there are six of them.**
+`1 day · 7 days · 30 days · 3 months · quarter · year`. **7 and 30 days are the practical defaults** — they are what a person actually asks about, and they are the two every screen opens on. The other four exist so a longer question has an answer, not because anyone browses them daily. They are declared **once**, as a value list (`services/admin/periods.ts` and its backend counterpart), and every endpoint, every chart and every filter reads that list: a period spelled out at a call site is the bug this decision exists to prevent. *Quarter* is the **calendar** quarter to date, which is why it is not the same thing as *3 months* (a rolling window) and why both are listed; the design phase states the boundary rule for each, in `APP_TIMEZONE` (Phase E).
+
+**D-12 · KPI configuration is dynamic, and seniority is not load-bearing.**
+Targets are rows, not constants (D-8), and that stays. What is added here is the constraint the architecture must respect: **the three-level ladder is one way of keying targets, not a requirement of the KPI system.** `users.seniority` being null is a first-class state, not a missing value — such a user has factual metrics like everyone else and simply has no *performance* figure. Nothing in the API shape, the response types or the UI may assume every user has a level, and no screen may be unreachable or empty because the ladder is unused. Concretely: factual metrics never depend on `kpi_targets`; performance is an **optional** field; and if targets are later keyed by something else — per user, per team, per board — that is a change to one table and one lookup, not to the dashboards. Junior/Middle/Senior is the seed, not the schema's reason for existing.
+
+**D-13 · A chart is chosen for the question it answers, and the choice is made before it is built.**
+The stakeholder correction that produced Phase E2: statistics here are **not** "tables plus whatever chart the library makes easiest". Each metric gets a visualization argued for on its own, and the argument is recorded in this document before any chart code exists. Two standing rules come out of it: **no visualization is mandatory** — including the heatmap, which is a candidate and not a commitment — and **no comparison may rank people by a blended number**, which is *The metric vocabulary*'s rule restated as a drawing rule.
 
 ### The metric vocabulary — three kinds, kept separate
 
@@ -3868,6 +3877,46 @@ All Tier A: indexes only, `concurrently` where the table warrants it.
 
 ---
 
+#### Phase E2 — KPI visualization research and design · SAFE
+
+**Objective.** Decide *how each number is drawn*, and why, before a single chart is written. The output of this phase is a written matrix in this milestone, not code. It exists because the alternative — choosing a chart while building the screen — is how a dashboard ends up as five tables and a pie chart nobody can read an answer out of.
+
+**Backend / Database / Frontend / API.** None. This phase writes documentation only. If the design concludes that a chart needs a figure the API does not return, that is recorded as a **Phase D/E amendment** — never as a client-side reduction of raw rows (D-10).
+
+**What is investigated.** Each of these is a *candidate*, evaluated on two axes: **is it useful to a real operator**, and **is the data available** — which for anything completion-dated means Phase C has shipped. Any candidate may be rejected, and a rejection is recorded with its reason exactly as an acceptance is.
+
+| Candidate | The question it would answer | What it needs |
+|---|---|---|
+| **KPI target vs actual** | is this person at, above or below their configured target for the period? | `kpi_targets` + completed points (D-7, D-8); must render with **no** target (D-12) |
+| **Trend over time** — daily / weekly / monthly buckets | is this going up or down? | Phase E's `date_trunc` series, bucketed in `APP_TIMEZONE` |
+| **Developer-to-developer comparison** | who is working on what, and how much — *without* a league table | factual metrics side by side; explicitly **no** composite score |
+| **Task completion trend** | how much work is finishing, over time? | `todos.completed_at` (Phase C) |
+| **Estimate point trend** | how many points are finishing, and how much work is unestimated? | D-7's clause; `unestimated` shown beside every figure |
+| **Activity trend** | how much is happening across the system? | `activities`, with Phase E's `(created_at desc)` index |
+| **Board / team statistics** | which boards carry the work? | `/admin/boards` aggregates |
+| **Contribution-style activity heatmap** | what does one person's activity look like across a year, at a glance? | see below |
+
+**The heatmap, stated precisely.** A GitHub-Contributions-style calendar heatmap is **specifically worth considering** and is **not** mandated. Two things about it are settled in advance:
+
+1. **It plots TODO\_APP activity, never GitHub activity.** There is no GitHub integration in M34 and none is added for this — *Future / Optional* already records why: no git data in the schema, no identity link, and commit count is not performance. The heatmap reads this application's own rows.
+2. **Which row it counts is an open question this phase closes**, choosing among **completed tasks**, **completed estimate points**, **comments** and **activity events** — or a selectable dimension, if the design argues that one alone is genuinely insufficient. The criteria are usefulness and data availability, and the trade-off is real: activity events are the densest, so a cell is rarely empty and the picture flatters; completed tasks are the sparsest and the most meaningful; points inherit D-7's unestimated hole; comments measure conversation rather than delivery.
+
+**Constraints every candidate inherits.**
+- **The six periods of D-11**, with 7 and 30 days as the defaults a screen opens on. A visualization that only works at one period is a finding, not a feature.
+- **No composite score** (*The metric vocabulary*). A comparison shows factual metrics beside each other; it does not rank by an invented blend.
+- **Both inputs beside every ratio**, and `unestimated` beside every points figure (D-7).
+- **"—", never "0%"**, for a user with no target, and every screen usable with `kpi_targets` unconfigured (D-8, D-12).
+- **The existing design tokens** in `src/styles/global.css`, light and dark. A heatmap's colour ramp has to survive both themes, and colour must not be the only encoding of a cell's value.
+- **Backfill honesty.** Anything dated before Phase C's backfill is approximated from `updated_at`, and a chart covering that range says so (Phase I, question 2).
+
+**Tests.** None — there is nothing executable here. The *output* is what Phase G is tested against.
+
+**Dependencies.** Phase D for the response shapes, Phase E for what is affordable to query. It may be drafted earlier and is only *closed* once those two land.
+
+**Acceptance.** A **visualization matrix** recorded in this milestone: one row per metric, giving the question it answers, the chosen visual form, the data it reads, the endpoint field it comes from, and its behaviour at each of the six periods — plus the rejected candidates with their reasons, the heatmap decision (the metric chosen, or dropped) with its reason, and any Phase D/E amendment the design implies. **Phase G builds what this matrix lists and nothing else**; a chart that appears in G without a row here is a review finding.
+
+---
+
 #### Phase F — The Superadmin area · MEDIUM RISK
 
 **Objective.** The section, its routing, its guard, and the three list screens.
@@ -3877,7 +3926,7 @@ All Tier A: indexes only, `concurrently` where the table warrants it.
 **Frontend.** `src/pages/admin/` beside the existing `auth/`, `board/`, `error/`, `profile/`; `src/services/admin/` holding `adminApi.ts` and its `use*` hooks, one folder per the existing convention, no barrel. Query keys go in `queryKeys.ts` — `queryKeys.adminOverview()`, `adminUsers()`, `adminUser(id)`, `adminActivity(filters)`, `adminBoards()`, `adminKpi()` — **not spelled out anywhere else**, like every other key in the project. Routing follows `ProtectedRoute.tsx`'s shape with a `SuperadminRoute` beside it, and that file's existing comment states the rule this must repeat: *defence in depth, not the real gate*. Screens: Dashboard shell, Users list, User detail, Boards list, Activity, KPI Settings.
 **API.** None new.
 **Tests.** Vitest on the pure parts only, per the project's no-RTL policy: the KPI percentage function, the filter-to-query-string builder, the date-bucket labels. `registry`-style pinning that the admin nav lists exactly the five sections.
-**Dependencies.** Phase D. Phase E is not a blocker for the UI to exist, but is for it to be usable.
+**Dependencies.** Phase D. Phase E is not a blocker for the UI to exist, but is for it to be usable. Phase E2 does not block these screens either — they are the ones with no charts on them.
 **Acceptance.** A normal user navigating directly to `/admin` is redirected and, more importantly, **their API calls 404 regardless of what the UI does** — verified by hitting the endpoint with a normal user's token, not by observing the redirect. Nothing in the existing navigation renders for a non-superadmin.
 
 ---
@@ -3888,11 +3937,11 @@ All Tier A: indexes only, `concurrently` where the table warrants it.
 
 **Backend.** None — if a chart needs a number the API does not have, it is a Phase D/E change, not a client-side reduction.
 **Database.** None.
-**Frontend.** A small chart set over the existing design tokens in `src/styles/global.css` — completed tasks by day, completed points by day, comments by day, task status distribution, activity by board. A metric is declared as a value (the shape `services/views/registry.ts` already uses for views), so adding one later is a registry entry plus an API field, not a new screen.
+**Frontend.** **The chart set Phase E2's matrix specifies**, over the existing design tokens in `src/styles/global.css`: no chart the matrix does not list, and none it does list left out without saying so. The earlier sketch — completed tasks by day, completed points by day, comments by day, task status distribution, activity by board — is input to that design phase, not the specification. A metric is declared as a value (the shape `services/views/registry.ts` already uses for views), so adding one later is a registry entry plus an API field, not a new screen. The period selector reads D-11's list; nothing spells a period out.
 **API.** None new.
 **Tests.** The series-shaping functions, pure and tested. No component tests.
-**Dependencies.** Phases E, F.
-**Acceptance.** Every points figure displays its `unestimated` count beside it (D-7). Every performance figure displays the two inputs it came from. A user with null seniority renders "—", never "0%".
+**Dependencies.** Phases E, E2, F.
+**Acceptance.** Every chart traces to a row in Phase E2's matrix. Every points figure displays its `unestimated` count beside it (D-7). Every performance figure displays the two inputs it came from. A user with null seniority renders "—", never "0%", and every screen stays usable with `kpi_targets` unconfigured (D-12). All six periods of D-11 render, with 7 and 30 days as the defaults.
 
 ---
 
@@ -3924,7 +3973,8 @@ All Tier A: indexes only, `concurrently` where the table warrants it.
 ### Explicitly not in M34
 
 - **Online / offline status, presence, "last seen", session monitoring.** Decided, not deferred — see this part's header.
-- **GitHub analytics.** Phase-none. See *Future / Optional* below.
+- **GitHub analytics, and any GitHub API integration.** Phase-none — including as a source for an activity heatmap, which reads TODO\_APP rows only (Phase E2). See *Future / Optional* below.
+- **Any chart mandated in advance.** Phase E2 chooses the visualizations, the heatmap included; this document does not hardcode one.
 - **Granting or revoking the superadmin role through the UI.** The role is granted by SQL in M34. An endpoint that grants system-wide read is a privilege-escalation surface and deserves its own design, its own audit trail and its own review.
 - **A composite developer score.** See *The metric vocabulary*.
 - **Cross-board writes of any kind**, including bulk edits and board reassignment (§10.7 rule 3).
