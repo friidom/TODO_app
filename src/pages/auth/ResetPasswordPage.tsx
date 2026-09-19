@@ -1,11 +1,10 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router";
+import { useState } from "react";
+import { Link, useSearchParams } from "react-router";
 import { Loader2, TriangleAlertIcon } from "lucide-react";
 
 import AuthShell from "@/components/authForm/AuthShell";
 import PasswordInput from "@/components/authForm/PasswordInput";
 import { FORM_SUBMIT } from "@/components/ui/fieldInput";
-import { supabase } from "@/services/api/supabase";
 import { useUpdatePassword } from "@/services/auth/usePasswordReset";
 import {
   PASSWORD_MIN_LENGTH,
@@ -14,15 +13,12 @@ import {
   type AuthFieldErrors,
 } from "@/utils/validation";
 
-// Routed outside PublicRoute and ProtectedRoute on purpose: the recovery link signs the user in via URL fragment exchange,
-// which races this component's mount — PublicRoute would redirect away on the resulting session, ProtectedRoute would 404 before it lands.
-
-const RECOVERY_TIMEOUT_MS = 4000;
-
-type Status = "checking" | "ready" | "invalid";
+// Routed outside PublicRoute and ProtectedRoute: PublicRoute would send an
+// already-signed-in user away from their own reset link.
 
 export default function ResetPasswordPage() {
-  const [status, setStatus] = useState<Status>("checking");
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get("token");
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -30,40 +26,10 @@ export default function ResetPasswordPage() {
 
   const update = useUpdatePassword();
 
-  useEffect(() => {
-    let settled = false;
-
-    const ready = () => {
-      if (settled) return;
-
-      settled = true;
-      setStatus("ready");
-    };
-
-    const { data: subscription } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") ready();
-    });
-
-    // fallback for when the exchange finished before we subscribed
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) ready();
-    });
-
-    const timer = setTimeout(() => {
-      if (settled) return;
-
-      settled = true;
-      setStatus("invalid");
-    }, RECOVERY_TIMEOUT_MS);
-
-    return () => {
-      subscription.subscription.unsubscribe();
-      clearTimeout(timer);
-    };
-  }, []);
-
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    if (!token) return;
 
     const fieldErrors: AuthFieldErrors = {};
     const passwordError = validatePassword(password);
@@ -79,25 +45,10 @@ export default function ResetPasswordPage() {
 
     if (fieldErrors.password || fieldErrors.confirmPassword) return;
 
-    update.mutate(password);
+    update.mutate({ token, password });
   }
 
-  if (status === "checking") {
-    return (
-      <AuthShell
-        title="Checking your link"
-        subtitle="One moment."
-        footer={<Link to="/login">Back to sign in</Link>}
-      >
-        <div className="text-ink-3 flex items-center justify-center gap-2 py-6 text-sm">
-          <Loader2 className="size-4 animate-spin" />
-          Verifying…
-        </div>
-      </AuthShell>
-    );
-  }
-
-  if (status === "invalid") {
+  if (!token) {
     return (
       <AuthShell
         title="That link has expired"

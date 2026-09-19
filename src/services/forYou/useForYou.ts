@@ -41,14 +41,14 @@ export function useForYouFeed(tab: ForYouTab): ForYouFeed {
 
   const assigned = useQuery({
     queryKey: queryKeys.forYouAssigned(userId),
-    queryFn: () => fetchAssignedTodos(userId!),
+    queryFn: () => fetchAssignedTodos(),
     // recommended reuses this rather than fetching assigned work twice under two keys
     enabled: Boolean(userId) && (tab === "assigned" || tab === "recommended"),
   });
 
   const workedOn = useQuery({
     queryKey: queryKeys.forYouWorkedOn(userId),
-    queryFn: () => fetchWorkedOn(userId!),
+    queryFn: () => fetchWorkedOn(),
     enabled: Boolean(userId) && tab === "workedon",
   });
 

@@ -1,7 +1,7 @@
-import { supabase } from "../api/supabase";
+import { api } from "../api/client";
 
-// hand-written, not from the generated Database type — a Postgres TABLE-returning function loses nullability, so
-// supabase gen types would call these plain string when they're actually nullable in profiles
+// The roster's six fields, and no more: email and bio exist on profiles and are
+// deliberately withheld from co-members.
 export type BoardMember = {
   id: string;
   username: string | null;
@@ -11,20 +11,10 @@ export type BoardMember = {
   joined_at: string;
 };
 
-// never .from("board_members").select() — that table is self-read only, would silently return just the caller's own row
-export async function fetchBoardMembers(
-  boardId: string,
-): Promise<BoardMember[]> {
-  const { data, error } = await supabase.rpc("board_roster", {
-    p_board_id: boardId,
-  });
-
-  if (error) throw error;
-
-  return data ?? [];
+export function fetchBoardMembers(boardId: string): Promise<BoardMember[]> {
+  return api.get<BoardMember[]>(`/boards/${boardId}/members`);
 }
 
-// through the RPC only — the table has no write policy, so a direct update would match zero rows and silently "succeed"
 export async function updateMemberRole({
   boardId,
   userId,
@@ -34,16 +24,11 @@ export async function updateMemberRole({
   userId: string;
   role: string;
 }): Promise<void> {
-  const { error } = await supabase.rpc("set_member_role", {
-    p_board_id: boardId,
-    p_user_id: userId,
-    p_role: role,
-  });
-
-  if (error) throw error;
+  await api.patch<BoardMember>(`/boards/${boardId}/members/${userId}`, { role });
 }
 
-// admin removal, refuses the Owner outright — self-removal is the separate leave_board RPC
+// Admin removal. Self-removal is DELETE .../members/me, which the frontend has
+// no surface for yet.
 export async function removeBoardMember({
   boardId,
   userId,
@@ -51,10 +36,5 @@ export async function removeBoardMember({
   boardId: string;
   userId: string;
 }): Promise<void> {
-  const { error } = await supabase.rpc("remove_board_member", {
-    p_board_id: boardId,
-    p_user_id: userId,
-  });
-
-  if (error) throw error;
+  await api.del<void>(`/boards/${boardId}/members/${userId}`);
 }

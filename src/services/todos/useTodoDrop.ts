@@ -37,7 +37,11 @@ export function useTodoDrop() {
 
     if (rank !== null) return rank;
 
-    await rebalanceColumnRanks(columnId);
+    // A drag cannot start without a board in the route, so this is a type
+    // narrowing rather than a reachable state.
+    if (!boardId) throw new Error("Cannot rebalance without a board");
+
+    await rebalanceColumnRanks(boardId, columnId);
 
     // refetch, not recompute — the server just rewrote every rank in this column
     const fresh =

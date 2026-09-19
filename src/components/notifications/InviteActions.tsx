@@ -45,7 +45,7 @@ export default function InviteActions({
           onClick={(e) => {
             // the row itself is a button that navigates
             e.stopPropagation();
-            accept.mutate(invite.token, {
+            accept.mutate({ invite_id: invite.id }, {
               onSuccess: ({ board_id }) => onSettled(board_id),
             });
           }}
@@ -63,7 +63,7 @@ export default function InviteActions({
           disabled={busy}
           onClick={(e) => {
             e.stopPropagation();
-            decline.mutate(invite.token);
+            decline.mutate({ invite_id: invite.id });
           }}
           // quiet, not red — declining is reversible, not destructive
           className={cn(

@@ -10,7 +10,8 @@ import { useLogout } from "@/services/auth/useLogout";
 import { useProfile } from "@/services/profile/useProfile";
 import useUpdateProfile from "@/services/profile/useUpdateProfile";
 import { useUploadAvatar } from "@/services/profile/useUploadAvatar";
-import type { ISupabaseProfile } from "@/types/data";
+import { useAuth } from "@/services/auth/useAuth";
+import type { Profile } from "@/services/profile/profileApi";
 import { cn } from "@/utils/cn";
 
 // deliberately outside the app shell — settings is a place you finish with and leave, not a workspace view
@@ -19,13 +20,14 @@ export default function ProfilePage() {
   const logout = useLogout();
 
   const { data: profile, isLoading } = useProfile();
+  const { user } = useAuth();
   const updateProfile = useUpdateProfile();
   const uploadAvatar = useUploadAvatar();
 
-  const [form, setForm] = useState<ISupabaseProfile | null>(null);
+  const [form, setForm] = useState<Profile | null>(null);
 
   // seeding during render, not an effect, to avoid a double render pass
-  const [seededFrom, setSeededFrom] = useState<ISupabaseProfile | null>(null);
+  const [seededFrom, setSeededFrom] = useState<Profile | null>(null);
 
   if (profile && profile !== seededFrom) {
     setSeededFrom(profile);
@@ -52,7 +54,7 @@ export default function ProfilePage() {
 
   if (isLoading || !form) return <Loading />;
 
-  const patch = (fields: Partial<ISupabaseProfile>) =>
+  const patch = (fields: Partial<Profile>) =>
     setForm({ ...form, ...fields });
 
   const displayName = form.full_name || form.username || "Your account";
@@ -114,7 +116,7 @@ export default function ProfilePage() {
               <p className="text-ink truncate text-xl font-semibold tracking-tight">
                 {displayName}
               </p>
-              <p className="text-ink-3 truncate text-sm">{form.email}</p>
+              <p className="text-ink-3 truncate text-sm">{user?.email}</p>
             </div>
           </section>
 
@@ -142,7 +144,7 @@ export default function ProfilePage() {
               hint="Changing this is an auth operation, not a profile edit."
             >
               <input
-                value={form.email ?? ""}
+                value={user?.email ?? ""}
                 disabled
                 className={cn(FIELD_INPUT, "text-ink-3 cursor-not-allowed")}
               />

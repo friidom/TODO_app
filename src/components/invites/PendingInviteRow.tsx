@@ -1,7 +1,4 @@
 import { useState } from "react";
-import { CopyIcon } from "lucide-react";
-
-import { copyInviteLink } from "./copyInviteLink";
 import { roleLabel, roleStyle } from "@/components/members/roleStyles";
 import { expiresLabel } from "@/services/invites/inviteLink";
 import { useRevokeInvite } from "@/services/invites/useRevokeInvite";
@@ -55,15 +52,6 @@ export default function PendingInviteRow({ invite }: { invite: BoardInvite }) {
         </span>
       ) : (
         <span className="flex shrink-0 items-center gap-2">
-          <button
-            type="button"
-            onClick={() => void copyInviteLink(invite.token)}
-            aria-label="Copy invite link"
-            className="text-ink-2 hover:text-ink hover:bg-ink/10 rounded p-1"
-          >
-            <CopyIcon className="size-3.5" />
-          </button>
-
           <button
             type="button"
             onClick={() => setConfirming(true)}

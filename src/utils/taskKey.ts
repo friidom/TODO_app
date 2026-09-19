@@ -1,4 +1,4 @@
-// prefix stays in sync with the default in supabase/migrations/20260814100000_board_key_prefix.sql
+// stays in sync with boards.key_prefix default in backend/prisma/migrations/0003_boards
 export const DEFAULT_KEY_PREFIX = "KAN";
 
 // null while the card's insert is still in flight — board_key is assigned by a trigger, so there's no key to show yet.

@@ -30,7 +30,7 @@ function AcceptInvite({ token }: { token: string }) {
   const accept = useAcceptInvite();
 
   function handleAccept() {
-    accept.mutate(token, {
+    accept.mutate({ token }, {
       onSuccess: ({ status, board_id }) => {
         if (status === "accepted") {
           toast.success("You've joined the board");

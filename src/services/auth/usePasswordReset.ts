@@ -1,7 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 
-import { requestPasswordReset, signOut, updatePassword } from "./authApi";
+import { requestPasswordReset, updatePassword } from "./authApi";
 
 export function useRequestPasswordReset() {
   return useMutation({
@@ -10,16 +10,15 @@ export function useRequestPasswordReset() {
   });
 }
 
-// signs out after setting the password — a recovery link mints a real session, and leaving it live turns a leaked email into account takeover
+// No sign-out afterwards: the API deliberately issues no session from a reset,
+// so a leaked link never becomes a live account.
 export function useUpdatePassword() {
   const navigate = useNavigate();
 
   return useMutation({
     meta: { silent: true },
-    mutationFn: async (password: string) => {
-      await updatePassword(password);
-      await signOut();
-    },
+    mutationFn: ({ token, password }: { token: string; password: string }) =>
+      updatePassword(token, password),
     onSuccess: () => navigate("/login?reset=1", { replace: true }),
   });
 }

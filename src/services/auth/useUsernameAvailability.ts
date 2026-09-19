@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-import { supabase } from "../api/supabase";
+import { isUsernameAvailable } from "./authApi";
 import { queryKeys } from "@/services/queryClient/queryKeys";
 import {
   isUsernameShapeValid,
@@ -31,16 +31,6 @@ export interface UsernameAvailability {
   message?: string;
 }
 
-async function checkUsername(username: string): Promise<boolean> {
-  const { data, error } = await supabase.rpc("username_available", {
-    p_username: username,
-  });
-
-  if (error) throw error;
-
-  return data === true;
-}
-
 // Advisory only — the real guarantee is the unique index, this just answers before the confirmation email round trip.
 export function useUsernameAvailability(input: string): UsernameAvailability {
   const settled = useDebounced(input, DEBOUNCE_MS);
@@ -50,7 +40,7 @@ export function useUsernameAvailability(input: string): UsernameAvailability {
 
   const { data, isFetching, isError } = useQuery({
     queryKey: queryKeys.usernameAvailability(username),
-    queryFn: () => checkUsername(username),
+    queryFn: () => isUsernameAvailable(username),
     enabled: shapeValid,
     staleTime: 30_000,
     retry: false,

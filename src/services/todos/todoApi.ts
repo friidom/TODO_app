@@ -1,43 +1,25 @@
 import { DEFAULT_WORK_TYPE } from "@/constants/workTypes";
+import { ApiError, api } from "../api/client";
 import type { Todo, TodoRow } from "../../types/data";
-import { rankForAppend } from "../../utils/rank";
-import { supabase } from "../api/supabase";
 
-// Has to stay a string literal — supabase-js infers the row type from it, so a variable/join collapses everything to GenericStringError[].
-// Kept in sync with TODO_FIELDS in types/data.ts; todoApi.test.ts asserts they match.
-export const TODO_LIST_FIELDS =
-  "id, board_id, column_id, position, rank, board_key, title, type, priority, start_date, due_date, assignee_id, estimate, parent_id, sprint_id, backlog_rank, created_at, updated_at";
-
-export async function fetchTodos(boardId: string) {
-  const { data, error } = await supabase
-    .from("todos")
-    .select(TODO_LIST_FIELDS)
-    .eq("board_id", boardId)
-    .order("rank", { ascending: true, nullsFirst: false });
-
-  if (error) throw error;
-
-  return data;
+export function fetchTodos(boardId: string): Promise<Todo[]> {
+  return api.get<Todo[]>(`/boards/${boardId}/todos`);
 }
 
-// board_id + id, not id alone — ?task=<id> is user input, so a pasted id from another board must 404, not leak the row.
-export async function fetchTodo(
-  todoId: string,
-  boardId: string,
-): Promise<TodoRow | null> {
-  const { data, error } = await supabase
-    .from("todos")
-    .select("*")
-    .eq("id", todoId)
-    .eq("board_id", boardId)
-    .maybeSingle();
+// null rather than a throw: ?task=<id> is user input, so a pasted id from
+// another board answers 404 and the modal renders "not found" instead of
+// leaking that the card exists.
+export async function fetchTodo(todoId: string): Promise<TodoRow | null> {
+  try {
+    return await api.get<TodoRow>(`/todos/${todoId}`);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null;
 
-  if (error) throw error;
-
-  return data;
+    throw error;
+  }
 }
 
-export async function addTodo({
+export function addTodo({
   id,
   title,
   column_id,
@@ -59,56 +41,21 @@ export async function addTodo({
   type?: string;
   parent_id?: string | null;
   sprint_id?: string | null;
-}) {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) throw new Error("Not authenticated");
-
-  const { data: lastTodo, error: lastTodoError } = await supabase
-    .from("todos")
-    .select("position, rank")
-    .eq("column_id", column_id)
-    .eq("board_id", board_id)
-    .order("rank", { ascending: false, nullsFirst: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (lastTodoError) throw lastTodoError;
-
-  const position = (lastTodo?.position ?? -1) + 1;
-  const rank = rankForAppend(lastTodo ? [lastTodo] : []);
-
-  const { data, error } = await supabase
-    .from("todos")
-    .upsert(
-      {
-        id,
-        title,
-        column_id,
-        board_id,
-        creator_id: user.id,
-        position,
-        rank,
-        assignee_id,
-        start_date,
-        due_date,
-        type,
-        parent_id,
-        sprint_id,
-      },
-      { onConflict: "id" },
-    )
-    .select(TODO_LIST_FIELDS)
-    .single();
-
-  if (error) throw error;
-
-  return data;
+}): Promise<Todo> {
+  return api.post<Todo>(`/boards/${board_id}/todos`, {
+    id,
+    title,
+    column_id,
+    assignee_id,
+    start_date,
+    due_date,
+    type,
+    parent_id,
+    sprint_id,
+  });
 }
 
-export async function addBacklogItem({
+export function addBacklogItem({
   id,
   title,
   board_id,
@@ -126,49 +73,26 @@ export async function addBacklogItem({
   sprint_id?: string | null;
   column_id?: string | null;
   rank?: number | null;
-}) {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) throw new Error("Not authenticated");
-
-  const { data, error } = await supabase
-    .from("todos")
-    .upsert(
-      {
-        id,
-        title,
-        board_id,
-        creator_id: user.id,
-        column_id,
-        position: null,
-        rank,
-        backlog_rank,
-        type,
-        sprint_id,
-      },
-      { onConflict: "id" },
-    )
-    .select(TODO_LIST_FIELDS)
-    .single();
-
-  if (error) throw error;
-
-  return data;
+}): Promise<Todo> {
+  return api.post<Todo>(`/boards/${board_id}/todos`, {
+    id,
+    title,
+    column_id,
+    rank,
+    backlog_rank,
+    type,
+    sprint_id,
+  });
 }
 
-export async function deleteTodo(id: string) {
-  const { error } = await supabase.from("todos").delete().eq("id", id);
-
-  if (error) throw error;
+export async function deleteTodo(id: string): Promise<string> {
+  await api.del<void>(`/todos/${id}`);
 
   return id;
 }
 
 export async function moveTodo({
   id,
-  boardId,
   columnId,
   rank,
 }: {
@@ -176,38 +100,17 @@ export async function moveTodo({
   boardId: string;
   columnId: string;
   rank: number;
-}) {
-  const { error } = await supabase
-    .from("todos")
-    .update({ column_id: columnId, rank })
-    .eq("id", id)
-    .eq("board_id", boardId);
-
-  if (error) throw error;
+}): Promise<void> {
+  await api.post<void>(`/todos/${id}/move`, { column_id: columnId, rank });
 }
 
-export async function rebalanceColumnRanks(columnId: string) {
-  const { error } = await supabase.rpc("rebalance_column_ranks", {
-    p_column_id: columnId,
-  });
-
-  if (error) throw error;
-}
-
-// board_id must be in the payload — PostgREST's upsert runs the INSERT policy's WITH CHECK against the proposed row, and a missing board_id fails it silently.
-export async function reorderTodos(todos: Todo[], boardId: string) {
-  const updates = todos.map((todo) => ({
-    id: todo.id,
-    position: todo.position,
-    column_id: todo.column_id,
-    board_id: boardId,
-  }));
-
-  const { error } = await supabase.from("todos").upsert(updates, {
-    onConflict: "id",
-  });
-
-  if (error) throw error;
+export async function rebalanceColumnRanks(
+  boardId: string,
+  columnId: string,
+): Promise<void> {
+  await api.post<{ rebalanced: number }>(
+    `/boards/${boardId}/columns/${columnId}/rebalance`,
+  );
 }
 
 export type TodoPatch = { id: string; board_id: string } & Partial<
@@ -229,15 +132,9 @@ export type TodoPatch = { id: string; board_id: string } & Partial<
   >
 >;
 
-// Upsert, not update — a freshly created card can get patched before its insert lands, and .update() would silently match zero rows.
-export async function updateTodo({ id, board_id, ...patch }: TodoPatch) {
-  const { data, error } = await supabase
-    .from("todos")
-    .upsert({ id, board_id, ...patch }, { onConflict: "id" })
-    .select(TODO_LIST_FIELDS)
-    .single();
-
-  if (error) throw error;
-
-  return data;
+// PATCH is an upsert server-side: a freshly created card can be patched before
+// its insert lands, and an update would silently match zero rows. The board
+// would look correct and then revert.
+export function updateTodo({ id, board_id, ...patch }: TodoPatch): Promise<Todo> {
+  return api.patch<Todo>(`/boards/${board_id}/todos/${id}`, patch);
 }

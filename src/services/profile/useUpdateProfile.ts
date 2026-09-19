@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { updateProfile } from "./profileApi";
 import { queryKeys } from "@/services/queryClient/queryKeys";
-import type { ISupabaseProfile } from "@/types/data";
+import type { Profile } from "./profileApi";
 
 export default function useUpdateProfile() {
   const queryClient = useQueryClient();
@@ -14,9 +14,9 @@ export default function useUpdateProfile() {
 
       await queryClient.cancelQueries({ queryKey: key });
 
-      const previous = queryClient.getQueryData<ISupabaseProfile>(key);
+      const previous = queryClient.getQueryData<Profile>(key);
 
-      queryClient.setQueryData<ISupabaseProfile>(key, profile);
+      queryClient.setQueryData<Profile>(key, profile);
 
       return { key, previous };
     },

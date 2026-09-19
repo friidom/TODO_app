@@ -1,16 +1,14 @@
 import { Navigate, Outlet } from "react-router";
-import type { User } from "@supabase/supabase-js";
 import { useAuth } from "@/services/auth/useAuth";
+import type { AuthUser } from "@/services/auth/session";
 import Loading from "../loading/LoadingPage";
 
-// Checks all three, not just email — OAuth/phone accounts confirm differently and would otherwise get locked out.
-function isConfirmed(user: User) {
-  return Boolean(
-    user.email_confirmed_at ?? user.phone_confirmed_at ?? user.confirmed_at,
-  );
+function isConfirmed(user: AuthUser) {
+  return user.email_verified_at !== null;
 }
 
-// Defence in depth, not the real gate — Supabase's enable_confirmations already refuses a session to unconfirmed accounts.
+// Defence in depth, not the real gate — the API already refuses a session to an
+// unverified account when verification is required.
 export default function ProtectedRoute() {
   const { user, loading } = useAuth();
 

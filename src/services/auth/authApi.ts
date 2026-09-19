@@ -1,90 +1,84 @@
-import { supabase } from "../api/supabase";
-import { normalizeIdentifier } from "@/utils/identifier";
-import { normalizeUsername } from "@/utils/username";
+import { api, broadcastSignOut, setAccessToken, toQuery } from "../api/client";
+import { setSessionUser, type AuthUser } from "./session";
 
-export async function signUp(
-  email: string,
-  password: string,
-  username: string,
-) {
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      // rides in auth metadata since there's no session yet to write profiles directly — provision_user() reads it back at confirmation
-      data: { username: normalizeUsername(username) },
-    },
-  });
+interface SessionResponse {
+  user: AuthUser;
+  needsVerification: boolean;
+  accessToken?: string;
+  expiresIn?: number;
+}
 
-  if (error) throw error;
+function adopt(result: SessionResponse): SessionResponse {
+  if (result.accessToken !== undefined) setAccessToken(result.accessToken);
 
-  // only runs if email confirmation is off and signUp already returned a session — otherwise provisioning happens via the on_auth_user_confirmed trigger
-  if (data.session) {
-    const { error: provisionError } = await supabase.rpc("provision_new_user");
+  setSessionUser(result.user);
 
-    if (provisionError) throw provisionError;
-  }
+  return result;
+}
 
+export async function signUp(email: string, password: string, username: string) {
+  const result = await api.post<SessionResponse>(
+    "/auth/register",
+    { email, password, username },
+    { anonymous: true },
+  );
+
+  // needsVerification means no session was issued, so there is nothing to adopt
+  // and the form shows its "check your email" state instead.
   return {
-    ...data,
-    needsConfirmation: !data.session,
+    ...(result.needsVerification ? result : adopt(result)),
+    needsConfirmation: result.needsVerification,
   };
 }
 
-// reused for "no such username" too — a distinct message would make this an account-existence oracle
-const INVALID_CREDENTIALS = "Invalid login credentials";
-
 export async function signIn(identifier: string, password: string) {
-  const { kind, value } = normalizeIdentifier(identifier);
+  return adopt(
+    await api.post<SessionResponse>(
+      "/auth/login",
+      { identifier, password },
+      { anonymous: true },
+    ),
+  );
+}
 
-  let email = value;
-
-  if (kind === "username") {
-    const { data: resolved, error: resolveError } = await supabase.rpc(
-      "login_email_for",
-      { p_username: value },
-    );
-
-    if (resolveError) throw resolveError;
-    if (!resolved) throw new Error(INVALID_CREDENTIALS);
-
-    email = resolved;
+// Never throws: an unknown or already-revoked token still has to clear this tab
+// and the others.
+export async function signOut(): Promise<void> {
+  try {
+    await api.post<void>("/auth/logout", undefined, { anonymous: true });
+  } finally {
+    setAccessToken(null);
+    setSessionUser(null);
+    broadcastSignOut();
   }
-
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-
-  if (error) throw error;
-
-  // repairs a provisioning that failed at confirmation — not fatal, a user should still get in even if this fails
-  const { error: provisionError } = await supabase.rpc("provision_new_user");
-
-  if (provisionError) {
-    console.warn("provision_new_user failed on sign-in", provisionError);
-  }
-
-  return data;
 }
 
-export async function signOut() {
-  const { error } = await supabase.auth.signOut();
+export async function fetchMe(): Promise<AuthUser> {
+  const { user } = await api.get<{ user: AuthUser }>("/auth/me");
 
-  if (error) throw error;
+  return user;
 }
 
-export async function requestPasswordReset(email: string) {
-  const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-    redirectTo: `${window.location.origin}/reset-password`,
-  });
-
-  if (error) throw error;
+export async function requestPasswordReset(email: string): Promise<void> {
+  await api.post<{ ok: true }>("/auth/password/forgot", { email }, { anonymous: true });
 }
 
-// used only by the reset page — a recovery link signs the user in before this renders, which is also why /reset-password skips PublicRoute
-export async function updatePassword(password: string) {
-  const { error } = await supabase.auth.updateUser({ password });
+// Takes the token from the reset link. Supabase signed the user in before this
+// ran; the API deliberately issues no session, so the link cannot double as a
+// login.
+export async function updatePassword(token: string, password: string): Promise<void> {
+  await api.post<{ ok: true }>(
+    "/auth/password/reset",
+    { token, password },
+    { anonymous: true },
+  );
+}
 
-  if (error) throw error;
+export async function isUsernameAvailable(username: string): Promise<boolean> {
+  const { available } = await api.get<{ available: boolean }>(
+    `/auth/username-available${toQuery({ username })}`,
+    { anonymous: true },
+  );
+
+  return available;
 }

@@ -1,18 +1,27 @@
-import { supabase } from "../api/supabase";
-import type { Database } from "@/types/database";
+import { api, toQuery } from "../api/client";
 
 // owner isn't here — ownership isn't grantable by invite link.
 export const INVITE_ROLES = ["viewer", "editor", "admin"] as const;
 
 export type InviteRole = (typeof INVITE_ROLES)[number];
 
-export type BoardInvite = Database["public"]["Tables"]["board_invites"]["Row"];
+export type BoardInvite = {
+  id: string;
+  board_id: string;
+  email: string | null;
+  role: string;
+  expires_at: string;
+  created_by: string | null;
+  accepted_at: string | null;
+  created_at: string;
+};
 
-export type CreatedInvite =
-  Database["public"]["Functions"]["create_invite"]["Returns"][number];
+// The plaintext token comes back once, here, and is unrecoverable afterwards —
+// only its hash is stored.
+export type CreatedInvite = BoardInvite & { token: string };
 
-// Every rule lives in the RPC — role ceiling, expiry clamp, token minting. The token comes from Postgres, not the browser.
-export async function createInvite({
+// Every rule lives server-side — the role ceiling, the expiry clamp, the token.
+export function createInvite({
   boardId,
   role,
   expiresInDays,
@@ -23,45 +32,19 @@ export async function createInvite({
   expiresInDays: number;
   email?: string | null;
 }): Promise<CreatedInvite> {
-  const { data, error } = await supabase.rpc("create_invite", {
-    p_board_id: boardId,
-    p_role: role,
-    p_expires_in_days: expiresInDays,
-    // omitted, not null — the RPC's own default only kicks in when the param is absent
-    ...(email ? { p_email: email } : {}),
+  return api.post<CreatedInvite>(`/boards/${boardId}/invites`, {
+    role,
+    expires_in_days: expiresInDays,
+    email,
   });
-
-  if (error) throw error;
-
-  const invite = data?.[0];
-
-  if (!invite) throw new Error("The invitation could not be created.");
-
-  return invite;
 }
 
-export async function fetchPendingInvites(
-  boardId: string,
-): Promise<BoardInvite[]> {
-  const { data, error } = await supabase
-    .from("board_invites")
-    .select("*")
-    .eq("board_id", boardId)
-    .is("accepted_at", null)
-    .gt("expires_at", new Date().toISOString())
-    .order("created_at", { ascending: false });
-
-  if (error) throw error;
-
-  return data ?? [];
+export function fetchPendingInvites(boardId: string): Promise<BoardInvite[]> {
+  return api.get<BoardInvite[]>(`/boards/${boardId}/invites`);
 }
 
 export async function revokeInvite(inviteId: string): Promise<void> {
-  const { error } = await supabase.rpc("revoke_invite", {
-    p_invite_id: inviteId,
-  });
-
-  if (error) throw error;
+  await api.del<void>(`/invites/${inviteId}`);
 }
 
 export type AcceptedInvite = {
@@ -69,61 +52,45 @@ export type AcceptedInvite = {
   board_id: string;
 };
 
-// The token is the only argument — the client can't name a board or pick its own role.
-export async function acceptInvite(token: string): Promise<AcceptedInvite> {
-  const { data, error } = await supabase.rpc("accept_invite", {
-    p_token: token,
-  });
+// One of the two, never both: a link carries a token, the inbox carries an id
+// whose addressee the API checks against the caller's own address.
+export type InviteCredential = { token: string } | { invite_id: string };
 
-  if (error) throw error;
-
-  const result = data?.[0];
-
-  if (!result) throw new Error("The invitation could not be accepted.");
-
-  return {
-    status: result.status === "accepted" ? "accepted" : "already_member",
-    board_id: result.board_id,
-  };
+// The credential travels in the body rather than the path, because an access
+// log records URLs and an invite token is a bearer credential.
+export function acceptInvite(credential: InviteCredential): Promise<AcceptedInvite> {
+  return api.post<AcceptedInvite>("/invites/accept", credential);
 }
 
-export type Invitee =
-  Database["public"]["Functions"]["search_board_invitees"]["Returns"][number];
+export type Invitee = {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+  username: string;
+  avatar_url: string | null;
+};
 
-// Under two characters the RPC returns nothing — no walking the user table with a half-typed query.
-export async function searchInvitees(
-  boardId: string,
-  query: string,
-): Promise<Invitee[]> {
-  const { data, error } = await supabase.rpc("search_board_invitees", {
-    p_board_id: boardId,
-    p_query: query,
-  });
-
-  if (error) throw error;
-
-  return data ?? [];
+// Under two characters the API returns nothing — no walking the user table with a half-typed query.
+export function searchInvitees(boardId: string, query: string): Promise<Invitee[]> {
+  return api.get<Invitee[]>(`/boards/${boardId}/invitees${toQuery({ q: query })}`);
 }
 
-export type MyInvite =
-  Database["public"]["Functions"]["my_pending_invites"]["Returns"][number];
+export type MyInvite = {
+  id: string;
+  role: string;
+  expires_at: string;
+  board_id: string;
+  board_title: string | null;
+};
 
 // Not revokeInvite — this is the invitee declining, that one's the inviter withdrawing and needs admin.
-export async function declineInvite(token: string): Promise<boolean> {
-  const { data, error } = await supabase.rpc("decline_invite", {
-    p_token: token,
-  });
+export async function declineInvite(credential: InviteCredential): Promise<boolean> {
+  await api.post<void>("/invites/decline", credential);
 
-  if (error) throw error;
-
-  return data ?? false;
+  return true;
 }
 
-// No arguments — the address comes from the caller's own session inside the RPC, so nobody can list invites for someone else.
-export async function fetchMyInvites(): Promise<MyInvite[]> {
-  const { data, error } = await supabase.rpc("my_pending_invites");
-
-  if (error) throw error;
-
-  return data ?? [];
+// No arguments — the address comes from the caller's own session, so nobody can list invites for someone else.
+export function fetchMyInvites(): Promise<MyInvite[]> {
+  return api.get<MyInvite[]>("/invites/mine");
 }

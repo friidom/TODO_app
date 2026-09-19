@@ -1,13 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { TODO_LIST_FIELDS, type TodoPatch } from "./todoApi";
+import { type TodoPatch } from "./todoApi";
 import { TODO_FIELDS } from "@/types/data";
 
-describe("TODO_LIST_FIELDS", () => {
-  it("selects exactly the fields the Todo type claims to hold", () => {
-    expect(TODO_LIST_FIELDS).toBe(TODO_FIELDS.join(", "));
-  });
-
+describe("TODO_FIELDS", () => {
   it("names no field twice", () => {
     expect(new Set(TODO_FIELDS).size).toBe(TODO_FIELDS.length);
   });

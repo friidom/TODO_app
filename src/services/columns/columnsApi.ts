@@ -1,21 +1,14 @@
-import { supabase } from "@/services/api/supabase";
+import { api } from "@/services/api/client";
 import type { IColumn } from "@/types/data";
 import type { ColumnCategory } from "@/constants/columns";
-import { rankForAppend } from "@/utils/rank";
 
-export async function getColumns(boardId: string): Promise<IColumn[]> {
-  const { data, error } = await supabase
-    .from("columns")
-    .select("*")
-    .eq("board_id", boardId)
-    .order("rank", { nullsFirst: false });
-
-  if (error) throw error;
-
-  return data;
+export function getColumns(boardId: string): Promise<IColumn[]> {
+  return api.get<IColumn[]>(`/boards/${boardId}/columns`);
 }
 
-export async function createColumn({
+// The append rank is computed server-side now, so creating no longer costs a
+// read of the last column first.
+export function createColumn({
   title,
   category,
   board_id,
@@ -23,80 +16,35 @@ export async function createColumn({
   title: string;
   category: ColumnCategory;
   board_id: string;
-}) {
-  const { data: lastColumn } = await supabase
-    .from("columns")
-    .select("position, rank")
-    .eq("board_id", board_id)
-    .order("rank", { ascending: false, nullsFirst: false })
-    .limit(1)
-    .maybeSingle();
-
-  const position = (lastColumn?.position ?? -1) + 1;
-  const rank = rankForAppend(lastColumn ? [lastColumn] : []);
-
-  const { data, error } = await supabase
-    .from("columns")
-    .insert({
-      title,
-      category,
-      board_id,
-      position,
-      rank,
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-
-  return data;
+}): Promise<IColumn> {
+  return api.post<IColumn>(`/boards/${board_id}/columns`, { title, category });
 }
 
 // One row, not a whole-board renumber — two people reordering at once would otherwise overwrite each other.
 export async function moveColumnRank({
   id,
-  boardId,
   rank,
 }: {
   id: string;
   boardId: string;
   rank: number;
-}) {
-  const { error } = await supabase
-    .from("columns")
-    .update({ rank })
-    .eq("id", id)
-    .eq("board_id", boardId);
-
-  if (error) throw error;
+}): Promise<void> {
+  await api.post<void>(`/columns/${id}/move`, { rank });
 }
 
-export async function rebalanceBoardColumnRanks(boardId: string) {
-  const { error } = await supabase.rpc("rebalance_board_column_ranks", {
-    p_board_id: boardId,
-  });
-
-  if (error) throw error;
+export async function rebalanceBoardColumnRanks(boardId: string): Promise<void> {
+  await api.post<{ rebalanced: number }>(`/boards/${boardId}/columns/rebalance`);
 }
 
-export async function updateColumn({
+export function updateColumn({
   id,
   ...patch
 }: Pick<IColumn, "id"> &
-  Partial<Pick<IColumn, "title" | "min_limit" | "max_limit">>) {
-  const { data, error } = await supabase
-    .from("columns")
-    .update(patch)
-    .eq("id", id)
-    .select()
-    .single();
-
-  if (error) throw error;
-
-  return data as IColumn;
+  Partial<Pick<IColumn, "title" | "min_limit" | "max_limit">>): Promise<IColumn> {
+  return api.patch<IColumn>(`/columns/${id}`, patch);
 }
 
-// One RPC transaction, not four round trips — a dropped connection mid-way used to leave cards orphaned or a column stuck half-deleted.
+// One transaction server-side, not four round trips — a dropped connection mid-way used to leave cards orphaned or a column stuck half-deleted.
 export async function deleteColumn({
   id,
   moveToColumnId,
@@ -104,12 +52,7 @@ export async function deleteColumn({
   id: string;
   moveToColumnId: string;
 }) {
-  const { error } = await supabase.rpc("delete_column", {
-    p_column_id: id,
-    p_move_to_column_id: moveToColumnId,
-  });
-
-  if (error) throw error;
+  await api.del<void>(`/columns/${id}`, { moveToColumnId });
 
   return { id, moveToColumnId };
 }

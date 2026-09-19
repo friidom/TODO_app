@@ -1,47 +1,55 @@
 import { useEffect, useMemo, useState } from "react";
-import type { User } from "@supabase/supabase-js";
-import { supabase } from "../services/api/supabase";
+
+import { refreshSession, setSessionEndedHandler } from "../services/api/client";
+import { fetchMe } from "../services/auth/authApi";
+import {
+  getSessionUser,
+  setSessionUser,
+  subscribeToSession,
+  type AuthUser,
+} from "../services/auth/session";
 // module singleton, not useQueryClient() — this provider mounts above QueryClientProvider
 import { queryClient } from "../services/queryClient/queryClient";
 import { AuthContext } from "./authContext";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(getSessionUser);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
 
-    async function init() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+    const unsubscribe = subscribeToSession((next) => {
+      if (!mounted) return;
+
+      // Covers every way a session can end — the logout button, a dead refresh
+      // token, a sign-out in another tab — because two users can share one
+      // browser and a board id outlives a session.
+      if (next === null) queryClient.clear();
+
+      setUser(next);
+    });
+
+    // The access token lives in memory only, so a reload always starts by
+    // spending the refresh cookie. A failure here is "not signed in", not an
+    // error worth surfacing.
+    async function restore() {
+      const restored = (await refreshSession()) ? await fetchMe().catch(() => null) : null;
 
       if (!mounted) return;
 
-      setUser(session?.user ?? null);
+      setSessionUser(restored);
       setLoading(false);
     }
 
-    init();
+    setSessionEndedHandler(() => setSessionUser(null));
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!mounted) return;
-
-      // fires on token expiry and other-tab sign-out too, not just the logout button — two users on one browser can share a board id
-      if (event === "SIGNED_OUT") {
-        queryClient.clear();
-      }
-
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    restore();
 
     return () => {
       mounted = false;
-      subscription.unsubscribe();
+      unsubscribe();
+      setSessionEndedHandler(() => {});
     };
   }, []);
 

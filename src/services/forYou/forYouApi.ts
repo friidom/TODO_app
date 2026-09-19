@@ -1,73 +1,33 @@
-import { supabase } from "../api/supabase";
-import { TODO_LIST_FIELDS } from "../todos/todoApi";
+import { api, toQuery } from "../api/client";
+import type { Todo } from "@/types/data";
 
-// No board filter needed — every todos/activities SELECT policy is already scoped to accessible_board_ids(),
-// so an unscoped query here returns exactly what this user can see, and Postgres applies limit() to that set.
+// The board filter lives server-side and is applied before the limit — without
+// that the page fills with rows the caller cannot see and is then emptied.
 
 export const FEED_PAGE = 25;
 
-export async function fetchAssignedTodos(userId: string, limit = FEED_PAGE) {
-  const { data, error } = await supabase
-    .from("todos")
-    .select(TODO_LIST_FIELDS)
-    .eq("assignee_id", userId)
-    // top-level only — a subtask row means nothing in this feed without its parent
-    .is("parent_id", null)
-    .order("updated_at", { ascending: false, nullsFirst: false })
-    .limit(limit);
-
-  if (error) throw error;
-
-  return data;
+export function fetchAssignedTodos(limit = FEED_PAGE): Promise<Todo[]> {
+  return api.get<Todo[]>(`/me/feed${toQuery({ tab: "assigned", limit })}`);
 }
 
-export async function fetchRecentTodos(limit = FEED_PAGE) {
-  const { data, error } = await supabase
-    .from("todos")
-    .select(TODO_LIST_FIELDS)
-    // top-level only, and applied before limit() — otherwise a busy task's subtasks crowd out real work
-    .is("parent_id", null)
-    .order("updated_at", { ascending: false, nullsFirst: false })
-    .limit(limit);
-
-  if (error) throw error;
-
-  return data;
+export function fetchRecentTodos(limit = FEED_PAGE): Promise<Todo[]> {
+  return api.get<Todo[]>(`/me/feed${toQuery({ tab: "recent", limit })}`);
 }
 
-export async function fetchWorkedOn(userId: string, limit = FEED_PAGE * 4) {
-  const { data, error } = await supabase
-    .from("activities")
-    .select("entity_id, created_at")
-    .eq("actor_id", userId)
-    .eq("entity_type", "todo")
-    .order("created_at", { ascending: false })
-    .limit(limit);
+// Ids and dates, so a card is dated by when you touched it rather than by its
+// own updated_at. The limit counts activity rows, not cards.
+export async function fetchWorkedOn(
+  limit = FEED_PAGE * 4,
+): Promise<Map<string, string>> {
+  const entries = await api.get<{ id: string; at: string }[]>(
+    `/me/worked-on${toQuery({ limit })}`,
+  );
 
-  if (error) throw error;
-
-  const newest = new Map<string, string>();
-
-  for (const row of data ?? []) {
-    // rows arrive newest-first, so the first sighting of an id is its latest activity
-    if (row.entity_id && !newest.has(row.entity_id)) {
-      newest.set(row.entity_id, row.created_at);
-    }
-  }
-
-  return newest;
+  return new Map(entries.map((entry) => [entry.id, entry.at]));
 }
 
-export async function fetchTodosByIds(ids: string[]) {
-  if (ids.length === 0) return [];
+export function fetchTodosByIds(ids: string[]): Promise<Todo[]> {
+  if (ids.length === 0) return Promise.resolve([]);
 
-  const { data, error } = await supabase
-    .from("todos")
-    .select(TODO_LIST_FIELDS)
-    .in("id", ids)
-    .is("parent_id", null);
-
-  if (error) throw error;
-
-  return data;
+  return api.get<Todo[]>(`/me/todos${toQuery({ ids: ids.join(",") })}`);
 }

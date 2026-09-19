@@ -9,7 +9,7 @@ export function useTodo(
 ) {
   return useQuery({
     queryKey: queryKeys.todo(todoId),
-    queryFn: () => fetchTodo(todoId!, boardId!),
+    queryFn: () => fetchTodo(todoId!),
     enabled: Boolean(todoId) && Boolean(boardId),
   });
 }

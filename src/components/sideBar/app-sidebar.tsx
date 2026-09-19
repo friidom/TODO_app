@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/SideBarUI/sidebar";
 import BoardsSection from "./BoardsSection";
 import NotificationsButton from "@/components/notifications/NotificationsButton";
+import { useAuth } from "@/services/auth/useAuth";
 import { useProfile } from "@/services/profile/useProfile";
 import { cn } from "@/utils/cn";
 
@@ -82,6 +83,7 @@ function NavItem({ item }: { item: Item }) {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: profile } = useProfile();
+  const { user } = useAuth();
 
   return (
     <Sidebar className="border-hairline border-r" {...props}>
@@ -141,7 +143,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 {profile?.username || "Account"}
               </span>
               <span className="text-ink-3 text-mini block truncate">
-                {profile?.email}
+                {user?.email}
               </span>
             </span>
           </NavLink>

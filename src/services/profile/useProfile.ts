@@ -8,7 +8,7 @@ export function useProfile() {
 
   return useQuery({
     queryKey: queryKeys.profile(user?.id),
-    queryFn: () => fetchProfile(user!.id),
+    queryFn: () => fetchProfile(),
     enabled: !!user,
   });
 }

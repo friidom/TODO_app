@@ -1,36 +1,21 @@
-import { supabase } from "../api/supabase";
+import { api, toQuery } from "../api/client";
+import type { Activity } from "@/types/data";
 
 // activities has no natural bound (no retention policy), so this caps the query, not just the render
 export const ACTIVITY_PAGE = 50;
 
-// read-only on purpose — no insert grant on this table, only the trigger functions write it
-export async function fetchActivities(boardId: string) {
-  const { data, error } = await supabase
-    .from("activities")
-    .select(
-      "id, board_id, actor_id, entity_type, entity_id, action, payload, created_at",
-    )
-    .eq("board_id", boardId)
-    .order("created_at", { ascending: false })
-    .limit(ACTIVITY_PAGE);
-
-  if (error) throw error;
-
-  return data;
+// read-only on purpose — activities is trigger-written and has no write endpoint at all
+export function fetchActivities(boardId: string): Promise<Activity[]> {
+  return api.get<Activity[]>(
+    `/boards/${boardId}/activities${toQuery({ limit: ACTIVITY_PAGE })}`,
+  );
 }
 
-export async function fetchTodoActivities(boardId: string, todoId: string) {
-  const { data, error } = await supabase
-    .from("activities")
-    .select(
-      "id, board_id, actor_id, entity_type, entity_id, action, payload, created_at",
-    )
-    .eq("board_id", boardId)
-    .eq("entity_type", "todo")
-    .eq("entity_id", todoId)
-    .order("created_at", { ascending: false });
-
-  if (error) throw error;
-
-  return data;
+// Unbounded on purpose: a default limit here would silently truncate a busy
+// card's history.
+export function fetchTodoActivities(
+  _boardId: string,
+  todoId: string,
+): Promise<Activity[]> {
+  return api.get<Activity[]>(`/todos/${todoId}/activities`);
 }

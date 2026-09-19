@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { addTodo, moveTodo, reorderTodos } from "./todoApi";
+import { addTodo, moveTodo } from "./todoApi";
 import { applyTodoConfirmed, applyTodoInserted } from "./cache";
 import { queryKeys } from "@/services/queryClient/queryKeys";
 import type { Todo } from "../../types/data";
@@ -139,34 +139,20 @@ export function useAddTodo() {
       queryClient.setQueryData<Todo[]>(queryKeys.todos(boardId), todos);
 
       const kept = todos.find((todo) => todo.id === serverTodo.id);
-      const position = kept?.position ?? serverTodo.position;
       const rank = kept?.rank ?? serverTodo.rank;
 
-      if (position === serverTodo.position && rank === serverTodo.rank) return;
+      if (rank === serverTodo.rank || rank === null || !boardId) return;
+      if (!serverTodo.column_id) return;
 
-      if (!boardId) return;
-
-      if (rank !== null && rank !== serverTodo.rank && serverTodo.column_id) {
-        moveTodo({
-          id: serverTodo.id,
-          boardId,
-          columnId: serverTodo.column_id,
-          rank,
-        }).catch(() =>
-          queryClient.invalidateQueries({ queryKey: queryKeys.todos(boardId) }),
-        );
-      }
-
-      if (position === serverTodo.position) return;
-
-      reorderTodos(
-        todos.filter(
-          (todo) =>
-            todo.column_id === serverTodo.column_id &&
-            !isGenuineSubtask(todos, todo),
-        ),
+      // The dense position mirror is deliberately left stale: nothing orders
+      // by it while a rank is present, and the array-of-positions write it
+      // would need is the one M3-10 closed as unnecessary rather than build.
+      moveTodo({
+        id: serverTodo.id,
         boardId,
-      ).catch(() =>
+        columnId: serverTodo.column_id,
+        rank,
+      }).catch(() =>
         queryClient.invalidateQueries({ queryKey: queryKeys.todos(boardId) }),
       );
     },

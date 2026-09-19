@@ -1,9 +1,9 @@
 import { createContext } from "react";
-import type { User } from "@supabase/supabase-js";
+import type { AuthUser } from "@/services/auth/session";
 
 // split out so AuthProvider.tsx only exports a component — react-refresh can't fast-refresh a mixed module
 export type AuthState = {
-  user: User | null;
+  user: AuthUser | null;
   loading: boolean;
 };
 

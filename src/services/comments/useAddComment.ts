@@ -14,7 +14,7 @@ interface AddCommentVars {
 
 type AddCommentInput = AddCommentVars & { id: string };
 
-// author_id comes from the session, not the caller — the INSERT policy checks auth.uid() regardless, so there's nothing to forge.
+// The session is still read here because the optimistic row needs an author to render; the stored author_id is the server's.
 export function useAddComment() {
   const queryClient = useQueryClient();
   const boardId = useBoardId();
@@ -29,7 +29,6 @@ export function useAddComment() {
         id,
         board_id: boardId,
         todo_id: todoId,
-        author_id: user.id,
         content,
       });
     },
