@@ -3,28 +3,36 @@ import { describe, expect, it } from "vitest";
 import { inviteErrorMessage } from "./inviteError";
 
 describe("inviteErrorMessage", () => {
-  it("maps each SQLSTATE accept_invite can raise", () => {
-    expect(inviteErrorMessage({ code: "22023" })).toMatch(/expired/i);
-    expect(inviteErrorMessage({ code: "23505" })).toMatch(/already been used/i);
-    expect(inviteErrorMessage({ code: "P0002" })).toMatch(/not valid/i);
-    expect(inviteErrorMessage({ code: "42501" })).toMatch(
+  it("maps each error code the accept endpoint can return", () => {
+    expect(inviteErrorMessage({ code: "bad_request" })).toMatch(/expired/i);
+    expect(inviteErrorMessage({ code: "conflict" })).toMatch(
+      /already been used/i,
+    );
+    expect(inviteErrorMessage({ code: "not_found" })).toMatch(/not valid/i);
+    expect(inviteErrorMessage({ code: "forbidden" })).toMatch(
       /cannot be accepted/i,
     );
-    expect(inviteErrorMessage({ code: "28000" })).toMatch(/sign in/i);
+    expect(inviteErrorMessage({ code: "unauthorized" })).toMatch(/sign in/i);
   });
 
-  it("never passes a database message through", () => {
+  // The SQLSTATEs the Supabase RPC used to raise reach the client no longer;
+  // pinning them as unmapped is what stops the old map creeping back.
+  it("does not answer to the SQLSTATEs the old accept_invite RPC raised", () => {
+    for (const code of ["22023", "23505", "P0002", "42501", "28000"]) {
+      expect(inviteErrorMessage({ code })).toMatch(/could not be accepted/i);
+    }
+  });
+
+  it("never passes a server message through", () => {
     const raw = {
-      code: "P0001",
+      status: 500,
+      code: "internal",
       message: 'relation "public.board_invites" does not exist',
-      details: "somewhere in accept_invite",
-      hint: null,
     };
 
     const shown = inviteErrorMessage(raw);
 
     expect(shown).not.toContain("board_invites");
-    expect(shown).not.toContain("accept_invite");
     expect(shown).toMatch(/could not be accepted/i);
   });
 

@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { acceptInvite } from "./invitesApi";
 import { queryKeys } from "@/services/queryClient/queryKeys";
 
-// silent — the page maps the failure through inviteErrorMessage itself, no need for the raw db message in a toast too
+// silent — the page maps the failure through inviteErrorMessage itself, no need for the raw API message in a toast too
 export function useAcceptInvite() {
   const queryClient = useQueryClient();
 

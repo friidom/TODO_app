@@ -1,5 +1,12 @@
 # API Architecture
 
+> **Superseded.** This describes the Supabase-era data layer, where services
+> called Supabase directly. Since **B5–B8** the app talks to its own Express API
+> (`backend/`) and every diagram below that ends at Supabase is wrong — the
+> chain is now `Component → hook → service → services/api/client.ts → Express →
+> Prisma → PostgreSQL`. The layering rules still hold; the destination does not.
+> Current reference: [`BACKEND_MIGRATION_PLAN.md`](BACKEND_MIGRATION_PLAN.md).
+
 ## Philosophy
 
 The application follows a layered architecture.

@@ -30,3 +30,22 @@ backups
 
 # CodeGraph / graphify tool output — regenerated locally, never committed
 graphify-out
+
+coverage
+Thumbs.db
+*.pid
+.playwright-mcp
+test-results
+playwright-report
+
+# Personal tooling, not part of the project. .claude/CLAUDE.md, the agent
+# definitions and the comment-guard hook stay tracked; these three do not,
+# because they make a clone depend on a `codegraph` binary that nothing here
+# installs — the UserPromptSubmit hook then fails on every prompt.
+.mcp.json
+.claude/settings.json
+.claude/settings.local.json
+
+# Personal learning material written against the pre-B5 Supabase design.
+# Kept locally, out of the shared repository.
+docs/code_details

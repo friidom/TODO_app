@@ -2,7 +2,7 @@
 
 # Project Name
 
-(Project name will be decided later.)
+**Veylo.** The repository is named `TODO_app`; the product is Veylo.
 
 ---
 

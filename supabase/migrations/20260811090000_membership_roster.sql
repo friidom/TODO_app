@@ -319,8 +319,8 @@ grant select on table public.board_members to authenticated;
 -- REST-level, with a real JWT per role. The UI cannot substitute: it never
 -- asks for rows it does not expect, so it cannot demonstrate a denial.
 --
--- Fixture: board 5819a045-0bca-4a8a-9dc1-a67f7911b854,
---          owner qwerty@gmail.com, viewer qqq@gmail.com.
+-- Fixture: board 00000000-0000-4000-8000-000000000001,
+--          owner owner@example.com, viewer viewer@example.com.
 --
 --
 -- THE ROSTER ITSELF
@@ -328,7 +328,7 @@ grant select on table public.board_members to authenticated;
 --   curl -X POST "$URL/rest/v1/rpc/board_roster" \
 --     -H "apikey: $ANON" -H "Authorization: Bearer $OWNER_JWT" \
 --     -H "Content-Type: application/json" \
---     -d '{"p_board_id":"5819a045-0bca-4a8a-9dc1-a67f7911b854"}'
+--     -d '{"p_board_id":"00000000-0000-4000-8000-000000000001"}'
 --   -- expect 2 rows (owner + viewer), each carrying exactly
 --   --   id, username, full_name, avatar_url, role, joined_at
 --   -- and NO email, NO bio. Check the payload keys, not just the values.

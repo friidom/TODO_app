@@ -229,9 +229,9 @@ create policy "Members select accessible boards" on public.boards
 -- Verification --------------------------------------------------------------------
 --
 -- Fixture, already in place and to be KEPT for M3-05:
---   board  5819a045-0bca-4a8a-9dc1-a67f7911b854
---   owner  qwerty@gmail.com
---   viewer qqq@gmail.com
+--   board  00000000-0000-4000-8000-000000000001
+--   owner  owner@example.com
+--   viewer viewer@example.com
 --
 -- Baseline before this migration: the viewer's GET returns 200 [] and the UI
 -- shows "Not found". Both must change to a visible board, and nothing else

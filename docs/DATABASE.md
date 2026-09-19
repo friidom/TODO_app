@@ -1,5 +1,12 @@
 # Database Design
 
+> **Superseded in part.** The tables and columns described here still match the
+> live schema, so this remains a useful data-model reference. Every sentence
+> about *enforcement* is out of date: RLS policies, `auth.uid()`, SECURITY
+> DEFINER helpers and `service_role` were all replaced in **B3–B6**. The schema
+> now lives in [`../backend/prisma/schema.prisma`](../backend/prisma/schema.prisma)
+> and is applied by `prisma migrate deploy`.
+
 ## Philosophy
 
 The database is designed around **Boards**, not Users.

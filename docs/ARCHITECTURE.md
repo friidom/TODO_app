@@ -1,5 +1,12 @@
 # Architecture
 
+> **Superseded in part.** The board-centric data model below is still accurate.
+> The security section is not: authorization moved out of Postgres RLS and into
+> the API in **B6** (`backend/src/middleware/boardAccess.ts` and
+> `requireRole.ts`). Read "must be enforced in RLS" as "must be enforced
+> server-side".
+> Current reference: [`BACKEND_MIGRATION_PLAN.md`](BACKEND_MIGRATION_PLAN.md).
+
 ## Overview
 
 This application follows a scalable, board-centric architecture inspired by modern collaborative project management systems.

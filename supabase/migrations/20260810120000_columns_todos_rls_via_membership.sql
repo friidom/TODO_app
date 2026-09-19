@@ -277,13 +277,13 @@ create policy "Editors and above delete columns" on public.columns
 --
 --   -- the fixture board must not be empty, or "viewer can read" is
 --   -- indistinguishable from "viewer is denied"
---   select (select count(*) from public.columns where board_id = '5819a045-0bca-4a8a-9dc1-a67f7911b854') as cols,
---          (select count(*) from public.todos   where board_id = '5819a045-0bca-4a8a-9dc1-a67f7911b854') as cards;
+--   select (select count(*) from public.columns where board_id = '00000000-0000-4000-8000-000000000001') as cols,
+--          (select count(*) from public.todos   where board_id = '00000000-0000-4000-8000-000000000001') as cards;
 --   -- both must be > 0
 --
 --   select user_id, role from public.board_members
---   where board_id = '5819a045-0bca-4a8a-9dc1-a67f7911b854';
---   -- expect qwerty as owner, d7d0db0e-4642-4df4-877d-80419bccbee9 as viewer
+--   where board_id = '00000000-0000-4000-8000-000000000001';
+--   -- expect qwerty as owner, 00000000-0000-4000-8000-000000000002 as viewer
 --
 --   -- BASELINE, as qqq, before applying: both must be []
 --   GET /rest/v1/columns?board_id=eq.<board>&select=id
@@ -303,8 +303,8 @@ create policy "Editors and above delete columns" on public.columns
 -- Then flip the fixture role and re-run, one statement, fully reversible:
 --
 --   update public.board_members set role = 'editor'
---   where board_id = '5819a045-0bca-4a8a-9dc1-a67f7911b854'
---     and user_id  = 'd7d0db0e-4642-4df4-877d-80419bccbee9';
+--   where board_id = '00000000-0000-4000-8000-000000000001'
+--     and user_id  = '00000000-0000-4000-8000-000000000002';
 --
 --   EDITOR   all four verbs on both tables              → all succeed
 --   ADMIN    (repeat with role = 'admin')               → all succeed

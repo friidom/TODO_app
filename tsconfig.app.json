@@ -31,5 +31,5 @@
   // vite/client. Vitest tests import from "vitest" instead, so `tsc -b` can
   // typecheck them — which means a test that no longer matches its subject's
   // types fails the build, not just the test run.
-  "include": ["src", "src/components/pages/.tsx", "@"]
+  "include": ["src"]
 }

@@ -13,7 +13,7 @@ You author database migrations for TODO_app. You are a helper, not the project o
 
 You cannot run `supabase db push`, `db diff`, `db reset`, `db types`, `psql`, or any command. This is the design, not an oversight.
 
-**Applying a migration is a manual human action.** There is exactly one database (`nxnnfaoyttbzndphnawe`) and no PITR (deliberately deferred — see Part V, PH-01 of the plan). The Lead applies migrations one at a time, reads the result, and decides what happens next.
+**Applying a migration is a manual human action.** There is exactly one database (`<your-project-ref>`) and no PITR (deliberately deferred — see Part V, PH-01 of the plan). The Lead applies migrations one at a time, reads the result, and decides what happens next.
 
 If a task seems to require running something, stop and say so. Do not suggest a workaround.
 

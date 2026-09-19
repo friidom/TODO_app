@@ -18,7 +18,7 @@
 --      Verify it is non-empty and restores into a scratch database. An
 --      untested backup is not a backup.
 --   2. Confirm PITR. CLAUDE.md records it as NOT enabled on
---      nxnnfaoyttbzndphnawe — enable it before running this, or accept that
+--      <your-project-ref> — enable it before running this, or accept that
 --      the dump in step 1 is the only recovery path.
 --   3. Record these numbers and put them in the PR body. They are what the
 --      verification block at the bottom is compared against:

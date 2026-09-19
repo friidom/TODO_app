@@ -1,156 +1,279 @@
-# TODO_app
+# Veylo
 
-A collaborative work-management application — Jira-style boards, sprints and
-work-item hierarchy — built on React 19 over a Node/Express API on PostgreSQL.
+A collaborative work-management application — Jira-style boards, sprints and a
+three-level work-item hierarchy — built on React 19 over a Node/Express API on
+PostgreSQL.
 
 Boards live in spaces, carry a four-role permission model enforced server-side,
-and render through six views over one shared data pipeline. Changes made by one
-member appear on every other open client without a refetch.
+and render through six views over one shared data pipeline.
+
+> The repository is named `TODO_app`; the application is Veylo. Same project.
+
+---
+
+## Tech stack
+
+**Frontend**
+- React 19 · TypeScript (`strict`) · Vite 8
+- TanStack Query as the only real state layer
+- Tailwind CSS v4 (CSS-first, no config file), vendored shadcn primitives on Radix + Base UI
+- `@dnd-kit/core`, hand-rolled (no `sortable`)
+
+**Backend**
+- Node 24 · Express 5
+- Prisma 7 (driver adapter over `pg`)
+- PostgreSQL 18
+- JWT access tokens with refresh-token rotation, argon2 password hashing
+
+**Infrastructure**
+- Docker · Docker Compose · nginx
+- GitHub Actions (lint, build, tests)
+- Vitest on both sides
+
+---
+
+## Architecture
+
+```
+Browser
+   │
+   ▼
+Frontend            React SPA, served by nginx (port 3000)
+   │                nginx also proxies /api/v1 → backend, so the API
+   │                is same-origin and no CORS is involved
+   ▼
+Express API         REST under /api/v1 (port 4000)
+   │                auth, authorization and validation live here
+   ▼
+Prisma              query layer + migrations
+   │
+   ▼
+PostgreSQL          port 5432 in the network, 5433 on the host
+```
+
+Docker Compose runs all three — frontend, backend and PostgreSQL — as separate
+containers on one network. Authorization is enforced in the API
+(`backend/src/middleware/boardAccess.ts`, `requireRole.ts`), never in React.
+
+**Where things live**
+
+| Path | What |
+|---|---|
+| `src/` | Frontend. `services/<feature>/` pairs an API module with its hooks |
+| `backend/src/` | Express API. `modules/<feature>/` is routes + controller + service + repo |
+| `backend/prisma/` | **The schema and its migrations — authoritative** |
+| `supabase/` | Historical. The pre-B5 schema and CLI config, kept for B9/B10 |
+| `docs/` | Project ledgers and design notes |
+| `Dockerfile`, `backend/Dockerfile`, `nginx.conf`, `docker-compose.yml` | Docker setup |
+
+---
 
 ## Features
 
-**Work items.** A three-level hierarchy — Epic → Task → Subtask — modelled as a
-single self-referencing `parent_id` on one table and enforced by a database
-trigger, so an Epic can never be filed under a Task. Items carry a type
-(Task, Bug, Story, Feature, Epic), priority, assignee, story-point estimate,
+**Work items.** Epic → Task → Subtask, modelled as one self-referencing
+`parent_id` and enforced by a database trigger, so an Epic can never be filed
+under a Task. Items carry a type, priority, assignee, story-point estimate,
 start and due dates, description, comments and a per-item change history. Every
-card is addressed by a readable per-board key (`KAN-14`).
+card has a readable per-board key (`KAN-14`).
 
-**Views.** Six renderings of the same board, each declaring its own
-capabilities: **Summary** (the board's front page), **Board** (Kanban with
-hand-rolled drag and drop), **List**, **Calendar**, **Timeline** (an
-Epic-grouped Gantt with sprint bands and drag-to-reschedule) and **Backlog**.
-Filter, search, sort and grouping are properties of the pipeline, so they apply
-to whichever view is open.
+**Views.** Six renderings of the same board: Summary, Board (Kanban with
+hand-rolled drag and drop), List, Calendar, Timeline (Epic-grouped Gantt with
+sprint bands) and Backlog. Filter, search, sort and grouping are properties of
+the shared pipeline, so they apply to whichever view is open.
 
 **Sprints and backlog.** A sprint is a container with its own lifecycle
-(future → active → completed), not a work item. Plan from the backlog, start a
-sprint to move its work onto the board, and complete it to rehome whatever did
-not finish. Board membership and sprint membership are independent facts: an
-item is on the board because it has a column, and a sprint holds whatever
-carries a `sprint_id` — an Epic or a Task alike.
+(future → active → completed). Plan from the backlog, start a sprint to move its
+work onto the board, complete it to rehome whatever did not finish.
 
-**Collaboration.** Board members in four roles (viewer, editor, admin, owner)
-with every rule enforced in the API rather than in React; link
-invitations; comment threads; an activity feed and per-item history; presence;
+**Collaboration.** Four roles (viewer, editor, admin, owner) enforced in the
+API; link invitations; comment threads; activity feed and per-item history;
 in-app notifications; and a personal "For You" hub spanning every board you can
 reach.
 
-**Interface.** Light and dark themes from a single set of CSS custom
-properties, a mobile pass across every view, keyboard-accessible drag and drop
-with screen-reader announcements, and optimistic updates throughout.
+**Auth.** Register and sign in, argon2 hashing, short-lived JWT access tokens
+held in memory, refresh-token rotation over an HttpOnly cookie, password reset
+by emailed link.
 
-## Stack
+**Interface.** Light and dark themes from one set of CSS custom properties, a
+mobile pass across every view, keyboard-accessible drag and drop with
+screen-reader announcements, optimistic updates, English/Russian/Uzbek.
+
+Not yet working — see **Project status**: realtime updates and presence,
+file attachments, avatar upload.
+
+---
+
+## Quick start — Docker
+
+Requirements: **Git** and **Docker Desktop**. Nothing else — no Node, no
+PostgreSQL, no manual setup.
+
+```bash
+git clone https://github.com/friidom/TODO_app.git
+cd TODO_app
+docker compose up --build
+```
+
+Then open **<http://localhost:3000>** and register an account. Signing up
+creates your space, board and its four columns, so there is nothing to seed.
+
+PostgreSQL runs inside Docker and is created automatically on first start —
+**you do not need PostgreSQL installed.** Prisma migrations are applied before
+the API starts listening, and are a no-op on every start after the first.
 
 | | |
 |---|---|
-| Build | Vite 8, TypeScript 6 (`strict`) |
-| UI | React 19, Tailwind CSS v4 (CSS-first, no config file), vendored shadcn primitives on Radix + Base UI |
-| API | Node 24, Express 5, Prisma 7 — JWT access tokens with refresh-token rotation |
-| Data | PostgreSQL 18 |
-| State | TanStack Query as the only real state layer |
-| Drag and drop | `@dnd-kit/core`, hand-rolled (no `sortable`) |
-| Tests | Vitest |
+| Frontend | <http://localhost:3000> |
+| API health | <http://localhost:4000/health> |
+| PostgreSQL | `localhost:5433` — 5432 is left free for a native install |
 
-## Docker
+### Stop
 
-The whole stack — frontend, API and PostgreSQL — in one command. Requires
-Docker Desktop and nothing else: no Node, no PostgreSQL, no manual setup.
+```bash
+docker compose down
+```
+
+**The database survives.** Data lives in a named Docker volume
+(`todo-app_pgdata`), so `docker compose down` followed by `docker compose up -d`
+comes back to the same accounts and boards.
+
+### Logs
+
+```bash
+docker compose logs -f            # all services
+docker compose logs -f backend    # just the API
+```
+
+Mail is not sent in Docker: the console driver prints password-reset and invite
+links to `docker compose logs backend`.
+
+### Rebuild
 
 ```bash
 docker compose up --build
 ```
 
-Then open **http://localhost:3000** and register an account. Signing up creates
-your space, board and its four columns, so there is nothing to seed.
-
-| | |
-|---|---|
-| Frontend | http://localhost:3000 |
-| API health | http://localhost:4000/health |
-| PostgreSQL | `localhost:5433` — 5432 is left free for a native install |
+### Reset the local database
 
 ```bash
-docker compose logs -f      # follow the logs
-docker compose down         # stop — the database volume survives
-docker compose up -d        # start again on the same data
-docker compose up --build   # rebuild after changing code
+docker compose down -v
 ```
 
-Database data lives in a named Docker volume, `todo-app_pgdata`, so
-`docker compose down` followed by `docker compose up -d` keeps every account
-and board. Migrations need no attention: `prisma migrate deploy` runs before
-the API starts listening and does nothing once they are applied.
+> **This deletes the `todo-app_pgdata` volume and every account, board and card
+> in it. It cannot be undone.** `-v` is not part of the normal workflow — use it
+> only when you deliberately want an empty database. To stop the app without
+> losing data, use `docker compose down` with no flags.
 
-> **`docker compose down -v` deletes that volume, and the database with it.**
-> It is not part of the normal workflow — use it only to reset deliberately.
+---
 
-Two things behave differently here than they would in production. Mail is not
-sent: the console driver prints password-reset and invite links to
-`docker compose logs backend`. And realtime presence, attachments and avatar
-upload do not work, because those three still call Supabase — B9 and B10 move
-them to the API.
+## Local development (without Docker)
 
-## Getting started without Docker
-
-Requires Node 24 and a PostgreSQL 18 database.
-
-Create a `.env` in the project root for the frontend, and a `backend/.env` from
-`backend/.env.example` for the API:
-
-```
-VITE_API_URL=http://localhost:4000/api/v1
-```
-
-`VITE_*` variables are inlined at build time, so changing one means restarting
-the dev server rather than redeploying. The app throws at startup if
-`VITE_API_URL` is missing.
+Requires Node 24 and a PostgreSQL 18 database you provide yourself.
 
 ```bash
-npm install && npm run dev          # frontend on :5173
+cp .env.example .env                  # frontend
+cp backend/.env.example backend/.env  # API — set DATABASE_URL and JWT_SECRET
+```
+
+```bash
+npm install && npm run dev            # frontend on :5173
 
 cd backend
 npm install
-npm run db:migrate                  # apply migrations
-npm run dev                         # API on :4000
+npm run db:generate                   # generate the Prisma client
+npm run db:migrate                    # apply migrations
+npm run dev                           # API on :4000
 ```
 
-## Commands
+**Frontend scripts**
 
 ```bash
-npm run dev       # dev server
-npm run build     # tsc -b && vite build — the only typecheck
-npm run lint      # eslint
-npm test          # vitest
-npm run preview   # serve the built bundle
-
+npm run dev        # vite dev server
+npm run build      # tsc -b && vite build — the only typecheck
+npm run lint       # eslint
+npm test           # vitest
+npm run preview    # serve the built bundle
 ```
 
-From `backend/`:
+**Backend scripts** (from `backend/`)
 
 ```bash
-npm run dev       # tsx watch — API on :4000
-npm run build     # tsc
-npm test          # vitest, no database needed
-npm run db:migrate   # prisma migrate deploy
-npm run db:generate  # regenerate the Prisma client
-npm run test:integration   # needs TEST_DATABASE_URL
+npm run dev                # tsx watch
+npm run build              # tsc
+npm run typecheck          # tsc --noEmit
+npm test                   # vitest — no database needed
+npm run test:integration   # needs TEST_DATABASE_URL, a separate database
+npm run db:migrate         # prisma migrate deploy
+npm run db:generate        # regenerate the Prisma client
+npm run db:status          # prisma migrate status
 ```
 
 The schema lives in `backend/prisma/`. Migrations are forward-only — reversing
 one means writing another.
 
-CI runs `lint`, `build` and `test` on every push and pull request.
+---
 
-## Notes
+## Environment variables
 
-**The React Compiler is not enabled** (M9-04). Measured on this codebase,
-enabling it cost 2.7× build time (3.56s → 9.70s) and +25% on the board chunk
-(440 kB → 552 kB), against a re-render saving nobody had profiled. The plugin
-and its Babel dependencies were removed; `vite.config.ts` records the decision.
-Revisit when profiling names re-renders as the bottleneck.
+Two `.env` files, both gitignored. Each has a committed `.env.example` listing
+every variable the code reads, with comments.
 
-**Documentation.** `docs/IMPLEMENTATION_PLAN.md` is the project ledger — what
-was built, in what order, and why — alongside `docs/DATABASE.md`,
-`docs/RLS_AUDIT.md` and `docs/PRODUCT_SPEC.md`. `CLAUDE.md` is the orientation
-document for working in this codebase.
+| File | Read by | Contains |
+|---|---|---|
+| `.env` | Vite, at build time | `VITE_API_URL` and the two `VITE_SUPABASE_*` placeholders |
+| `backend/.env` | The API, at startup | `DATABASE_URL`, `JWT_SECRET`, cookie/mail/token settings |
+
+Copy each `.example` and fill it in. **Docker needs neither** —
+`docker-compose.yml` passes working defaults for a local demo, so
+`docker compose up --build` works from a bare clone.
+
+Two values must be set for anything beyond a local demo: `JWT_SECRET` (at least
+32 characters — `openssl rand -base64 48`) and `POSTGRES_PASSWORD`. Both are
+overridable as environment variables; the compose defaults are self-labelled
+demo values and are not secrets.
+
+`VITE_*` variables are inlined at build time, so changing one means restarting
+the dev server, or rebuilding the image.
+
+---
+
+## Project status
+
+The migration off Supabase onto a self-hosted Express + Prisma + PostgreSQL
+backend is complete for every data path. Three surfaces have not moved yet.
+
+| | Status |
+|---|---|
+| REST API migration (B5–B8) — auth, authorization, all CRUD | ✅ Complete |
+| Docker Compose setup | ✅ Complete |
+| CI — GitHub Actions runs lint, build, unit and integration tests | ✅ Running |
+| **Realtime updates and presence** (B9) | ⏳ Pending — still calls Supabase |
+| **Storage: attachments and avatar upload** (B10) | ⏳ Pending — still calls Supabase |
+| **Swagger / OpenAPI docs** | ⏳ Not started |
+| **Deployment pipeline** (B12) | ⏳ Not started |
+
+Because of B9 and B10, `@supabase/supabase-js` is still a dependency and
+`src/services/api/supabase.ts` still exists. It is imported by exactly three
+modules — `services/realtime/useBoardRealtime.ts`,
+`services/attachments/attachmentsApi.ts` and `services/profile/uploadAvatars.ts`
+— and nothing else. In Docker those three run against placeholder credentials,
+so **realtime, attachments and avatar upload do not work there**; everything
+else does.
+
+---
+
+## Documentation
+
+`docs/BACKEND_MIGRATION_PLAN.md` is the current ledger — the Supabase-to-Express
+migration, milestone by milestone, with what each one found.
+`docs/IMPLEMENTATION_PLAN.md` is the older product ledger for the M-series
+feature work. `CLAUDE.md` is the orientation document for working in this
+codebase.
+
+Documents describing the pre-migration Supabase design carry a "superseded"
+banner at the top rather than being deleted — they are why the current design
+looks the way it does.
+
+**The React Compiler is not enabled** (M9-04). Measured here, it cost 2.7× build
+time and +25% on the board chunk against a re-render saving nobody had profiled;
+`vite.config.ts` records the decision.

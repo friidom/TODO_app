@@ -1,5 +1,10 @@
 # Realtime verification — M6-B
 
+> **Historical, and forward-looking.** These checks were run against the
+> Supabase project the app used before B5–B8. Realtime is the one surface that
+> has *not* migrated yet — **B9** owns it — so this remains the specification
+> for what the replacement has to reproduce.
+
 M6-12's deliverable: the milestone's security and concurrency checks, each with
 its **actual** status. Nothing below is marked passed because it looks likely.
 
@@ -8,7 +13,7 @@ Three columns of evidence, kept apart on purpose:
 | Mark | Means |
 |---|---|
 | **AUTO** | A Vitest assertion. Runs on every `npm test`. |
-| **LIVE** | Queried against the linked project (`nxnnfaoyttbzndphnawe`) on 2026-08-18. |
+| **LIVE** | Queried against the linked project (`<your-project-ref>`) on 2026-08-18. |
 | **MANUAL** | Needs a second account and/or a second browser. **Not run.** |
 
 The environment this was built in has one account and no second browser, so

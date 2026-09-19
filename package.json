@@ -10,9 +10,6 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "vite preview",
-    "db:pull": "supabase db pull",
-    "db:push": "supabase db push",
-    "db:diff": "supabase db diff",
     "db:types": "supabase gen types typescript --linked > src/types/database.ts"
   },
   "dependencies": {

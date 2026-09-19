@@ -49,7 +49,7 @@ Test files are typechecked by `tsc -b`, so a test that drifts from its subject's
 
 M3-16 verifies the permission matrix at REST level with a real JWT per role. You may **write** that script into `scripts/`. You may **not** execute it.
 
-Why: it runs against the single shared production database (`nxnnfaoyttbzndphnawe`), it needs four real accounts' tokens, and it flips a fixture membership row between roles. Two things running that concurrently produce meaningless results. It is single-threaded by nature and the Lead runs it.
+Why: it runs against the single shared production database (`<your-project-ref>`), it needs four real accounts' tokens, and it flips a fixture membership row between roles. Two things running that concurrently produce meaningless results. It is single-threaded by nature and the Lead runs it.
 
 The script must:
 

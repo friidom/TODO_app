@@ -2,8 +2,8 @@
 
 **Strategy:** CLEAN START. We build a new database and a new backend from scratch. **No existing Supabase data is preserved.** All current data is disposable test data.
 
-**Status:** living document. **B0–B6 are complete** (see §16). Everything from B7 onward is unbuilt.
-**Revised:** 2026-09-17 — B6 landed: the RLS replacement is in middleware, with a shared parity fixture keeping the two permission matrices honest.
+**Status:** living document. **B0–B8 are complete**, and the Docker Compose setup on top of them (see §16). **B9 (Realtime), B10 (Storage) and B12 (Production deployment) are unbuilt** — those three are why `@supabase/supabase-js` is still a dependency.
+**Revised:** 2026-09-19 — Docker landed: frontend, API and PostgreSQL come up with `docker compose up --build`, with migrations applied on start.
 **Companion documents:**
 - `docs/SUPABASE_DATABASE_AUDIT.md` — what the current database looks like. **This is now the specification for the new schema**, not just background reading.
 - `docs/IMPLEMENTATION_PLAN.md` — the product roadmap (M0–M32) that produced the current system.

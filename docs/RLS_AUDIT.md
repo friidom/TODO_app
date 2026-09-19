@@ -1,8 +1,14 @@
 # RLS and Storage Policy Audit
 
+> **Historical.** This audit records the state of the Supabase RLS model in
+> August 2026. That model no longer exists — **B6** replaced it with
+> authorization in the API. Kept because the findings are what motivated the
+> migration, and because the role matrix it pins is still the specification
+> (`permissions-matrix.json`).
+
 **Task:** M0-06 · Investigation only, no fixes.
 **Date:** 2026-08-05
-**Project:** `nxnnfaoyttbzndphnawe` (TODO, ap-northeast-1)
+**Project:** the Supabase project this app ran on before B5–B8
 **Evidence:** `supabase/migrations/20260804000000_baseline_schema.sql` (M0-05 baseline, dumped from production) and a `--schema storage` dump of the same database.
 
 ---
@@ -278,7 +284,7 @@ M3-13 is the first migration in this repository to use revoke-all-then-grant-bac
 
 ### Verification status — applied 2026-08-11
 
-**Application.** `npm run db:push` applied `20260811090000_membership_roster.sql` to `nxnnfaoyttbzndphnawe`. The CLI process hung after completing its work and was cut off at three minutes; it was **not** re-run. Remote state was checked directly instead: `supabase migration list` reports **24 local / 24 remote, nothing pending**, with `20260811090000` present in the remote history. Local and remote migration history are synchronized.
+**Application.** `npm run db:push` applied `20260811090000_membership_roster.sql` to `<your-project-ref>`. The CLI process hung after completing its work and was cut off at three minutes; it was **not** re-run. Remote state was checked directly instead: `supabase migration list` reports **24 local / 24 remote, nothing pending**, with `20260811090000` present in the remote history. Local and remote migration history are synchronized.
 
 **Passed — anonymous access, run against the live API.**
 
@@ -303,7 +309,7 @@ Six fields, **no `email`, no `bio`** — the column boundary holds in the deploy
 
 This also **confirms** the nullability cost that was previously only predicted: `username`, `full_name` and `avatar_url` generate as `string`, while they are `string | null` on the `profiles` row. The RPC's generated types overstate non-nullability. M3-06 must narrow at the API-function boundary.
 
-**NOT RUN — the authenticated role matrix.** JWT credentials for the fixture accounts were unavailable; only the publishable `anon` key was to hand, and tokens for `qwerty@gmail.com` / `qqq@gmail.com` cannot be minted without their passwords. **None of the following has been executed, and none may be described as passing:**
+**NOT RUN — the authenticated role matrix.** JWT credentials for the fixture accounts were unavailable; only the publishable `anon` key was to hand, and tokens for `owner@example.com` / `viewer@example.com` cannot be minted without their passwords. **None of the following has been executed, and none may be described as passing:**
 
 - Owner roster returns the full membership with exactly the six keys
 - Viewer roster returns the same rows

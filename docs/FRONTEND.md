@@ -1,5 +1,12 @@
 # Frontend Architecture
 
+> **Superseded in part.** The layering — components render, hooks orchestrate,
+> services own I/O — is still exactly how the frontend is built. What changed in
+> **B8** is what services talk to: `services/api/client.ts` and the Express API,
+> not Supabase. Only realtime, attachments and avatars still reach Supabase,
+> pending B9/B10.
+> Current reference: [`BACKEND_MIGRATION_PLAN.md`](BACKEND_MIGRATION_PLAN.md).
+
 ## Philosophy
 
 The frontend follows a feature-oriented architecture.

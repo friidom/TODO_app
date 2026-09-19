@@ -1,3 +1,10 @@
 node_modules
 dist
 coverage
+backend/dist
+graphify-out
+.codegraph
+
+# Historical SQL and CLI config from before the Express backend. Prettier would
+# reformat 64 migrations that are kept as a record of what was actually applied.
+supabase
