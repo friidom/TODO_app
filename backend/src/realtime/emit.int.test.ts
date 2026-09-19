@@ -9,6 +9,8 @@ import * as todosService from "../modules/todos/todos.service.js";
 import * as columnsService from "../modules/columns/columns.service.js";
 import * as commentsService from "../modules/comments/comments.service.js";
 import * as sprintsService from "../modules/sprints/sprints.service.js";
+import * as boardsService from "../modules/boards/boards.service.js";
+import { boardRoom } from "./io.js";
 import { prisma } from "../db/prisma.js";
 
 interface Change {
@@ -312,6 +314,7 @@ describe("a failed write broadcasts nothing", () => {
     const other = await makeUser("other");
     const socket = await watcherOn(owner.boardId, owner.token);
     const column = await firstColumnOf(other.boardId);
+    const ownColumn = await firstColumnOf(owner.boardId);
 
     const foreign = await todosService.create({ id: other.id }, { id: other.boardId, role: "owner" }, {
       title: "Elsewhere",
@@ -320,7 +323,7 @@ describe("a failed write broadcasts nothing", () => {
 
     await expect(
       todosService.move({ id: owner.id }, { id: owner.boardId, role: "owner" }, foreign.id, {
-        column_id: null,
+        column_id: ownColumn.id,
         rank: 1,
       }),
     ).rejects.toThrow();
@@ -384,5 +387,30 @@ describe("multi-write operations use one coarse event", () => {
 
     expect(event.scopes).toEqual(["todos"]);
     expect(socket.seen("todo:change")).toHaveLength(0);
+  });
+});
+
+describe("board deletion", () => {
+  it("invalidates and then empties the room, because the board it names is gone", async () => {
+    const owner = await makeUser("owner");
+    const member = await makeUser("member");
+
+    await addMember(owner.boardId, member, "editor", owner.id);
+
+    const first = await watcherOn(owner.boardId, owner.token);
+    const second = await watcherOn(owner.boardId, member.token);
+
+    expect(harness.io.sockets.adapter.rooms.get(boardRoom(owner.boardId))?.size).toBe(2);
+
+    await boardsService.remove({ id: owner.id }, owner.boardId);
+
+    const event = await first.waitFor<Invalidate>("board:invalidate");
+
+    expect(event.scopes).toEqual(["boards"]);
+
+    await first.waitFor<{ boardId: string }>("board:evicted");
+    await second.waitFor<{ boardId: string }>("board:evicted");
+
+    expect(harness.io.sockets.adapter.rooms.get(boardRoom(owner.boardId))).toBeUndefined();
   });
 });

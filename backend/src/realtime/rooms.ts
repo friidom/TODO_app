@@ -74,6 +74,23 @@ async function leaveBoard(
   syncPresence(io, boardId);
 }
 
+// A deleted board has no membership left to check, so eviction by user would
+// have nobody to name. Everyone still in the room is turned out at once.
+export async function closeBoardRoom(boardId: string): Promise<void> {
+  const io = realtime();
+
+  if (io === null) return;
+
+  const sockets = await io.in(boardRoom(boardId)).fetchSockets();
+
+  for (const remote of sockets) {
+    remote.leave(boardRoom(boardId));
+    remote.data.boards.delete(boardId);
+    removeViewer(boardId, remote.data.actor.id, remote.id);
+    remote.emit("board:evicted", { boardId });
+  }
+}
+
 // Join-time authorization is not enough on its own: a socket authorized once
 // and never re-checked keeps receiving a board's traffic until the tab closes,
 // which is a wider window than the RLS it replaces. Every membership change

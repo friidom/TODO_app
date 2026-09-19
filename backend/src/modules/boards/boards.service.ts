@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { withActor } from "../../db/withActor.js";
 import { AppError } from "../../lib/errors.js";
 import { emitInvalidate } from "../../realtime/emit.js";
+import { closeBoardRoom } from "../../realtime/rooms.js";
 import type { Actor } from "../../types/actor.js";
 import * as boardsRepo from "./boards.repo.js";
 import type { BoardRow } from "./boards.repo.js";
@@ -56,4 +57,5 @@ export async function remove(actor: Actor, boardId: string): Promise<void> {
   await withActor(actor.id, (tx) => boardsRepo.remove(tx, boardId));
 
   emitInvalidate(boardId, ["boards"]);
+  await closeBoardRoom(boardId);
 }
