@@ -640,6 +640,7 @@ Risk labels, applied to every task:
 | **M31 · Timeline improvements** | ◑ **Four of five candidates built 2026-08-28** | Epic row grouping, derived Epic bars, Sprint bands (`TimelineSprintBand.tsx`) and M31-C's Board–Sprint integration all shipped. **Dependency arrows did not** — they need `work_item_links`, which is M33, exactly as the candidate table predicted. Subtask progress reaches the Epic row as a badge rather than as bar shading. **This milestone also shipped the product's two worst defects**, both fixed 2026-08-29 — see its own section. (`f76a198`, `0e93871`) |
 | **M32 · Attachments** | ✅ **Built 2026-09-03** | `attachments` + the private `task-attachments` bucket, both in `20260831090000_create_attachments.sql`, and an Attachments section in the task detail panel. Followed the storage template; **did not** use M25's tab region, and its own section records why. |
 | **M33 · Later** | 🗺 Roadmap | Labels, work item links, saved filters, the command palette. **Now due for re-costing — M32 has landed.** |
+| **M34 · Superadmin, KPI & Analytics** | 🗺 **Planned 2026-09-19** · HIGH RISK | The first authorization axis that is not board-scoped. Nine phases in **Part IV-D**, applying `BACKEND_MIGRATION_PLAN.md` §10.7 rather than re-deciding it. Its central schema finding: completion has no timestamp and cannot be recovered from `activities`, so `todos.completed_at` is Phase C. **Explicitly not** online/offline monitoring. |
 
 M10–M13 were roadmap direction added in the 2026-08-10 audit; M14–M20 in the 2026-08-14 revision; M21–M23 were built unplanned and recorded on 2026-08-26; M24–M33 are that same audit's forward roadmap. Appendix E records what is deliberately out of scope — **and it changed twice**: on 2026-08-14 for Calendar and Timeline, and on 2026-08-26 for Sprints.
 
@@ -3684,6 +3685,265 @@ Standing debt found by reading the repository, the 63 migration files and the gi
 | 13 | **No realtime on `sprints`** | `services/realtime/`, M30 | New this audit, and a **deliberate** deferral recorded in `useSprints`' own doc — but now that the Board reads sprint state, a teammate starting a sprint does not reach this client until a refetch |
 
 ---
+# PART IV-D — SUPERADMIN, KPI & ANALYTICS (M34)
+
+**Added 2026-09-19.** One milestone, nine phases. It is numbered **M34** because M33 is the *Later* bucket rather than a feature, and because the numbering rule at the top of Part III holds: ids are historical, and the order to build in is stated per wave.
+
+**This is not Appendix E's administration console.** That row says *"Jira-style administration console (schemes, permission schemes, screens) — never in this shape"*, and it still stands. M34 builds **reporting and one settings table**; it does not build permission schemes, screens, field configurations or anything else whose purpose is to configure the product's configurability. The distinction is testable: M34 adds exactly one editable entity (`kpi_targets`) and otherwise only reads.
+
+**It is also not employee monitoring.** No online/offline status, no presence, no "last seen", no session surveillance. B9's presence is a board-level collaboration affordance and stays there — it answers *who is looking at this board right now* for the people on that board, not *who is at their desk* for a manager. M34 reads historical work: tasks, points, comments, activity. This is written down here so it is not re-opened as an obvious-seeming addition.
+
+---
+
+## Milestone 34 — Superadmin, KPI & Analytics · 🗺 Planned 2026-09-19 · **HIGH RISK**
+
+**For.** A global operator view: system-wide metrics, per-developer KPI against a configurable target, all-boards activity, and a boards overview.
+
+**Depends on.** **B5–B8** (the Express API — this is backend-heavy and there is no Supabase path for it), **M24** (`todos.estimate`, the only points system), **M18/M25** (`activities`), **M3** (the board role matrix it must not weaken). **Does not depend on B9** — nothing here is realtime.
+
+**Risk is HIGH for one reason:** it introduces the first authorization axis that is *not* board-scoped. Every existing rule in this repository answers "what may this person do on this board". A global role answers a different question, and the failure mode is silent — an endpoint that forgets the check leaks every board in the system rather than one.
+
+### The foundation already exists, and this milestone must use it rather than invent beside it
+
+`docs/BACKEND_MIGRATION_PLAN.md` **§10.7 "Designing for roles that do not exist yet"** decided three things in advance. They are not re-opened here; they are applied:
+
+1. **Elevated roles widen *read*, not *write*.** A superadmin sees every board. They do **not** gain `editor` on any of them. The board matrix stays one-dimensional.
+2. **Elevated access is logged.** Reading a board you are not a member of writes an audit row. This is the argument that makes org-wide visibility acceptable to the people being viewed.
+3. **Board ownership stays immutable.** Both triggers stay. A superadmin action that reassigns a board would be a new, explicit, audited operation — and M34 does not build one.
+
+Two seams are already in the code and are the intended attachment points:
+
+- `backend/src/types/actor.ts` — `OrgRole = "member" | "team_lead" | "director" | "superadmin"` and `Actor.orgRole?`, shipped as an optional field with one real value precisely so this milestone widens a type instead of changing every signature.
+- `backend/src/modules/boards/boards.repo.ts#accessibleBoardIds` — the single swap point. **M34 does not edit it.** See D-3 below.
+
+### The decisions — made here, not at implementation time
+
+**D-1 · The global role lives on `users`, not `profiles`.**
+`profiles` is the *public* record: `roster()` selects six fields from it and its own comment calls those six "the security boundary, not a convenience". A global role on `profiles` is one widened `select` away from telling every board member who the superadmins are. `users` already holds the facts nobody else may read — `password_hash`, `email_verified_at`, `deactivated_at`. The role belongs with those.
+→ `users.org_role text not null default 'member'` with a CHECK over the four `OrgRole` values.
+
+**D-2 · The role is read per request. It is never a JWT claim.**
+`lib/tokens.ts` says it plainly for board roles: *"No role claim: roles are per board and change, and one baked into a 15-minute token means a demotion takes 15 minutes to bite."* That argument is **stronger** for a global role, not weaker — a revoked superadmin retaining system-wide read for fifteen minutes is the worst version of it. `requireSuperadmin` does one primary-key lookup on `users`, only on `/admin/*`. This mirrors `boardAccess`'s per-request `roleOf` exactly.
+
+**D-3 · `accessibleBoardIds` is not widened, and admin reads do not pass through `boardAccess`.**
+The tempting change — make `accessibleBoardIds` return every board for a superadmin — would silently convert every existing board-scoped endpoint into a system-wide one, including the write paths behind `requireRole`. That breaks §10.7's rule 1 in the one way that is hard to see. Admin reads get their **own repo functions** in their own module, and the board modules are not touched.
+
+**D-4 · Completion needs a timestamp, and the database does not have one.**
+This is the central schema finding and the reason Phase C exists.
+
+- `todos.completed` was removed in M2; doneness is derived from `columns.category === 'done'`, so there is **no record of when** anything was completed.
+- It **cannot** be recovered from `activities`. `log_todo_activity`'s `moved` branch writes the column **titles** into the payload (`'from'`, `'to'`), not ids and not categories. Titles are user-editable free text and are never translated, so a title is not a category: a column called "Done" may be `in_progress`, a `done` column may be called "Shipped" or "Готово", and a rename does not rewrite the history that already used the old name.
+→ `todos.completed_at timestamptz null`, maintained by a trigger, and a **partial index** on it.
+
+**D-5 · The trigger is on both tables, because completion has two doors.**
+An `AFTER UPDATE` trigger on `todos` handles the ordinary case: on entering a `done`-category column, stamp `completed_at = now()` when it is null; on leaving one, clear it; done → done leaves it alone, so a reshuffle inside the done column does not re-date the work and inflate today's figure.
+The second door is real and easy to miss: **`columns.category` is PATCH-able** (`columns.schema.ts` accepts it on update). Flipping a column from `in_progress` to `done` completes every card in it at once, and a trigger on `todos` never fires. A matching trigger on `columns` must stamp or clear `completed_at` across that column's todos when the category crosses the done boundary.
+Column *deletion* rehomes todos server-side first, so it arrives as ordinary `todos` updates and needs nothing extra.
+
+**D-6 · Credit is stamped, not looked up live.**
+`todos.completed_by uuid null references profiles on delete set null`, written by the same trigger as `completed_at`, from `new.assignee_id`. If the work is unassigned at completion it counts toward the system and board totals and toward **nobody's** KPI. Reading `assignee_id` live instead would mean a reassignment silently moved last week's points between two people's records, which is exactly the "ambiguous KPI logic" this milestone is told to avoid. A history that changes when someone tidies a board is not a history.
+
+**D-7 · The points rule, stated once: `parent_id is null and type <> 'Epic' and estimate is not null`.**
+- **`estimate is null` is excluded, never counted as zero** — `services/todos/sprintPoints.ts` already established this and reports `unestimated` as its own figure. The admin rollups do the same, and every points number in the UI carries its unestimated count beside it.
+- **Subtasks are excluded** because `useVisibleTodos` already excludes them everywhere via `topLevelTodos()`; counting a Task at 5 plus its subtasks at 2 and 3 would report 10 points of work for 5 points of task.
+- **Epics are excluded** because an Epic is a container and its estimate forecasts its children's. **This deliberately differs from `sprintPoints.ts`, which includes Epics**, and the difference is the point: a sprint panel shows the Epic and its tasks together so a person can see the overlap, whereas a KPI percentage cannot be inspected and must not double-count. Aligning the two is Phase I's open question, not a silent divergence.
+- **Known limitation, recorded rather than hidden:** a developer who completes only subtasks scores zero points. If that turns out to describe real work, the fix is to widen this clause — not to build a second points system.
+
+**D-8 · KPI targets are a table keyed by seniority, and seniority is an attribute of the person.**
+`users.seniority text null` (`junior | middle | senior`), beside `org_role` and on `users` for D-1's reason. Null is a real state: a user with no seniority has no target, shows "—" for performance, and is **excluded from KPI aggregates rather than counted as 0%** — a zero would be a lie about someone nobody has classified.
+`kpi_targets(seniority primary key, daily_points numeric not null check >= 0, weekly_points numeric not null check >= 0, updated_at, updated_by)`. One row per level, seeded 6/30 · 8/40 · 10/50, all four values editable. Seeded values are **data, not defaults in code** — the requirement that they not be hardcoded is satisfied by the row existing, not by a constant with an override.
+
+**D-9 · Superadmin audit cannot reuse `activities`.**
+`activities.board_id` is `NOT NULL` with an `on delete cascade` FK, and both of its indexes are `board_id`-leading. A KPI edit belongs to no board. Making `board_id` nullable would change the meaning of a column every existing policy, index and query assumes — a security-boundary change to serve a logging convenience.
+→ `admin_audit_log(id, actor_id, action, target_type, target_id, payload jsonb, created_at)`. Small, append-only, no UPDATE and no DELETE grant, same shape as `activities` minus the board.
+
+**D-10 · Aggregation is SQL, and the rows never leave the server.**
+Every admin endpoint returns computed figures — counts, sums, buckets — never raw `todos` or `activities` arrays for the client to reduce. At ~200 users this is not a performance optimisation; it is a privacy boundary. A "system activity" endpoint that ships raw rows has shipped every board's titles to the browser whatever the UI then chooses to render.
+
+### The metric vocabulary — three kinds, kept separate
+
+Conflating these is how a dashboard becomes an argument. Named here so every endpoint, type and component uses one word for one thing.
+
+| Kind | What it is | Examples | Property |
+|---|---|---|---|
+| **Factual metric** | counted from rows, no configuration | completed tasks, completed points, comments, created tasks, activity count, boards worked on | two people reading the same data get the same number |
+| **KPI target** | a configured number | daily / weekly points per seniority | changes when an operator changes it, and the change is audited |
+| **Performance** | one divided by the other | `completed points ÷ target points × 100` | reproducible from the two above; shown with both inputs beside it |
+
+There is **no composite "developer score"**. A single number that blends points, comments and activity with invented weights is unfalsifiable, and the first person to ask "why is mine 72?" would get no answer. If a blended index is ever wanted it needs its own milestone and its own argument.
+
+### Phases
+
+Each phase is shippable and verifiable on its own. Backend precedes frontend throughout, because the authorization boundary is the risk and a UI built against an unguarded endpoint hides it.
+
+---
+
+#### Phase A — Audit and current-architecture confirmation · SAFE
+
+**Objective.** Confirm on the code, not on this document, the five facts M34 is built on, and produce the index inventory Phase E needs.
+
+**Backend.** Read-only. Confirm: `users` has no role column; `profiles`' roster select is six fields; `activities.board_id` is `NOT NULL`; `log_todo_activity` writes column *titles*; `columns.category` is PATCH-able.
+**Database.** No change. Record the current index set for `todos`, `activities` and `comments`, and the row counts, so Phase E's `EXPLAIN` runs have a baseline.
+**Frontend.** None.
+**API.** None.
+**Tests.** None.
+**Dependencies.** None.
+**Acceptance.** A short findings note (in this milestone, not a new document) confirming or correcting D-1 … D-10. **Any correction edits the decisions above before Phase B starts.**
+
+---
+
+#### Phase B — The global role and its gate · HIGH RISK
+
+**Objective.** A global `superadmin` role that exists, can be checked, and gates a route — with nothing behind it yet.
+
+**Backend.** `requireSuperadmin` middleware in `backend/src/middleware/`, sitting *after* `requireAuth` and reading `users.org_role` per request (D-2). It answers **404, not 403** — `boardAccess`'s own rule, and for the same reason: a 403 confirms the admin surface exists to anyone who probes for it. Widen `Actor.orgRole` from optional-with-one-value to populated, and add `isSuperadmin(actor)` to `lib/permissions.ts` beside the board matrix, **not inside it** — the board matrix stays one-dimensional (§10.7 rule 1).
+**Database.** Migration 1: `users.org_role text not null default 'member'` + CHECK. Expand only; no backfill needed, as the default is the correct value for every existing row. Tier A.
+**Frontend.** None.
+**API.** Mount `/api/v1/admin` with `requireAuth → requireSuperadmin` and a single `GET /admin/ping` to prove the chain.
+**Tests.** Integration: a normal user gets 404; an unauthenticated request gets 401; a superadmin gets 200. Unit: `isSuperadmin`. **Plus a parity test that every route mounted under `/admin` carries `requireSuperadmin`** — a list that is checked, not a convention that is remembered.
+**Dependencies.** Phase A.
+**Acceptance.** No board endpoint's behaviour changes — the existing 144 unit and 321 integration tests stay green with no edits. `accessibleBoardIds` is untouched (D-3). The role can only be granted by direct SQL; there is deliberately no endpoint for it in M34.
+
+---
+
+#### Phase C — Completion timestamp and KPI settings · HIGH RISK
+
+**Objective.** Make "when was this completed, and by whom" a fact the database records, and make the targets editable data.
+
+**Backend.** None yet, beyond regenerating the Prisma client.
+**Database.** Three migrations, separately, expand → backfill → contract discipline:
+1. `todos.completed_at timestamptz null`, `todos.completed_by uuid null references profiles(id) on delete set null`; partial index `(completed_at desc) where completed_at is not null`.
+2. The two triggers of D-5 — one on `todos` (column change), one on `columns` (category change) — plus the backfill: existing todos sitting in a `done` column get `completed_at = updated_at` and `completed_by = assignee_id`. **`updated_at` is an approximation and the migration header must say so**: any analytics dated before this migration is "best available", not observed, and the dashboard labels the backfill date.
+3. `kpi_targets` + `admin_audit_log` (D-8, D-9), with `kpi_targets` seeded 6/30 · 8/40 · 10/50 and `users.seniority text null` + CHECK.
+**Frontend.** None.
+**API.** None.
+**Tests.** Integration against a real database, because these are triggers: moving a card into a done column stamps; out clears; done → done does not re-stamp; flipping a **column's** category stamps every card in it and flipping back clears them; deleting a column (which rehomes first) leaves the rehomed cards' stamps consistent with their destination; completing an unassigned card leaves `completed_by` null.
+**Dependencies.** Phase A. Independent of Phase B — they may run in parallel.
+**Acceptance.** `completed_at` agrees with `columns.category === 'done'` for **every** row in the test database after an arbitrary sequence of moves, renames and category flips. This invariant is the milestone's single most important test: every number in Phases E–G is derived from it.
+
+---
+
+#### Phase D — Admin read APIs · MEDIUM RISK
+
+**Objective.** The endpoint surface, returning real data, with no charts and no aggregation beyond counting.
+
+**Backend.** One new module, `backend/src/modules/admin/`, following `CONVENTIONS.md` exactly — `admin.routes.ts · .controller.ts · .service.ts · .repo.ts`. Board-scoped repo functions in other modules are untouched (D-3); the admin repo has its own queries, and they are the only ones in the project that are deliberately not board-scoped, which its own header must say.
+**Database.** None.
+**Frontend.** None.
+**API.**
+
+| Route | Returns |
+|---|---|
+| `GET /admin/overview` | system totals + a daily/weekly/monthly series |
+| `GET /admin/users` | every user with their factual metrics and performance |
+| `GET /admin/users/:id` | one user: today / week / month, tasks, points, comments, boards, KPI progress |
+| `GET /admin/activity` | system-wide activity, filters `user`, `board`, `action`, `from`, `to`, paginated |
+| `GET /admin/boards` | every board with aggregates |
+| `GET /admin/boards/:id` | one board's statistics |
+| `GET /admin/kpi` · `PUT /admin/kpi/:seniority` | read and edit the targets |
+
+**Tests.** Integration: every route refuses a non-superadmin (the Phase B parity test covers the wiring; these cover the behaviour). `PUT /admin/kpi/:seniority` validates with Zod — non-negative, numeric, seniority in the enum — and writes an `admin_audit_log` row. Pagination on `/admin/activity` is stable under insertion, the bug class B7 already fixed once in the feed.
+**Dependencies.** Phases B and C.
+**Acceptance.** Every response is computed figures, never raw rows (D-10). No endpoint accepts a board id it then trusts — there is no `boardAccess` here, so the admin repo's scoping is its own responsibility and is reviewed as such.
+
+---
+
+#### Phase E — Aggregation and indexes · MEDIUM RISK
+
+**Objective.** Make Phase D's queries hold up, and prove it with numbers rather than assertion.
+
+**Backend.** Move the counting from per-row loops into SQL: `date_trunc` + `group by` for the day/week/month series, one query per panel rather than one per user. Timezone is decided **once**, here: all buckets are computed in a single configured timezone (`APP_TIMEZONE`, default UTC), because "today" differs by up to a day across zones and a KPI that disagrees with the developer's own calendar will not be believed.
+**Database.** The indexes Phase A found missing — all of them concrete, none of them speculative:
+- `activities (actor_id, created_at desc)` — **no `actor_id` index exists at all** today; both existing indexes lead with `board_id`, so "this user's activity across the system" is a full scan.
+- `activities (created_at desc)` — for the unfiltered system feed, same reason.
+- `todos (assignee_id)` — **no index on `assignee_id` exists**; every per-developer query needs it.
+- `todos (completed_by, completed_at desc) where completed_at is not null` — the KPI query's covering shape.
+- `comments (author_id, created_at desc)` — `comments` has only `(todo_id, created_at)`.
+All Tier A: indexes only, `concurrently` where the table warrants it.
+**Frontend.** None.
+**API.** Unchanged — this phase must not alter a single response body.
+**Tests.** `EXPLAIN (ANALYZE)` on each admin query against a seeded database, recorded in the milestone with before/after. A regression test that `/admin/overview` issues a bounded number of queries, so the N+1 shape cannot creep back.
+**Dependencies.** Phase D.
+**Acceptance.** Every admin endpoint returns within a stated budget on a database seeded to ~200 users, ~50 boards and ~100k activity rows, and the response bodies are byte-identical to Phase D's.
+
+---
+
+#### Phase F — The Superadmin area · MEDIUM RISK
+
+**Objective.** The section, its routing, its guard, and the three list screens.
+
+**Backend.** None.
+**Database.** None.
+**Frontend.** `src/pages/admin/` beside the existing `auth/`, `board/`, `error/`, `profile/`; `src/services/admin/` holding `adminApi.ts` and its `use*` hooks, one folder per the existing convention, no barrel. Query keys go in `queryKeys.ts` — `queryKeys.adminOverview()`, `adminUsers()`, `adminUser(id)`, `adminActivity(filters)`, `adminBoards()`, `adminKpi()` — **not spelled out anywhere else**, like every other key in the project. Routing follows `ProtectedRoute.tsx`'s shape with a `SuperadminRoute` beside it, and that file's existing comment states the rule this must repeat: *defence in depth, not the real gate*. Screens: Dashboard shell, Users list, User detail, Boards list, Activity, KPI Settings.
+**API.** None new.
+**Tests.** Vitest on the pure parts only, per the project's no-RTL policy: the KPI percentage function, the filter-to-query-string builder, the date-bucket labels. `registry`-style pinning that the admin nav lists exactly the five sections.
+**Dependencies.** Phase D. Phase E is not a blocker for the UI to exist, but is for it to be usable.
+**Acceptance.** A normal user navigating directly to `/admin` is redirected and, more importantly, **their API calls 404 regardless of what the UI does** — verified by hitting the endpoint with a normal user's token, not by observing the redirect. Nothing in the existing navigation renders for a non-superadmin.
+
+---
+
+#### Phase G — Dashboard and charts · SAFE
+
+**Objective.** The visual layer, built so metrics can be added without redesign.
+
+**Backend.** None — if a chart needs a number the API does not have, it is a Phase D/E change, not a client-side reduction.
+**Database.** None.
+**Frontend.** A small chart set over the existing design tokens in `src/styles/global.css` — completed tasks by day, completed points by day, comments by day, task status distribution, activity by board. A metric is declared as a value (the shape `services/views/registry.ts` already uses for views), so adding one later is a registry entry plus an API field, not a new screen.
+**API.** None new.
+**Tests.** The series-shaping functions, pure and tested. No component tests.
+**Dependencies.** Phases E, F.
+**Acceptance.** Every points figure displays its `unestimated` count beside it (D-7). Every performance figure displays the two inputs it came from. A user with null seniority renders "—", never "0%".
+
+---
+
+#### Phase H — Security and privacy review · HIGH RISK
+
+**Objective.** Prove the boundary rather than assert it.
+
+**Backend.** Audit sweep: every `/admin` route's middleware chain; every admin repo query re-read for a missing scope; confirm no admin endpoint can write anything except `kpi_targets`.
+**Database.** Confirm `admin_audit_log` has no UPDATE and no DELETE grant.
+**Frontend.** Confirm no admin bundle is reachable to a normal user beyond the inert JS itself, and that no admin data is fetched before the guard resolves.
+**API.** No change.
+**Tests.** A REST-level role matrix for the admin surface, in the shape of M3-16's script: normal user, board owner, board admin and superadmin × every admin route. Plus §10.7 rule 1 as an explicit test — **a superadmin cannot write to a board they are not a member of**, which is the single assertion that keeps elevated read from becoming elevated write.
+**Dependencies.** Phases B, C, D, F.
+**Acceptance.** The matrix passes with no exceptions recorded. **Any exception is a finding that blocks Phase I** — M3-16's own rule, and M34 inherits it rather than restating a weaker one.
+
+---
+
+#### Phase I — Verification and close · MEDIUM RISK
+
+**Objective.** Close the milestone honestly, including what it did not do.
+
+**Backend / Database / Frontend / API.** No new work.
+**Tests.** Full suites both sides; `tsc -b`; `npm run lint`; the Docker path, since a new backend module and new migrations both have to survive `docker compose up --build`.
+**Dependencies.** All phases.
+**Acceptance.** An *As built* table in this milestone, in the format M32 uses, recording what shipped and what did not. Two questions must be answered in writing rather than left open: **(1)** does `sprintPoints.ts` get aligned to D-7's Epic rule, or does the divergence stand with its reason? **(2)** is the `completed_at` backfill's approximation visible to the operator, and where?
+
+---
+
+### Explicitly not in M34
+
+- **Online / offline status, presence, "last seen", session monitoring.** Decided, not deferred — see this part's header.
+- **GitHub analytics.** Phase-none. See *Future / Optional* below.
+- **Granting or revoking the superadmin role through the UI.** The role is granted by SQL in M34. An endpoint that grants system-wide read is a privilege-escalation surface and deserves its own design, its own audit trail and its own review.
+- **A composite developer score.** See *The metric vocabulary*.
+- **Cross-board writes of any kind**, including bulk edits and board reassignment (§10.7 rule 3).
+- **Export** — CSV, PDF, scheduled reports.
+- **Monthly KPI targets.** The table's shape admits a third column; the requirement is daily and weekly, and a column nobody sets is a column that silently reads as zero.
+
+### Future / Optional
+
+Each is listed with the condition that would reopen it, on Appendix E's terms — "it would be impressive" is not a condition.
+
+- **GitHub analytics** — commits, pull requests, reviews. **Not available from this database at all**: there is no git data in the schema and no link between a GitHub identity and an application user. It needs the GitHub API or webhooks, an identity-linking flow, and a token store. **And the warning that belongs with it:** commit count is not performance. It rewards many small commits, punishes review and pairing, and is trivially gamed — if it is ever added it joins the *factual metrics* column and never the *performance* one.
+- **More KPI dimensions** — cycle time, lead time, sprint completion rate, review turnaround. All computable from data that already exists once `completed_at` does, which is the point of Phase C. Each needs its own definition written down before it is displayed.
+- **Monthly and quarterly targets** — a column each, once someone asks.
+- **Advanced reporting and export** — CSV / PDF, scheduled digests.
+- **Team and space rollups** — `spaces` already exists as filing; a rollup over it is additive.
+- **The other two `OrgRole` values** — `team_lead` and `director` are in the type and have no behaviour. Widening `accessibleBoardIds` is the mechanism §10.7 reserved for exactly that, and it is the one edit M34 does not make (D-3).
+
+---
+
 # PART V — DEFERRED / PRODUCTION HARDENING
 
 **Nothing in this part blocks any task in Part III or Part IV.**
@@ -3897,6 +4157,13 @@ A decision is on this list only if deferring it makes the eventual change *struc
 | **Sprint as a table vs. a `todos` type** — new | **A table.** `sprints(id, board_id, name, goal, start_date, end_date, state, rank, …)` + `todos.sprint_id`, `on delete set null`. **M30** | A sprint modelled as a work item puts a lifecycle state machine inside `todos` and makes every existing board, list, calendar and timeline query filter it out — forever, and each one silently wrong until it does |
 | **Whether a subtask may carry its own `sprint_id`** — new | **No — it inherits its parent's.** Enforced by M27's depth trigger, extended in **M30** | Two defensible answers for every points rollup, every progress figure and the burndown. Retrofitting the rule means a data migration over rows that already disagree |
 
+**Added in the 2026-09-19 revision** — both by **M34**, and both structural on this appendix's own terms.
+
+| Decision | Answer, and where it is applied | Cost of deciding late |
+|---|---|---|
+| **Where a *global* (non-board) role lives** | **`users.org_role`, not `profiles`.** `profiles` is the public record — `roster()` calls its six selected fields "the security boundary" — so a role there is one widened `select` away from telling every board member who the superadmins are. Applied by **M34 Phase B**; the `OrgRole` type has held the seam since B6 | A role column read by the wrong layer is not a column change, it is a disclosure. Moving it after endpoints, tests and a UI read it means touching all three under pressure |
+| **How completion is dated** | **`todos.completed_at` + `completed_by`, written by triggers on *both* `todos` and `columns`.** Doneness is derived from `columns.category`, and `log_todo_activity` records column **titles** — user-editable free text — so the activity log cannot answer *when*. Applied by **M34 Phase C** | Every day this is deferred is a day of history that can only ever be backfilled from `updated_at`, which is an approximation. The data does not become recoverable later; it becomes *more* missing |
+
 ---
 
 # Appendix E — Explicitly Out of Scope
@@ -3916,6 +4183,7 @@ None of these are refused permanently. Each has a condition that would reopen it
 | Enterprise SSO / SAML / SCIM | An organisation that requires it is adopting the product |
 | Marketplace, plugins, third-party integrations | There is a product to integrate *with*, and a stable public API — neither exists |
 | Jira-style administration console (schemes, permission schemes, screens) | Never in this shape. It is the clearest example of Jira complexity that exists to serve Jira's configurability, not the user's work |
+| Online/offline status, presence or "last seen" for operators | **Never.** Not deferred and not conditional — **M34** states it as a decision. B9's presence is a board-level collaboration affordance for the people on that board, not a monitoring surface for a manager |
 | A query language (JQL-equivalent) | Filtering (M12) is good and users are still hitting its ceiling |
 | Cross-board search and cross-board links | Multi-board usage is real and the single-board case is already good |
 | Guest users / public boards | `boards.visibility` already has the column; it needs a permission story of its own, not a fifth role |
