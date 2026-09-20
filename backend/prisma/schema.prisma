@@ -192,11 +192,13 @@ model profiles {
   board_members                                  board_members[]
   boards                                         boards[]
   comments                                       comments[]
+  kpi_targets                                    kpi_targets[]
   notifications_notifications_actor_idToprofiles notifications[] @relation("notifications_actor_idToprofiles")
   notifications_notifications_user_idToprofiles  notifications[] @relation("notifications_user_idToprofiles")
   users                                          users           @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   spaces                                         spaces[]
   todos_todos_assignee_idToprofiles              todos[]         @relation("todos_assignee_idToprofiles")
+  todos_todos_completed_byToprofiles             todos[]         @relation("todos_completed_byToprofiles")
   todos_todos_creator_idToprofiles               todos[]         @relation("todos_creator_idToprofiles")
 }
 
@@ -254,35 +256,38 @@ model sprints {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model todos {
-  id                                   String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  board_id                             String        @db.Uuid
-  column_id                            String?       @db.Uuid
-  position                             BigInt?
-  rank                                 Float?
-  backlog_rank                         Float?
-  board_key                            Int?
-  title                                String?
-  description                          String?
-  type                                 String        @default("Task")
-  priority                             String?
-  start_date                           DateTime?     @db.Timestamptz(6)
-  due_date                             DateTime?     @db.Timestamptz(6)
-  estimate                             Decimal?      @db.Decimal
-  creator_id                           String?       @db.Uuid
-  assignee_id                          String?       @db.Uuid
-  parent_id                            String?       @db.Uuid
-  sprint_id                            String?       @db.Uuid
-  created_at                           DateTime      @default(now()) @db.Timestamptz(6)
-  updated_at                           DateTime?     @default(now()) @db.Timestamptz(6)
-  attachments                          attachments[]
-  comments                             comments[]
-  profiles_todos_assignee_idToprofiles profiles?     @relation("todos_assignee_idToprofiles", fields: [assignee_id], references: [id], onUpdate: NoAction)
-  boards                               boards        @relation(fields: [board_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  columns                              columns?      @relation(fields: [column_id, board_id], references: [id, board_id], onUpdate: NoAction, map: "todos_column_id_fkey")
-  profiles_todos_creator_idToprofiles  profiles?     @relation("todos_creator_idToprofiles", fields: [creator_id], references: [id], onUpdate: NoAction)
-  todos                                todos?        @relation("todosTotodos", fields: [parent_id, board_id], references: [id, board_id], onDelete: Cascade, onUpdate: NoAction, map: "todos_parent_id_fkey")
-  other_todos                          todos[]       @relation("todosTotodos")
-  sprints                              sprints?      @relation(fields: [sprint_id, board_id], references: [id, board_id], onDelete: SetNull, onUpdate: NoAction, map: "todos_sprint_id_fkey")
+  id                                    String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  board_id                              String        @db.Uuid
+  column_id                             String?       @db.Uuid
+  position                              BigInt?
+  rank                                  Float?
+  backlog_rank                          Float?
+  board_key                             Int?
+  title                                 String?
+  description                           String?
+  type                                  String        @default("Task")
+  priority                              String?
+  start_date                            DateTime?     @db.Timestamptz(6)
+  due_date                              DateTime?     @db.Timestamptz(6)
+  estimate                              Decimal?      @db.Decimal
+  creator_id                            String?       @db.Uuid
+  assignee_id                           String?       @db.Uuid
+  parent_id                             String?       @db.Uuid
+  sprint_id                             String?       @db.Uuid
+  created_at                            DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at                            DateTime?     @default(now()) @db.Timestamptz(6)
+  completed_at                          DateTime?     @db.Timestamptz(6)
+  completed_by                          String?       @db.Uuid
+  attachments                           attachments[]
+  comments                              comments[]
+  profiles_todos_assignee_idToprofiles  profiles?     @relation("todos_assignee_idToprofiles", fields: [assignee_id], references: [id], onUpdate: NoAction)
+  boards                                boards        @relation(fields: [board_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  columns                               columns?      @relation(fields: [column_id, board_id], references: [id, board_id], onUpdate: NoAction, map: "todos_column_id_fkey")
+  profiles_todos_completed_byToprofiles profiles?     @relation("todos_completed_byToprofiles", fields: [completed_by], references: [id], onUpdate: NoAction)
+  profiles_todos_creator_idToprofiles   profiles?     @relation("todos_creator_idToprofiles", fields: [creator_id], references: [id], onUpdate: NoAction)
+  todos                                 todos?        @relation("todosTotodos", fields: [parent_id, board_id], references: [id, board_id], onDelete: Cascade, onUpdate: NoAction, map: "todos_parent_id_fkey")
+  other_todos                           todos[]       @relation("todosTotodos")
+  sprints                               sprints?      @relation(fields: [sprint_id, board_id], references: [id, board_id], onDelete: SetNull, onUpdate: NoAction, map: "todos_sprint_id_fkey")
 
   @@unique([board_id, board_key], map: "todos_board_key_unique")
   @@unique([id, board_id])
@@ -292,6 +297,7 @@ model todos {
   @@index([column_id, rank])
   @@index([parent_id], map: "todos_parent_idx", where: raw("(parent_id IS NOT NULL)"))
   @@index([sprint_id], where: raw("(sprint_id IS NOT NULL)"))
+  @@index([completed_at(sort: Desc)], map: "todos_completed_idx", where: raw("(completed_at IS NOT NULL)"))
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -301,10 +307,36 @@ model users {
   password_hash         String
   email_verified_at     DateTime?               @db.Timestamptz(6)
   deactivated_at        DateTime?               @db.Timestamptz(6)
-  org_role              String                  @default("member")
   created_at            DateTime                @default(now()) @db.Timestamptz(6)
   updated_at            DateTime                @default(now()) @db.Timestamptz(6)
+  org_role              String                  @default("member")
+  seniority             String?
   password_reset_tokens password_reset_tokens[]
   profiles              profiles?
   sessions              sessions[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model admin_audit_log {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actor_id    String   @db.Uuid
+  action      String
+  target_type String
+  target_id   String?
+  payload     Json     @default("{}")
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([actor_id, created_at(sort: Desc)], map: "admin_audit_log_actor_idx")
+  @@index([created_at(sort: Desc)], map: "admin_audit_log_created_idx")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model kpi_targets {
+  seniority     String    @id
+  daily_points  Decimal   @db.Decimal
+  weekly_points Decimal   @db.Decimal
+  updated_at    DateTime  @default(now()) @db.Timestamptz(6)
+  updated_by    String?   @db.Uuid
+  profiles      profiles? @relation(fields: [updated_by], references: [id], onUpdate: NoAction)
 }
