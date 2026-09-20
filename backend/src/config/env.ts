@@ -61,6 +61,25 @@ const duration = (fallback: string) =>
       return Number(value.slice(0, -1)) * SECONDS_PER_UNIT[unit];
     });
 
+// Checked against the platform tz database rather than accepted as any
+// string: a typo would otherwise surface as every date bucket silently
+// falling back, which is the kind of wrong that looks right.
+function timezone(fallback: string) {
+  return z
+    .string()
+    .min(1)
+    .default(fallback)
+    .refine((value) => {
+      try {
+        new Intl.DateTimeFormat("en-US", { timeZone: value });
+
+        return true;
+      } catch {
+        return false;
+      }
+    }, "must be an IANA time zone name, such as UTC or Asia/Tashkent");
+}
+
 const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().min(1).max(65535).default(4000),
@@ -84,6 +103,12 @@ const schema = z.object({
   SMTP_PASS: z.string().min(1).optional(),
 
   AUTH_REQUIRE_EMAIL_VERIFICATION: flag("false"),
+
+  // Every admin bucket is computed in this one zone (M34 D-11). "Today"
+  // differs by up to a day across zones, and a KPI that disagrees with the
+  // developer own calendar will not be believed -- so the question is
+  // answered once, here, rather than per query.
+  APP_TIMEZONE: timezone("UTC"),
 });
 
 // An empty string is treated as absent so a commented-out or blank .env entry

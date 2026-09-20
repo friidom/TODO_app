@@ -23,6 +23,28 @@ export async function resetDatabase(): Promise<void> {
   await assertTestDatabase();
 
   await prisma.users.deleteMany({});
+
+  // admin_audit_log carries no foreign key to profiles -- deliberately, since
+  // 'on delete set null' is a write and the table refuses those -- so nothing
+  // cascades into it and it would otherwise accumulate across every file.
+  // TRUNCATE rather than DELETE because the append-only trigger is FOR EACH
+  // ROW: truncating is a table-level operation that never sees a row, which
+  // is the escape hatch the harness needs and an application never reaches.
+  await prisma.$executeRawUnsafe("truncate table admin_audit_log");
+
+  // kpi_targets is seeded by 0014 and is migrated state rather than fixture
+  // data, so a reset restores it. A test that empties it (to prove the
+  // factual metrics survive an unconfigured KPI) must not leave every later
+  // test without targets.
+  await prisma.$executeRawUnsafe(`
+    insert into kpi_targets (seniority, daily_points, weekly_points) values
+      ('junior', 6, 30), ('middle', 8, 40), ('senior', 10, 50)
+    on conflict (seniority) do update
+      set daily_points = excluded.daily_points,
+          weekly_points = excluded.weekly_points,
+          updated_at = now(),
+          updated_by = null
+  `);
 }
 
 export async function disconnect(): Promise<void> {

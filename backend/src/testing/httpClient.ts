@@ -21,6 +21,7 @@ export interface TestClient {
   get<T = unknown>(path: string, options?: RequestOptions): Promise<TestResponse<T>>;
   post<T = unknown>(path: string, body?: unknown, options?: RequestOptions): Promise<TestResponse<T>>;
   patch<T = unknown>(path: string, body?: unknown, options?: RequestOptions): Promise<TestResponse<T>>;
+  put<T = unknown>(path: string, body?: unknown, options?: RequestOptions): Promise<TestResponse<T>>;
   del<T = unknown>(path: string, body?: unknown, options?: RequestOptions): Promise<TestResponse<T>>;
   close(): Promise<void>;
 }
@@ -78,6 +79,7 @@ export async function startTestServer(instance: Express = realApp): Promise<Test
     get: (path, options) => send("GET", path, undefined, options),
     post: (path, body, options) => send("POST", path, body, options),
     patch: (path, body, options) => send("PATCH", path, body, options),
+    put: (path, body, options) => send("PUT", path, body, options),
     del: (path, body, options) => send("DELETE", path, body, options),
     close: () =>
       new Promise<void>((resolve, reject) => {

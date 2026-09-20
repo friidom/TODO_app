@@ -3743,7 +3743,17 @@ Column *deletion* rehomes todos server-side first, so it arrives as ordinary `to
 **D-6 · Credit is stamped, not looked up live.**
 `todos.completed_by uuid null references profiles on delete set null`, written by the same trigger as `completed_at`, from `new.assignee_id`. If the work is unassigned at completion it counts toward the system and board totals and toward **nobody's** KPI. Reading `assignee_id` live instead would mean a reassignment silently moved last week's points between two people's records, which is exactly the "ambiguous KPI logic" this milestone is told to avoid. A history that changes when someone tidies a board is not a history.
 
-**D-7 · The points rule, stated once: `parent_id is null and type <> 'Epic' and estimate is not null`.**
+**D-7 · The points rule, stated once: ~~`parent_id is null`~~ `is not a genuine subtask, and type <> 'Epic' and estimate is not null`.**
+
+> **Corrected at implementation time, 2026-09-20.** `parent_id is null` is the wrong spelling of "not a subtask" and the first integration test to use an Epic caught it: eight points of finished work reported as **zero**. Being a subtask is *structural* (M27) — a row under an Epic is a **Task** whatever its own type says, and only a row under anything else is a Subtask — so a task belonging to an Epic has a `parent_id` and must still count. On a board that uses Epics that is most of the tasks on it.
+> The clause now mirrors `topLevelTodos()`'s `isHiddenSubtask` exactly, which is what D-7 meant by citing it: exclude a row only when its parent **exists and is not an Epic**.
+> ```sql
+> t.type <> 'Epic'
+>   and not exists (
+>     select 1 from todos parent where parent.id = t.parent_id and parent.type <> 'Epic'
+>   )
+> ```
+> It is written once, in `admin.repo.ts`, and every rollup reads it.
 - **`estimate is null` is excluded, never counted as zero** — `services/todos/sprintPoints.ts` already established this and reports `unestimated` as its own figure. The admin rollups do the same, and every points number in the UI carries its unestimated count beside it.
 - **Subtasks are excluded** because `useVisibleTodos` already excludes them everywhere via `topLevelTodos()`; counting a Task at 5 plus its subtasks at 2 and 3 would report 10 points of work for 5 points of task.
 - **Epics are excluded** because an Epic is a container and its estimate forecasts its children's. **This deliberately differs from `sprintPoints.ts`, which includes Epics**, and the difference is the point: a sprint panel shows the Epic and its tasks together so a person can see the overlap, whereas a KPI percentage cannot be inspected and must not double-count. Aligning the two is Phase I's open question, not a silent divergence.
