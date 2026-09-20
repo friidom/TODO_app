@@ -3934,6 +3934,26 @@ All Tier A: indexes only, `concurrently` where the table warrants it.
 **Dependencies.** Phase D.
 **Acceptance.** Every admin endpoint returns within a stated budget on a database seeded to ~200 users, ~50 boards and ~100k activity rows, and the response bodies are byte-identical to Phase D's.
 
+##### Measured — Phase E · 2026-09-20
+
+`backend/scripts/seed-benchmark.ts` fills a **separate** `*_bench` database — 200 users, 50 boards, 20 000 todos, 20 000 comments, 100 000 activities over 365 days — and `backend/scripts/explain-admin.ts` runs `EXPLAIN (ANALYZE, BUFFERS)` over a **one-year** window, twice per query, keeping the second so the figure describes the plan and not a cold `shared_buffers`. `npm run bench:seed` · `npm run bench:explain`.
+
+| Query | Before | After | Plan after |
+|---|--:|--:|---|
+| the system activity feed, newest 50 | 27.22 ms · **seq scan** | **0.04 ms** | Index Scan `activities_created_idx` |
+| one developer's activity, every board | 4.68 ms · **seq scan** | **0.06 ms** | Index Only Scan `activities_actor_created_idx` |
+| one developer's assigned work | 0.76 ms · **seq scan** | **0.03 ms** | Index Only Scan `todos_assignee_idx` |
+| one developer's comments | 0.69 ms · **seq scan** | **0.03 ms** | Index Only Scan `comments_author_created_idx` |
+| one developer's completed work (the KPI query) | 0.65 ms | **0.05 ms** | Bitmap Heap Scan on `todos` |
+| one developer's year heatmap | 0.58 ms | **0.03 ms** | Bitmap Heap Scan on `todos` |
+| system rollup: every user at once | 3.19 ms | 3.49 ms | Bitmap Heap Scan on `todos` |
+
+**The last row is the honest one and is why it is in the table.** A rollup over every user touches every completed row by definition, so no index can help it and none of these did; the 0.3 ms difference is noise. The five indexes serve the *per-developer* questions — which is exactly what M34 added and what the board-scoped schema had never been asked before. The four seq scans are the four gaps Phase A confirmed.
+
+**Two things this does not claim.** The absolute numbers are a single developer machine with the whole fixture in cache, so they bound the *shape* of the plan and not production latency. And the fixture is generated with triggers disabled, so it proves nothing about the write path — only the read path the dashboards use.
+
+**`APP_TIMEZONE` landed in Phase D rather than here**, because `periods.ts` could not be written without it. Phase E's own content is the indexes and this measurement.
+
 ---
 
 #### Phase E2 — KPI visualization research and design · SAFE

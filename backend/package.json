@@ -18,7 +18,9 @@
     "db:status": "prisma migrate status",
     "db:pull": "prisma db pull",
     "db:generate": "prisma generate",
-    "test:integration": "vitest run --config vitest.integration.config.ts"
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "bench:seed": "tsx scripts/seed-benchmark.ts",
+    "bench:explain": "tsx scripts/explain-admin.ts"
   },
   "type": "module",
   "private": true,

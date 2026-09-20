@@ -23,6 +23,8 @@ model activities {
 
   @@index([board_id, created_at(sort: Desc)], map: "activities_board_created_idx")
   @@index([board_id, entity_id], map: "activities_board_entity_idx")
+  @@index([actor_id, created_at(sort: Desc)], map: "activities_actor_created_idx")
+  @@index([created_at(sort: Desc)], map: "activities_created_idx")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -140,6 +142,7 @@ model comments {
   todos      todos    @relation(fields: [todo_id, board_id], references: [id, board_id], onDelete: Cascade, onUpdate: NoAction, map: "comments_todo_id_fkey")
 
   @@index([todo_id, created_at], map: "comments_todo_created_idx")
+  @@index([author_id, created_at(sort: Desc)], map: "comments_author_created_idx")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -298,6 +301,8 @@ model todos {
   @@index([parent_id], map: "todos_parent_idx", where: raw("(parent_id IS NOT NULL)"))
   @@index([sprint_id], where: raw("(sprint_id IS NOT NULL)"))
   @@index([completed_at(sort: Desc)], map: "todos_completed_idx", where: raw("(completed_at IS NOT NULL)"))
+  @@index([assignee_id], map: "todos_assignee_idx")
+  @@index([completed_by, completed_at(sort: Desc)], map: "todos_completed_by_idx", where: raw("(completed_at IS NOT NULL)"))
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
