@@ -6,8 +6,8 @@ import {
   AdminEmpty,
   AdminGrid,
   AdminRow,
+  AdminSkeleton,
 } from "@/components/admin/AdminTable";
-import Loading from "@/components/loading/LoadingPage";
 import { HEADER_CONTROL } from "@/components/board/headerControl";
 import { useAdminPeriod } from "@/hooks/useAdminPeriod";
 import {
@@ -15,8 +15,9 @@ import {
   useAdminBoards,
   useAdminUsers,
 } from "@/services/admin/useAdmin";
-import { rangeLabel } from "@/services/admin/format";
+import { actionLabel, rangeLabel } from "@/services/admin/format";
 import { relativeTime } from "@/utils/relativeTime";
+import { cn } from "@/utils/cn";
 
 const COLUMNS =
   "minmax(8rem,1fr) minmax(7rem,0.8fr) minmax(12rem,2fr) minmax(9rem,1fr) 7rem";
@@ -29,12 +30,14 @@ export default function AdminActivityPage() {
   const board = params.get("board") ?? undefined;
   const action = params.get("action") ?? undefined;
 
-  const { data, isLoading, error } = useAdminActivity({
-    period,
-    user,
-    board,
-    action,
-  });
+  const {
+    data,
+    isFetching,
+    error,
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage,
+  } = useAdminActivity({ period, user, board, action });
   const { data: users } = useAdminUsers(period);
   const { data: boards } = useAdminBoards(period);
 
@@ -47,7 +50,9 @@ export default function AdminActivityPage() {
     setParams(next, { replace: true });
   };
 
-  const rows = data?.activities ?? [];
+  const pages = data?.pages ?? [];
+  const rows = pages.flatMap((page) => page.activities);
+  const firstPage = pages[0];
 
   const actions = [...new Set(rows.map((row) => row.action))].sort();
 
@@ -55,10 +60,11 @@ export default function AdminActivityPage() {
     <AdminShell
       title="Activity"
       hint={
-        data
-          ? `${rows.length} entries · ${rangeLabel(data.from, data.to)}`
+        firstPage
+          ? `${rows.length} entries${hasNextPage ? "+" : ""} · ${rangeLabel(firstPage.from, firstPage.to)}`
           : "Across every board"
       }
+      busy={isFetching}
       actions={
         <div className="flex flex-wrap gap-1.5">
           <select
@@ -98,17 +104,17 @@ export default function AdminActivityPage() {
             <option value="">Every action</option>
             {actions.map((value) => (
               <option key={value} value={value}>
-                {value}
+                {actionLabel(value)}
               </option>
             ))}
           </select>
         </div>
       }
     >
-      {isLoading ? (
-        <Loading />
-      ) : error ? (
+      {error ? (
         <AdminEmpty>That did not load. Try again.</AdminEmpty>
+      ) : !data ? (
+        <AdminSkeleton rows={12} />
       ) : (
         <AdminGrid columns={COLUMNS} label="System-wide activity">
           <AdminRow header>
@@ -133,9 +139,7 @@ export default function AdminActivityPage() {
                 </AdminCell>
 
                 <AdminCell>
-                  <span className="text-ink-2 text-micro uppercase">
-                    {row.action}
-                  </span>
+                  <span className="text-ink-2">{actionLabel(row.action)}</span>
                 </AdminCell>
 
                 <AdminCell>
@@ -145,7 +149,7 @@ export default function AdminActivityPage() {
                     </span>
                   )}
                   <span className="text-ink-2">
-                    {row.title ?? row.entity_type}
+                    {row.title ?? `Untitled ${row.entity_type}`}
                   </span>
                 </AdminCell>
 
@@ -165,6 +169,19 @@ export default function AdminActivityPage() {
             ))
           )}
         </AdminGrid>
+      )}
+
+      {hasNextPage && (
+        <div className="mt-3 flex justify-center">
+          <button
+            type="button"
+            onClick={() => void fetchNextPage()}
+            disabled={isFetchingNextPage}
+            className={cn(HEADER_CONTROL, "px-3")}
+          >
+            {isFetchingNextPage ? "Loading…" : "Load more"}
+          </button>
+        </div>
       )}
     </AdminShell>
   );

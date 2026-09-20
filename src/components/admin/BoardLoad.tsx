@@ -41,6 +41,8 @@ export default function BoardLoad({
               percent={peak === 0 ? 0 : (board.completed_todos / peak) * 100}
               share={total === 0 ? 0 : (board.completed_todos / total) * 100}
               barClassName="bg-brand"
+              labelClassName="flex-[0_0_11rem]"
+              title={board.title ?? "Untitled board"}
             />
           ))}
         </div>

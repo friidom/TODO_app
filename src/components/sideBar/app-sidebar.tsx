@@ -3,7 +3,6 @@ import {
   CircleUserIcon,
   CircleUserRoundIcon,
   type LucideIcon,
-  SettingsIcon,
   ShieldIcon,
   SquareKanbanIcon,
 } from "lucide-react";
@@ -69,9 +68,9 @@ function NavItem({ item }: { item: Item }) {
         render={<NavLink to={item.to} />}
         isActive={isActive}
         className={cn(
-          "h-9 text-sm transition-colors duration-150",
+          "relative h-9 text-sm transition-colors duration-150",
           isActive
-            ? "bg-elevated text-ink font-medium"
+            ? "bg-brand-soft text-ink before:bg-brand font-medium before:absolute before:top-1/2 before:left-0 before:h-4 before:w-0.5 before:-translate-y-1/2 before:rounded-r-full"
             : "text-ink-2 hover:bg-ink/[0.04]",
         )}
       >
@@ -92,7 +91,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     <Sidebar className="border-hairline border-r" {...props}>
       <SidebarHeader className="px-3 py-3">
         <div className="flex items-center gap-2.5">
-          <span className="bg-brand text-brand-fg rounded-control grid size-7 place-items-center shadow-e1">
+          <span className="bg-brand text-brand-fg rounded-control shadow-e1 grid size-7 place-items-center">
             <SquareKanbanIcon className="size-4" />
           </span>
 
@@ -120,11 +119,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <BoardsSection />
       </SidebarContent>
 
-      <SidebarFooter className="border-hairline gap-1 border-t p-2.5">
-        <SidebarMenu>
-          <NavItem item={{ label: "Settings", icon: SettingsIcon }} />
-        </SidebarMenu>
-
+      <SidebarFooter className="border-hairline border-t p-2.5">
         <div className="flex items-center">
           <NavLink
             to="/profile"

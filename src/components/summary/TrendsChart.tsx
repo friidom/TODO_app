@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 import { trendPeak, type TrendPoint } from "@/services/views/trends";
 import SummaryCard, { WidgetEmpty } from "./SummaryCard";
 
@@ -30,6 +32,7 @@ export default function TrendsChart({
   points: TrendPoint[];
   className?: string;
 }) {
+  const { i18n } = useTranslation();
   const peak = trendPeak(points);
   const step = points.length === 0 ? 0 : 100 / points.length;
 
@@ -175,7 +178,7 @@ export default function TrendsChart({
                   key={point.day}
                   className="text-ink-3/70 text-micro min-w-0 flex-1 truncate text-center"
                 >
-                  {dayLabel(point.day)}
+                  {dayLabel(point.day, i18n.language)}
                 </span>
               ))}
             </div>
@@ -187,11 +190,12 @@ export default function TrendsChart({
 }
 
 // Date.UTC in, UTC out — otherwise the formatter can shift the label onto a neighboring day
-function dayLabel(day: string): string {
+function dayLabel(day: string, locale?: string): string {
   const [year, month, date] = day.split("-").map(Number);
 
-  return new Date(Date.UTC(year, month - 1, date)).toLocaleDateString(
-    undefined,
-    { day: "numeric", month: "short", timeZone: "UTC" },
-  );
+  return new Date(Date.UTC(year, month - 1, date)).toLocaleDateString(locale, {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  });
 }

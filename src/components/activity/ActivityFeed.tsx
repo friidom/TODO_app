@@ -7,6 +7,8 @@ import { memberInitial, memberName } from "@/components/members/memberLabels";
 import { useKeyPrefix } from "@/hooks/useKeyPrefix";
 import { useOpenTask } from "@/hooks/useOpenTask";
 import { useActivities } from "@/services/activities/useActivities";
+import { useTranslation } from "react-i18next";
+
 import { groupActivitiesByDay } from "@/services/activities/activityGroups";
 import {
   describeActivity,
@@ -36,6 +38,8 @@ export default function ActivityFeed({
   const { data: todos = [] } = useTodos();
   const keyPrefix = useKeyPrefix();
 
+  const { i18n } = useTranslation();
+
   const context = useMemo<ActivityContext>(
     () => ({
       keyPrefix,
@@ -51,8 +55,8 @@ export default function ActivityFeed({
   const shown = limit ? activities?.slice(0, limit) : activities;
 
   const days = useMemo(
-    () => (shown ? groupActivitiesByDay(shown, new Date()) : []),
-    [shown],
+    () => (shown ? groupActivitiesByDay(shown, new Date(), i18n.language) : []),
+    [shown, i18n.language],
   );
 
   if (isPending) {

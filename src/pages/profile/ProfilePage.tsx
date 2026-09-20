@@ -6,6 +6,7 @@ import Loading from "@/components/loading/LoadingPage";
 import { FIELD_INPUT } from "@/components/ui/fieldInput";
 import LanguageSwitcher from "@/components/layout/header/LanguageSwitcher";
 import ThemeToggle from "@/components/layout/header/ThemeToggle";
+import DefaultPeriodSetting from "@/components/admin/DefaultPeriodSetting";
 import { useLogout } from "@/services/auth/useLogout";
 import { useProfile } from "@/services/profile/useProfile";
 import useUpdateProfile from "@/services/profile/useUpdateProfile";
@@ -54,8 +55,7 @@ export default function ProfilePage() {
 
   if (isLoading || !form) return <Loading />;
 
-  const patch = (fields: Partial<Profile>) =>
-    setForm({ ...form, ...fields });
+  const patch = (fields: Partial<Profile>) => setForm({ ...form, ...fields });
 
   const displayName = form.full_name || form.username || "Your account";
 
@@ -189,6 +189,15 @@ export default function ProfilePage() {
             <Row label="Language" hint="English, Russian or Uzbek.">
               <LanguageSwitcher />
             </Row>
+
+            {user?.org_role === "superadmin" && (
+              <Row
+                label="Default reporting period"
+                hint="Which window the Superadmin screens open on."
+              >
+                <DefaultPeriodSetting />
+              </Row>
+            )}
           </Section>
 
           <Section title="Account actions">

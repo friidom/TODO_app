@@ -1,4 +1,10 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import { queryKeys } from "@/services/queryClient/queryKeys";
 import {
@@ -15,12 +21,17 @@ import {
   saveSeniority,
 } from "./adminApi";
 import type { AdminPeriod } from "./periods";
-import type { AdminActivityFilters, Seniority } from "./types";
+import type { ActivityCursor, AdminActivityFilters, Seniority } from "./types";
 
+// Every read below keeps the previous period on screen while the next one
+// loads. Without it each period switch unmounts the whole screen -- nav
+// included -- and the page jumps. AdminShell shows "updating…" from
+// isFetching so the figures on screen are never silently stale.
 export function useAdminOverview(period: AdminPeriod) {
   return useQuery({
     queryKey: queryKeys.adminOverview(period),
     queryFn: () => fetchOverview(period),
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -28,6 +39,7 @@ export function useAdminUsers(period: AdminPeriod) {
   return useQuery({
     queryKey: queryKeys.adminUsers(period),
     queryFn: () => fetchAdminUsers(period),
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -36,6 +48,7 @@ export function useAdminUser(userId: string | undefined, period: AdminPeriod) {
     queryKey: queryKeys.adminUser(userId, period),
     queryFn: () => fetchAdminUser(userId!, period),
     enabled: Boolean(userId),
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -43,6 +56,7 @@ export function useAdminBoards(period: AdminPeriod) {
   return useQuery({
     queryKey: queryKeys.adminBoards(period),
     queryFn: () => fetchAdminBoards(period),
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -54,13 +68,21 @@ export function useAdminBoard(
     queryKey: queryKeys.adminBoard(boardId, period),
     queryFn: () => fetchAdminBoard(boardId!, period),
     enabled: Boolean(boardId),
+    placeholderData: keepPreviousData,
   });
 }
 
+// Infinite rather than a plain query: /admin/activity has always returned a
+// keyset cursor and the screen never spent it, so the feed stopped dead at
+// one page however much had happened.
 export function useAdminActivity(filters: AdminActivityFilters) {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: queryKeys.adminActivity(activityQuery(filters)),
-    queryFn: () => fetchAdminActivity(filters),
+    queryFn: ({ pageParam }) =>
+      fetchAdminActivity(filters, pageParam ?? undefined),
+    initialPageParam: null as ActivityCursor | null,
+    getNextPageParam: (last) => last.next,
+    placeholderData: keepPreviousData,
   });
 }
 

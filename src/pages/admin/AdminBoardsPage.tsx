@@ -4,8 +4,8 @@ import {
   AdminEmpty,
   AdminGrid,
   AdminRow,
+  AdminSkeleton,
 } from "@/components/admin/AdminTable";
-import Loading from "@/components/loading/LoadingPage";
 import { useAdminPeriod } from "@/hooks/useAdminPeriod";
 import { useAdminBoards } from "@/services/admin/useAdmin";
 import { dash, rangeLabel } from "@/services/admin/format";
@@ -16,9 +16,7 @@ const COLUMNS =
 
 export default function AdminBoardsPage() {
   const { period } = useAdminPeriod();
-  const { data, isLoading, error } = useAdminBoards(period);
-
-  if (isLoading) return <Loading />;
+  const { data, isFetching, error } = useAdminBoards(period);
 
   const boards = data?.boards ?? [];
 
@@ -30,9 +28,12 @@ export default function AdminBoardsPage() {
           ? `${boards.length} boards · ${rangeLabel(data.from, data.to)}`
           : "Every board"
       }
+      busy={isFetching}
     >
       {error ? (
         <AdminEmpty>That did not load. Try again.</AdminEmpty>
+      ) : !data ? (
+        <AdminSkeleton />
       ) : (
         <AdminGrid columns={COLUMNS} label="Boards and their aggregates">
           <AdminRow header>

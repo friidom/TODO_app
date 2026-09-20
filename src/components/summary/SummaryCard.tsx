@@ -54,6 +54,8 @@ export function DistributionRow({
   percent,
   share,
   barClassName,
+  labelClassName,
+  title,
 }: {
   icon?: ReactNode;
   label: ReactNode;
@@ -61,12 +63,23 @@ export function DistributionRow({
   percent: number;
   share?: number;
   barClassName: string;
+  // Board names are longer than the priority and type labels this row was
+  // built for, and 6rem cut "Reporting Pipeline" to "Reporting Pipeli…".
+  labelClassName?: string;
+  title?: string;
 }) {
   return (
     <div className={cn("flex items-center gap-2", count === 0 && "opacity-45")}>
-      <div className="flex min-w-0 flex-[0_0_6rem] items-center gap-1.5">
+      <div
+        className={cn(
+          "flex min-w-0 flex-[0_0_6rem] items-center gap-1.5",
+          labelClassName,
+        )}
+      >
         {icon}
-        <span className="text-ink-2 min-w-0 truncate text-xs">{label}</span>
+        <span className="text-ink-2 min-w-0 truncate text-xs" title={title}>
+          {label}
+        </span>
       </div>
 
       <div className="bg-ink/[0.06] h-1 min-w-0 flex-1 overflow-hidden rounded-full">

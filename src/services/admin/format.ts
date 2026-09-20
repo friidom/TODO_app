@@ -2,6 +2,11 @@ import type { Bucket } from "./types";
 
 export const NO_VALUE = "—";
 
+// The admin screens are written in English, so their dates are too. Left to
+// the operating system, toLocaleDateString rendered "13 сент." beside English
+// headings on a Russian-locale machine.
+export const LOCALE = "en-GB";
+
 // "—", never "0%". A user nobody has classified has no target, and a zero
 // would be a claim about them that nothing supports (M34 D-8, D-12).
 export function dash(value: number | null | undefined): string {
@@ -26,19 +31,19 @@ export function bucketLabel(bucket: string, granularity: Bucket): string {
 
   switch (granularity) {
     case "hour":
-      return at.toLocaleTimeString(undefined, {
+      return at.toLocaleTimeString(LOCALE, {
         hour: "2-digit",
         timeZone: "UTC",
       });
     case "month":
-      return at.toLocaleDateString(undefined, {
+      return at.toLocaleDateString(LOCALE, {
         month: "short",
         year: "2-digit",
         timeZone: "UTC",
       });
     case "week":
     case "day":
-      return at.toLocaleDateString(undefined, {
+      return at.toLocaleDateString(LOCALE, {
         day: "numeric",
         month: "short",
         timeZone: "UTC",
@@ -54,7 +59,7 @@ export function rangeLabel(from: string, to: string): string {
     month: "short",
   };
 
-  return `${start.toLocaleDateString(undefined, options)} – ${end.toLocaleDateString(undefined, options)}`;
+  return `${start.toLocaleDateString(LOCALE, options)} – ${end.toLocaleDateString(LOCALE, options)}`;
 }
 
 export function barWidth(value: number, max: number): string {
@@ -63,4 +68,23 @@ export function barWidth(value: number, max: number): string {
   // Floored at 2%, so a real but tiny value never rounds to an invisible bar
   // and reads as nothing done.
   return `${Math.max(2, Math.round((value / max) * 100))}%`;
+}
+
+// Actions reach the UI in the shape their storage wants: the activities
+// table uses the enum activities_event_valid allows ('estimate_changed') and
+// admin_audit_log namespaces with a dot ('kpi_target.updated'). Both are the
+// right shape for a constraint and the wrong one for a table cell.
+const ACRONYMS: Record<string, string> = { kpi: "KPI" };
+
+export function actionLabel(action: string): string {
+  const words = action
+    .split(/[._]/)
+    .filter(Boolean)
+    .map((word) => ACRONYMS[word] ?? word);
+
+  if (words.length === 0) return "";
+
+  const [first, ...rest] = words;
+
+  return [first!.charAt(0).toUpperCase() + first!.slice(1), ...rest].join(" ");
 }

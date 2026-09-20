@@ -72,7 +72,10 @@ export default function BarSeries({
         <WidgetEmpty>Nothing to chart yet.</WidgetEmpty>
       ) : (
         <div className="flex gap-2.5 px-3.5 pb-3">
-          <div className="text-ink-3/70 text-micro flex w-7 shrink-0 flex-col justify-between py-px text-right tabular-nums">
+          {/* h-28, matching the plot exactly. Without it this column stretches
+              over the axis labels and the note below them, and justify-between
+              drops the "0" a row and a half beneath the baseline. */}
+          <div className="text-ink-3/70 text-micro flex h-28 w-7 shrink-0 flex-col justify-between text-right tabular-nums">
             <span>{dash(peak)}</span>
             <span>{dash(Math.round((peak / 2) * 10) / 10)}</span>
             <span>0</span>
@@ -82,7 +85,7 @@ export default function BarSeries({
             {/* Bars, not a line: the buckets are discrete counts, and a line
                 would assert values between them that do not exist. */}
             <ol
-              className="flex h-28 items-end gap-px"
+              className="flex h-28 items-end gap-0.5"
               aria-label={`${definition.label} per bucket: ${points
                 .map(
                   (point) =>
@@ -107,7 +110,7 @@ export default function BarSeries({
               ))}
             </ol>
 
-            <div className="mt-1.5 flex gap-px">
+            <div className="mt-1.5 flex gap-0.5">
               {points.map((point, index) => (
                 <span
                   key={point.bucket}

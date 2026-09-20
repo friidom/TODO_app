@@ -55,9 +55,35 @@ npm test                   # vitest — stubs its own env, needs no database
 npm run test:integration   # *.int.test.ts against a real DB, needs TEST_DATABASE_URL
 npm run db:migrate         # prisma migrate deploy
 npm run db:generate        # regenerate the client — required before tsc, which typechecks against it
+npm run db:seed-demo -- --confirm   # development-only demo data (see below)
 ```
 
+`db:seed-demo` fills the database it is pointed at with a realistic
+organisation — ~39 people, 6 spaces, 14 boards, ~2 500 work items, ~2 400
+comments and ~6 000 activity rows spread across thirteen months, so every one
+of M34's six reporting periods answers with a different, meaningful number.
+It writes through the real schema, so what the UI renders is what the
+application would really hold, and its output is **deterministic**: one fixed
+seed, so a bug found in one run is still there in the next.
+
+It refuses to run without `--confirm`, refuses `NODE_ENV=production`, and
+refuses any database whose name ends in `_test` or `_bench` — those belong to
+the integration suite and to `seed-benchmark.ts`. It is **additive and
+idempotent**: it deletes only the accounts it created (`*@veylo.demo` plus the
+demo superadmin) and lets the cascades take their boards with them, so an
+account you made by hand survives and a second run does not double the data.
+Sign in as `superadmin@gmail.com` / `123123123123`.
+
+It inserts with triggers disabled, which is what makes it seconds rather than
+an hour — so it has to satisfy by construction the invariants the triggers
+would otherwise maintain: `completed_at` is set exactly for cards in a `done`
+column, and a board's owner owns the space it is filed into
+(`boards_space_ownership`). Getting the second one wrong is what made every
+board render as "Unfiled".
+
 Authorization is middleware, not RLS: `requireAuth` → `boardAccess()` resolves the board and the caller's membership → `requireRole(...)` gates the verb. `accessibleBoardIds` is the single swap point the old `accessible_board_ids()` helper used to be. `backend/src/lib/errors.ts` owns the `ErrorCode` union and pairs each code with its status in one table, so a call site cannot invent a 404 `conflict`.
+
+**The connection pool pins its session to `timezone=UTC`, and that is load-bearing.** Prisma's pg adapter reads a `timestamptz` from the session's own rendering and labels the result UTC, so against a PostgreSQL server running at any other offset every timestamp the API returned was wrong by that offset — an activity finished at 19:45 reached the browser as 00:45 the next day, and the board feed filed it under tomorrow. Setting `TZ` on the Node process does not help; the offset comes from the database session. `backend/src/db/client.ts` records the measurement. Nothing else depends on the session zone: every admin aggregate names its own zone with `AT TIME ZONE`, and `now()` is an instant either way.
 
 `docker compose up --build` runs frontend, API and PostgreSQL together; see `README.md`. `docker-compose.yml` sets `NODE_ENV=development` deliberately — `backend/src/config/env.ts` refuses to start in production without TLS cookies, SMTP and email verification, none of which a local demo has.
 

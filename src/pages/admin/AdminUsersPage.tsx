@@ -7,8 +7,8 @@ import {
   AdminEmpty,
   AdminGrid,
   AdminRow,
+  AdminSkeleton,
 } from "@/components/admin/AdminTable";
-import Loading from "@/components/loading/LoadingPage";
 import { useAdminPeriod } from "@/hooks/useAdminPeriod";
 import { useAdminUsers } from "@/services/admin/useAdmin";
 import { barWidth, dash, percent, rangeLabel } from "@/services/admin/format";
@@ -34,7 +34,7 @@ const NUMERIC = [
 
 export default function AdminUsersPage() {
   const { period } = useAdminPeriod();
-  const { data, isLoading, error } = useAdminUsers(period);
+  const { data, isFetching, error } = useAdminUsers(period);
   const [sort, setSort] = useState<UserSortKey>(DEFAULT_USER_SORT);
 
   const rows = useMemo(() => sortUsers(data?.users ?? [], sort), [data, sort]);
@@ -52,8 +52,6 @@ export default function AdminUsersPage() {
     return result;
   }, [rows]);
 
-  if (isLoading) return <Loading />;
-
   return (
     <AdminShell
       title="Developers"
@@ -62,9 +60,12 @@ export default function AdminUsersPage() {
           ? `${rows.length} people · ${rangeLabel(data.from, data.to)}`
           : "Factual metrics, side by side"
       }
+      busy={isFetching}
     >
       {error ? (
         <AdminEmpty>That did not load. Try again.</AdminEmpty>
+      ) : !data ? (
+        <AdminSkeleton />
       ) : (
         <AdminGrid columns={COLUMNS} label="Developers and their metrics">
           <AdminRow header>
@@ -124,7 +125,13 @@ function SortButton({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={cn("hover:text-ink transition-colors", active && "text-brand")}
+      // uppercase repeated here rather than inherited: Tailwind's preflight
+      // gives <button> `font: inherit` but not text-transform, so a sortable
+      // header rendered "Developer" beside a static "LEVEL".
+      className={cn(
+        "hover:text-ink uppercase transition-colors",
+        active && "text-brand",
+      )}
     >
       {children}
     </button>

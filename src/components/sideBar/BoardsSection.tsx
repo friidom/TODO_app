@@ -124,7 +124,7 @@ export default function BoardsSection() {
           })}
         </SidebarMenu>
 
-        <SidebarMenu className={cn(!sectionOpen && "hidden")}>
+        <SidebarMenu className={cn("mt-3", !sectionOpen && "hidden")}>
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={() => setDialog({ kind: "create-board", spaceId: null })}
@@ -194,7 +194,7 @@ function SpaceRow({
 }) {
   return (
     <>
-      <SidebarMenuItem className="mt-2 first:mt-0">
+      <SidebarMenuItem className="mt-3 first:mt-0">
         <div className="text-ink-2 group/space flex items-center gap-1.5 px-1 py-1">
           <button
             type="button"
@@ -243,8 +243,9 @@ function SpaceRow({
               <DropdownMenu>
                 <DropdownMenuTrigger
                   aria-label={`${space.title} options`}
-                  // always visible, unlike the board row's hover-only menu — a space heading appears rarely and this is the only way to manage it
-                  className="hover:text-ink hover:bg-ink/[0.06] coarse:size-8 coarse:p-0 coarse:grid coarse:place-items-center rounded p-0.5 transition-colors duration-150"
+                  // same hover rule as the + beside it, and always visible
+                  // below md where hover does not exist
+                  className="hover:text-ink hover:bg-ink/[0.06] coarse:size-8 coarse:p-0 coarse:grid coarse:place-items-center rounded p-0.5 transition-all duration-150 max-md:opacity-100 md:opacity-0 md:group-focus-within/space:opacity-100 md:group-hover/space:opacity-100"
                 >
                   <MoreHorizontalIcon className="size-3.5" />
                 </DropdownMenuTrigger>
@@ -278,10 +279,10 @@ function SpaceRow({
       </SidebarMenuItem>
 
       {!collapsed && (
-        <div className="border-hairline motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-1 ml-[1.1rem] border-l pl-1 motion-safe:duration-150">
+        <div className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-1 motion-safe:duration-150">
           {boards.length === 0 ? (
             <SidebarMenuItem>
-              <span className="text-ink-3 text-meta block px-2 py-1 pl-3 italic">
+              <span className="text-ink-3 text-meta block py-1 pl-7">
                 {space ? "No boards" : "Nothing here"}
               </span>
             </SidebarMenuItem>
@@ -321,7 +322,7 @@ function BoardRow({
         render={<NavLink to={to} />}
         isActive={isActive}
         className={cn(
-          "relative pl-6",
+          "relative pl-7",
           // pseudo-element rail so the active mark costs no layout and the row can't shift
           isActive
             ? "bg-brand-soft text-ink before:bg-brand font-medium before:absolute before:top-1/2 before:left-0 before:h-4 before:w-0.5 before:-translate-y-1/2 before:rounded-r-full"

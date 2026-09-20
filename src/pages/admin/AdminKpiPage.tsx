@@ -1,8 +1,8 @@
 import { useState } from "react";
 
 import AdminShell from "@/components/admin/AdminShell";
-import { AdminEmpty } from "@/components/admin/AdminTable";
-import Loading from "@/components/loading/LoadingPage";
+import { AdminEmpty, AdminSkeleton } from "@/components/admin/AdminTable";
+import AuditLog from "@/components/admin/AuditLog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import SummaryCard from "@/components/summary/SummaryCard";
@@ -11,9 +11,7 @@ import type { KpiTarget } from "@/services/admin/types";
 import { relativeTime } from "@/utils/relativeTime";
 
 export default function AdminKpiPage() {
-  const { data, isLoading, error } = useAdminKpi();
-
-  if (isLoading) return <Loading />;
+  const { data, isFetching, error } = useAdminKpi();
 
   const targets = data?.targets ?? [];
 
@@ -22,9 +20,12 @@ export default function AdminKpiPage() {
       title="KPI settings"
       hint="Targets are data, not defaults in code. Every number here is editable."
       showPeriod={false}
+      busy={isFetching}
     >
       {error ? (
         <AdminEmpty>That did not load. Try again.</AdminEmpty>
+      ) : !data ? (
+        <AdminSkeleton rows={4} />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {targets.map((target) => (
@@ -33,12 +34,16 @@ export default function AdminKpiPage() {
         </div>
       )}
 
-      <p className="text-ink-3 mt-5 max-w-prose text-xs">
-        A developer with no level has no target, shows “—” rather than 0%, and
-        is left out of KPI aggregates rather than counted as zero. Levels are
-        assigned on a developer’s own page. Factual metrics — completed tasks,
-        points, comments, activity — never depend on anything configured here.
-      </p>
+      <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <p className="text-ink-3 max-w-prose text-xs">
+          A developer with no level has no target, shows “—” rather than 0%, and
+          is left out of KPI aggregates rather than counted as zero. Levels are
+          assigned on a developer’s own page. Factual metrics — completed tasks,
+          points, comments, activity — never depend on anything configured here.
+        </p>
+
+        <AuditLog />
+      </div>
     </AdminShell>
   );
 }

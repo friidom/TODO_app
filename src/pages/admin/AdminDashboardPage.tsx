@@ -2,8 +2,7 @@ import AdminShell from "@/components/admin/AdminShell";
 import BarSeries from "@/components/admin/BarSeries";
 import BoardLoad from "@/components/admin/BoardLoad";
 import StatTiles from "@/components/admin/StatTiles";
-import { AdminEmpty } from "@/components/admin/AdminTable";
-import Loading from "@/components/loading/LoadingPage";
+import { AdminEmpty, AdminSkeleton } from "@/components/admin/AdminTable";
 import { useAdminPeriod } from "@/hooks/useAdminPeriod";
 import { useAdminBoards, useAdminOverview } from "@/services/admin/useAdmin";
 import { rangeLabel } from "@/services/admin/format";
@@ -11,10 +10,8 @@ import { backfillNote } from "@/services/admin/backfill";
 
 export default function AdminDashboardPage() {
   const { period } = useAdminPeriod();
-  const { data, isLoading, error } = useAdminOverview(period);
+  const { data, isFetching, error } = useAdminOverview(period);
   const { data: boards } = useAdminBoards(period);
-
-  if (isLoading) return <Loading />;
 
   return (
     <AdminShell
@@ -24,9 +21,12 @@ export default function AdminDashboardPage() {
           ? `${rangeLabel(data.from, data.to)} · buckets in ${data.timezone}`
           : "Everything, everywhere"
       }
+      busy={isFetching}
     >
-      {error || !data ? (
+      {error ? (
         <AdminEmpty>That did not load. Try again.</AdminEmpty>
+      ) : !data ? (
+        <AdminSkeleton />
       ) : (
         <div className="flex flex-col gap-4">
           <StatTiles totals={data.totals} />

@@ -7,6 +7,20 @@ export const pool = new pg.Pool({
   max: 10,
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 5_000,
+  // The session timezone is pinned, and it is not cosmetic: Prisma's pg
+  // adapter reads a timestamptz from the session's own rendering and labels
+  // the result UTC, so against a server running at +05 every timestamp the
+  // API returned was five hours in the future. An activity finished at 19:45
+  // arrived in the browser as 00:45 the next day, and the board feed filed it
+  // under tomorrow.
+  //
+  // Verified on one row: raw pg gave 14:59:11Z, Prisma gave 19:59:11Z, and
+  // with this option both give 14:59:11Z. Setting TZ on the Node process does
+  // not help -- the offset comes from the database session, not from Node.
+  //
+  // Nothing else depends on the session zone: every admin aggregate names its
+  // own zone with AT TIME ZONE, and now() is an instant either way.
+  options: "-c timezone=UTC",
 });
 
 // an idle client erroring (server restart, network drop) emits on the pool, and
