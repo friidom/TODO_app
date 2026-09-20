@@ -3994,6 +3994,39 @@ All Tier A: indexes only, `concurrently` where the table warrants it.
 
 **Acceptance.** A **visualization matrix** recorded in this milestone: one row per metric, giving the question it answers, the chosen visual form, the data it reads, the endpoint field it comes from, and its behaviour at each of the six periods — plus the rejected candidates with their reasons, the heatmap decision (the metric chosen, or dropped) with its reason, and any Phase D/E amendment the design implies. **Phase G builds what this matrix lists and nothing else**; a chart that appears in G without a row here is a review finding.
 
+##### The visualization matrix — Phase E2 · 2026-09-20
+
+**Accepted. Six, and Phase G builds exactly these.**
+
+| ID | The question it answers | Visual form | Endpoint field | Across the six periods |
+|---|---|---|---|---|
+| **V1** | How big was this period? | **Stat tiles, no chart.** The points tile carries its `unestimated` count beside it (D-7) | `GET /admin/overview` → `totals` | identical at all six; the caption names the window |
+| **V2** | Is delivery going up or down? | **Bar series**, one bar per bucket, with a switch across the four factual series — completed tasks · completed points · comments · activity events. Bars and not a line: the buckets are discrete counts, and a line asserts values between them that do not exist | `GET /admin/overview` → `series[]` | granularity comes from `bucketOf` and nowhere else: `1d`→hour · `7d`/`30d`→day · `3m`/`quarter`→week · `year`→month |
+| **V3** | Is this person at, above or below their target for this period? | **Bullet bar** — actual as a filled bar against a target marker, **both numbers printed beside it**, `unestimated` beneath. With no seniority or no target row it shows "—" for performance *and still shows the actual* | `users[].performance`, `target_points`, `completed_points` | target from D-16: `1d` uses `daily_points`, everything else `weekly_points × elapsed ÷ 7` |
+| **V4** | Who is working on what, and how much? | **Table with an inline proportional bar in each factual column.** Sortable by any *single* factual column. **No total column, no composite score, no rank badge** — side by side, never a league table | `GET /admin/users` | identical at all six |
+| **V5** | Which boards carry the work? | **Horizontal bar chart**, top boards by completed tasks, with the full table beneath | `GET /admin/boards` | identical at all six |
+| **V6** | What does one person's delivery look like across a year, at a glance? | **Calendar heatmap**, 53 × 7, counting **completed tasks** | `GET /admin/users/:id` → `heatmap` | **fixed 53-week window, period-independent** — a deliberate exception to D-11, recorded here rather than discovered: the question is year-shaped, and a 7-day heatmap is seven squares |
+
+**The heatmap's metric — decided: completed tasks.** E2 was required to close this, and the four candidates do not tie. **Activity events** are the densest, so a cell is almost never empty; the grid would read as *effort* rather than delivery, which is the reading the metric vocabulary exists to prevent. **Completed points** inherit D-7's unestimated hole, so a week of unsized work reads as an idle week. **Comments** measure conversation. **Completed tasks** is the sparsest and the only one whose empty cell means exactly *nothing finished* — and it is the metric Phase C exists to make knowable at all. **One fixed metric, no selector:** a dimension switch here is how the activity reading returns through the side door.
+
+Colour is not the only encoding: every cell carries its exact count in `title` and `aria-label`, the ramp is five steps from the existing tokens, and the zero cell has a visible border rather than only a pale fill — so the grid survives both themes and a reader who cannot separate the ramp's steps.
+
+**Rejected, with reasons — recorded exactly as the acceptances are.**
+
+| Candidate | Why not |
+|---|---|
+| **Task status distribution** (donut over `columns.category`) | Three slices is a table with extra steps, and the question — how much is in flight — V1's tiles answer with exact numbers. A pie chart is the outcome D-13 exists to prevent |
+| **Four separate charts** for tasks / points / comments / activity | They are one chart with a metric switch (V2). Four components differing only in which field they read is "whatever the library makes easiest", which D-13 names as the thing not to do |
+| **Activity-by-board chart** | Folded into V5. A second board chart keyed on activity rather than completion would be two answers to one question, and they would disagree |
+| **Per-user sparkline in the users table** | Deferred, not refused: it needs a per-user series `/admin/users` does not return, and an N-series payload for a table nobody reads a trend out of is the wrong trade. Recorded so Phase G does not add it quietly |
+
+**Phase D/E amendments this design implied** — all three landed in Phase D rather than being discovered in G:
+1. `GET /admin/overview` returns `series[]` carrying **all four** factual metrics per bucket, so V2's switch does not refetch.
+2. `GET /admin/users/:id` returns `heatmap` with its own `from`/`to` and a `metric` field naming what it counts — the only place the API ignores the period, and it says so in the payload.
+3. `GET /admin/users` returns `performance` nullable with `target_points` and `completed_points` beside it, so V3 renders both inputs without a second call.
+
+**No charting dependency, because the repository already decided this.** `src/components/summary/TrendsChart.tsx:4` — *"hand-rolled SVG rather than a charting lib — one chart doesn't justify a ~90kB dependency"* — and `StatusOverview.tsx:7` says the same about recharts. Phase G reuses `SummaryCard`, `WidgetEmpty` and `DistributionRow` from `src/components/summary/SummaryCard.tsx`, and writes V2 and V6 in that idiom. One thing is deliberately **not** reused: the board Summary reduces `todos[]` in the browser, and D-10 forbids that here, so `src/services/admin/`'s pure functions shape already-aggregated figures for display and never reduce rows.
+
 ---
 
 #### Phase F — The Superadmin area · MEDIUM RISK
