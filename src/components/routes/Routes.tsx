@@ -2,6 +2,7 @@ import { Suspense, type ReactNode } from "react";
 import { createBrowserRouter } from "react-router";
 
 import ProtectedRoute from "./ProtectedRoute";
+import SuperadminRoute from "./SuperadminRoute";
 import ForYouPage from "@/pages/forYou/ForYouPage";
 import PublicRoute from "./PublicRoute";
 import LoginPage from "@/pages/auth/LoginPage";
@@ -9,6 +10,12 @@ import NotFoundPage from "@/pages/error/NotFoundPage";
 import RouteErrorPage from "@/pages/error/RouteErrorPage";
 import Loading from "@/components/loading/LoadingPage";
 import {
+  AdminActivityPage,
+  AdminBoardsPage,
+  AdminDashboardPage,
+  AdminKpiPage,
+  AdminUserPage,
+  AdminUsersPage,
   BoardPage,
   ForgotPasswordPage,
   InvitePage,
@@ -39,6 +46,20 @@ export const router = createBrowserRouter([
       {
         path: "/profile",
         element: deferred(<ProfilePage />),
+      },
+
+      // Nested inside ProtectedRoute so sign-in and verification still run
+      // first; every page is lazy, so a normal user never fetches the bundle.
+      {
+        element: <SuperadminRoute />,
+        children: [
+          { path: "/admin", element: deferred(<AdminDashboardPage />) },
+          { path: "/admin/users", element: deferred(<AdminUsersPage />) },
+          { path: "/admin/users/:id", element: deferred(<AdminUserPage />) },
+          { path: "/admin/boards", element: deferred(<AdminBoardsPage />) },
+          { path: "/admin/activity", element: deferred(<AdminActivityPage />) },
+          { path: "/admin/kpi", element: deferred(<AdminKpiPage />) },
+        ],
       },
     ],
   },

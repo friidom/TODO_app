@@ -6,11 +6,17 @@ export interface AuthProfile {
   avatar_url: string | null;
 }
 
+export type OrgRole = "member" | "team_lead" | "director" | "superadmin";
+
 export interface AuthUser {
   id: string;
   email: string;
   email_verified_at: string | null;
   created_at: string;
+  // The caller's own global role. Defence in depth for the admin nav and
+  // SuperadminRoute -- requireSuperadmin on the server is the real gate, and
+  // every /admin request 404s without it whatever this says.
+  org_role: OrgRole;
   profile: AuthProfile | null;
 }
 

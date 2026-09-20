@@ -4,6 +4,7 @@ import {
   CircleUserRoundIcon,
   type LucideIcon,
   SettingsIcon,
+  ShieldIcon,
   SquareKanbanIcon,
 } from "lucide-react";
 
@@ -34,6 +35,8 @@ const WORKSPACE: Item[] = [
   { label: "For You", icon: CircleUserRoundIcon, to: "/" },
   // { label: "Dashboard", icon: SquareKanbanIcon },
 ];
+
+const ADMIN: Item = { label: "Superadmin", icon: ShieldIcon, to: "/admin" };
 
 function NavItem({ item }: { item: Item }) {
   const Icon = item.icon;
@@ -107,6 +110,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             {WORKSPACE.map((item) => (
               <NavItem key={item.label} item={item} />
             ))}
+
+            {user?.org_role === "superadmin" && <NavItem item={ADMIN} />}
 
             <NotificationsButton />
           </SidebarMenu>

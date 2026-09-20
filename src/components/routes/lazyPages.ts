@@ -16,3 +16,15 @@ export const ForgotPasswordPage = lazy(
 export const ResetPasswordPage = lazy(
   () => import("@/pages/auth/ResetPasswordPage"),
 );
+
+export const AdminDashboardPage = lazy(() => import("@/pages/admin/AdminDashboardPage"));
+
+export const AdminUsersPage = lazy(() => import("@/pages/admin/AdminUsersPage"));
+
+export const AdminUserPage = lazy(() => import("@/pages/admin/AdminUserPage"));
+
+export const AdminBoardsPage = lazy(() => import("@/pages/admin/AdminBoardsPage"));
+
+export const AdminActivityPage = lazy(() => import("@/pages/admin/AdminActivityPage"));
+
+export const AdminKpiPage = lazy(() => import("@/pages/admin/AdminKpiPage"));

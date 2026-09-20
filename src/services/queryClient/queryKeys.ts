@@ -8,6 +8,8 @@ const FOR_YOU_ROOT = ["for-you"] as const;
 
 const NOTIFICATION_ROOT = ["notifications"] as const;
 
+const ADMIN_ROOT = ["admin"] as const;
+
 export const queryKeys = {
   // boardId stays required even though it may be undefined — a route param not yet resolved keys a disabled query.
   todos: (boardId: string | undefined) => ["todos", boardId] as const,
@@ -78,4 +80,29 @@ export const queryKeys = {
 
   usernameAvailability: (username: string) =>
     ["username-availability", username] as const,
+
+  // One root, so invalidating after a KPI edit reaches every admin panel at
+  // once rather than each hook remembering its siblings.
+  admin: () => ADMIN_ROOT,
+
+  adminOverview: (period: string) => [...ADMIN_ROOT, "overview", period] as const,
+
+  adminUsers: (period: string) => [...ADMIN_ROOT, "users", period] as const,
+
+  adminUser: (userId: string | undefined, period: string) =>
+    [...ADMIN_ROOT, "user", userId, period] as const,
+
+  adminBoards: (period: string) => [...ADMIN_ROOT, "boards", period] as const,
+
+  adminBoard: (boardId: string | undefined, period: string) =>
+    [...ADMIN_ROOT, "board", boardId, period] as const,
+
+  // Keyed by the built query string rather than the filter object: two
+  // equal filters must be one cache entry, and an object literal is a new
+  // identity on every render.
+  adminActivity: (query: string) => [...ADMIN_ROOT, "activity", query] as const,
+
+  adminKpi: () => [...ADMIN_ROOT, "kpi"] as const,
+
+  adminAudit: () => [...ADMIN_ROOT, "audit"] as const,
 };
