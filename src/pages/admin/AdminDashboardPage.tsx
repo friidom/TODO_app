@@ -1,14 +1,17 @@
 import AdminShell from "@/components/admin/AdminShell";
+import BarSeries from "@/components/admin/BarSeries";
+import BoardLoad from "@/components/admin/BoardLoad";
 import StatTiles from "@/components/admin/StatTiles";
 import { AdminEmpty } from "@/components/admin/AdminTable";
 import Loading from "@/components/loading/LoadingPage";
 import { useAdminPeriod } from "@/hooks/useAdminPeriod";
-import { useAdminOverview } from "@/services/admin/useAdmin";
+import { useAdminBoards, useAdminOverview } from "@/services/admin/useAdmin";
 import { rangeLabel } from "@/services/admin/format";
 
 export default function AdminDashboardPage() {
   const { period } = useAdminPeriod();
   const { data, isLoading, error } = useAdminOverview(period);
+  const { data: boards } = useAdminBoards(period);
 
   if (isLoading) return <Loading />;
 
@@ -26,6 +29,10 @@ export default function AdminDashboardPage() {
       ) : (
         <div className="flex flex-col gap-4">
           <StatTiles totals={data.totals} />
+
+          <BarSeries points={data.series} bucket={data.bucket} />
+
+          <BoardLoad boards={boards?.boards ?? []} />
         </div>
       )}
     </AdminShell>

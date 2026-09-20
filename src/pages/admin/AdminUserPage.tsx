@@ -1,13 +1,17 @@
 import { Link, useParams } from "react-router";
 
 import AdminShell from "@/components/admin/AdminShell";
-import { AdminEmpty } from "@/components/admin/AdminTable";
+import BarSeries from "@/components/admin/BarSeries";
+import BulletBar from "@/components/admin/BulletBar";
+import ContributionHeatmap from "@/components/admin/ContributionHeatmap";
 import SeniorityControl from "@/components/admin/SeniorityControl";
+import { AdminEmpty } from "@/components/admin/AdminTable";
 import Loading from "@/components/loading/LoadingPage";
 import SummaryCard from "@/components/summary/SummaryCard";
 import { useAdminPeriod } from "@/hooks/useAdminPeriod";
 import { useAdminUser } from "@/services/admin/useAdmin";
 import { dash, rangeLabel } from "@/services/admin/format";
+import { periodLabel } from "@/services/admin/periods";
 
 export default function AdminUserPage() {
   const { id } = useParams<{ id: string }>();
@@ -39,7 +43,7 @@ export default function AdminUserPage() {
       actions={<SeniorityControl user={user} />}
     >
       <div className="flex flex-col gap-4">
-        <div className="grid gap-4 lg:grid-cols-[1fr_20rem]">
+        <div className="grid gap-4 xl:grid-cols-[1fr_22rem]">
           <SummaryCard title="This period" hint="Counted from rows, not configured">
             <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 px-3.5 pt-1 pb-3.5 sm:grid-cols-3">
               <Fact label="Completed tasks" value={dash(user.completed_todos)} />
@@ -58,7 +62,17 @@ export default function AdminUserPage() {
               <Fact label="Level" value={user.seniority ?? "—"} />
             </dl>
           </SummaryCard>
+
+          <BulletBar user={user} periodLabel={periodLabel(period)} />
         </div>
+
+        <BarSeries points={data.series} bucket={data.bucket} title="This developer over time" />
+
+        <ContributionHeatmap
+          from={data.heatmap.from}
+          to={data.heatmap.to}
+          cells={data.heatmap.cells}
+        />
       </div>
     </AdminShell>
   );
