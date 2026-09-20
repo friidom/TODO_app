@@ -27,21 +27,27 @@ describe("bucketLabel", () => {
   // is the reader's, and a test that expected "Jan" failed on a machine whose
   // locale is Russian. What is being checked is the UTC reading, not English.
   it("reads a midnight bucket as UTC, so a label cannot land on the previous day", () => {
-    const expected = new Date(Date.UTC(2026, 8, 20)).toLocaleDateString(undefined, {
-      day: "numeric",
-      month: "short",
-      timeZone: "UTC",
-    });
+    const expected = new Date(Date.UTC(2026, 8, 20)).toLocaleDateString(
+      undefined,
+      {
+        day: "numeric",
+        month: "short",
+        timeZone: "UTC",
+      },
+    );
 
     expect(bucketLabel("2026-09-20T00:00:00", "day")).toBe(expected);
   });
 
   it("labels a month bucket by its month and year", () => {
-    const expected = new Date(Date.UTC(2026, 0, 1)).toLocaleDateString(undefined, {
-      month: "short",
-      year: "2-digit",
-      timeZone: "UTC",
-    });
+    const expected = new Date(Date.UTC(2026, 0, 1)).toLocaleDateString(
+      undefined,
+      {
+        month: "short",
+        year: "2-digit",
+        timeZone: "UTC",
+      },
+    );
 
     expect(bucketLabel("2026-01-01T00:00:00", "month")).toBe(expected);
   });

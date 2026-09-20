@@ -45,7 +45,7 @@ export function AdminRow({
         "grid-cols-(--admin-cols)",
         header
           ? "text-ink-3 text-micro border-b py-2 font-semibold tracking-wide uppercase"
-          : "hover:bg-wash border-b py-2.5 text-meta transition-colors last:border-b-0",
+          : "hover:bg-wash text-meta border-b py-2.5 transition-colors last:border-b-0",
         className,
       )}
     >

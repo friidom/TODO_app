@@ -1,7 +1,13 @@
 // The admin area declared as values, the shape services/views/registry.ts
 // already uses for board views. The nav renders this list and a test pins it,
 // so a section cannot be added to one and forgotten in the other.
-export const ADMIN_SECTIONS = ["dashboard", "users", "boards", "activity", "kpi"] as const;
+export const ADMIN_SECTIONS = [
+  "dashboard",
+  "users",
+  "boards",
+  "activity",
+  "kpi",
+] as const;
 
 export type AdminSection = (typeof ADMIN_SECTIONS)[number];
 
@@ -11,7 +17,10 @@ export interface AdminSectionDefinition {
   path: string;
 }
 
-export const ADMIN_SECTION_DEFINITIONS: Record<AdminSection, AdminSectionDefinition> = {
+export const ADMIN_SECTION_DEFINITIONS: Record<
+  AdminSection,
+  AdminSectionDefinition
+> = {
   dashboard: { section: "dashboard", label: "Dashboard", path: "/admin" },
   users: { section: "users", label: "Developers", path: "/admin/users" },
   boards: { section: "boards", label: "Boards", path: "/admin/boards" },
@@ -46,7 +55,10 @@ export interface SeriesMetricDefinition {
   countsUnestimated: boolean;
 }
 
-export const SERIES_METRIC_DEFINITIONS: Record<SeriesMetric, SeriesMetricDefinition> = {
+export const SERIES_METRIC_DEFINITIONS: Record<
+  SeriesMetric,
+  SeriesMetricDefinition
+> = {
   completed_todos: {
     metric: "completed_todos",
     label: "Completed tasks",

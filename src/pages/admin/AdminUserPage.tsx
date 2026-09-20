@@ -11,6 +11,7 @@ import SummaryCard from "@/components/summary/SummaryCard";
 import { useAdminPeriod } from "@/hooks/useAdminPeriod";
 import { useAdminUser } from "@/services/admin/useAdmin";
 import { dash, rangeLabel } from "@/services/admin/format";
+import { backfillNote } from "@/services/admin/backfill";
 import { periodLabel } from "@/services/admin/periods";
 
 export default function AdminUserPage() {
@@ -44,9 +45,15 @@ export default function AdminUserPage() {
     >
       <div className="flex flex-col gap-4">
         <div className="grid gap-4 xl:grid-cols-[1fr_22rem]">
-          <SummaryCard title="This period" hint="Counted from rows, not configured">
+          <SummaryCard
+            title="This period"
+            hint="Counted from rows, not configured"
+          >
             <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 px-3.5 pt-1 pb-3.5 sm:grid-cols-3">
-              <Fact label="Completed tasks" value={dash(user.completed_todos)} />
+              <Fact
+                label="Completed tasks"
+                value={dash(user.completed_todos)}
+              />
               <Fact
                 label="Completed points"
                 value={dash(user.completed_points)}
@@ -66,7 +73,12 @@ export default function AdminUserPage() {
           <BulletBar user={user} periodLabel={periodLabel(period)} />
         </div>
 
-        <BarSeries points={data.series} bucket={data.bucket} title="This developer over time" />
+        <BarSeries
+          points={data.series}
+          bucket={data.bucket}
+          title="This developer over time"
+          note={backfillNote(data.from)}
+        />
 
         <ContributionHeatmap
           from={data.heatmap.from}
@@ -78,13 +90,23 @@ export default function AdminUserPage() {
   );
 }
 
-function Fact({ label, value, aside }: { label: string; value: string; aside?: string }) {
+function Fact({
+  label,
+  value,
+  aside,
+}: {
+  label: string;
+  value: string;
+  aside?: string;
+}) {
   return (
     <div className="min-w-0">
       <dt className="text-ink-3 text-micro truncate font-semibold tracking-wide uppercase">
         {label}
       </dt>
-      <dd className="text-ink truncate text-lg font-semibold tabular-nums">{value}</dd>
+      <dd className="text-ink truncate text-lg font-semibold tabular-nums">
+        {value}
+      </dd>
       {aside && <p className="text-ink-3 text-mini truncate">{aside}</p>}
     </div>
   );

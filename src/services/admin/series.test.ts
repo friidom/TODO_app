@@ -82,7 +82,12 @@ describe("heatmapLevel", () => {
 
 describe("heatmapMax", () => {
   it("is the busiest day, or zero when there are none", () => {
-    expect(heatmapMax([{ date: "2026-09-01", count: 3 }, { date: "2026-09-02", count: 7 }])).toBe(7);
+    expect(
+      heatmapMax([
+        { date: "2026-09-01", count: 3 },
+        { date: "2026-09-02", count: 7 },
+      ]),
+    ).toBe(7);
     expect(heatmapMax([])).toBe(0);
   });
 });
@@ -97,7 +102,9 @@ describe("heatmapWeeks", () => {
   });
 
   it("fills a day that has no row with zero rather than leaving a hole", () => {
-    const weeks = heatmapWeeks("2026-09-06", "2026-09-12", [{ date: "2026-09-08", count: 4 }]);
+    const weeks = heatmapWeeks("2026-09-06", "2026-09-12", [
+      { date: "2026-09-08", count: 4 },
+    ]);
 
     expect(weeks[0]!.map((day) => day.count)).toEqual([0, 0, 4, 0, 0, 0, 0]);
   });
@@ -117,7 +124,11 @@ describe("heatmapWeeks", () => {
   });
 
   it("tolerates a timestamp rather than a bare date", () => {
-    const weeks = heatmapWeeks("2026-09-06T00:00:00.000Z", "2026-09-12T23:59:00.000Z", []);
+    const weeks = heatmapWeeks(
+      "2026-09-06T00:00:00.000Z",
+      "2026-09-12T23:59:00.000Z",
+      [],
+    );
 
     expect(weeks[0]).toHaveLength(7);
   });

@@ -3,7 +3,11 @@ import { useState } from "react";
 import SummaryCard, { WidgetEmpty } from "@/components/summary/SummaryCard";
 import { barHeight, seriesPeak } from "@/services/admin/series";
 import { bucketLabel, dash } from "@/services/admin/format";
-import { SERIES_METRIC_DEFINITIONS, seriesMetrics, type SeriesMetric } from "@/services/admin/registry";
+import {
+  SERIES_METRIC_DEFINITIONS,
+  seriesMetrics,
+  type SeriesMetric,
+} from "@/services/admin/registry";
 import type { Bucket, SeriesPoint } from "@/services/admin/types";
 import { cn } from "@/utils/cn";
 
@@ -13,11 +17,13 @@ export default function BarSeries({
   points,
   bucket,
   title = "Delivery over time",
+  note,
   className,
 }: {
   points: SeriesPoint[];
   bucket: Bucket;
   title?: string;
+  note?: string;
   className?: string;
 }) {
   const [metric, setMetric] = useState<SeriesMetric>("completed_todos");
@@ -25,7 +31,10 @@ export default function BarSeries({
   const definition = SERIES_METRIC_DEFINITIONS[metric];
   const peak = seriesPeak(points, metric);
   const total = points.reduce((sum, point) => sum + point[metric], 0);
-  const unestimated = points.reduce((sum, point) => sum + point.unestimated_completed, 0);
+  const unestimated = points.reduce(
+    (sum, point) => sum + point.unestimated_completed,
+    0,
+  );
 
   // Every nth label, so a year of months and a month of days both stay legible
   // without the axis turning into a smear.
@@ -49,7 +58,7 @@ export default function BarSeries({
               onClick={() => setMetric(option.metric)}
               aria-pressed={option.metric === metric}
               className={cn(
-                "text-ink-3 hover:text-ink rounded px-1.5 py-0.5 text-mini transition-colors",
+                "text-ink-3 hover:text-ink text-mini rounded px-1.5 py-0.5 transition-colors",
                 option.metric === metric && `bg-wash ${option.tone}`,
               )}
             >
@@ -75,7 +84,10 @@ export default function BarSeries({
             <ol
               className="flex h-28 items-end gap-px"
               aria-label={`${definition.label} per bucket: ${points
-                .map((point) => `${bucketLabel(point.bucket, bucket)} ${point[metric]}`)
+                .map(
+                  (point) =>
+                    `${bucketLabel(point.bucket, bucket)} ${point[metric]}`,
+                )
                 .join(", ")}`}
             >
               {points.map((point) => (
@@ -85,7 +97,10 @@ export default function BarSeries({
                   title={`${bucketLabel(point.bucket, bucket)} — ${point[metric]}`}
                 >
                   <span
-                    className={cn("w-full rounded-t-[2px] transition-[height]", definition.fill)}
+                    className={cn(
+                      "w-full rounded-t-xs transition-[height]",
+                      definition.fill,
+                    )}
                     style={{ height: barHeight(point[metric], peak) }}
                   />
                 </li>
@@ -102,6 +117,8 @@ export default function BarSeries({
                 </span>
               ))}
             </div>
+
+            {note && <p className="text-ink-3 text-mini mt-2">{note}</p>}
           </div>
         </div>
       )}

@@ -1,14 +1,35 @@
 import { describe, expect, it } from "vitest";
 
 import { activityQuery } from "./adminApi";
-import { ADMIN_PERIODS, DEFAULT_PERIOD, isAdminPeriod, PERIOD_LABELS } from "./periods";
-import { ADMIN_SECTIONS, adminSections, SERIES_METRICS, seriesMetrics } from "./registry";
-import { DEFAULT_USER_SORT, isUserSortKey, sortUsers, USER_SORT_KEYS } from "./sortUsers";
+import {
+  ADMIN_PERIODS,
+  DEFAULT_PERIOD,
+  isAdminPeriod,
+  PERIOD_LABELS,
+} from "./periods";
+import {
+  ADMIN_SECTIONS,
+  adminSections,
+  SERIES_METRICS,
+  seriesMetrics,
+} from "./registry";
+import {
+  DEFAULT_USER_SORT,
+  isUserSortKey,
+  sortUsers,
+  USER_SORT_KEYS,
+} from "./sortUsers";
 import type { AdminUser } from "./types";
 
 describe("the admin section registry", () => {
   it("lists exactly the five sections the nav renders", () => {
-    expect(ADMIN_SECTIONS).toEqual(["dashboard", "users", "boards", "activity", "kpi"]);
+    expect(ADMIN_SECTIONS).toEqual([
+      "dashboard",
+      "users",
+      "boards",
+      "activity",
+      "kpi",
+    ]);
   });
 
   it("gives every section a label and a path, and no two share a path", () => {
@@ -16,7 +37,9 @@ describe("the admin section registry", () => {
 
     expect(paths).toHaveLength(ADMIN_SECTIONS.length);
     expect(new Set(paths).size).toBe(paths.length);
-    expect(adminSections().every((section) => section.label.length > 0)).toBe(true);
+    expect(adminSections().every((section) => section.label.length > 0)).toBe(
+      true,
+    );
     expect(paths.every((path) => path.startsWith("/admin"))).toBe(true);
   });
 });
@@ -32,9 +55,13 @@ describe("the series metric registry", () => {
   });
 
   it("marks points as the one series carrying an unestimated count", () => {
-    const carrying = seriesMetrics().filter((metric) => metric.countsUnestimated);
+    const carrying = seriesMetrics().filter(
+      (metric) => metric.countsUnestimated,
+    );
 
-    expect(carrying.map((metric) => metric.metric)).toEqual(["completed_points"]);
+    expect(carrying.map((metric) => metric.metric)).toEqual([
+      "completed_points",
+    ]);
   });
 });
 
@@ -61,7 +88,9 @@ describe("the period list", () => {
 describe("activityQuery", () => {
   it("carries only the filters that are set", () => {
     expect(activityQuery({ period: "7d" })).toBe("?period=7d");
-    expect(activityQuery({ period: "7d", board: "b1" })).toBe("?period=7d&board=b1");
+    expect(activityQuery({ period: "7d", board: "b1" })).toBe(
+      "?period=7d&board=b1",
+    );
   });
 
   it("is stable for equal filters, so two renders are one cache entry", () => {
@@ -71,7 +100,10 @@ describe("activityQuery", () => {
   });
 
   it("appends both halves of a cursor or neither", () => {
-    const query = activityQuery({ period: "7d" }, { before: "2026-09-20", before_id: "a1" });
+    const query = activityQuery(
+      { period: "7d" },
+      { before: "2026-09-20", before_id: "a1" },
+    );
 
     expect(query).toContain("before=2026-09-20");
     expect(query).toContain("before_id=a1");
@@ -132,7 +164,11 @@ describe("sortUsers", () => {
   // someone who genuinely achieved 0%.
   it("puts users with no performance last, below a real zero", () => {
     const sorted = sortUsers(
-      [user("nil"), user("zero", { performance: 0 }), user("high", { performance: 80 })],
+      [
+        user("nil"),
+        user("zero", { performance: 0 }),
+        user("high", { performance: 80 }),
+      ],
       "performance",
     );
 

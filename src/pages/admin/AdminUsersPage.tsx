@@ -2,7 +2,12 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router";
 
 import AdminShell from "@/components/admin/AdminShell";
-import { AdminCell, AdminEmpty, AdminGrid, AdminRow } from "@/components/admin/AdminTable";
+import {
+  AdminCell,
+  AdminEmpty,
+  AdminGrid,
+  AdminRow,
+} from "@/components/admin/AdminTable";
 import Loading from "@/components/loading/LoadingPage";
 import { useAdminPeriod } from "@/hooks/useAdminPeriod";
 import { useAdminUsers } from "@/services/admin/useAdmin";
@@ -16,7 +21,8 @@ import {
 import { cn } from "@/utils/cn";
 import type { AdminUser } from "@/services/admin/types";
 
-const COLUMNS = "minmax(10rem,1.6fr) 5.5rem repeat(5, minmax(5.5rem,1fr)) minmax(10rem,1.3fr)";
+const COLUMNS =
+  "minmax(10rem,1.6fr) 5.5rem repeat(5, minmax(5.5rem,1fr)) minmax(10rem,1.3fr)";
 
 const NUMERIC = [
   "completed_todos",
@@ -37,7 +43,10 @@ export default function AdminUsersPage() {
     const result: Record<string, number> = {};
 
     for (const key of NUMERIC) {
-      result[key] = rows.reduce((highest, row) => Math.max(highest, row[key]), 0);
+      result[key] = rows.reduce(
+        (highest, row) => Math.max(highest, row[key]),
+        0,
+      );
     }
 
     return result;
@@ -60,7 +69,10 @@ export default function AdminUsersPage() {
         <AdminGrid columns={COLUMNS} label="Developers and their metrics">
           <AdminRow header>
             <AdminCell header>
-              <SortButton active={sort === "username"} onClick={() => setSort("username")}>
+              <SortButton
+                active={sort === "username"}
+                onClick={() => setSort("username")}
+              >
                 {USER_SORT_LABELS.username}
               </SortButton>
             </AdminCell>
@@ -76,7 +88,10 @@ export default function AdminUsersPage() {
             ))}
 
             <AdminCell header align="right">
-              <SortButton active={sort === "performance"} onClick={() => setSort("performance")}>
+              <SortButton
+                active={sort === "performance"}
+                onClick={() => setSort("performance")}
+              >
                 {USER_SORT_LABELS.performance}
               </SortButton>
             </AdminCell>
@@ -85,7 +100,9 @@ export default function AdminUsersPage() {
           {rows.length === 0 ? (
             <AdminEmpty>No developers yet.</AdminEmpty>
           ) : (
-            rows.map((row) => <UserRow key={row.id} row={row} maxima={maxima} period={period} />)
+            rows.map((row) => (
+              <UserRow key={row.id} row={row} maxima={maxima} period={period} />
+            ))
           )}
         </AdminGrid>
       )}
@@ -135,7 +152,9 @@ function UserRow({
       </AdminCell>
 
       <AdminCell>
-        <span className="text-ink-3 text-micro uppercase">{row.seniority ?? "—"}</span>
+        <span className="text-ink-3 text-micro uppercase">
+          {row.seniority ?? "—"}
+        </span>
       </AdminCell>
 
       {NUMERIC.map((key) => (
@@ -145,10 +164,18 @@ function UserRow({
       ))}
 
       <AdminCell align="right">
-        <span className={cn("font-medium", row.performance === null ? "text-ink-3" : "text-ink")}>
+        <span
+          className={cn(
+            "font-medium",
+            row.performance === null ? "text-ink-3" : "text-ink",
+          )}
+        >
           {percent(row.performance)}
         </span>
-        <span className="text-ink-3 text-micro ml-1.5" title="completed points / target points">
+        <span
+          className="text-ink-3 text-micro ml-1.5"
+          title="completed points / target points"
+        >
           {dash(row.completed_points)} / {dash(row.target_points)}
         </span>
       </AdminCell>

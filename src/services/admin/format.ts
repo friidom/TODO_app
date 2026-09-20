@@ -26,19 +26,33 @@ export function bucketLabel(bucket: string, granularity: Bucket): string {
 
   switch (granularity) {
     case "hour":
-      return at.toLocaleTimeString(undefined, { hour: "2-digit", timeZone: "UTC" });
+      return at.toLocaleTimeString(undefined, {
+        hour: "2-digit",
+        timeZone: "UTC",
+      });
     case "month":
-      return at.toLocaleDateString(undefined, { month: "short", year: "2-digit", timeZone: "UTC" });
+      return at.toLocaleDateString(undefined, {
+        month: "short",
+        year: "2-digit",
+        timeZone: "UTC",
+      });
     case "week":
     case "day":
-      return at.toLocaleDateString(undefined, { day: "numeric", month: "short", timeZone: "UTC" });
+      return at.toLocaleDateString(undefined, {
+        day: "numeric",
+        month: "short",
+        timeZone: "UTC",
+      });
   }
 }
 
 export function rangeLabel(from: string, to: string): string {
   const start = new Date(from);
   const end = new Date(to);
-  const options: Intl.DateTimeFormatOptions = { day: "numeric", month: "short" };
+  const options: Intl.DateTimeFormatOptions = {
+    day: "numeric",
+    month: "short",
+  };
 
   return `${start.toLocaleDateString(undefined, options)} – ${end.toLocaleDateString(undefined, options)}`;
 }

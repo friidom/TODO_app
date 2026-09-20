@@ -3695,7 +3695,7 @@ Standing debt found by reading the repository, the 63 migration files and the gi
 
 ---
 
-## Milestone 34 — Superadmin, KPI & Analytics · 🗺 Planned 2026-09-19 · **HIGH RISK**
+## Milestone 34 — Superadmin, KPI & Analytics · ✅ **Built 2026-09-20** · **HIGH RISK**
 
 **For.** A global operator view: system-wide metrics, per-developer KPI against a configurable target, all-boards activity, and a boards overview.
 
@@ -4079,6 +4079,32 @@ Colour is not the only encoding: every cell carries its exact count in `title` a
 **Tests.** Full suites both sides; `tsc -b`; `npm run lint`; the Docker path, since a new backend module and new migrations both have to survive `docker compose up --build`.
 **Dependencies.** All phases.
 **Acceptance.** An *As built* table in this milestone, in the format M32 uses, recording what shipped and what did not. Two questions must be answered in writing rather than left open: **(1)** does `sprintPoints.ts` get aligned to D-7's Epic rule, or does the divergence stand with its reason? **(2)** is the `completed_at` backfill's approximation visible to the operator, and where?
+
+---
+
+### As built — Milestone 34 · ✅ 2026-09-20
+
+| Phase | Evidence |
+|---|---|
+| **A · audit** | Findings recorded above. All five facts confirmed; four corrections applied to the decisions before Phase B started |
+| **B · the global role** | `0011_org_role` · `backend/src/middleware/requireSuperadmin.ts` · `isSuperadmin` in `lib/permissions.ts` · `/admin` mounted in `routes/index.ts` · `org_role` on `/auth/me`. `admin.routes.parity.test.ts` walks the router's stack; `accessibleBoardIds` untouched |
+| **C · completion + KPI** | `0012_todo_completion` (columns + partial index) · `0013_todo_completion_triggers` (both triggers + the backfill) · `0014_kpi_targets_and_audit`. 15 trigger tests in `todos/completion.int.test.ts`, including the whole-table invariant after an arbitrary sequence |
+| **D · admin read APIs** | `backend/src/modules/admin/` — `routes · controller · service · repo · schema · periods · kpi`. Ten routes. 37 tests in `admin.metrics.int.test.ts` |
+| **E · aggregation + indexes** | `0015_admin_indexes` · `scripts/seed-benchmark.ts` · `scripts/explain-admin.ts`. Measurements recorded above |
+| **E2 · visualization** | The matrix recorded above: six accepted, four rejected, heatmap metric decided |
+| **F · the area** | `src/pages/admin/` (6) · `src/services/admin/` (9) · `src/components/admin/` (7) · `SuperadminRoute` · admin keys under one `ADMIN_ROOT` · conditional sidebar entry |
+| **G · charts** | V1 `StatTiles` · V2 `BarSeries` · V3 `BulletBar` · V5 `BoardLoad` (reusing `DistributionRow`) · V6 `ContributionHeatmap`. `series.ts` + 16 tests. **No charting dependency added** |
+| **H · security** | `admin.matrix.int.test.ts` — every route × signed-out · outsider · board owner · board admin · superadmin, the route list read from the router itself. §10.7 rule 1 asserted across eight board verbs, with the board's title and owner checked unchanged afterwards |
+| **I · close** | This table. 213 backend unit · 456 backend integration · 1023 frontend · `tsc -b` · `npm run lint`, all green |
+
+**Answer to question 1 — the divergence stands, and it is now better argued than when it was written.** `services/todos/sprintPoints.ts` still includes Epics; the admin rollups still exclude them. Two reasons, one of them new:
+
+- The original one holds: a sprint panel shows the Epic and its children together *and shows both numbers*, so a reader can see the overlap and reconcile it. A KPI percentage cannot be inspected, so it must not double-count.
+- The new one: implementing D-7 exposed that its clause was **mis-stated**. `parent_id is null` excludes every task belonging to an Epic, and the first test to use one reported zero points for eight points of finished work. The corrected predicate is `topLevelTodos()`'s population minus Epics — which means the admin population is now defined *in terms of* the frontend rule rather than beside it. Aligning `sprintPoints.ts` would change what the sprint panel means, and that is an M30 decision.
+
+**Answer to question 2 — yes, in three places, and one of them is new.** The `0013` migration header states it at length. `src/services/admin/backfill.ts` holds `COMPLETION_BACKFILL_DATE` and `backfillNote()`, and the note is rendered beneath the delivery chart on the dashboard and the developer page whenever the selected window reaches back before that date, and beneath the contribution heatmap always — because its window is a fixed twelve months and therefore always does, until a year has passed. The date is a constant rather than an API field because it is a property of the migration and does not change.
+
+**What did not ship, and why.** `docker compose up --build` was **not run**: the Docker CLI is installed on the development machine but the Desktop daemon was not running, and starting it is not something this milestone should do on somebody's behalf. The risk it covers is low but real and is recorded rather than waved away — the three migrations applied cleanly to three separate databases through `prisma migrate deploy`, which is exactly what `docker-entrypoint.sh` runs, and both packages build. **Run it before trusting the container path.**
 
 ---
 

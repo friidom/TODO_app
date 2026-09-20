@@ -1,7 +1,11 @@
 import { useCallback } from "react";
 import { useSearchParams } from "react-router";
 
-import { DEFAULT_PERIOD, isAdminPeriod, type AdminPeriod } from "@/services/admin/periods";
+import {
+  DEFAULT_PERIOD,
+  isAdminPeriod,
+  type AdminPeriod,
+} from "@/services/admin/periods";
 
 export function useAdminPeriod(): {
   period: AdminPeriod;

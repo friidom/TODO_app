@@ -3,7 +3,10 @@ import type { SeriesMetric } from "./registry";
 
 // Never below 1, so a quiet period does not divide by zero. The same guard
 // trendPeak() already uses for the board summary.
-export function seriesPeak(points: SeriesPoint[], metric: SeriesMetric): number {
+export function seriesPeak(
+  points: SeriesPoint[],
+  metric: SeriesMetric,
+): number {
   return Math.max(1, ...points.map((point) => point[metric]));
 }
 
@@ -45,12 +48,21 @@ function isoDay(at: Date): string {
 // Columns of seven, starting on the window's first day, which the server
 // already aligned to a Sunday. Building the calendar here rather than on the
 // server keeps the payload to the days that actually have a count.
-export function heatmapWeeks(from: string, to: string, cells: HeatmapCell[]): HeatmapDay[][] {
+export function heatmapWeeks(
+  from: string,
+  to: string,
+  cells: HeatmapCell[],
+): HeatmapDay[][] {
   const counts = new Map(cells.map((cell) => [cell.date, cell.count]));
   const start = new Date(`${from.slice(0, 10)}T00:00:00.000Z`);
   const end = new Date(`${to.slice(0, 10)}T00:00:00.000Z`);
 
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return [];
+  if (
+    Number.isNaN(start.getTime()) ||
+    Number.isNaN(end.getTime()) ||
+    end < start
+  )
+    return [];
 
   const weeks: HeatmapDay[][] = [];
   let week: HeatmapDay[] = [];

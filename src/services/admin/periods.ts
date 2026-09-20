@@ -7,7 +7,14 @@
 // That mitigation exists for a matrix whose drift would be silent; a period
 // string that drifts from the server's Zod enum is a 400 on the first
 // request, which is loud enough.
-export const ADMIN_PERIODS = ["1d", "7d", "30d", "3m", "quarter", "year"] as const;
+export const ADMIN_PERIODS = [
+  "1d",
+  "7d",
+  "30d",
+  "3m",
+  "quarter",
+  "year",
+] as const;
 
 export type AdminPeriod = (typeof ADMIN_PERIODS)[number];
 
@@ -34,7 +41,10 @@ export const PERIOD_HINTS: Record<AdminPeriod, string> = {
 };
 
 export function isAdminPeriod(value: unknown): value is AdminPeriod {
-  return typeof value === "string" && (ADMIN_PERIODS as readonly string[]).includes(value);
+  return (
+    typeof value === "string" &&
+    (ADMIN_PERIODS as readonly string[]).includes(value)
+  );
 }
 
 export function periodLabel(period: AdminPeriod): string {

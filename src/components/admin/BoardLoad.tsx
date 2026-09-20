@@ -1,4 +1,7 @@
-import SummaryCard, { DistributionRow, WidgetEmpty } from "@/components/summary/SummaryCard";
+import SummaryCard, {
+  DistributionRow,
+  WidgetEmpty,
+} from "@/components/summary/SummaryCard";
 import type { AdminBoard } from "@/services/admin/types";
 
 const TOP = 10;
@@ -15,7 +18,10 @@ export default function BoardLoad({
     .slice(0, TOP);
 
   const total = boards.reduce((sum, board) => sum + board.completed_todos, 0);
-  const peak = ranked.reduce((highest, board) => Math.max(highest, board.completed_todos), 0);
+  const peak = ranked.reduce(
+    (highest, board) => Math.max(highest, board.completed_todos),
+    0,
+  );
 
   return (
     <SummaryCard

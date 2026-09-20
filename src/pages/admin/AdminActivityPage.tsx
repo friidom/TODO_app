@@ -1,15 +1,25 @@
 import { useSearchParams } from "react-router";
 
 import AdminShell from "@/components/admin/AdminShell";
-import { AdminCell, AdminEmpty, AdminGrid, AdminRow } from "@/components/admin/AdminTable";
+import {
+  AdminCell,
+  AdminEmpty,
+  AdminGrid,
+  AdminRow,
+} from "@/components/admin/AdminTable";
 import Loading from "@/components/loading/LoadingPage";
 import { HEADER_CONTROL } from "@/components/board/headerControl";
 import { useAdminPeriod } from "@/hooks/useAdminPeriod";
-import { useAdminActivity, useAdminBoards, useAdminUsers } from "@/services/admin/useAdmin";
+import {
+  useAdminActivity,
+  useAdminBoards,
+  useAdminUsers,
+} from "@/services/admin/useAdmin";
 import { rangeLabel } from "@/services/admin/format";
 import { relativeTime } from "@/utils/relativeTime";
 
-const COLUMNS = "minmax(8rem,1fr) minmax(7rem,0.8fr) minmax(12rem,2fr) minmax(9rem,1fr) 7rem";
+const COLUMNS =
+  "minmax(8rem,1fr) minmax(7rem,0.8fr) minmax(12rem,2fr) minmax(9rem,1fr) 7rem";
 
 export default function AdminActivityPage() {
   const { period } = useAdminPeriod();
@@ -19,7 +29,12 @@ export default function AdminActivityPage() {
   const board = params.get("board") ?? undefined;
   const action = params.get("action") ?? undefined;
 
-  const { data, isLoading, error } = useAdminActivity({ period, user, board, action });
+  const { data, isLoading, error } = useAdminActivity({
+    period,
+    user,
+    board,
+    action,
+  });
   const { data: users } = useAdminUsers(period);
   const { data: boards } = useAdminBoards(period);
 
@@ -39,7 +54,11 @@ export default function AdminActivityPage() {
   return (
     <AdminShell
       title="Activity"
-      hint={data ? `${rows.length} entries · ${rangeLabel(data.from, data.to)}` : "Across every board"}
+      hint={
+        data
+          ? `${rows.length} entries · ${rangeLabel(data.from, data.to)}`
+          : "Across every board"
+      }
       actions={
         <div className="flex flex-wrap gap-1.5">
           <select
@@ -97,7 +116,9 @@ export default function AdminActivityPage() {
             <AdminCell header>Action</AdminCell>
             <AdminCell header>Item</AdminCell>
             <AdminCell header>Board</AdminCell>
-            <AdminCell header align="right">When</AdminCell>
+            <AdminCell header align="right">
+              When
+            </AdminCell>
           </AdminRow>
 
           {rows.length === 0 ? (
@@ -106,11 +127,15 @@ export default function AdminActivityPage() {
             rows.map((row) => (
               <AdminRow key={row.id}>
                 <AdminCell>
-                  <span className="text-ink">{row.actor_username ?? "Unknown"}</span>
+                  <span className="text-ink">
+                    {row.actor_username ?? "Unknown"}
+                  </span>
                 </AdminCell>
 
                 <AdminCell>
-                  <span className="text-ink-2 text-micro uppercase">{row.action}</span>
+                  <span className="text-ink-2 text-micro uppercase">
+                    {row.action}
+                  </span>
                 </AdminCell>
 
                 <AdminCell>
@@ -119,7 +144,9 @@ export default function AdminActivityPage() {
                       KAN-{row.board_key}
                     </span>
                   )}
-                  <span className="text-ink-2">{row.title ?? row.entity_type}</span>
+                  <span className="text-ink-2">
+                    {row.title ?? row.entity_type}
+                  </span>
                 </AdminCell>
 
                 <AdminCell>
@@ -127,7 +154,10 @@ export default function AdminActivityPage() {
                 </AdminCell>
 
                 <AdminCell align="right">
-                  <span className="text-ink-3 text-micro" title={row.created_at}>
+                  <span
+                    className="text-ink-3 text-micro"
+                    title={row.created_at}
+                  >
                     {relativeTime(row.created_at)}
                   </span>
                 </AdminCell>

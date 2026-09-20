@@ -1,8 +1,13 @@
 import { useMemo } from "react";
 
 import SummaryCard, { WidgetEmpty } from "@/components/summary/SummaryCard";
-import { heatmapLevel, heatmapMax, heatmapWeeks } from "@/services/admin/series";
+import {
+  heatmapLevel,
+  heatmapMax,
+  heatmapWeeks,
+} from "@/services/admin/series";
 import type { HeatmapCell } from "@/services/admin/types";
+import { backfillNote } from "@/services/admin/backfill";
 import { cn } from "@/utils/cn";
 
 // Five steps of one brand token rather than five hues: the ramp has to read as
@@ -31,7 +36,10 @@ export default function ContributionHeatmap({
 }) {
   const weeks = useMemo(() => heatmapWeeks(from, to, cells), [from, to, cells]);
   const max = useMemo(() => heatmapMax(cells), [cells]);
-  const total = useMemo(() => cells.reduce((sum, cell) => sum + cell.count, 0), [cells]);
+  const total = useMemo(
+    () => cells.reduce((sum, cell) => sum + cell.count, 0),
+    [cells],
+  );
 
   return (
     <SummaryCard
@@ -43,24 +51,24 @@ export default function ContributionHeatmap({
         <WidgetEmpty>Nothing completed yet.</WidgetEmpty>
       ) : (
         <div className="flex gap-1.5 overflow-x-auto px-3.5 pb-3.5">
-          <div className="text-ink-3/70 text-micro flex shrink-0 flex-col gap-[3px] pt-px">
+          <div className="text-ink-3/70 text-micro flex shrink-0 flex-col gap-0.75 pt-px">
             {WEEKDAYS.map((day, index) => (
-              <span key={index} className="h-[11px] leading-[11px]">
+              <span key={index} className="h-2.75 leading-2.75">
                 {day}
               </span>
             ))}
           </div>
 
-          <div className="flex gap-[3px]">
+          <div className="flex gap-0.75">
             {weeks.map((week) => (
-              <div key={week[0]!.date} className="flex flex-col gap-[3px]">
+              <div key={week[0]!.date} className="flex flex-col gap-0.75">
                 {week.map((day) => (
                   <span
                     key={day.date}
                     title={`${day.date} — ${day.count} completed`}
                     aria-label={`${day.date}: ${day.count} completed`}
                     className={cn(
-                      "size-[11px] shrink-0 rounded-[2px]",
+                      "size-2.75 shrink-0 rounded-xs",
                       LEVELS[heatmapLevel(day.count, max)],
                     )}
                   />
@@ -69,6 +77,12 @@ export default function ContributionHeatmap({
             ))}
           </div>
         </div>
+      )}
+
+      {backfillNote(from) && (
+        <p className="text-ink-3 text-mini px-3.5 pb-3.5">
+          {backfillNote(from)}
+        </p>
       )}
     </SummaryCard>
   );

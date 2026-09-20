@@ -34,10 +34,10 @@ export default function AdminKpiPage() {
       )}
 
       <p className="text-ink-3 mt-5 max-w-prose text-xs">
-        A developer with no level has no target, shows “—” rather than 0%, and is left out of
-        KPI aggregates rather than counted as zero. Levels are assigned on a developer’s own
-        page. Factual metrics — completed tasks, points, comments, activity — never depend on
-        anything configured here.
+        A developer with no level has no target, shows “—” rather than 0%, and
+        is left out of KPI aggregates rather than counted as zero. Levels are
+        assigned on a developer’s own page. Factual metrics — completed tasks,
+        points, comments, activity — never depend on anything configured here.
       </p>
     </AdminShell>
   );
@@ -49,7 +49,8 @@ function TargetCard({ target }: { target: KpiTarget }) {
   const [weekly, setWeekly] = useState(String(target.weekly_points));
 
   const dirty =
-    Number(daily) !== target.daily_points || Number(weekly) !== target.weekly_points;
+    Number(daily) !== target.daily_points ||
+    Number(weekly) !== target.weekly_points;
 
   const valid = isNonNegative(daily) && isNonNegative(weekly);
 
@@ -80,11 +81,19 @@ function TargetCard({ target }: { target: KpiTarget }) {
         <Field label="Points per week" value={weekly} onChange={setWeekly} />
 
         <div className="flex items-center gap-2">
-          <Button type="submit" size="sm" disabled={!dirty || !valid || save.isPending}>
+          <Button
+            type="submit"
+            size="sm"
+            disabled={!dirty || !valid || save.isPending}
+          >
             {save.isPending ? "Saving…" : "Save"}
           </Button>
 
-          {!valid && <span className="text-status-red text-mini">Must be zero or more.</span>}
+          {!valid && (
+            <span className="text-status-red text-mini">
+              Must be zero or more.
+            </span>
+          )}
         </div>
       </form>
     </SummaryCard>

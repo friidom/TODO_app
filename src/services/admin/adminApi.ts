@@ -22,7 +22,10 @@ export function fetchAdminUsers(period: AdminPeriod): Promise<AdminUsers> {
   return api.get<AdminUsers>(`/admin/users${toQuery({ period })}`);
 }
 
-export function fetchAdminUser(id: string, period: AdminPeriod): Promise<AdminUserDetail> {
+export function fetchAdminUser(
+  id: string,
+  period: AdminPeriod,
+): Promise<AdminUserDetail> {
   return api.get<AdminUserDetail>(`/admin/users/${id}${toQuery({ period })}`);
 }
 
@@ -30,7 +33,10 @@ export function fetchAdminBoards(period: AdminPeriod): Promise<AdminBoards> {
   return api.get<AdminBoards>(`/admin/boards${toQuery({ period })}`);
 }
 
-export function fetchAdminBoard(id: string, period: AdminPeriod): Promise<AdminBoardDetail> {
+export function fetchAdminBoard(
+  id: string,
+  period: AdminPeriod,
+): Promise<AdminBoardDetail> {
   return api.get<AdminBoardDetail>(`/admin/boards/${id}${toQuery({ period })}`);
 }
 
@@ -52,7 +58,9 @@ export function fetchAdminActivity(
   filters: AdminActivityFilters,
   cursor?: ActivityCursor,
 ): Promise<AdminActivity> {
-  return api.get<AdminActivity>(`/admin/activity${activityQuery(filters, cursor)}`);
+  return api.get<AdminActivity>(
+    `/admin/activity${activityQuery(filters, cursor)}`,
+  );
 }
 
 export function fetchKpi(): Promise<AdminKpi> {
@@ -63,13 +71,19 @@ export function saveKpiTarget(
   seniority: Seniority,
   target: { daily_points: number; weekly_points: number },
 ) {
-  return api.put<{ target: AdminKpi["targets"][number] }>(`/admin/kpi/${seniority}`, target);
+  return api.put<{ target: AdminKpi["targets"][number] }>(
+    `/admin/kpi/${seniority}`,
+    target,
+  );
 }
 
 export function saveSeniority(id: string, seniority: Seniority | null) {
-  return api.patch<{ id: string; seniority: Seniority | null }>(`/admin/users/${id}`, {
-    seniority,
-  });
+  return api.patch<{ id: string; seniority: Seniority | null }>(
+    `/admin/users/${id}`,
+    {
+      seniority,
+    },
+  );
 }
 
 export function fetchAudit(): Promise<AdminAudit> {

@@ -7,6 +7,7 @@ import Loading from "@/components/loading/LoadingPage";
 import { useAdminPeriod } from "@/hooks/useAdminPeriod";
 import { useAdminBoards, useAdminOverview } from "@/services/admin/useAdmin";
 import { rangeLabel } from "@/services/admin/format";
+import { backfillNote } from "@/services/admin/backfill";
 
 export default function AdminDashboardPage() {
   const { period } = useAdminPeriod();
@@ -30,7 +31,11 @@ export default function AdminDashboardPage() {
         <div className="flex flex-col gap-4">
           <StatTiles totals={data.totals} />
 
-          <BarSeries points={data.series} bucket={data.bucket} />
+          <BarSeries
+            points={data.series}
+            bucket={data.bucket}
+            note={backfillNote(data.from)}
+          />
 
           <BoardLoad boards={boards?.boards ?? []} />
         </div>

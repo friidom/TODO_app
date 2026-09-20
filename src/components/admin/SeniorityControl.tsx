@@ -1,6 +1,10 @@
 import { HEADER_CONTROL } from "@/components/board/headerControl";
 import { useSaveSeniority } from "@/services/admin/useAdmin";
-import { SENIORITIES, type AdminUser, type Seniority } from "@/services/admin/types";
+import {
+  SENIORITIES,
+  type AdminUser,
+  type Seniority,
+} from "@/services/admin/types";
 
 export default function SeniorityControl({ user }: { user: AdminUser }) {
   const save = useSaveSeniority();
@@ -19,7 +23,10 @@ export default function SeniorityControl({ user }: { user: AdminUser }) {
             id: user.id,
             // The empty option returns the user to unclassified, which is a
             // real state and not a failure to choose (M34 D-8).
-            seniority: event.target.value === "" ? null : (event.target.value as Seniority),
+            seniority:
+              event.target.value === ""
+                ? null
+                : (event.target.value as Seniority),
           })
         }
       >

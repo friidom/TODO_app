@@ -46,7 +46,10 @@ export function useAdminBoards(period: AdminPeriod) {
   });
 }
 
-export function useAdminBoard(boardId: string | undefined, period: AdminPeriod) {
+export function useAdminBoard(
+  boardId: string | undefined,
+  period: AdminPeriod,
+) {
   return useQuery({
     queryKey: queryKeys.adminBoard(boardId, period),
     queryFn: () => fetchAdminBoard(boardId!, period),
@@ -86,7 +89,8 @@ export function useSaveKpiTarget() {
         daily_points: input.daily_points,
         weekly_points: input.weekly_points,
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.admin() }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin() }),
   });
 }
 
@@ -96,6 +100,7 @@ export function useSaveSeniority() {
   return useMutation({
     mutationFn: (input: { id: string; seniority: Seniority | null }) =>
       saveSeniority(input.id, input.seniority),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.admin() }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin() }),
   });
 }
