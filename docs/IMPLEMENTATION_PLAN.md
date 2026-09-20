@@ -3689,7 +3689,7 @@ Standing debt found by reading the repository, the 63 migration files and the gi
 
 **Added 2026-09-19** · visualization phase added 2026-09-19. One milestone, ten phases. It is numbered **M34** because M33 is the *Later* bucket rather than a feature, and because the numbering rule at the top of Part III holds: ids are historical, and the order to build in is stated per wave.
 
-**This is not Appendix E's administration console.** That row says *"Jira-style administration console (schemes, permission schemes, screens) — never in this shape"*, and it still stands. M34 builds **reporting and one settings table**; it does not build permission schemes, screens, field configurations or anything else whose purpose is to configure the product's configurability. The distinction is testable: M34 adds exactly one editable entity (`kpi_targets`) and otherwise only reads.
+**This is not Appendix E's administration console.** That row says *"Jira-style administration console (schemes, permission schemes, screens) — never in this shape"*, and it still stands. M34 builds **reporting and one settings table**; it does not build permission schemes, screens, field configurations or anything else whose purpose is to configure the product's configurability. The distinction is testable: M34 adds exactly one editable entity (`kpi_targets`) plus one editable *field* (`users.seniority`), and otherwise only reads. **The field is an amendment, made 2026-09-20 and argued in D-14** — `kpi_targets` is keyed on seniority, and with no way to set a user's seniority the KPI layer could never produce a single performance figure. Neither write grants access to anything, which is what keeps this on the reporting side of the line.
 
 **It is also not employee monitoring.** No online/offline status, no presence, no "last seen", no session surveillance. B9's presence is a board-level collaboration affordance and stays there — it answers *who is looking at this board right now* for the people on that board, not *who is at their desk* for a manager. M34 reads historical work: tasks, points, comments, activity. This is written down here so it is not re-opened as an obvious-seeming addition.
 
@@ -3736,8 +3736,8 @@ This is the central schema finding and the reason Phase C exists.
 → `todos.completed_at timestamptz null`, maintained by a trigger, and a **partial index** on it.
 
 **D-5 · The trigger is on both tables, because completion has two doors.**
-An `AFTER UPDATE` trigger on `todos` handles the ordinary case: on entering a `done`-category column, stamp `completed_at = now()` when it is null; on leaving one, clear it; done → done leaves it alone, so a reshuffle inside the done column does not re-date the work and inflate today's figure.
-The second door is real and easy to miss: **`columns.category` is PATCH-able** (`columns.schema.ts` accepts it on update). Flipping a column from `in_progress` to `done` completes every card in it at once, and a trigger on `todos` never fires. A matching trigger on `columns` must stamp or clear `completed_at` across that column's todos when the category crosses the done boundary.
+A **`BEFORE UPDATE`** trigger on `todos` handles the ordinary case: on entering a `done`-category column, stamp `completed_at = now()` when it is null; on leaving one, clear it; done → done leaves it alone, so a reshuffle inside the done column does not re-date the work and inflate today's figure. *(Corrected from `AFTER UPDATE` by Phase A: `todos_set_updated_at` already fires `BEFORE UPDATE`, so an `AFTER` trigger would need a second `UPDATE todos` — re-entering all five todos triggers and stamping `updated_at` twice for one logical change. `BEFORE` assigns `new.completed_at` in place.)*
+The second door is real and easy to miss: **`columns.category` is PATCH-able** (`columns.schema.ts` accepts it on update). Flipping a column from `in_progress` to `done` completes every card in it at once, and a trigger on `todos` never fires. A matching **`AFTER UPDATE`** trigger on `columns` must stamp or clear `completed_at` across that column's todos when the category crosses the done boundary — `AFTER`, and not `BEFORE` like its sibling, because this one necessarily writes rows other than its own. Its price, recorded by Phase A rather than discovered later: it bumps `updated_at` on every card in the column, so a category flip reads as an edit to all of them.
 Column *deletion* rehomes todos server-side first, so it arrives as ordinary `todos` updates and needs nothing extra.
 
 **D-6 · Credit is stamped, not looked up live.**
@@ -3769,6 +3769,29 @@ Targets are rows, not constants (D-8), and that stays. What is added here is the
 **D-13 · A chart is chosen for the question it answers, and the choice is made before it is built.**
 The stakeholder correction that produced Phase E2: statistics here are **not** "tables plus whatever chart the library makes easiest". Each metric gets a visualization argued for on its own, and the argument is recorded in this document before any chart code exists. Two standing rules come out of it: **no visualization is mandatory** — including the heatmap, which is a candidate and not a commitment — and **no comparison may rank people by a blended number**, which is *The metric vocabulary*'s rule restated as a drawing rule.
 
+**Added 2026-09-20, at implementation time.** D-14 … D-17 answer questions D-1 … D-13 left open. They are recorded here, in the same place and on the same terms, rather than being decided inside a pull request.
+
+**D-14 · Seniority is settable, through one endpoint that sets nothing else.**
+`kpi_targets` is keyed on `users.seniority` (D-8), and D-8 makes null a first-class state — but the endpoint table has no way to leave that state. With none, every user is null forever, no target is ever found and no performance figure is ever produced: the KPI half of the milestone would ship dead.
+→ `PATCH /admin/users/:id`, superadmin-only, accepting **`seniority` and nothing else**, writing an `admin_audit_log` row like every other admin write.
+It does not weaken §10.7 rule 1. Seniority grants no access to anything — it selects which row of `kpi_targets` a person is compared against. What it does do is make M34 hold two editable things rather than one, so the header above says so explicitly instead of quietly becoming untrue.
+
+**D-15 · The six periods, with their boundaries. Every one ends at `now`, in `APP_TIMEZONE`.**
+
+| Period | Window | Why this one |
+|---|---|---|
+| `1d` | **today** — the calendar day so far | it is the period compared against `daily_points`, and a rolling 24-hour window against a daily target is not a like-for-like comparison. D-11's own argument decides this: a KPI that disagrees with the developer's own calendar will not be believed |
+| `7d` · `30d` · `3m` | rolling windows of that length, ending now | what a person means by "the last 30 days" |
+| `quarter` · `year` | the calendar quarter / calendar year **to date** | D-11 states the quarter rule outright; `year` is the other calendar noun in the list and follows it |
+
+So **`3m` and `quarter` are never the same window** — which is the distinction D-11 exists to protect, and which the tests pin against a fixed mid-quarter `now`.
+
+**D-16 · One rule turns a target into a target *for a period*.**
+`kpi_targets` holds a daily and a weekly figure and nothing else, and *Explicitly not in M34* keeps it that way. `1d` uses `daily_points`; **every other period uses `weekly_points × window_days ÷ 7`**, where `window_days` is how much of the window has elapsed. For `quarter` and `year` that means the target grows through the period, which is the point: comparing a quarter's work against a whole quarter's target on its second day would read as failure.
+
+**D-17 · `GET /auth/me` returns `org_role`.**
+Phase F requires that nothing in the navigation renders for a non-superadmin, and a client cannot honour that without being told what **it** is. This is not the disclosure D-1 guards against: D-1 is about `roster()` telling every board member who the superadmins are, and this tells one person about themselves. One field, on a response that already exists.
+
 ### The metric vocabulary — three kinds, kept separate
 
 Conflating these is how a dashboard becomes an argument. Named here so every endpoint, type and component uses one word for one thing.
@@ -3798,6 +3821,31 @@ Each phase is shippable and verifiable on its own. Backend precedes frontend thr
 **Tests.** None.
 **Dependencies.** None.
 **Acceptance.** A short findings note (in this milestone, not a new document) confirming or correcting D-1 … D-10. **Any correction edits the decisions above before Phase B starts.**
+
+##### Findings — Phase A · 2026-09-20
+
+Read against `backend/prisma/schema.prisma`, all ten migrations, and the modules named. Every fact M34 was built on holds; four details change the work and are applied to the decisions above before Phase B starts.
+
+| Claim | Verdict |
+|---|---|
+| `users` has no role column | ✅ seven columns — `id · email · password_hash · email_verified_at · deactivated_at · created_at · updated_at`. A role has never lived there; it is per-board on `board_members` |
+| `roster()` selects six fields, "the security boundary" | ✅ `modules/members/members.repo.ts` — `id · username · full_name · avatar_url · role · joined_at`. `profiles.email` and `profiles.bio` both exist and are deliberately withheld, which is exactly D-1's argument |
+| `activities.board_id` is `NOT NULL` | ✅ with `on delete cascade`, and **both** indexes lead with `board_id` (`activities_board_created_idx`, `activities_board_entity_idx`) |
+| `log_todo_activity` writes column *titles* | ✅ a database trigger, current body in `0009_log_todo_activity_update_board_guard`. The `moved` branch selects `c.title` for both `from` and `to`. **D-4 stands: completion cannot be recovered from `activities`** |
+| `columns.category` is PATCH-able | ✅ `columns.schema.ts` accepts it on update, `editor` and above. **D-5's second door is real** |
+| no `todos.completed`, no completion timestamp | ✅ neither exists |
+| the indexes Phase E names are genuinely missing | ✅ no index on `activities.actor_id`, none on `todos.assignee_id`, none on `comments.author_id` — `comments` has only `(todo_id, created_at)`. All five of Phase E's indexes are real gaps, none speculative |
+
+**Baseline for Phase E.** Development database: 1 user, 1 board, 4 columns, 3 todos, 1 comment, 10 activities, 10 migrations applied. Too small to `EXPLAIN` against, which is why Phase E seeds a separate benchmark database rather than reading anything into these numbers.
+
+**Four corrections, applied above.**
+
+1. **D-5's `todos` trigger is `BEFORE UPDATE`, not `AFTER UPDATE`.** `todos_set_updated_at` already fires `BEFORE UPDATE` unconditionally on every column. An `AFTER` trigger would have to issue a *second* `UPDATE todos` to write the stamp, which re-enters all five todos triggers and bumps `updated_at` twice for one logical change. A `BEFORE` trigger assigns `new.completed_at` in place: one write, no re-entry. **The `columns` trigger stays `AFTER UPDATE`** — it necessarily writes rows other than its own.
+2. **The `columns` trigger bumps `updated_at` on every card in the column,** through `todos_set_updated_at`. Recorded rather than discovered: flipping a column's category really does change every card's doneness, so the stamp is not wrong — but it means a category flip shows up as an edit to every card in the board's "recently updated" reading.
+3. **No new activity action, and none is needed.** `activities_event_valid` is a CHECK constraint over exactly 21 `(entity_type, action)` pairs, so a `completed` action would need a migration to widen it. M34 does not add one: completion is `completed_at`/`completed_by`, not an activity row. `log_todo_activity` only emits for the fields it explicitly compares — it is already silent on `rank`, `backlog_rank` and `position` — so the new columns produce no spurious entries.
+4. **`todos.updated_at` is nullable,** so the Phase C backfill reads `coalesce(updated_at, created_at)`.
+
+**One thing Phase A found that no decision covered.** There is no SQL aggregation anywhere in `backend/src` today — no `group by`, no `date_trunc`, one `aggregate` call in all of `sprints.repo.ts`. M34 is the first module to do it, and the hazard is in the transport rather than the SQL: through raw `pg`, `count(*)` (int8) and `sum(estimate)` (numeric) arrive as **strings**. `CONVENTIONS.md` already makes the service responsible for converting `bigint` and `Decimal` via `lib/numeric.ts#toNumber`; the admin module inherits that rule, and Phase D asserts response *types*, not only values.
 
 ---
 
@@ -3846,6 +3894,7 @@ Each phase is shippable and verifiable on its own. Backend precedes frontend thr
 | `GET /admin/overview` | system totals + a daily/weekly/monthly series |
 | `GET /admin/users` | every user with their factual metrics and performance |
 | `GET /admin/users/:id` | one user: today / week / month, tasks, points, comments, boards, KPI progress |
+| `PATCH /admin/users/:id` | set that user's `seniority`, and nothing else (D-14) |
 | `GET /admin/activity` | system-wide activity, filters `user`, `board`, `action`, `from`, `to`, paginated |
 | `GET /admin/boards` | every board with aggregates |
 | `GET /admin/boards/:id` | one board's statistics |
