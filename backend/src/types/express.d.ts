@@ -1,4 +1,5 @@
 import type { BoardRole } from "../lib/permissions.js";
+import type { Actor } from "./actor.js";
 
 // Both are optional because the type cannot express "set by an earlier
 // middleware". requireActor() and requireBoard() do that check at runtime, and
@@ -6,7 +7,7 @@ import type { BoardRole } from "../lib/permissions.js";
 // middleware is a wiring bug, not something a client did.
 declare module "express-serve-static-core" {
   interface Request {
-    actor?: { id: string };
+    actor?: Actor;
     board?: { id: string; role: BoardRole };
   }
 }

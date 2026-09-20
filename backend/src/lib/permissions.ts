@@ -5,6 +5,8 @@
 // Kept as a table rather than a series of ifs so that a rule is read, not
 // reconstructed. Rank alone cannot express the author-specific rules below —
 // those are called from the service layer, never from requireRole.
+import type { Actor } from "../types/actor.js";
+
 export const BOARD_ROLES = ["viewer", "editor", "admin", "owner"] as const;
 
 export type BoardRole = (typeof BOARD_ROLES)[number];
@@ -135,4 +137,19 @@ export function assignableRoles(
   if (actor === null || actor < RANK.admin) return [];
 
   return BOARD_ROLES.filter((role) => role !== "owner" && RANK[role] < actor);
+}
+
+// Beside the board matrix, never inside it. §10.7 rule 1 is that an elevated
+// role widens *read* and never *write*, and the way that rule stays true is
+// that no rank comparison above can ever see an org role: there is no rank at
+// which a superadmin outranks a board's owner, because they are answering
+// different questions. A superadmin who is not a member of a board still gets
+// 404 from boardAccess and 403 from requireRole, exactly as before.
+//
+// Deliberately not mirrored into src/services/members/permissions.ts, and so
+// deliberately absent from permissions-matrix.json: the frontend does not hold
+// a copy of the org role's rules, it reads one field about itself off
+// /auth/me. A mirror would be a second place for this to be wrong.
+export function isSuperadmin(actor: Actor | undefined): boolean {
+  return actor?.orgRole === "superadmin";
 }

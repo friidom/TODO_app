@@ -10,6 +10,7 @@ import { mailer } from "../../lib/mail.js";
 import { hashPassword, verifyDummyPassword, verifyPassword } from "../../lib/password.js";
 import { mintOpaqueToken, refreshTokenExpiry, sha256, signAccessToken } from "../../lib/tokens.js";
 import { isValidUsername, normalizeUsername } from "../../lib/username.js";
+import { isOrgRole, type OrgRole } from "../../types/actor.js";
 import * as usersRepo from "../users/users.repo.js";
 import { provisionUser } from "../users/users.service.js";
 import * as authRepo from "./auth.repo.js";
@@ -25,6 +26,10 @@ export interface PublicUser {
   email: string;
   email_verified_at: Date | null;
   created_at: Date;
+  // The caller's own global role, so the client knows whether to render the
+  // admin area (M34 D-17). This tells one person about themselves; D-1's
+  // hazard is roster() telling every board member who the superadmins are.
+  org_role: OrgRole;
   profile: {
     id: string;
     username: string;
@@ -78,6 +83,7 @@ function toPublicUser(row: UserRow): PublicUser {
     email: row.email,
     email_verified_at: row.email_verified_at,
     created_at: row.created_at,
+    org_role: isOrgRole(row.org_role) ? row.org_role : "member",
     profile: row.profiles,
   };
 }

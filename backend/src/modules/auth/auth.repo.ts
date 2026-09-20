@@ -61,6 +61,7 @@ export function findUserById(userId: string) {
       email_verified_at: true,
       created_at: true,
       deactivated_at: true,
+      org_role: true,
       profiles: {
         select: { id: true, username: true, full_name: true, bio: true, avatar_url: true },
       },

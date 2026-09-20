@@ -301,6 +301,7 @@ model users {
   password_hash         String
   email_verified_at     DateTime?               @db.Timestamptz(6)
   deactivated_at        DateTime?               @db.Timestamptz(6)
+  org_role              String                  @default("member")
   created_at            DateTime                @default(now()) @db.Timestamptz(6)
   updated_at            DateTime                @default(now()) @db.Timestamptz(6)
   password_reset_tokens password_reset_tokens[]

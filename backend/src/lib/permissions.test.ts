@@ -7,6 +7,7 @@ import {
   canDeleteAttachment,
   canDeleteComment,
   canEditComment,
+  isSuperadmin,
   permissionsFor,
   roleRank,
 } from "./permissions.js";
@@ -227,5 +228,24 @@ describe("attachment permissions — M32", () => {
     expect(canDeleteAttachment("editor", undefined, null)).toBe(false);
     expect(canDeleteAttachment("editor", "u-1", null)).toBe(false);
     expect(canDeleteAttachment("admin", null, null)).toBe(true);
+  });
+});
+
+describe("isSuperadmin", () => {
+  it("is true only for the superadmin org role", () => {
+    expect(isSuperadmin({ id: "u", orgRole: "superadmin" })).toBe(true);
+  });
+
+  it("is false for every other org role, and for one that is absent", () => {
+    expect(isSuperadmin({ id: "u", orgRole: "member" })).toBe(false);
+    expect(isSuperadmin({ id: "u", orgRole: "team_lead" })).toBe(false);
+    expect(isSuperadmin({ id: "u", orgRole: "director" })).toBe(false);
+    expect(isSuperadmin({ id: "u" })).toBe(false);
+  });
+
+  // An unauthenticated request has no actor at all, and the gate must not
+  // throw its way into a 500 on the commonest input it will ever see.
+  it("is false for no actor", () => {
+    expect(isSuperadmin(undefined)).toBe(false);
   });
 });

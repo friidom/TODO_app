@@ -1,5 +1,6 @@
 import { Router } from "express";
 
+import { adminRoutes } from "../modules/admin/admin.routes.js";
 import { authRoutes } from "../modules/auth/auth.routes.js";
 import { boardActivitiesRoutes } from "../modules/activities/activities.routes.js";
 import { boardCollectionRoutes, boardItemRoutes } from "../modules/boards/boards.routes.js";
@@ -32,6 +33,7 @@ apiRouter.get("/", (_req, res) => {
 // resolve, and the route answers 500 (CONVENTIONS.md).
 const boardScoped = Router({ mergeParams: true });
 
+apiRouter.use("/admin", adminRoutes);
 apiRouter.use("/auth", authRoutes);
 apiRouter.use("/users", usersRoutes);
 apiRouter.use("/spaces", spacesRoutes);
