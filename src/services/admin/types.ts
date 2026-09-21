@@ -268,6 +268,10 @@ export type FlowSliceBy = "estimate" | "priority" | "type";
 
 export const FLOW_SLICES: FlowSliceBy[] = ["estimate", "priority", "type"];
 
+// Named rather than repeated: every caller that wants the unsliced flow has to
+// send the same value or it keys a second cache entry for one answer.
+export const DEFAULT_FLOW_SLICE: FlowSliceBy = "estimate";
+
 export const FLOW_SLICE_LABELS: Record<FlowSliceBy, string> = {
   estimate: "By estimate",
   priority: "By priority",

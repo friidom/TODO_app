@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router";
 
 import ChartFrame from "@/components/admin/chart/ChartFrame";
 import ChartLegend from "@/components/admin/chart/ChartLegend";
@@ -6,7 +7,7 @@ import ChartTooltip from "@/components/admin/chart/ChartTooltip";
 import Crosshair from "@/components/admin/chart/Crosshair";
 import { useChartHover } from "@/components/admin/chart/useChartHover";
 import SummaryCard, { WidgetEmpty } from "@/components/summary/SummaryCard";
-import { smoothLinePath, xOf, yOf } from "@/services/admin/flow";
+import { bucketRange, smoothLinePath, xOf, yOf } from "@/services/admin/flow";
 import { bucketLabel, dash } from "@/services/admin/format";
 import type { Bucket, SeriesPoint } from "@/services/admin/types";
 
@@ -25,14 +26,34 @@ type SeriesKey = (typeof SERIES)[number]["key"];
 export default function DualSeries({
   points,
   bucket,
+  windowTo,
+  scopeQuery = "",
   className,
 }: {
   points: SeriesPoint[];
   bucket: Bucket;
+  windowTo: string;
+  scopeQuery?: string;
   className?: string;
 }) {
+  const navigate = useNavigate();
   const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
-  const hover = useChartHover(points.length);
+
+  const drill = (index: number) => {
+    const range = bucketRange(
+      points.map((point) => point.bucket),
+      index,
+      windowTo,
+    );
+
+    if (range === null) return;
+
+    void navigate(
+      `/admin/activity?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}${scopeQuery}`,
+    );
+  };
+
+  const hover = useChartHover(points.length, drill);
 
   const visible = SERIES.filter((series) => !hidden.has(series.key));
 
@@ -196,7 +217,8 @@ export default function DualSeries({
                 ? "none"
                 : bucketLabel(points[hover.index]!.bucket, bucket)
             }
-            className="focus-visible:ring-brand/40 absolute inset-0 rounded outline-none focus-visible:ring-2"
+            onClick={() => hover.index !== null && drill(hover.index)}
+            className="focus-visible:ring-brand/40 absolute inset-0 cursor-pointer rounded outline-none focus-visible:ring-2"
           />
 
           {hover.index !== null && (
@@ -220,6 +242,12 @@ export default function DualSeries({
             />
           )}
         </ChartFrame>
+      )}
+
+      {points.length > 0 && (
+        <p className="text-ink-3 text-mini px-3.5 pb-3">
+          Click a point to open the activity for that range.
+        </p>
       )}
     </SummaryCard>
   );

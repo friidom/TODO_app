@@ -84,9 +84,13 @@ export async function users(input: UserQuery) {
   };
 }
 
-export async function user(userId: string, period: AdminPeriod) {
+export async function user(userId: string, input: UserQuery) {
+  const { period } = input;
   const range = rangeOf(period);
-  const row = await adminRepo.userMetricsOne(userId, range.from, range.to);
+  // The same facet the leaderboard takes, so the drill-down and /admin/flow
+  // report on one population rather than agreeing only by coincidence (D-23).
+  const scope = { boardId: input.board, spaceId: input.space };
+  const row = await adminRepo.userMetricsOne(userId, range.from, range.to, scope);
 
   if (row === null) throw new AppError("not_found", "Not found.");
 
@@ -94,12 +98,13 @@ export async function user(userId: string, period: AdminPeriod) {
 
   const [series, heatmap, durations, boardShare, recent] = await Promise.all([
     adminRepo.systemSeries(range.bucket, env.APP_TIMEZONE, range.from, range.to, {
+      ...scope,
       userId,
     }),
-    adminRepo.userHeatmap(userId, heat.from, heat.to, env.APP_TIMEZONE),
-    adminRepo.flowDurations(range.from, range.to, { completedBy: userId }),
-    adminRepo.userBoardShare(userId, range.from, range.to),
-    adminRepo.userRecentCompletions(userId, range.from, range.to),
+    adminRepo.userHeatmap(userId, heat.from, heat.to, env.APP_TIMEZONE, scope),
+    adminRepo.flowDurations(range.from, range.to, { ...scope, completedBy: userId }),
+    adminRepo.userBoardShare(userId, range.from, range.to, scope),
+    adminRepo.userRecentCompletions(userId, range.from, range.to, undefined, scope),
   ]);
 
   return {
@@ -111,7 +116,9 @@ export async function user(userId: string, period: AdminPeriod) {
     user: withPerformance(row, period, range),
     series,
     // The only window in the API that ignores the selected period, and it
-    // says so rather than leaving a reader to infer it (E2, V6).
+    // says so rather than leaving a reader to infer it (E2, V6). It does
+    // honour the scope: a scope names a population, not a window, and an
+    // unscoped grid beside scoped figures would contradict them.
     heatmap: { from: heat.from, to: heat.to, metric: "completed_todos", cells: heatmap },
     cycle_time: {
       median_days: durations.cycle_p50,

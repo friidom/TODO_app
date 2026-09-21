@@ -13,6 +13,7 @@ import AdminTaskPanel from "@/components/admin/AdminTaskPanel";
 import { useAdminActivityRealtime } from "@/hooks/useAdminActivityRealtime";
 import { useAdminPeriod } from "@/hooks/useAdminPeriod";
 import { useOpenTask } from "@/hooks/useOpenTask";
+import { actionOptions } from "@/services/admin/activityFilters";
 import { taskTarget } from "@/services/admin/drilldown";
 import { taskKey } from "@/utils/taskKey";
 import {
@@ -86,7 +87,7 @@ export default function AdminActivityPage() {
   const rows = pages.flatMap((page) => page.activities);
   const firstPage = pages[0];
 
-  const actions = [...new Set(rows.map((row) => row.action))].sort();
+  const actions = actionOptions(rows, action);
 
   return (
     <AdminShell

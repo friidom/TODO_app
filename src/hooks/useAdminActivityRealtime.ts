@@ -35,7 +35,22 @@ export function useAdminActivityRealtime(
 
     const socket = connectBoardSocket();
 
-    const join = () => socket.emit("admin:join", () => undefined);
+    let hasJoined = false;
+
+    const join = () =>
+      socket.emit("admin:join", (result) => {
+        if (!result?.ok) return;
+
+        // Re-joined after a drop: the beats that arrived in between were never
+        // delivered, so refetch rather than trying to reconstruct them.
+        if (hasJoined) {
+          void queryClient.invalidateQueries({
+            queryKey: queryKeys.adminActivityAll(),
+          });
+        }
+
+        hasJoined = true;
+      });
 
     socket.on("connect", join);
     socket.on("admin:activity", (event) => {

@@ -31,9 +31,9 @@ export function fetchAdminUsers(filters: UserFilters): Promise<AdminUsers> {
 
 export function fetchAdminUser(
   id: string,
-  period: AdminPeriod,
+  filters: UserFilters,
 ): Promise<AdminUserDetail> {
-  return api.get<AdminUserDetail>(`/admin/users/${id}${toQuery({ period })}`);
+  return api.get<AdminUserDetail>(`/admin/users/${id}${usersQuery(filters)}`);
 }
 
 export function flowQuery(filters: FlowFilters): string {

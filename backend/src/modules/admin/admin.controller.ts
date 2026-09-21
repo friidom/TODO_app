@@ -43,9 +43,8 @@ export const listUsers: RequestHandler = async (req, res) => {
 
 export const getUser: RequestHandler = async (req, res) => {
   const { id } = req.params as unknown as UserParams;
-  const { period } = req.query as unknown as PeriodQuery;
 
-  res.json(await adminService.user(id, period));
+  res.json(await adminService.user(id, req.query as unknown as UserQuery));
 };
 
 export const updateUser: RequestHandler = async (req, res) => {

@@ -68,10 +68,16 @@ export function useAdminUsers(period: AdminPeriod, scope: AdminScope = {}) {
   });
 }
 
-export function useAdminUser(userId: string | undefined, period: AdminPeriod) {
+export function useAdminUser(
+  userId: string | undefined,
+  period: AdminPeriod,
+  scope: AdminScope = {},
+) {
+  const filters: UserFilters = { period, ...scope };
+
   return useQuery({
-    queryKey: queryKeys.adminUser(userId, period),
-    queryFn: () => fetchAdminUser(userId!, period),
+    queryKey: queryKeys.adminUser(userId, usersQuery(filters)),
+    queryFn: () => fetchAdminUser(userId!, filters),
     enabled: Boolean(userId),
     placeholderData: keepPreviousData,
   });

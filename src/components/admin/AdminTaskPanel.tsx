@@ -173,12 +173,33 @@ export default function AdminTaskPanel({
                 </span>
               )}
             </Field>
+            <Field label="Lead time">
+              {todo.lead_days === null ? (
+                <Dash />
+              ) : (
+                <span className="tabular-nums">
+                  {formatDuration(todo.lead_days)}
+                </span>
+              )}
+            </Field>
           </dl>
 
           <section className="border-hairline mt-4 border-t pt-4">
-            <h3 className="text-ink-3 text-micro mb-2 font-semibold tracking-wide uppercase">
-              Activity
-            </h3>
+            <div className="mb-2 flex items-baseline justify-between gap-3">
+              <h3 className="text-ink-3 text-micro font-semibold tracking-wide uppercase">
+                Activity
+              </h3>
+
+              {/* The board's feed, not this task's: /admin/activity takes no
+                  entity facet, and the last 20 rows for the task itself are
+                  already the list below. */}
+              <Link
+                to={`/admin/activity?board=${todo.board_id}`}
+                className="text-ink-3 hover:text-brand text-mini shrink-0 transition-colors"
+              >
+                All board activity →
+              </Link>
+            </div>
 
             {data.activity.length === 0 ? (
               <p className="text-ink-3 text-mini">

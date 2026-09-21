@@ -48,7 +48,7 @@ adminRoutes.get("/users", ...gate, validate({ query: userQuerySchema }), control
 adminRoutes.get(
   "/users/:id",
   ...gate,
-  validate({ params: userParamsSchema, query: periodQuerySchema }),
+  validate({ params: userParamsSchema, query: userQuerySchema }),
   controller.getUser,
 );
 

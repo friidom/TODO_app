@@ -190,6 +190,7 @@ export default function AdminLeaderboardsPage() {
             rows={boards.data.boards}
             sort={isBoardSortKey(view.sort) ? view.sort : DEFAULT_BOARD_SORT}
             onSort={view.setSort}
+            period={period}
           />
         )}
 
@@ -346,10 +347,12 @@ function BoardTable({
   rows,
   sort,
   onSort,
+  period,
 }: {
   rows: AdminBoard[];
   sort: BoardSortKey;
   onSort: (next: string) => void;
+  period: string;
 }) {
   const navigate = useNavigate();
   const ordered = useMemo(() => sortBoards(rows, sort), [rows, sort]);
@@ -384,7 +387,9 @@ function BoardTable({
         ordered.map((row, index) => (
           <AdminRow
             key={row.id}
-            onOpen={() => void navigate(`/admin/boards/${row.id}`)}
+            onOpen={() =>
+              void navigate(`/admin/boards/${row.id}?period=${period}`)
+            }
           >
             <Ordinal index={index} />
 

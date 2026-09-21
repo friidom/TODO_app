@@ -1,8 +1,14 @@
-import { dash } from "@/services/admin/format";
-import type { SystemTotals } from "@/services/admin/types";
+import { dash, formatDuration } from "@/services/admin/format";
+import type { DurationStats, SystemTotals } from "@/services/admin/types";
 import { cn } from "@/utils/cn";
 
-export default function StatTiles({ totals }: { totals: SystemTotals }) {
+export default function StatTiles({
+  totals,
+  cycle,
+}: {
+  totals: SystemTotals;
+  cycle?: DurationStats;
+}) {
   return (
     <div className="flex flex-col gap-3">
       {/* Five that answer "what happened in this period", then three that
@@ -33,6 +39,16 @@ export default function StatTiles({ totals }: { totals: SystemTotals }) {
         <Standing label="Open tasks" value={totals.open_todos} />
         <Standing label="Developers" value={totals.users} />
         <Standing label="Boards" value={totals.boards} />
+
+        {cycle && (
+          <>
+            <Standing
+              label="Median cycle"
+              text={formatDuration(cycle.median_days)}
+            />
+            <Standing label="p75 cycle" text={formatDuration(cycle.p75_days)} />
+          </>
+        )}
       </dl>
     </div>
   );
@@ -71,12 +87,20 @@ function Tile({
   );
 }
 
-function Standing({ label, value }: { label: string; value: number }) {
+function Standing({
+  label,
+  value,
+  text,
+}: {
+  label: string;
+  value?: number;
+  text?: string;
+}) {
   return (
     <div className="flex items-baseline gap-2">
       <dt className="text-ink-3 text-mini">{label}</dt>
       <dd className="text-ink-2 text-meta font-semibold tabular-nums">
-        {dash(value)}
+        {text ?? dash(value)}
       </dd>
     </div>
   );

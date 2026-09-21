@@ -366,9 +366,10 @@ export async function userMetricsOne(
   userId: string,
   from: Date,
   to: Date,
+  scope: UserScope = {},
 ): Promise<UserMetrics | null> {
   const params: unknown[] = [from, to];
-  const sql = userMetricsSql({}, params);
+  const sql = userMetricsSql(scope, params);
 
   params.push(userId);
 
@@ -391,17 +392,21 @@ export async function userHeatmap(
   from: Date,
   to: Date,
   zone: string,
+  scope: UserScope = {},
 ): Promise<HeatmapCell[]> {
+  const params: unknown[] = [userId, from, to, zone];
+  const where = scopeOf(scope, params);
+
   const { rows } = await query<HeatmapCell>(
     `select to_char(date_trunc('day', t.completed_at at time zone $4), 'YYYY-MM-DD') as date,
             count(*)::int as count
        from todos t
       where t.completed_by = $1
         and t.completed_at >= $2 and t.completed_at < $3
-        and ${COUNTABLE}
+        and ${COUNTABLE}${where}
       group by 1
       order by 1`,
-    [userId, from, to, zone],
+    params,
   );
 
   return rows;
@@ -980,7 +985,11 @@ export async function userBoardShare(
   userId: string,
   from: Date,
   to: Date,
+  scope: UserScope = {},
 ): Promise<BoardShareRow[]> {
+  const params: unknown[] = [userId, from, to];
+  const where = scopeOf(scope, params);
+
   const { rows } = await query<BoardShareRow>(
     `select b.id as board_id,
             b.title,
@@ -990,11 +999,11 @@ export async function userBoardShare(
        join boards b on b.id = t.board_id
       where t.completed_by = $1
         and t.completed_at >= $2 and t.completed_at < $3
-        and ${COUNTABLE}
+        and ${COUNTABLE}${where}
       group by 1, 2
       order by 3 desc, 2 asc nulls last
       limit 12`,
-    [userId, from, to],
+    params,
   );
 
   return rows;
@@ -1021,7 +1030,11 @@ export async function userRecentCompletions(
   from: Date,
   to: Date,
   limit: number = RECENT_COMPLETIONS,
+  scope: UserScope = {},
 ): Promise<RecentCompletionRow[]> {
+  const params: unknown[] = [userId, from, to, limit];
+  const where = scopeOf(scope, params);
+
   const { rows } = await query<RecentCompletionRow>(
     `select t.id,
             t.board_id,
@@ -1038,10 +1051,10 @@ export async function userRecentCompletions(
        join boards b on b.id = t.board_id
       where t.completed_by = $1
         and t.completed_at >= $2 and t.completed_at < $3
-        and ${COUNTABLE}
+        and ${COUNTABLE}${where}
       order by t.completed_at desc, t.id desc
       limit $4`,
-    [userId, from, to, limit],
+    params,
   );
 
   return rows;

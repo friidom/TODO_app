@@ -89,8 +89,8 @@ export const queryKeys = {
 
   adminUsers: (query: string) => [...ADMIN_ROOT, "users", query] as const,
 
-  adminUser: (userId: string | undefined, period: string) =>
-    [...ADMIN_ROOT, "user", userId, period] as const,
+  adminUser: (userId: string | undefined, query: string) =>
+    [...ADMIN_ROOT, "user", userId, query] as const,
 
   adminBoards: (query: string) => [...ADMIN_ROOT, "boards", query] as const,
   adminSpaces: (period: string) => [...ADMIN_ROOT, "spaces", period] as const,

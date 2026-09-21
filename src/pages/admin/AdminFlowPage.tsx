@@ -23,6 +23,7 @@ import {
 import { useAdminPeriod } from "@/hooks/useAdminPeriod";
 import { useAdminScope } from "@/hooks/useAdminScope";
 import { startedNote } from "@/services/admin/backfill";
+import { scopeQuery } from "@/services/admin/drilldown";
 import { formatDuration, rangeLabel } from "@/services/admin/format";
 import { periodLabel } from "@/services/admin/periods";
 import {
@@ -31,6 +32,7 @@ import {
   useAdminSpaces,
 } from "@/services/admin/useAdmin";
 import {
+  DEFAULT_FLOW_SLICE,
   FLOW_SLICE_LABELS,
   FLOW_SLICES,
   type FlowSliceBy,
@@ -71,7 +73,7 @@ export default function AdminFlowPage() {
   );
 
   const note = data === undefined ? undefined : startedNote(data.from);
-  const scopeQuery = scope.board ? `&board=${scope.board}` : "";
+  const drillQuery = scopeQuery(scope);
 
   return (
     <AdminShell
@@ -101,11 +103,16 @@ export default function AdminFlowPage() {
             points={data.cfd}
             bucket={data.bucket}
             windowTo={data.to}
-            scopeQuery={scopeQuery}
+            scopeQuery={drillQuery}
             note={note}
           />
 
-          <DualSeries points={data.series} bucket={data.bucket} />
+          <DualSeries
+            points={data.series}
+            bucket={data.bucket}
+            windowTo={data.to}
+            scopeQuery={drillQuery}
+          />
 
           <div className="grid gap-3 lg:grid-cols-3">
             <FlowStats
@@ -153,7 +160,7 @@ function useSlice(): { value: FlowSliceBy; set: (next: FlowSliceBy) => void } {
 
   const value = (FLOW_SLICES as string[]).includes(raw ?? "")
     ? (raw as FlowSliceBy)
-    : "estimate";
+    : DEFAULT_FLOW_SLICE;
 
   const set = useCallback(
     (next: FlowSliceBy) => {
@@ -161,7 +168,7 @@ function useSlice(): { value: FlowSliceBy; set: (next: FlowSliceBy) => void } {
         (previous) => {
           const updated = new URLSearchParams(previous);
 
-          if (next === "estimate") updated.delete("slice");
+          if (next === DEFAULT_FLOW_SLICE) updated.delete("slice");
           else updated.set("slice", next);
 
           return updated;

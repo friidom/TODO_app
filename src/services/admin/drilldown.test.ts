@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { boardTrail, spaceTarget, spaceTrail, taskTarget } from "./drilldown";
+import {
+  boardTrail,
+  scopeQuery,
+  spaceTarget,
+  spaceTrail,
+  taskTarget,
+  userTrail,
+} from "./drilldown";
 
 describe("taskTarget", () => {
   it("opens the panel for a todo row", () => {
@@ -80,5 +87,34 @@ describe("spaceTarget", () => {
 
   it("refuses to open the Unfiled bucket, which is a grouping and not a space", () => {
     expect(spaceTarget({ id: null }, "30d")).toBeNull();
+  });
+});
+
+describe("userTrail", () => {
+  it("walks Developers to the person", () => {
+    expect(userTrail("neo")).toEqual([
+      { label: "Developers", to: "/admin/users" },
+      { label: "neo" },
+    ]);
+  });
+});
+
+describe("scopeQuery", () => {
+  it("is empty when nothing is scoped, so the link stays clean", () => {
+    expect(scopeQuery({})).toBe("");
+  });
+
+  it("carries the board", () => {
+    expect(scopeQuery({ board: "b1" })).toBe("&board=b1");
+  });
+
+  it("carries the space when no board narrows it further", () => {
+    expect(scopeQuery({ space: "s1" })).toBe("&space=s1");
+  });
+
+  // The narrower of the two, matching matchesAdminScope: a chart drawn from a
+  // board-scoped payload must not send the reader to a space-wide feed.
+  it("lets the board win when both are set", () => {
+    expect(scopeQuery({ space: "s1", board: "b1" })).toBe("&board=b1");
   });
 });

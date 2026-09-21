@@ -1,3 +1,5 @@
+import { Link } from "react-router";
+
 import SummaryCard, {
   DistributionRow,
   WidgetEmpty,
@@ -8,9 +10,11 @@ const TOP = 10;
 
 export default function BoardLoad({
   boards,
+  period,
   className,
 }: {
   boards: AdminBoard[];
+  period: string;
   className?: string;
 }) {
   const ranked = [...boards]
@@ -36,7 +40,14 @@ export default function BoardLoad({
           {ranked.map((board) => (
             <DistributionRow
               key={board.id}
-              label={board.title ?? "Untitled board"}
+              label={
+                <Link
+                  to={`/admin/boards/${board.id}?period=${period}`}
+                  className="hover:text-brand min-w-0 truncate transition-colors"
+                >
+                  {board.title ?? "Untitled board"}
+                </Link>
+              }
               count={board.completed_todos}
               percent={peak === 0 ? 0 : (board.completed_todos / peak) * 100}
               share={total === 0 ? 0 : (board.completed_todos / total) * 100}

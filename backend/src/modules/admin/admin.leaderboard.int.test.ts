@@ -314,7 +314,12 @@ describe("the developer drill-down", () => {
       await backdate(id, { created: 20, started: 10, completed: 10 - days });
     }
 
-    const drill = (await detail()).body.cycle_time;
+    // Work on a second board, so what is asserted below is the two scopes
+    // agreeing rather than the fixture having nothing to disagree about.
+    const elsewhere = await card(boardB, "done", { assignee_id: admin.id });
+
+    await backdate(elsewhere, { created: 28, started: 27, completed: 1 });
+
     const flow = (
       await client.get<{ cycle_time: DurationStats }>(
         `/api/v1/admin/flow?period=30d&board=${boardA}`,
@@ -322,7 +327,60 @@ describe("the developer drill-down", () => {
       )
     ).body.cycle_time;
 
-    expect(drill).toEqual(flow);
+    expect((await detail(admin.id, `?period=30d&board=${boardA}`)).body.cycle_time).toEqual(flow);
+    expect((await detail()).body.cycle_time).not.toEqual(flow);
+  });
+
+  describe("the scope facets on the drill-down", () => {
+    let spaceA: string;
+
+    beforeEach(async () => {
+      const board = await prisma.boards.findUniqueOrThrow({
+        where: { id: boardA },
+        select: { space_id: true },
+      });
+
+      spaceA = board.space_id!;
+
+      const here = await card(boardA, "done", { assignee_id: admin.id, estimate: 3 });
+      const there = await card(boardB, "done", { assignee_id: admin.id, estimate: 5 });
+
+      await backdate(here, { created: 10, started: 8, completed: 6 });
+      await backdate(there, { created: 12, started: 9, completed: 5 });
+    });
+
+    it("narrows every figure on the payload to the board", async () => {
+      const { body } = await detail(admin.id, `?period=30d&board=${boardA}`);
+
+      expect(body.user.completed_todos).toBe(1);
+      expect(body.user.completed_points).toBeCloseTo(3, 5);
+      expect(body.cycle_time.n).toBe(1);
+      expect(body.board_share).toHaveLength(1);
+      expect(body.board_share[0]!.board_id).toBe(boardA);
+      expect(body.recent).toHaveLength(1);
+      expect(body.recent[0]!.board_id).toBe(boardA);
+    });
+
+    it("narrows to the space the board is filed into", async () => {
+      const { body } = await detail(admin.id, `?period=30d&space=${spaceA}`);
+
+      expect(body.user.completed_todos).toBe(1);
+      expect(body.board_share).toHaveLength(1);
+      expect(body.board_share[0]!.board_id).toBe(boardA);
+    });
+
+    it("leaves boards-contributed-to alone, because that is a fact about the person", async () => {
+      const wide = (await detail()).body.user;
+      const narrow = (await detail(admin.id, `?period=30d&board=${boardA}`)).body.user;
+
+      expect(wide.boards).toBe(2);
+      expect(narrow.boards).toBe(2);
+      expect(narrow.completed_todos).toBeLessThan(wide.completed_todos);
+    });
+
+    it("rejects a facet that is not a uuid rather than ignoring it", async () => {
+      expect((await detail(admin.id, "?period=30d&board=not-a-uuid")).status).toBe(400);
+    });
   });
 
   it("orders recent completions newest first and caps them", async () => {

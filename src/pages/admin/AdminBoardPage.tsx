@@ -25,7 +25,7 @@ import SummaryCard, {
 import { useAdminActivityRealtime } from "@/hooks/useAdminActivityRealtime";
 import { useAdminPeriod } from "@/hooks/useAdminPeriod";
 import { useOpenTask } from "@/hooks/useOpenTask";
-import { boardTrail, taskTarget } from "@/services/admin/drilldown";
+import { boardTrail, scopeQuery, taskTarget } from "@/services/admin/drilldown";
 import { startedNote } from "@/services/admin/backfill";
 import { barShare, peakOf, proportionOf } from "@/services/admin/flow";
 import {
@@ -140,12 +140,14 @@ export default function AdminBoardPage() {
                 <DualSeries
                   points={flow.data.series}
                   bucket={flow.data.bucket}
+                  windowTo={flow.data.to}
+                  scopeQuery={scopeQuery({ board: id })}
                 />
                 <CumulativeFlow
                   points={flow.data.cfd}
                   bucket={flow.data.bucket}
                   windowTo={flow.data.to}
-                  scopeQuery={`&board=${id}`}
+                  scopeQuery={scopeQuery({ board: id })}
                   note={note}
                 />
               </div>
