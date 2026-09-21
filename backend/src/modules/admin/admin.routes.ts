@@ -8,11 +8,16 @@ import {
   activityQuerySchema,
   auditQuerySchema,
   boardParamsSchema,
+  boardsQuerySchema,
+  flowQuerySchema,
   kpiParamsSchema,
   kpiTargetSchema,
   periodQuerySchema,
+  spaceParamsSchema,
+  todoParamsSchema,
   updateUserSchema,
   userParamsSchema,
+  userQuerySchema,
 } from "./admin.schema.js";
 
 // EVERY route in this file carries requireAuth -> requireSuperadmin, and
@@ -31,17 +36,14 @@ export const adminRoutes = Router();
 
 adminRoutes.get("/ping", ...gate, controller.ping);
 
-adminRoutes.get(
-  "/overview",
-  ...gate,
-  validate({ query: periodQuerySchema }),
-  controller.overview,
-);
+adminRoutes.get("/overview", ...gate, validate({ query: periodQuerySchema }), controller.overview);
+
+adminRoutes.get("/flow", ...gate, validate({ query: flowQuerySchema }), controller.flow);
 
 // Literal before parameter: /users/:id would otherwise swallow nothing here
 // today, but the ordering rule is kept so adding /users/active later is not a
 // silent 404 (CONVENTIONS.md).
-adminRoutes.get("/users", ...gate, validate({ query: periodQuerySchema }), controller.listUsers);
+adminRoutes.get("/users", ...gate, validate({ query: userQuerySchema }), controller.listUsers);
 
 adminRoutes.get(
   "/users/:id",
@@ -58,13 +60,29 @@ adminRoutes.patch(
   controller.updateUser,
 );
 
-adminRoutes.get("/boards", ...gate, validate({ query: periodQuerySchema }), controller.listBoards);
+adminRoutes.get("/boards", ...gate, validate({ query: boardsQuerySchema }), controller.listBoards);
 
 adminRoutes.get(
   "/boards/:id",
   ...gate,
   validate({ params: boardParamsSchema, query: periodQuerySchema }),
   controller.getBoard,
+);
+
+adminRoutes.get("/spaces", ...gate, validate({ query: periodQuerySchema }), controller.listSpaces);
+
+adminRoutes.get(
+  "/spaces/:id",
+  ...gate,
+  validate({ params: spaceParamsSchema, query: periodQuerySchema }),
+  controller.getSpace,
+);
+
+adminRoutes.get(
+  "/todos/:id",
+  ...gate,
+  validate({ params: todoParamsSchema }),
+  controller.getTodo,
 );
 
 adminRoutes.get(

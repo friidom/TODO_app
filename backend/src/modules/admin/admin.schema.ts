@@ -15,10 +15,37 @@ const period = z.enum(ADMIN_PERIODS).default(DEFAULT_PERIOD);
 
 export const periodQuerySchema = z.object({ period });
 
+export const FLOW_SLICES = ["estimate", "priority", "type"] as const;
+
+export const flowQuerySchema = z.object({
+  period,
+  space: z.uuid().optional(),
+  board: z.uuid().optional(),
+  slice: z.enum(FLOW_SLICES).default("estimate"),
+});
+
+export type FlowQuery = z.infer<typeof flowQuerySchema>;
+
+export const userQuerySchema = z.object({
+  period,
+  space: z.uuid().optional(),
+  board: z.uuid().optional(),
+});
+
+export type UserQuery = z.infer<typeof userQuerySchema>;
+
+export const boardsQuerySchema = z.object({
+  period,
+  space: z.uuid().optional(),
+});
+
+export type BoardsQuery = z.infer<typeof boardsQuerySchema>;
+
 export const activityQuerySchema = z.object({
   period,
   user: z.uuid().optional(),
   board: z.uuid().optional(),
+  space: z.uuid().optional(),
   action: z.string().min(1).max(64).optional(),
   from: z.coerce.date().optional(),
   to: z.coerce.date().optional(),
@@ -36,6 +63,16 @@ export const auditQuerySchema = z.object({
 export const userParamsSchema = z.object({ id: z.uuid() });
 
 export const boardParamsSchema = z.object({ id: z.uuid() });
+
+export const spaceParamsSchema = z.object({ id: z.uuid() });
+
+export const todoParamsSchema = z.object({ id: z.uuid() });
+
+export type TodoParams = z.infer<typeof todoParamsSchema>;
+
+export const TASK_ACTIVITY = 20;
+
+export type SpaceParams = z.infer<typeof spaceParamsSchema>;
 
 export const kpiParamsSchema = z.object({ seniority: z.enum(SENIORITIES) });
 

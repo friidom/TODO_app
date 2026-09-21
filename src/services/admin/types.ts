@@ -17,6 +17,7 @@ export interface SeriesPoint {
   completed_todos: number;
   completed_points: number;
   unestimated_completed: number;
+  created_todos: number;
   comments: number;
   activities: number;
 }
@@ -50,6 +51,8 @@ export interface AdminUser {
   comments: number;
   activities: number;
   boards: number;
+  median_cycle_days: number | null;
+  cycle_n: number;
   daily_points: number | null;
   weekly_points: number | null;
   target_points: number | null;
@@ -83,6 +86,30 @@ export interface AdminUserDetail {
   // Its own window, because its question is year-shaped. `metric` names what
   // the cells count so a reader never has to guess (E2, V6).
   heatmap: { from: string; to: string; metric: string; cells: HeatmapCell[] };
+  cycle_time: DurationStats;
+  lead_time: DurationStats;
+  cycle_histogram: DurationBin[];
+  board_share: BoardShare[];
+  recent: RecentCompletion[];
+}
+
+export interface BoardShare {
+  board_id: string;
+  title: string | null;
+  completed_todos: number;
+  completed_points: number;
+}
+
+export interface RecentCompletion {
+  id: string;
+  board_id: string;
+  board_title: string | null;
+  key_prefix: string;
+  board_key: number | null;
+  title: string | null;
+  completed_at: string;
+  estimate: number | null;
+  cycle_days: number | null;
 }
 
 export interface AdminBoard {
@@ -90,6 +117,8 @@ export interface AdminBoard {
   title: string | null;
   key_prefix: string;
   owner_id: string | null;
+  space_id: string | null;
+  space_title: string | null;
   owner_username: string | null;
   members: number;
   todos: number;
@@ -100,6 +129,7 @@ export interface AdminBoard {
   comments: number;
   activities: number;
   last_activity_at: string | null;
+  median_cycle_days: number | null;
 }
 
 export interface AdminBoards {
@@ -112,6 +142,9 @@ export interface AdminBoards {
 export interface AdminBoardDetail {
   period: AdminPeriod;
   bucket: Bucket;
+  from: string;
+  to: string;
+  timezone: string;
   board: AdminBoard;
   series: SeriesPoint[];
 }
@@ -128,6 +161,7 @@ export interface AdminActivityRow {
   actor_username: string | null;
   title: string | null;
   board_key: number | null;
+  key_prefix: string;
 }
 
 export interface ActivityCursor {
@@ -148,6 +182,9 @@ export interface AdminActivityFilters {
   user?: string;
   board?: string;
   action?: string;
+  space?: string;
+  from?: string;
+  to?: string;
 }
 
 export interface KpiTarget {
@@ -176,4 +213,161 @@ export interface AuditEntry {
 
 export interface AdminAudit {
   entries: AuditEntry[];
+}
+
+export interface AdminScope {
+  space?: string;
+  board?: string;
+}
+
+export interface CfdPoint {
+  bucket: string;
+  created: number;
+  started: number;
+  done: number;
+}
+
+export interface DurationStats {
+  median_days: number | null;
+  p75_days: number | null;
+  p90_days: number | null;
+  n: number;
+  unmeasured: number;
+}
+
+export interface DurationBin {
+  from_days: number;
+  to_days: number | null;
+  count: number;
+}
+
+export interface WipSlice {
+  key: string;
+  label: string;
+  category: "todo" | "in_progress" | "done" | "none";
+  count: number;
+}
+
+export interface AgingBucket {
+  key: string;
+  label: string;
+  from_days: number;
+  to_days: number | null;
+  count: number;
+}
+
+export interface FlowSlice {
+  key: string | null;
+  label: string;
+  count: number;
+  cycle_median_days: number | null;
+  lead_median_days: number | null;
+}
+
+export type FlowSliceBy = "estimate" | "priority" | "type";
+
+export const FLOW_SLICES: FlowSliceBy[] = ["estimate", "priority", "type"];
+
+export const FLOW_SLICE_LABELS: Record<FlowSliceBy, string> = {
+  estimate: "By estimate",
+  priority: "By priority",
+  type: "By type",
+};
+
+export interface FlowFilters extends AdminScope {
+  period: AdminPeriod;
+  slice?: FlowSliceBy;
+}
+
+export interface UserFilters extends AdminScope {
+  period: AdminPeriod;
+}
+
+export interface BoardFilters {
+  period: AdminPeriod;
+  space?: string;
+}
+
+export interface AdminFlow {
+  period: AdminPeriod;
+  bucket: Bucket;
+  from: string;
+  to: string;
+  timezone: string;
+  cfd: CfdPoint[];
+  series: SeriesPoint[];
+  cycle_time: DurationStats;
+  lead_time: DurationStats;
+  cycle_histogram: DurationBin[];
+  wip: WipSlice[];
+  wip_aging: AgingBucket[];
+  slice_by: FlowSliceBy;
+  slices: FlowSlice[];
+}
+
+export interface SpaceMetrics {
+  id: string | null;
+  title: string;
+  owner_id: string | null;
+  owner_username: string | null;
+  boards: number;
+  members: number;
+  todos: number;
+  open_todos: number;
+  completed_todos: number;
+  completed_points: number;
+  unestimated_completed: number;
+  comments: number;
+  activities: number;
+  last_activity_at: string | null;
+  median_cycle_days: number | null;
+}
+
+export interface AdminSpaceDetail {
+  period: AdminPeriod;
+  bucket: Bucket;
+  from: string;
+  to: string;
+  timezone: string;
+  space: SpaceMetrics;
+  boards: AdminBoard[];
+  series: SeriesPoint[];
+}
+
+export interface AdminSpaces {
+  period: AdminPeriod;
+  from: string;
+  to: string;
+  spaces: SpaceMetrics[];
+}
+
+export interface AdminTodoDetail {
+  todo: {
+    id: string;
+    board_id: string;
+    board_title: string | null;
+    key_prefix: string;
+    board_key: number | null;
+    space_id: string | null;
+    space_title: string | null;
+    title: string | null;
+    type: string;
+    priority: string | null;
+    estimate: number | null;
+    column_id: string | null;
+    column_title: string | null;
+    category: string | null;
+    assignee_id: string | null;
+    assignee_username: string | null;
+    completed_by: string | null;
+    completed_by_username: string | null;
+    creator_id: string | null;
+    creator_username: string | null;
+    created_at: string;
+    started_at: string | null;
+    completed_at: string | null;
+    cycle_days: number | null;
+    lead_days: number | null;
+  };
+  activity: AdminActivityRow[];
 }

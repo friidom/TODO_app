@@ -88,3 +88,30 @@ export function actionLabel(action: string): string {
 
   return [first!.charAt(0).toUpperCase() + first!.slice(1), ...rest].join(" ");
 }
+
+export function formatDuration(days: number | null | undefined): string {
+  if (days === null || days === undefined || !Number.isFinite(days)) {
+    return NO_VALUE;
+  }
+
+  if (days < 0) return NO_VALUE;
+
+  if (days >= 1) return `${format(days)}d`;
+
+  const hours = days * 24;
+
+  if (hours >= 1) return `${format(hours)}h`;
+
+  return `${Math.round(hours * 60)}m`;
+}
+
+export function binLabel(bin: {
+  from_days: number;
+  to_days: number | null;
+}): string {
+  if (bin.to_days === null) return `${bin.from_days}d+`;
+
+  return bin.to_days - bin.from_days === 1
+    ? `${bin.from_days}d`
+    : `${bin.from_days}–${bin.to_days - 1}d`;
+}

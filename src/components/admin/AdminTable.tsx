@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 
 import { cn } from "@/utils/cn";
 
@@ -31,21 +31,35 @@ export function AdminGrid({
 export function AdminRow({
   children,
   header = false,
+  onOpen,
   className,
 }: {
   children: ReactNode;
   header?: boolean;
+  onOpen?: () => void;
   className?: string;
 }) {
   return (
     <div
       role="row"
+      {...(onOpen && {
+        tabIndex: 0,
+        onClick: onOpen,
+        onKeyDown: (event: KeyboardEvent) => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+
+          event.preventDefault();
+          onOpen();
+        },
+      })}
       className={cn(
         "border-hairline grid items-center gap-3 px-3.5",
         "grid-cols-(--admin-cols)",
         header
           ? "text-ink-3 text-micro border-b py-2 font-semibold tracking-wide uppercase"
           : "hover:bg-wash text-meta border-b py-2.5 transition-colors last:border-b-0",
+        onOpen &&
+          "focus-visible:ring-brand/40 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-inset",
         className,
       )}
     >

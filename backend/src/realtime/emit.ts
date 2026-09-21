@@ -1,4 +1,4 @@
-import { boardRoom, realtime, type Scope } from "./io.js";
+import { adminRoom, boardRoom, realtime, type Scope } from "./io.js";
 
 type Entity = "todo" | "column" | "comment";
 
@@ -21,6 +21,20 @@ export function emitChange<T extends object>(
       new: row as Record<string, unknown>,
       old: {},
     });
+
+  emitAdminActivity(boardId, entity, (row as { id?: string }).id ?? null);
+}
+
+// Fans out beside the board room rather than from the services, because every
+// write that produces an activity row already calls one of these three. The
+// payload names the board and the entity and nothing else -- the admin
+// surfaces re-read through their own endpoints, so no row leaves here.
+export function emitAdminActivity(
+  boardId: string,
+  entity: string,
+  entityId: string | null,
+): void {
+  realtime()?.to(adminRoom()).emit("admin:activity", { boardId, entity, entityId });
 }
 
 // The id and nothing else. We could now send the whole deleted row — the
@@ -30,6 +44,8 @@ export function emitDeleted(boardId: string, entity: Entity, id: string): void {
   realtime()
     ?.to(boardRoom(boardId))
     .emit(`${entity}:change`, { eventType: "DELETE", new: {}, old: { id } });
+
+  emitAdminActivity(boardId, entity, id);
 }
 
 // For any write that touches more than one row. Enumerating them would mean N
@@ -37,4 +53,6 @@ export function emitDeleted(boardId: string, entity: Entity, id: string): void {
 // than the server can describe every row it changed.
 export function emitInvalidate(boardId: string, scopes: Scope[]): void {
   realtime()?.to(boardRoom(boardId)).emit("board:invalidate", { boardId, scopes });
+
+  emitAdminActivity(boardId, scopes[0] ?? "board", null);
 }

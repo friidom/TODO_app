@@ -1,5 +1,7 @@
+import { superadminRoleOf } from "../middleware/requireSuperadmin.js";
 import { roleOf } from "../modules/members/members.repo.js";
 import {
+  adminRoom,
   boardRoom,
   realtime,
   userRoom,
@@ -31,6 +33,23 @@ export function registerRoomHandlers(io: RealtimeServer, socket: RealtimeSocket)
       respond(ack, true);
       syncPresence(io, boardId);
     })();
+  });
+
+  // Same shape as board:join and the same principle: the handshake said who
+  // this socket is, this says whether it may watch the system. A superadmin is
+  // not a member of the boards they watch, so boardRoom would refuse them.
+  socket.on("admin:join", (ack) => {
+    void (async () => {
+      const allowed = (await superadminRoleOf(socket.data.actor.id)) !== null;
+
+      if (allowed) await socket.join(adminRoom());
+
+      respond(ack, allowed);
+    })();
+  });
+
+  socket.on("admin:leave", () => {
+    void socket.leave(adminRoom());
   });
 
   socket.on("board:leave", (boardId) => {

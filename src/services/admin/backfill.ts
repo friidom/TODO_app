@@ -2,7 +2,6 @@
 // sitting in a done column with coalesce(updated_at, created_at) -- the date
 // of its last edit of any kind, not the date it was finished. A card
 // completed in March and retitled in August backfilled as August.
-//
 // So anything dated before this is best-available rather than observed, and
 // a chart covering that range has to say so. The date is a constant because
 // it is a property of the migration, not of the data: it does not change, and
@@ -18,4 +17,16 @@ export function backfillNote(from: string): string | undefined {
   if (!coversBackfill(from)) return undefined;
 
   return `Completions before ${COMPLETION_BACKFILL_DATE} are approximated from each card's last edit, not observed.`;
+}
+
+export const START_TRACKING_DATE = "2026-09-21";
+
+export function coversUntrackedStarts(from: string): boolean {
+  return from.slice(0, 10) < START_TRACKING_DATE;
+}
+
+export function startedNote(from: string): string | undefined {
+  if (!coversUntrackedStarts(from)) return undefined;
+
+  return `Work started before ${START_TRACKING_DATE} was never dated, so anything finished earlier is counted but not timed.`;
 }

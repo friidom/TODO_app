@@ -1,9 +1,11 @@
+import { compareBy } from "./leaderboard";
 import type { AdminUser } from "./types";
 
 export const USER_SORT_KEYS = [
   "username",
   "completed_todos",
   "completed_points",
+  "median_cycle_days",
   "comments",
   "activities",
   "boards",
@@ -16,6 +18,7 @@ export const USER_SORT_LABELS: Record<UserSortKey, string> = {
   username: "Developer",
   completed_todos: "Tasks",
   completed_points: "Points",
+  median_cycle_days: "Cycle",
   comments: "Comments",
   activities: "Activity",
   boards: "Boards",
@@ -34,19 +37,17 @@ export function isUserSortKey(value: unknown): value is UserSortKey {
 // One factual column at a time, never a blend. There is no composite score in
 // M34 and a sort that mixed columns would be one by the back door.
 export function sortUsers(users: AdminUser[], key: UserSortKey): AdminUser[] {
-  return [...users].sort((a, b) => {
-    if (key === "username") return a.username.localeCompare(b.username);
+  const tiebreak = (a: AdminUser, b: AdminUser): number =>
+    a.username.localeCompare(b.username);
 
-    const left = a[key];
-    const right = b[key];
+  if (key === "username") return [...users].sort(tiebreak);
 
-    // An unclassified user has no performance, and must sort to the bottom
-    // rather than below zero — they are unmeasured, not unproductive.
-    if (left === null && right === null)
-      return a.username.localeCompare(b.username);
-    if (left === null) return 1;
-    if (right === null) return -1;
+  const metric: Exclude<UserSortKey, "username"> = key;
 
-    return right - left || a.username.localeCompare(b.username);
-  });
+  return compareBy(
+    users,
+    (user) => user[metric],
+    metric === "median_cycle_days" ? "asc" : "desc",
+    tiebreak,
+  );
 }

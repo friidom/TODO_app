@@ -19,6 +19,16 @@ export const ResetPasswordPage = lazy(
 
 export const AdminDashboardPage = lazy(() => import("@/pages/admin/AdminDashboardPage"));
 
+export const AdminFlowPage = lazy(() => import("@/pages/admin/AdminFlowPage"));
+
+export const AdminLeaderboardsPage = lazy(() => import("@/pages/admin/AdminLeaderboardsPage"));
+
+export const AdminSpacesPage = lazy(() => import("@/pages/admin/AdminSpacesPage"));
+
+export const AdminSpacePage = lazy(() => import("@/pages/admin/AdminSpacePage"));
+
+export const AdminBoardPage = lazy(() => import("@/pages/admin/AdminBoardPage"));
+
 export const AdminUsersPage = lazy(() => import("@/pages/admin/AdminUsersPage"));
 
 export const AdminUserPage = lazy(() => import("@/pages/admin/AdminUserPage"));

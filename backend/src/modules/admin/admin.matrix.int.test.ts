@@ -4,7 +4,12 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { prisma } from "../../db/prisma.js";
 import { disconnect, resetDatabase } from "../../testing/db.js";
-import { addMember, makeUser, type TestUser } from "../../testing/fixtures.js";
+import {
+  addMember,
+  firstColumnOf,
+  makeUser,
+  type TestUser,
+} from "../../testing/fixtures.js";
 import { startTestServer, type TestClient } from "../../testing/httpClient.js";
 import { adminRoutes } from "./admin.routes.js";
 
@@ -34,11 +39,20 @@ let superadmin: TestUser;
 let outsider: TestUser;
 let boardOwner: TestUser;
 let boardAdmin: TestUser;
+let superadminSpace: string;
+let superadminTodo: string;
 
-// :id means a user on /users and a board on /boards, so the substitution has
-// to know which -- otherwise the matrix "passes" on a 404 it caused itself.
+// :id means a user on /users, a board on /boards, a space on /spaces and a
+// task on /todos, so the substitution has to know which -- otherwise the
+// matrix "passes" on a 404 it caused itself.
 function urlFor(path: string): string {
-  const id = path.startsWith("/boards") ? superadmin.boardId : superadmin.id;
+  const id = path.startsWith("/boards")
+    ? superadmin.boardId
+    : path.startsWith("/spaces")
+      ? superadminSpace
+      : path.startsWith("/todos")
+        ? superadminTodo
+        : superadmin.id;
 
   return `/api/v1/admin${path.replace(":id", id).replace(":seniority", "junior")}`;
 }
@@ -67,6 +81,22 @@ beforeEach(async () => {
   await resetDatabase();
 
   superadmin = await makeUser("root");
+  superadminSpace = (
+    await prisma.spaces.findFirstOrThrow({
+      where: { owner_id: superadmin.id },
+      select: { id: true },
+    })
+  ).id;
+  superadminTodo = randomUUID();
+  await client.patch(
+    `/api/v1/boards/${superadmin.boardId}/todos/${superadminTodo}`,
+    {
+      title: "matrix fixture",
+      column_id: (await firstColumnOf(superadmin.boardId)).id,
+      rank: 1,
+    },
+    { token: superadmin.token },
+  );
   await prisma.users.update({
     where: { id: superadmin.id },
     data: { org_role: "superadmin" },

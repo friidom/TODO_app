@@ -3,8 +3,11 @@
 // so a section cannot be added to one and forgotten in the other.
 export const ADMIN_SECTIONS = [
   "dashboard",
+  "flow",
+  "leaderboards",
   "users",
   "boards",
+  "spaces",
   "activity",
   "kpi",
 ] as const;
@@ -22,8 +25,15 @@ export const ADMIN_SECTION_DEFINITIONS: Record<
   AdminSectionDefinition
 > = {
   dashboard: { section: "dashboard", label: "Dashboard", path: "/admin" },
+  flow: { section: "flow", label: "Flow", path: "/admin/flow" },
+  leaderboards: {
+    section: "leaderboards",
+    label: "Leaderboards",
+    path: "/admin/leaderboards",
+  },
   users: { section: "users", label: "Developers", path: "/admin/users" },
   boards: { section: "boards", label: "Boards", path: "/admin/boards" },
+  spaces: { section: "spaces", label: "Spaces", path: "/admin/spaces" },
   activity: { section: "activity", label: "Activity", path: "/admin/activity" },
   kpi: { section: "kpi", label: "KPI settings", path: "/admin/kpi" },
 };

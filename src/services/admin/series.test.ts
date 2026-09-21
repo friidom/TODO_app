@@ -16,6 +16,7 @@ function point(bucket: string, fields: Partial<SeriesPoint> = {}): SeriesPoint {
     completed_todos: 0,
     completed_points: 0,
     unestimated_completed: 0,
+    created_todos: 0,
     comments: 0,
     activities: 0,
     ...fields,

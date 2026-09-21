@@ -14,11 +14,20 @@ export interface ServerToClientEvents {
   "board:invalidate": (payload: { boardId: string; scopes: Scope[] }) => void;
   "presence:sync": (payload: { boardId: string; viewers: string[] }) => void;
   "board:evicted": (payload: { boardId: string }) => void;
+  "admin:activity": (payload: AdminActivityEvent) => void;
+}
+
+export interface AdminActivityEvent {
+  boardId: string;
+  entity: string;
+  entityId: string | null;
 }
 
 export interface ClientToServerEvents {
   "board:join": (boardId: string, ack: (result: { ok: boolean }) => void) => void;
   "board:leave": (boardId: string) => void;
+  "admin:join": (ack: (result: { ok: boolean }) => void) => void;
+  "admin:leave": () => void;
 }
 
 export type BoardSocket = Socket<ServerToClientEvents, ClientToServerEvents>;

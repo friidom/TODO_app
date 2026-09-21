@@ -472,6 +472,18 @@ async function main(): Promise<void> {
         const createdAt = at(Math.min(ageDays + between(2, 30), 395), now);
         const completedAt = isDone ? at(ageDays, now) : null;
 
+        const startedAt = ((): Date | null => {
+          if ((column.category ?? "todo") === "todo") return null;
+          if (isDone && ageDays > 250) return null;
+
+          const from = createdAt.getTime();
+          const to = (completedAt ?? new Date(now)).getTime();
+
+          if (to <= from) return createdAt;
+
+          return new Date(from + Math.pow(rnd(), 0.8) * (to - from));
+        })();
+
         // A fifth of people are unassigned, so "nobody's KPI" is represented.
         const assignee = chance(0.8) ? pick(members) : null;
 
@@ -483,14 +495,14 @@ async function main(): Promise<void> {
           `insert into todos (
              id, board_id, column_id, board_key, title, description, type, priority,
              estimate, creator_id, assignee_id, parent_id, sprint_id,
-             completed_at, completed_by, position, rank, created_at, updated_at
-           ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
+             started_at, completed_at, completed_by, position, rank, created_at, updated_at
+           ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
           [
             id, boardId, column.id, boardKey, input.title,
             chance(0.55) ? `${input.title}. Raised during ${board.title} planning.` : null,
             input.type, chance(0.8) ? pick(PRIORITIES) : null, estimate,
             pick(members).id, assignee?.id ?? null, input.parentId, input.sprintId,
-            completedAt, isDone ? (assignee?.id ?? null) : null,
+            startedAt, completedAt, isDone ? (assignee?.id ?? null) : null,
             boardKey, boardKey * 64, createdAt,
             completedAt ?? createdAt,
           ],
@@ -629,6 +641,18 @@ async function main(): Promise<void> {
     }
 
     console.log(`  ${today.rowCount ?? 0} completions placed inside today`);
+
+    const repaired = await client.query(
+      `update todos
+          set started_at = created_at + (completed_at - created_at) / 2
+        where started_at is not null
+          and completed_at is not null
+          and started_at > completed_at`,
+    );
+
+    if ((repaired.rowCount ?? 0) > 0) {
+      console.log(`  ${repaired.rowCount} start dates re-seated after the completion moves`);
+    }
 
     for (const table of ["users", "boards", "board_members", "columns", "todos", "comments", "sprints", "spaces"]) {
       await client.query(`alter table ${table} enable trigger user`);

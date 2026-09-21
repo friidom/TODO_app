@@ -6,20 +6,27 @@ import type {
   AdminAudit,
   AdminBoardDetail,
   AdminBoards,
+  AdminFlow,
   AdminKpi,
   AdminOverview,
+  AdminSpaceDetail,
+  AdminSpaces,
+  AdminTodoDetail,
   AdminUserDetail,
   AdminUsers,
   ActivityCursor,
+  BoardFilters,
+  FlowFilters,
   Seniority,
+  UserFilters,
 } from "./types";
 
 export function fetchOverview(period: AdminPeriod): Promise<AdminOverview> {
   return api.get<AdminOverview>(`/admin/overview${toQuery({ period })}`);
 }
 
-export function fetchAdminUsers(period: AdminPeriod): Promise<AdminUsers> {
-  return api.get<AdminUsers>(`/admin/users${toQuery({ period })}`);
+export function fetchAdminUsers(filters: UserFilters): Promise<AdminUsers> {
+  return api.get<AdminUsers>(`/admin/users${usersQuery(filters)}`);
 }
 
 export function fetchAdminUser(
@@ -29,8 +36,48 @@ export function fetchAdminUser(
   return api.get<AdminUserDetail>(`/admin/users/${id}${toQuery({ period })}`);
 }
 
-export function fetchAdminBoards(period: AdminPeriod): Promise<AdminBoards> {
-  return api.get<AdminBoards>(`/admin/boards${toQuery({ period })}`);
+export function flowQuery(filters: FlowFilters): string {
+  return toQuery({
+    period: filters.period,
+    space: filters.space,
+    board: filters.board,
+    slice: filters.slice,
+  });
+}
+
+export function fetchFlow(filters: FlowFilters): Promise<AdminFlow> {
+  return api.get<AdminFlow>(`/admin/flow${flowQuery(filters)}`);
+}
+
+export function fetchAdminSpaces(period: AdminPeriod): Promise<AdminSpaces> {
+  return api.get<AdminSpaces>(`/admin/spaces${toQuery({ period })}`);
+}
+
+export function fetchAdminSpace(
+  id: string,
+  period: AdminPeriod,
+): Promise<AdminSpaceDetail> {
+  return api.get<AdminSpaceDetail>(`/admin/spaces/${id}${toQuery({ period })}`);
+}
+
+export function fetchAdminTodo(id: string): Promise<AdminTodoDetail> {
+  return api.get<AdminTodoDetail>(`/admin/todos/${id}`);
+}
+
+export function usersQuery(filters: UserFilters): string {
+  return toQuery({
+    period: filters.period,
+    space: filters.space,
+    board: filters.board,
+  });
+}
+
+export function boardsQuery(filters: BoardFilters): string {
+  return toQuery({ period: filters.period, space: filters.space });
+}
+
+export function fetchAdminBoards(filters: BoardFilters): Promise<AdminBoards> {
+  return api.get<AdminBoards>(`/admin/boards${boardsQuery(filters)}`);
 }
 
 export function fetchAdminBoard(
@@ -49,6 +96,9 @@ export function activityQuery(
     user: filters.user,
     board: filters.board,
     action: filters.action,
+    space: filters.space,
+    from: filters.from,
+    to: filters.to,
     before: cursor?.before,
     before_id: cursor?.before_id,
   });

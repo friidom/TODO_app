@@ -87,12 +87,15 @@ export const queryKeys = {
 
   adminOverview: (period: string) => [...ADMIN_ROOT, "overview", period] as const,
 
-  adminUsers: (period: string) => [...ADMIN_ROOT, "users", period] as const,
+  adminUsers: (query: string) => [...ADMIN_ROOT, "users", query] as const,
 
   adminUser: (userId: string | undefined, period: string) =>
     [...ADMIN_ROOT, "user", userId, period] as const,
 
-  adminBoards: (period: string) => [...ADMIN_ROOT, "boards", period] as const,
+  adminBoards: (query: string) => [...ADMIN_ROOT, "boards", query] as const,
+  adminSpaces: (period: string) => [...ADMIN_ROOT, "spaces", period] as const,
+  adminSpace: (spaceId: string | undefined, period: string) =>
+    [...ADMIN_ROOT, "space", spaceId, period] as const,
 
   adminBoard: (boardId: string | undefined, period: string) =>
     [...ADMIN_ROOT, "board", boardId, period] as const,
@@ -100,6 +103,10 @@ export const queryKeys = {
   // Keyed by the built query string rather than the filter object: two
   // equal filters must be one cache entry, and an object literal is a new
   // identity on every render.
+  adminFlow: (query: string) => [...ADMIN_ROOT, "flow", query] as const,
+  adminTodo: (todoId: string | undefined) => [...ADMIN_ROOT, "todo", todoId] as const,
+
+  adminActivityAll: () => [...ADMIN_ROOT, "activity"] as const,
   adminActivity: (query: string) => [...ADMIN_ROOT, "activity", query] as const,
 
   adminKpi: () => [...ADMIN_ROOT, "kpi"] as const,

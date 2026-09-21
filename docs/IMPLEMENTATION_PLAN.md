@@ -640,7 +640,8 @@ Risk labels, applied to every task:
 | **M31 · Timeline improvements** | ◑ **Four of five candidates built 2026-08-28** | Epic row grouping, derived Epic bars, Sprint bands (`TimelineSprintBand.tsx`) and M31-C's Board–Sprint integration all shipped. **Dependency arrows did not** — they need `work_item_links`, which is M33, exactly as the candidate table predicted. Subtask progress reaches the Epic row as a badge rather than as bar shading. **This milestone also shipped the product's two worst defects**, both fixed 2026-08-29 — see its own section. (`f76a198`, `0e93871`) |
 | **M32 · Attachments** | ✅ **Built 2026-09-03** | `attachments` + the private `task-attachments` bucket, both in `20260831090000_create_attachments.sql`, and an Attachments section in the task detail panel. Followed the storage template; **did not** use M25's tab region, and its own section records why. |
 | **M33 · Later** | 🗺 Roadmap | Labels, work item links, saved filters, the command palette. **Now due for re-costing — M32 has landed.** |
-| **M34 · Superadmin, KPI & Analytics** | 🗺 **Planned 2026-09-19** · HIGH RISK | The first authorization axis that is not board-scoped. Ten phases in **Part IV-D**, applying `BACKEND_MIGRATION_PLAN.md` §10.7 rather than re-deciding it. Its central schema finding: completion has no timestamp and cannot be recovered from `activities`, so `todos.completed_at` is Phase C. **Explicitly not** online/offline monitoring. |
+| **M34 · Superadmin, KPI & Analytics** | ✅ **Built 2026-09-20** · HIGH RISK | The first authorization axis that is not board-scoped. Ten phases in **Part IV-D**, applying `BACKEND_MIGRATION_PLAN.md` §10.7 rather than re-deciding it. Its central schema finding: completion has no timestamp and cannot be recovered from `activities`, so `todos.completed_at` is Phase C. **Explicitly not** online/offline monitoring. |
+| **M35 · Flow Analytics & the Command Centre** | 🗺 **Planned 2026-09-21** · MEDIUM RISK | Cycle time, lead time, the cumulative flow diagram, WIP and aging — M34's *More KPI dimensions* line, reopened. Six phases in **Part IV-E**. Its central schema finding is M34's one status earlier: **work has no start timestamp** and `todos.start_date` is a planning date, so `todos.started_at` is Phase C. The presence ban **stands** (D-19). |
 
 M10–M13 were roadmap direction added in the 2026-08-10 audit; M14–M20 in the 2026-08-14 revision; M21–M23 were built unplanned and recorded on 2026-08-26; M24–M33 are that same audit's forward roadmap. Appendix E records what is deliberately out of scope — **and it changed twice**: on 2026-08-14 for Calendar and Timeline, and on 2026-08-26 for Sprints.
 
@@ -4124,11 +4125,201 @@ Colour is not the only encoding: every cell carries its exact count in `title` a
 Each is listed with the condition that would reopen it, on Appendix E's terms — "it would be impressive" is not a condition.
 
 - **GitHub analytics** — commits, pull requests, reviews. **Not available from this database at all**: there is no git data in the schema and no link between a GitHub identity and an application user. It needs the GitHub API or webhooks, an identity-linking flow, and a token store. **And the warning that belongs with it:** commit count is not performance. It rewards many small commits, punishes review and pairing, and is trivially gamed — if it is ever added it joins the *factual metrics* column and never the *performance* one.
-- **More KPI dimensions** — cycle time, lead time, sprint completion rate, review turnaround. All computable from data that already exists once `completed_at` does, which is the point of Phase C. Each needs its own definition written down before it is displayed.
+- **More KPI dimensions** — cycle time, lead time, sprint completion rate, review turnaround. All computable from data that already exists once `completed_at` does, which is the point of Phase C. Each needs its own definition written down before it is displayed. → **Reopened by M35 (Part IV-E) on 2026-09-21** for cycle and lead time, which took the condition seriously: cycle time turned out to need a *second* timestamp M34 had not looked for. Sprint completion rate and review turnaround stay here, and M35 records why.
 - **Monthly and quarterly targets** — a column each, once someone asks.
 - **Advanced reporting and export** — CSV / PDF, scheduled digests.
-- **Team and space rollups** — `spaces` already exists as filing; a rollup over it is additive.
+- **Team and space rollups** — `spaces` already exists as filing; a rollup over it is additive. → **Spaces taken up by M35 Phase B.** *Team* rollups are not, and cannot be: there is no teams table, and M35 says so rather than inventing one.
 - **The other two `OrgRole` values** — `team_lead` and `director` are in the type and have no behaviour. Widening `accessibleBoardIds` is the mechanism §10.7 reserved for exactly that, and it is the one edit M34 does not make (D-3).
+
+---
+
+# PART IV-E — FLOW ANALYTICS & THE COMMAND CENTRE (M35)
+
+**Added 2026-09-21.** One milestone, six phases. It extends **M34** rather than standing beside it: every section is an entry in `src/services/admin/registry.ts`, every new number is a field on a payload that already exists, and the whole thing adds **three routes and one column**. A second admin area would be the failure mode, not the deliverable.
+
+**It is the named reopening of one line of M34's *Future / Optional*:** *"More KPI dimensions — cycle time, lead time, sprint completion rate, review turnaround. All computable from data that already exists once `completed_at` does… Each needs its own definition written down before it is displayed."* That last clause is what this part is for. It is also the second half of *"Team and space rollups — `spaces` already exists as filing; a rollup over it is additive."*
+
+**It does not reopen the presence ban.** See D-19: the data turned out to be partly reachable, and the decision stands anyway. That is recorded here so a future reader can see it was declined rather than overlooked.
+
+---
+
+## Milestone 35 — Flow Analytics & the Command Centre · 🗺 **Planned 2026-09-21** · MEDIUM RISK
+
+**For.** The four Kanban flow questions M34 could not answer — *how long does work take, where is it accumulating, how much is in flight, and what is going stale* — plus a rollup over `spaces` and a leaderboard that orders without ranking people.
+
+**Depends on.** **M34** entire (the gate, `completed_at`, the six periods, the chart idiom). **M24** (`todos.estimate`). **M27/M28** (the hierarchy, whose `COUNTABLE` clause every rollup reads). Does not depend on B9.
+
+**Risk is MEDIUM, not HIGH, for one reason that must not be misread:** the authorization boundary is already proven. `admin.matrix.int.test.ts` reads the route list *from the router itself*, so a route added here is covered the moment it is mounted. What remains risky is **Phase C's triggers** — a trigger that stamps the wrong row makes every number downstream wrong, and unlike a wrong chart it is not visible.
+
+### The data audit — read against the schema, not against M34's document
+
+| Question | Verdict |
+|---|---|
+| Lead time (created → completed) | ✅ **exact.** `completed_at - created_at`, same row, `percentile_cont` in SQL |
+| Throughput, tasks and points | ✅ **already shipped** as V2's metric switch |
+| Created per bucket | ⚠️ `systemTotals` has `created_todos`; `systemSeries` has `done`/`said`/`did` and **no `created` CTE**. One to add |
+| WIP now | ✅ `todos.column_id → columns.category` |
+| Spaces rollup | ✅ `boards.space_id`, with an **Unfiled** bucket because it is nullable |
+| Active users per bucket | ✅ `count(distinct activities.actor_id)` — a historical aggregate, **not** presence |
+| **Cycle time** | ❌ **no start timestamp exists.** `todos.start_date` is a *planning* date: user-set, freely editable, bound to `due_date` by `todos_date_range_check`. It is not an observation, and the two must never be confused |
+| **WIP aging** (age of in-progress work) | ❌ same blocker |
+| **Cumulative flow with real bands** | ❌ same blocker. Without a start stamp the only honest CFD is two bands |
+| **Time in status, per column** | ❌ **and unrecoverable.** `log_todo_activity`'s `moved` branch writes column **titles**, which `0012`'s header already settled: *"a title is not a category and never was."* Worse than M34 knew: the `created` branch records **no column at all**, so a card's first status is unknowable, and `columns_log_activity` is **silent on category changes**, so a mass-completion leaves no trail whatsoever |
+| **Five statuses** (Backlog·Todo·In Progress·Review·Done) | ❌ `columns.category` has **three** values and is nullable. `DEFAULT_COLUMNS` ships *two* `in_progress` columns — "In Progress" and "In Review" — which are indistinguishable by category. A five-band chart would be inventing two |
+| **Teams** | ❌ **no `teams`/`groups` table.** Membership is `board_members` only; `boards.visibility = 'team'` is a text flag with no group behind it |
+
+**Two integrity facts every chart in this milestone inherits, and must state rather than hide.**
+
+1. **History reconstructed from timestamps is the card's *current* state projected backwards, not its path.** `stamp_todo_completion` *nulls* `completed_at` when a card leaves a done column, so a completed-then-reopened card shows as never-completed on the day it was in fact finished. Deleted cards vanish from every historical point, and `activities.board_id` is `on delete cascade`, so deleting a board erases its contribution to every figure. This is the price of not building an event table (D-18) and it is paid knowingly.
+2. **`stamp_column_completion` stamps every card in a flipped column with one identical `now()`,** so a category flip reads as a throughput spike. M34's Phase A recorded the `updated_at` half of this; the throughput half is recorded here.
+
+### The decisions
+
+**D-18 · `todos.started_at` ships, and nothing is backfilled.**
+One nullable `timestamptz` — **not** `start_date`, which already exists and means something else — plus two triggers mirroring M34's completion pair signature-for-signature:
+
+- **`BEFORE INSERT OR UPDATE OF column_id` on `todos`**, the same signature as `todos_stamp_completion`, so a card created straight into In Progress is stamped too. Entering a non-`todo`-category column sets `started_at = now()` when null; returning to a `todo`-category column clears it. Never re-stamped, so a reshuffle inside In Progress does not reset the clock, and an accidental drag is undone by dragging back.
+- **`AFTER UPDATE OF category` on `columns`** — D-5's *second door*, which M34 found the hard way and which is exactly as real here. `columns.category` is PATCH-able; flipping a column to `in_progress` starts every card in it and a trigger on `todos` never fires.
+
+**No backfill, deliberately.** `updated_at` is the last edit of *any* kind, which is not a start date; `src/services/admin/backfill.ts` exists solely to apologise for having made that approximation once. `started_at` is null for everything that exists today, history begins on migration day, and **every cycle-time figure prints its `n` and its `unmeasured` count beside it** — the discipline `unestimated` already has beside every points total (D-7).
+
+The reason to do this *now* rather than when someone asks is M34's own argument restated: a start date not recorded today is not recoverable tomorrow. It becomes more missing, not less.
+
+**Why not a `todo_status_events` table.** It would additionally give per-column dwell time, rework detection and an n-band CFD. It costs a new table growing by one row per drag, a trigger on the hot write path, and it *still* starts empty on migration day. Two timestamps answer the questions actually asked. Recorded as the upgrade, with its trigger condition: **when someone asks for per-column dwell time or rework detection.**
+
+**D-19 · The "live" section is an auto-refreshing feed, and the presence ban stands.**
+Part IV-D's header — *"Online/offline status, presence, 'last seen', session monitoring. **Never.** Not deferred and not conditional"* — is **not amended**. The dashboard gets a `refetchInterval` on the existing `/admin/activity` feed and a "Refreshed Ns ago" line beside `AdminShell`'s `busy` indicator. It is live because the rows are, not because anyone is being watched.
+
+This is recorded rather than assumed because **the data is partly reachable and a future reader will find it**: `sessions` carries `created_at`, `revoked_at` and `expires_at` with a partial index `sessions_active_expires_idx`, so "accounts holding a live refresh session" is one query away; and `backend/src/realtime/presence.ts` holds a per-board `Map` of connected users in process memory. Neither is exposed over HTTP, and neither becomes so here. **No `/admin/live` route.**
+
+**D-20 · A leaderboard may order by one named factual metric. V4's "no rank badge" clause is amended to say so, and nothing else in it moves.**
+What stays: **no total column, no composite score, no blended sort** — *The metric vocabulary*'s rule is untouched. What changes: a **plain ordinal** beside a heading that names the metric is permitted, because the ordinal is only the position under *that* sort and is falsifiable from the column printed beside it. What is still refused: medals, podiums, "top performer" language, and any arrow implying a person is improving or declining *as a whole*.
+
+Modes are **People** and **Boards** — amended 2026-09-21 at implementation time, from *People and Spaces*: Spaces has no endpoint until Phase B while Boards already has one, and a mode that cannot load is worse than a mode that is not offered. Spaces joins as a third mode when Phase B lands. There is no Teams mode, because there is no teams table, and the UI says that rather than showing an empty tab.
+
+**D-21 · The six periods stand. `3m` is what a person means by "90 days".**
+No seventh value and no custom range. `periods.ts` remains the one place a period becomes a window (D-11, D-15); `3m` (rolling) and `quarter` (calendar-to-date) stay deliberately different, and `seed-demo`'s post-pass keeps them returning different numbers. A custom range would need a date-range picker the application does not have, a `bucketOf` that derives granularity from an arbitrary span, and a `window_days` path through D-16's target rule. Recorded as the upgrade, with its trigger condition: **when someone asks for a window the six do not cover.**
+
+**D-22 · The developer drill-down's "recently completed" returns rows, and D-10 is read rather than amended.**
+Added 2026-09-21, at Phase D implementation time.
+
+M34 D-10 says admin endpoints return *"computed figures — counts, sums, buckets — never raw `todos` or `activities` arrays **for the client to reduce**"*, and its worked example is a system feed shipping every board's titles. M34 then shipped `activityFeed()`, which returns rows carrying `payload->>'title'` and `board_key` **for display**. So the rule as M34 itself applied it forbids pushing *aggregation* into the browser, not ever rendering a row.
+
+`recent[]` is read on those terms: **bounded to 20**, scoped to one person's own completed work inside the selected period, and carrying nothing that could be reduced into a figure the endpoint does not already return. The reasoning sits at the call site in `admin.repo.ts`.
+
+**Why it cannot come from `activities` instead**, which would have avoided the question: there is no `completed` action. `activities_event_valid` is a CHECK over exactly 21 `(entity_type, action)` pairs, Phase A recorded that widening it was deliberately not done, and a `moved` row names its destination column by **title**, which `0012` established is not a category. `todos` is the only place the answer exists.
+
+**D-23 · A person facet is named for its column, not for "user".**
+`flowDurations` and `flowSlices` take a `CompletionScope` carrying `completedBy`; `cumulativeFlow`, `wipBreakdown` and `wipAging` do not. A single `userId` facet would have been ambiguous across the five flow queries — completion credit is `completed_by` (stamped, D-6) while open work is `assignee_id` — and a filter that silently meant a different column in different panels is the kind of thing nobody notices is wrong. It is also what lets `/admin/users/:id` reuse `flowDurations`'s own query, so the drill-down and the Flow page cannot report different medians for the same work; `admin.leaderboard.int.test.ts` asserts they are equal.
+
+### The visualization matrix — nine accepted, six rejected
+
+Phase E2's rule carries over unchanged: **a chart that ships without a row here is a review finding.**
+
+| ID | The question it answers | Visual form | Endpoint field |
+|---|---|---|---|
+| **V7** | Is the system growing or shrinking? | **V1's stat tiles, extended** with a delta against the previous window of equal length | a second `systemTotals` over the shifted window |
+| **V8** | How much comes in versus goes out? | **Two series on one axis**, created and completed, reusing V2's metric switch rather than a second chart | `series[].created_todos` |
+| **V9** | How long does work take? | Two stat rows — cycle, lead — each median · p75 · p90, **plus one binned histogram** with percentile markers | `/admin/flow` → `cycle_time`, `lead_time` |
+| **V10** | Where is work accumulating? | **Stacked area CFD**, three bands, cumulative. Hover gives date + band + count | `/admin/flow` → `cfd[]` |
+| **V11** | How much is in flight, and where? | One horizontal **stacked bar** with a stat strip beneath | `/admin/flow` → `wip[]` |
+| **V12** | Is anything going stale? | Five horizontal bars: 0–2 · 3–7 · 8–14 · 15–30 · 30+ days | `/admin/flow` → `wip_aging[]` |
+| **V13** | Which spaces carry the work? | Horizontal bars plus the full table — V5's shape applied to spaces | `/admin/spaces` |
+| **V14** | Who is delivering, by one named metric at a time? | Sortable table, metric named in the heading, **plain ordinal**, inline proportional bar. No total column, no composite, no medals (D-20) | `/admin/users`, `/admin/spaces` |
+| **V15** | Does a bigger estimate really take longer? | The flow table **sliced** by estimate · priority · type | `/admin/flow?slice=` |
+
+**V11's granularity follows the scope filter**, because column titles are per-board free text: system-wide it breaks down by the three **categories**; scoped to one board it breaks down by that board's **columns**, which is the only place "In Review" can honestly appear as its own bar.
+
+**Rejected, recorded exactly as the acceptances are.**
+
+| Candidate | Why not |
+|---|---|
+| **Control chart** — a dot per completed item | D-10 forbids shipping rows to the browser, and a per-item scatter is rows with the title stripped off. V9's histogram answers the same question — *where is the tail* — from aggregates. If the scatter is ever wanted it needs its own argument about what leaves the server |
+| **Per-column time in status** | The data does not exist and cannot be recovered (audit above). Reconstructing it from `activities` titles is precisely the inference `0012`'s header rejects, and it fails *silently* on a rename |
+| **Five-band CFD** | Three categories. A five-band chart would be inventing two |
+| **Sprint burndown** | Sprint-scoped, not system-scoped — it belongs on a board. And `sprints` has no transition timestamps and no activity rows, so even its start date is only a planned one |
+| **Completion-rate donut** | M34 already rejected the status donut: *"three slices is a table with extra steps"* |
+| **Shaded non-working-day bands** | There is no working-calendar model. Inventing one is a fake, not a visualization |
+
+### Phases
+
+#### Phase A — Shell, layout and the chart primitives · SAFE
+**Frontend.** This section of this document, first — decisions numbered, rejections recorded — because everything after depends on it. Then three entries in `ADMIN_SECTION_DEFINITIONS` + routes + lazy imports; `useAdminScope` modelled on `useAdminPeriod` (URL wins, a default value is deleted from the query string so `/admin` stays a clean link); `ScopeFilter`; and the four new chart components — `CumulativeFlow`, `Histogram`, `WipStrip`, `AgingBuckets` — built in `TrendsChart`'s idiom against **fixtures in a test**, never a fake API response.
+**Backend / Database / API.** None.
+**Tests.** The pure shaping functions, beside `series.ts`. `registry.test.ts` extended to pin the new section list.
+**Acceptance.** The three new sections render, empty, with no endpoint behind them. **No charting dependency is added** — `TrendsChart.tsx:6` states why and M34 held to it across five charts.
+
+#### Phase C — Kanban flow analytics · HIGH RISK
+**Database.** `0016_todo_started_at` (the column + `todos_started_idx` partial on `(started_at) where started_at is not null and completed_at is null`) and `0017_todo_started_triggers` (the two triggers), separately, per the expand→backfill→contract rule. **No backfill migration.**
+**Backend.** `GET /admin/flow`, bounded to **five** queries — CFD · durations+histogram · WIP · aging · slices. The CFD is **one** query — per-bucket deltas from three `union all` branches, `sum() over (order by bucket)` for the cumulative, and a baseline count for everything before `from`. Percentiles are `percentile_cont` in SQL, never `n` durations sent to the browser to sort.
+**Frontend.** V9–V12 wired.
+**Scripts.** `seed-demo.ts` sets `started_at` **by construction** — it runs with `alter table … disable trigger user`, so without this the flow section is empty on the demo dataset.
+**Tests.** Trigger integration tests in `todos/completion.int.test.ts`'s shape: move in stamps · move back clears · done→done does not re-stamp · flipping a column's category stamps every card · flipping back clears · deleting a column leaves the rehomed cards consistent. Plus the whole-table invariant: **after an arbitrary sequence of moves, renames and category flips, `started_at is not null` for every card in a non-`todo` column and null for every card in a `todo` column.**
+**Acceptance.** That invariant. It is this milestone's `completed_at`-agrees-with-category, and every number in V9–V12 derives from it.
+
+#### Phase B — Aggregation and the spaces rollup · MEDIUM
+**Backend.** `series[]` gains `created_todos` and `active_users`, one CTE each. `GET /admin/spaces` and `GET /admin/spaces/:id`, mirroring the boards pair. `periodQuerySchema` → `scopeQuerySchema` = `{ period, space?, board? }`; `SeriesScope` gains a `spaceId` fragment in the same `bind()` closure.
+**Frontend.** V7's previous-window delta; V8; V13.
+**Tests.** Integration per route, including the numbers-not-strings assertion the module already makes — `count(*)::int` and `sum()::float8` in SQL, because node-postgres returns int8 and numeric as strings.
+
+#### Phase D — Leaderboards and the developer drill-down · MEDIUM
+**Split in two at implementation time.** D-1 is the leaderboard and the drill-down; **D-2** is the clickable chart buckets and the missing `AdminBoardPage` (`GET /admin/boards/:id` and the `useAdminBoard` hook are both already written and nothing renders them). Both halves are real; separating them is what keeps the first reviewable.
+
+**Backend (D-1).** `CompletionScope` (D-23). `GET /admin/users` gains `median_cycle_days` + `cycle_n` from one `cycle` CTE, plus `space`/`board` scope on its `done`/`said`/`did` CTEs — **and deliberately not on `joined`**, because "boards contributed to" is a fact about the person rather than about the filter, and narrowing it would print `1` for everyone. `GET /admin/boards` gains `median_cycle_days` and a `space` scope, but no `board` facet, which would be a list of one. `GET /admin/users/:id` gains `cycle_time`, `lead_time`, `cycle_histogram` (all from the **reused** `flowDurations`), `board_share[]` and `recent[]` (D-22).
+**Database.** **None, and none needed** — `todos_completed_by_idx (completed_by, completed_at desc) where completed_at is not null` is already the covering shape for the per-developer cycle query. It is the index M34 Phase E added for the KPI query, and this is the same access pattern.
+**Frontend (D-1).** `AdminLeaderboardsPage` — People · Boards, a named metric switch, a muted ordinal, rows linking to the drill-down. `AdminUserPage` extended in place with `FlowStats` + `Histogram` + the board split + the recent list. **No new chart component is written**; the cycle section is Phase C's two components fed one person's completions.
+**Tests.** `admin.leaderboard.int.test.ts` — including that the drill-down's `cycle_time` **equals** `/admin/flow`'s over the same population, which is what D-23 exists to guarantee.
+
+#### Phase E — Live activity · SAFE
+`refetchInterval` on the existing feed and a "Refreshed Ns ago" line. **No presence, no session count, no online list** (D-19).
+
+#### Phase F — Performance · MEDIUM
+`npm run bench:seed` and `npm run bench:explain` over the new queries, before/after recorded here the way M34's Phase E table is. **Indexes added only where `EXPLAIN` demands one** — the CFD touches every todo by definition, the same shape as M34's "system rollup" row, which honestly recorded that no index helped it. A query-count regression test on `/admin/flow`, the shape `admin.metrics.int.test.ts` already pins on `/admin/overview`.
+
+**Order: A → C → B → D → F, with E last.** C before B deliberately — `started_at` is the only irreversible-in-practice item in the milestone.
+
+### As built — Phases A, B, C, D, E and F · 2026-09-21
+
+| Phase | Evidence |
+|---|---|
+| **A · shell and primitives** | This section, written first. Three entries in `ADMIN_SECTION_DEFINITIONS` (`flow` · `leaderboards` · `spaces`) with routes and lazy imports; `registry.test.ts` pins eight sections. `src/hooks/useAdminScope.ts` + `components/admin/ScopeFilter.tsx`. Four new charts — `CumulativeFlow` · `Histogram` · `WipStrip` · `AgingBuckets` — plus `FlowStats`, all in `TrendsChart`'s idiom. `services/admin/flow.ts` with **23 tests**, `formatDuration` in `format.ts` with 4. **No charting dependency added** |
+| **C · flow analytics** | `0016_todo_started_at` · `0017_todo_started_triggers`. `GET /admin/flow` — five queries, `AdminFlowPage` wiring V9–V12 and V15. `seed-demo.ts` sets `started_at` by construction. **17 trigger tests** in `todos/start.int.test.ts` including the whole-table invariant, **22 endpoint tests** in `admin/admin.flow.int.test.ts` including the query budget |
+| **D-1 · leaderboards** | `CompletionScope` in `admin.repo.ts`; `median_cycle_days` on both rollups; `userBoardShare()` + `userRecentCompletions()`; `AdminLeaderboardsPage` + `services/admin/leaderboard.ts` (**17 tests**); `AdminUserPage` extended in place. **16 endpoint tests** in `admin.leaderboard.int.test.ts`, including drill-down ≡ `/admin/flow`. No new chart component, no new index |
+
+| **B + D-2 · spaces and the chart layer** | `SeriesPoint.created_todos` (a `made` CTE) and a `spaceId` facet on `systemSeries`; `/admin/spaces` + `/admin/spaces/:id` with an **Unfiled** bucket; `/admin/flow` also returns a scoped `series`. `components/admin/chart/` — `useChartHover` · `ChartTooltip` · `ChartLegend` · `ChartFrame` · `Crosshair`, interaction only. `CumulativeFlow` rewritten as a monotone-cubic stacked area with crosshair, tooltip, restacking legend and a click-through to `/admin/activity?from=&to=`; `Histogram` rewritten with tooltip, percentage-of-total, percentile markers and bucket selection; new `DualSeries` for created vs completed. `AdminSpacesPage`. **12 spaces tests**, 13 chart/flow tests. No migration, no index, no dependency |
+| **D-3 + D-4 · drill-down** | `AdminBoardPage` and `AdminSpacePage`, each composing four existing endpoints and adding no new chart component; `AdminCrumbs` + a `breadcrumb` slot on `AdminShell`; `KpiTiles`. `GET /admin/todos/:id` (read-only) and `AdminTaskPanel` over the existing `Modal` and the existing priority/type/category chips, opened by the existing `?task=` param. `services/admin/drilldown.ts` holds the navigation and click rules with **12 tests**; **13 endpoint tests** in `admin.todo.int.test.ts`. Backend additions: `entityId` and `spaceId` filters on the existing activity query, `key_prefix` on its rows, `space_id`/`space_title` on board metrics. No migration, no index, no dependency |
+| **E · realtime activity** | An `admin` socket room beside the board rooms — a superadmin is not a member of the boards they watch, so `boardRoom` would refuse them. `admin:join` is gated by `superadminRoleOf`, the same DB read `requireSuperadmin` now shares. `emit.ts` fans `admin:activity` out from the three existing emitters, so **no service changed**. `services/realtime/adminActivity.ts` decides relevance purely (**12 tests**); `useAdminActivityRealtime` holds one socket per admin surface and invalidates only the activity prefix and the open task. **11 server tests** in `adminRoom.int.test.ts`. **No polling, no dependency** |
+| **F · audit** | Query counts read from source (1–4 per page, no duplicates). Removed dead `areaPath` (superseded by `smoothAreaPath`) and a duplicate `Crumb` type. Made the activity page's `?space=` filter visible and clearable — it was narrowing the feed invisibly. 15/15 admin routes gated; `AdminTaskPanel` has zero mutation hooks and zero write verbs. **No migration and no index added** — none was warranted |
+**Six things the implementation found that the design had not.**
+
+1. **`seed-demo`'s first completion post-pass moves some completions *backwards*** — a card finished 40 days ago can be re-dated to 90 — which put completion before the start on **59 rows** on the first run. The script now re-seats those at the midpoint of created→completed rather than clamping them to completion, so a repaired row keeps a plausible cycle time instead of reporting zero. Recorded because it was found by the data, not by reading the code.
+2. **`done > started` is the normal state for history, not an error.** 0016 backfills nothing, so every card completed before the migration has a completion date and no start date, and a cumulative flow diagram built naively from the three timestamps inverts its middle band. `services/admin/flow.ts` clamps upward — the card existed and it finished, and the only thing unknowable is when it began — and `seed-demo` reproduces the shape deliberately (nothing completed more than 250 days ago gets a start date) so the path is exercised rather than theoretical.
+
+3. **`resetDatabase()` could not delete the fixtures once one person's id sat on a todo living on another person's board.** Deleting a profile SET NULLs the todos naming it (`creator_id`, `assignee_id`, `completed_by`) *and* cascades away any board that profile owns; when the board goes first the SET NULL re-checks `todos_board_id_fkey` against a board that is already gone, and Postgres refuses the whole statement. `scripts/seed-demo.ts` had already diagnosed this exact interleave and guards against it, but the fix never reached the test harness because no fixture had produced the shape before — per-developer analytics across boards is the first thing that does. `src/testing/db.ts` now removes boards and spaces first, and every cascade below a board is still exercised through the real foreign keys.
+
+4. **Created-vs-completed cannot be derived from the CFD.** The cumulative series looks like it should yield per-bucket deltas, but `cfd[0]` already contains the baseline — everything created before the window — so the first bucket's delta is unknowable. `/admin/flow` therefore returns a scoped `series` alongside `cfd`, which is one more `systemSeries` call rather than new arithmetic. The flow query budget moves from five to six, and its regression test with it.
+
+5. **`AdminActivityPage` was rendering the wrong task key on any board that had been renamed.** It hardcoded `KAN-{board_key}`, but `boards.key_prefix` is a configurable column with a `^[A-Z][A-Z0-9]{1,9}$` CHECK, and the activity feed never returned it. The feed now selects `b.key_prefix` and every surface formats through the existing `taskKey()`.
+
+6. **Realtime here is Socket.IO, not Supabase**, and board rooms are gated by `roleOf` — board membership. A superadmin is not a member of most boards, so they cannot receive board traffic, which is §10.7 rule 1 working correctly rather than a gap. The admin room is the narrow answer: one room, joined only by a superadmin, carrying `{ boardId, entity, entityId }` and never a row, so the admin surfaces still re-read through their own endpoints and D-10 holds on the realtime path too.
+
+**Also closed here, from M34:** *"`docker compose up --build` was not run"*. It has been: all three services build and come up healthy, `docker-entrypoint.sh` applied the two new migrations, and `/admin/flow` answers through the container stack.
+
+### Explicitly not in M35
+
+- **Presence, online status, session counts** (D-19). Not deferred. Not conditional.
+- **A `todo_status_events` table**, and therefore per-column dwell time and rework detection (D-18).
+- **A custom date range or a seventh period** (D-21).
+- **Teams**, at any level. There is no table and M35 does not add one.
+- **Any write.** M35 is read-only end to end; M34's two editable things stay the only two.
+- **Export.** Still M34's answer: CSV, PDF and scheduled reports are not here.
+
+### Future / Optional
+
+- **`todo_status_events`** — reopens when someone asks for per-column dwell time or rework detection (D-18).
+- **A custom date range** — reopens when someone asks for a window the six do not cover (D-21).
+- **Sprint completion rate and review turnaround** — the other two names in M34's *More KPI dimensions* line. Review turnaround needs a review state the schema does not have; sprint completion rate needs `sprints` transition timestamps, which do not exist either. Both are a schema question before they are a chart question.
+- **A statement timeout and a rate limit on `/admin`** — there are none today. The CFD is the first query in the project that could run long, so this is where it would first matter.
 
 ---
 

@@ -22,6 +22,11 @@ async function assertTestDatabase(): Promise<void> {
 export async function resetDatabase(): Promise<void> {
   await assertTestDatabase();
 
+  // Before users: a profile delete SET NULLs todos naming it and cascades its
+  // boards, and Postgres refuses the interleave. See scripts/seed-demo.ts.
+  await prisma.boards.deleteMany({});
+  await prisma.spaces.deleteMany({});
+
   await prisma.users.deleteMany({});
 
   // admin_audit_log carries no foreign key to profiles -- deliberately, since

@@ -12,16 +12,31 @@ import {
   fetchAdminActivity,
   fetchAdminBoard,
   fetchAdminBoards,
+  fetchAdminSpace,
+  fetchAdminSpaces,
+  fetchAdminTodo,
   fetchAdminUser,
   fetchAdminUsers,
+  boardsQuery,
   fetchAudit,
+  fetchFlow,
   fetchKpi,
+  flowQuery,
+  usersQuery,
   fetchOverview,
   saveKpiTarget,
   saveSeniority,
 } from "./adminApi";
 import type { AdminPeriod } from "./periods";
-import type { ActivityCursor, AdminActivityFilters, Seniority } from "./types";
+import type {
+  ActivityCursor,
+  AdminActivityFilters,
+  AdminScope,
+  BoardFilters,
+  FlowFilters,
+  Seniority,
+  UserFilters,
+} from "./types";
 
 // Every read below keeps the previous period on screen while the next one
 // loads. Without it each period switch unmounts the whole screen -- nav
@@ -35,10 +50,20 @@ export function useAdminOverview(period: AdminPeriod) {
   });
 }
 
-export function useAdminUsers(period: AdminPeriod) {
+export function useAdminFlow(filters: FlowFilters) {
   return useQuery({
-    queryKey: queryKeys.adminUsers(period),
-    queryFn: () => fetchAdminUsers(period),
+    queryKey: queryKeys.adminFlow(flowQuery(filters)),
+    queryFn: () => fetchFlow(filters),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useAdminUsers(period: AdminPeriod, scope: AdminScope = {}) {
+  const filters: UserFilters = { period, ...scope };
+
+  return useQuery({
+    queryKey: queryKeys.adminUsers(usersQuery(filters)),
+    queryFn: () => fetchAdminUsers(filters),
     placeholderData: keepPreviousData,
   });
 }
@@ -52,10 +77,40 @@ export function useAdminUser(userId: string | undefined, period: AdminPeriod) {
   });
 }
 
-export function useAdminBoards(period: AdminPeriod) {
+export function useAdminSpaces(period: AdminPeriod) {
   return useQuery({
-    queryKey: queryKeys.adminBoards(period),
-    queryFn: () => fetchAdminBoards(period),
+    queryKey: queryKeys.adminSpaces(period),
+    queryFn: () => fetchAdminSpaces(period),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useAdminSpace(
+  spaceId: string | undefined,
+  period: AdminPeriod,
+) {
+  return useQuery({
+    queryKey: queryKeys.adminSpace(spaceId, period),
+    queryFn: () => fetchAdminSpace(spaceId!, period),
+    enabled: Boolean(spaceId),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useAdminTodo(todoId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.adminTodo(todoId),
+    queryFn: () => fetchAdminTodo(todoId!),
+    enabled: Boolean(todoId),
+  });
+}
+
+export function useAdminBoards(period: AdminPeriod, space?: string) {
+  const filters: BoardFilters = { period, space };
+
+  return useQuery({
+    queryKey: queryKeys.adminBoards(boardsQuery(filters)),
+    queryFn: () => fetchAdminBoards(filters),
     placeholderData: keepPreviousData,
   });
 }

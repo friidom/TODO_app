@@ -22,11 +22,14 @@ import {
 import type { AdminUser } from "./types";
 
 describe("the admin section registry", () => {
-  it("lists exactly the five sections the nav renders", () => {
+  it("lists exactly the eight sections the nav renders", () => {
     expect(ADMIN_SECTIONS).toEqual([
       "dashboard",
+      "flow",
+      "leaderboards",
       "users",
       "boards",
+      "spaces",
       "activity",
       "kpi",
     ]);
@@ -99,6 +102,19 @@ describe("activityQuery", () => {
     );
   });
 
+  it("carries the space and date-range facets a drill-down sets", () => {
+    const query = activityQuery({
+      period: "30d",
+      space: "s1",
+      from: "2026-09-18T00:00:00Z",
+      to: "2026-09-19T00:00:00Z",
+    });
+
+    expect(query).toContain("space=s1");
+    expect(query).toContain("from=");
+    expect(query).toContain("to=");
+  });
+
   it("appends both halves of a cursor or neither", () => {
     const query = activityQuery(
       { period: "7d" },
@@ -125,6 +141,8 @@ function user(username: string, fields: Partial<AdminUser> = {}): AdminUser {
     comments: 0,
     activities: 0,
     boards: 0,
+    median_cycle_days: null,
+    cycle_n: 0,
     daily_points: null,
     weekly_points: null,
     target_points: null,

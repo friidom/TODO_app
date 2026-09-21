@@ -11,9 +11,14 @@ import RouteErrorPage from "@/pages/error/RouteErrorPage";
 import Loading from "@/components/loading/LoadingPage";
 import {
   AdminActivityPage,
+  AdminBoardPage,
   AdminBoardsPage,
   AdminDashboardPage,
+  AdminFlowPage,
   AdminKpiPage,
+  AdminLeaderboardsPage,
+  AdminSpacePage,
+  AdminSpacesPage,
   AdminUserPage,
   AdminUsersPage,
   BoardPage,
@@ -54,9 +59,17 @@ export const router = createBrowserRouter([
         element: <SuperadminRoute />,
         children: [
           { path: "/admin", element: deferred(<AdminDashboardPage />) },
+          { path: "/admin/flow", element: deferred(<AdminFlowPage />) },
+          {
+            path: "/admin/leaderboards",
+            element: deferred(<AdminLeaderboardsPage />),
+          },
           { path: "/admin/users", element: deferred(<AdminUsersPage />) },
           { path: "/admin/users/:id", element: deferred(<AdminUserPage />) },
           { path: "/admin/boards", element: deferred(<AdminBoardsPage />) },
+          { path: "/admin/boards/:id", element: deferred(<AdminBoardPage />) },
+          { path: "/admin/spaces", element: deferred(<AdminSpacesPage />) },
+          { path: "/admin/spaces/:id", element: deferred(<AdminSpacePage />) },
           { path: "/admin/activity", element: deferred(<AdminActivityPage />) },
           { path: "/admin/kpi", element: deferred(<AdminKpiPage />) },
         ],

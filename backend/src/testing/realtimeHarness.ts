@@ -17,6 +17,8 @@ export interface TestSocket {
   id: string;
   raw: ClientSocket;
   join(boardId: string): Promise<{ ok: boolean }>;
+  joinAdmin(): Promise<{ ok: boolean }>;
+  leaveAdmin(): void;
   leave(boardId: string): void;
   waitFor<T>(event: string, match?: (payload: T) => boolean): Promise<T>;
   seen<T>(event: string): T[];
@@ -38,6 +40,7 @@ const WATCHED = [
   "board:invalidate",
   "presence:sync",
   "board:evicted",
+  "admin:activity",
 ] as const;
 
 export async function startRealtimeHarness(): Promise<RealtimeHarness> {
@@ -105,6 +108,20 @@ export async function startRealtimeHarness(): Promise<RealtimeHarness> {
             resolve(result);
           });
         }),
+
+      joinAdmin: () =>
+        new Promise((resolve, reject) => {
+          const timer = setTimeout(() => reject(new Error("admin join timed out")), TIMEOUT);
+
+          raw.emit("admin:join", (result: { ok: boolean }) => {
+            clearTimeout(timer);
+            resolve(result);
+          });
+        }),
+
+      leaveAdmin: () => {
+        raw.emit("admin:leave");
+      },
 
       leave: (boardId) => {
         raw.emit("board:leave", boardId);

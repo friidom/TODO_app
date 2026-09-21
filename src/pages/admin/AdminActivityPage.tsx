@@ -9,7 +9,12 @@ import {
   AdminSkeleton,
 } from "@/components/admin/AdminTable";
 import { HEADER_CONTROL } from "@/components/board/headerControl";
+import AdminTaskPanel from "@/components/admin/AdminTaskPanel";
+import { useAdminActivityRealtime } from "@/hooks/useAdminActivityRealtime";
 import { useAdminPeriod } from "@/hooks/useAdminPeriod";
+import { useOpenTask } from "@/hooks/useOpenTask";
+import { taskTarget } from "@/services/admin/drilldown";
+import { taskKey } from "@/utils/taskKey";
 import {
   useAdminActivity,
   useAdminBoards,
@@ -29,6 +34,10 @@ export default function AdminActivityPage() {
   const user = params.get("user") ?? undefined;
   const board = params.get("board") ?? undefined;
   const action = params.get("action") ?? undefined;
+  const space = params.get("space") ?? undefined;
+  const { taskId, openTask, closeTask } = useOpenTask();
+  const from = params.get("from") ?? undefined;
+  const to = params.get("to") ?? undefined;
 
   const {
     data,
@@ -37,15 +46,38 @@ export default function AdminActivityPage() {
     hasNextPage,
     fetchNextPage,
     isFetchingNextPage,
-  } = useAdminActivity({ period, user, board, action });
+  } = useAdminActivity({ period, user, board, action, space, from, to });
   const { data: users } = useAdminUsers(period);
   const { data: boards } = useAdminBoards(period);
+
+  useAdminActivityRealtime(
+    {
+      board,
+      space,
+      spaceBoardIds: boards?.boards
+        .filter((entry) => entry.space_id === space)
+        .map((entry) => entry.id),
+    },
+    taskId,
+  );
 
   const setFilter = (key: string, value: string) => {
     const next = new URLSearchParams(params);
 
     if (value === "") next.delete(key);
     else next.set(key, value);
+
+    setParams(next, { replace: true });
+  };
+
+  const spaceName = boards?.boards.find(
+    (entry) => entry.space_id === space,
+  )?.space_title;
+
+  const clearFilters = (keys: string[]) => {
+    const next = new URLSearchParams(params);
+
+    for (const key of keys) next.delete(key);
 
     setParams(next, { replace: true });
   };
@@ -111,6 +143,24 @@ export default function AdminActivityPage() {
         </div>
       }
     >
+      {(from || to || space) && (
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          {space && (
+            <FilterChip
+              label={spaceName ?? "One space"}
+              onClear={() => clearFilters(["space"])}
+            />
+          )}
+
+          {(from || to) && (
+            <FilterChip
+              label={rangeLabel(from ?? "", to ?? "")}
+              onClear={() => clearFilters(["from", "to"])}
+            />
+          )}
+        </div>
+      )}
+
       {error ? (
         <AdminEmpty>That did not load. Try again.</AdminEmpty>
       ) : !data ? (
@@ -131,7 +181,14 @@ export default function AdminActivityPage() {
             <AdminEmpty>Nothing happened in this window.</AdminEmpty>
           ) : (
             rows.map((row) => (
-              <AdminRow key={row.id}>
+              <AdminRow
+                key={row.id}
+                onOpen={
+                  taskTarget(row) === null
+                    ? undefined
+                    : () => openTask(taskTarget(row)!)
+                }
+              >
                 <AdminCell>
                   <span className="text-ink">
                     {row.actor_username ?? "Unknown"}
@@ -143,9 +200,9 @@ export default function AdminActivityPage() {
                 </AdminCell>
 
                 <AdminCell>
-                  {row.board_key !== null && (
+                  {taskKey(row.key_prefix, row.board_key) !== null && (
                     <span className="text-ink-3 text-micro mr-1.5 tabular-nums">
-                      KAN-{row.board_key}
+                      {taskKey(row.key_prefix, row.board_key)}
                     </span>
                   )}
                   <span className="text-ink-2">
@@ -183,6 +240,30 @@ export default function AdminActivityPage() {
           </button>
         </div>
       )}
+
+      {taskId && <AdminTaskPanel todoId={taskId} onClose={closeTask} />}
     </AdminShell>
+  );
+}
+
+function FilterChip({
+  label,
+  onClear,
+}: {
+  label: string;
+  onClear: () => void;
+}) {
+  return (
+    <span className="border-brand/40 bg-brand-soft text-brand text-mini rounded-control flex items-center gap-1.5 border px-2 py-1">
+      {label}
+      <button
+        type="button"
+        onClick={onClear}
+        aria-label={`Clear ${label}`}
+        className="hover:text-ink transition-colors"
+      >
+        ×
+      </button>
+    </span>
   );
 }

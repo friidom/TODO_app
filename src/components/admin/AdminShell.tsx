@@ -9,6 +9,7 @@ import PeriodSelector from "./PeriodSelector";
 export default function AdminShell({
   title,
   hint,
+  breadcrumb,
   actions,
   showPeriod = true,
   busy = false,
@@ -16,6 +17,7 @@ export default function AdminShell({
 }: {
   title: string;
   hint?: string;
+  breadcrumb?: ReactNode;
   actions?: ReactNode;
   showPeriod?: boolean;
   busy?: boolean;
@@ -45,6 +47,8 @@ export default function AdminShell({
               <ShieldIcon className="size-3.5 shrink-0" />
               Superadmin
             </span>
+
+            {breadcrumb}
           </div>
 
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">

@@ -1,3 +1,5 @@
+import { useNavigate } from "react-router";
+
 import AdminShell from "@/components/admin/AdminShell";
 import {
   AdminCell,
@@ -16,6 +18,7 @@ const COLUMNS =
 
 export default function AdminBoardsPage() {
   const { period } = useAdminPeriod();
+  const navigate = useNavigate();
   const { data, isFetching, error } = useAdminBoards(period);
 
   const boards = data?.boards ?? [];
@@ -63,7 +66,12 @@ export default function AdminBoardsPage() {
             <AdminEmpty>No boards yet.</AdminEmpty>
           ) : (
             boards.map((board) => (
-              <AdminRow key={board.id}>
+              <AdminRow
+                key={board.id}
+                onOpen={() =>
+                  void navigate(`/admin/boards/${board.id}?period=${period}`)
+                }
+              >
                 <AdminCell>
                   <span className="text-ink font-medium">
                     {board.title ?? "Untitled board"}

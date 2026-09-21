@@ -5,7 +5,9 @@ import {
   NO_VALUE,
   actionLabel,
   barWidth,
+  binLabel,
   bucketLabel,
+  formatDuration,
   dash,
   percent,
 } from "./format";
@@ -99,5 +101,43 @@ describe("actionLabel", () => {
   it("leaves an unknown action legible rather than blank", () => {
     expect(actionLabel("")).toBe("");
     expect(actionLabel("something_new")).toBe("Something new");
+  });
+});
+
+describe("formatDuration", () => {
+  it("steps down the scale so a short cycle time is still readable", () => {
+    expect(formatDuration(4.25)).toBe("4.3d");
+    expect(formatDuration(1)).toBe("1d");
+    expect(formatDuration(0.5)).toBe("12h");
+    expect(formatDuration(0.01)).toBe("14m");
+  });
+
+  it("prints a whole number without a decimal point", () => {
+    expect(formatDuration(3)).toBe("3d");
+    expect(formatDuration(0.25)).toBe("6h");
+  });
+
+  // An unmeasured duration is not a zero-length one. M35 D-18 leaves
+  // started_at null for everything older than the migration, so this is the
+  // common case rather than the error case.
+  it("dashes anything unmeasured rather than printing a zero", () => {
+    expect(formatDuration(null)).toBe(NO_VALUE);
+    expect(formatDuration(undefined)).toBe(NO_VALUE);
+    expect(formatDuration(Number.NaN)).toBe(NO_VALUE);
+    expect(formatDuration(-1)).toBe(NO_VALUE);
+  });
+});
+
+describe("binLabel", () => {
+  it("names a one-day bucket by its single day", () => {
+    expect(binLabel({ from_days: 0, to_days: 1 })).toBe("0d");
+  });
+
+  it("names a wider bucket by its inclusive range", () => {
+    expect(binLabel({ from_days: 3, to_days: 5 })).toBe("3–4d");
+  });
+
+  it("marks the open bucket as unbounded", () => {
+    expect(binLabel({ from_days: 21, to_days: null })).toBe("21d+");
   });
 });

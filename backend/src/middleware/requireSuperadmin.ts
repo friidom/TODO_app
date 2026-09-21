@@ -12,6 +12,19 @@ function notFound(): AppError {
   return new AppError("not_found", "Not found.");
 }
 
+// The one place the org role is read from the database, so the socket gate and
+// the HTTP gate cannot drift.
+export async function superadminRoleOf(userId: string): Promise<string | null> {
+  const row = await prisma.users.findUnique({
+    where: { id: userId },
+    select: { org_role: true, deactivated_at: true },
+  });
+
+  if (row === null || row.deactivated_at !== null || row.org_role !== "superadmin") return null;
+
+  return row.org_role;
+}
+
 // Read per request, never a token claim (M34 D-2). lib/tokens.ts refuses a
 // role claim for BOARD roles because "a demotion takes 15 minutes to bite",
 // and that argument is stronger here, not weaker: a revoked superadmin holding
@@ -25,19 +38,16 @@ export async function requireSuperadmin(
   try {
     const actorId = requireActor(req);
 
-    const row = await prisma.users.findUnique({
-      where: { id: actorId },
-      select: { org_role: true, deactivated_at: true },
-    });
+    const role = await superadminRoleOf(actorId);
 
-    if (row === null || row.deactivated_at !== null || row.org_role !== "superadmin") {
+    if (role === null) {
       next(notFound());
 
       return;
     }
 
     // The actor carries its role onward so a handler never has to ask again.
-    req.actor = { id: actorId, orgRole: isOrgRole(row.org_role) ? row.org_role : "member" };
+    req.actor = { id: actorId, orgRole: isOrgRole(role) ? role : "member" };
     next();
   } catch (error) {
     next(error);

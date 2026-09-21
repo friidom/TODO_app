@@ -27,6 +27,7 @@ export interface ServerToClientEvents {
   "column:change": (change: RowChange) => void;
   "comment:change": (change: RowChange) => void;
   "board:invalidate": (payload: { boardId: string; scopes: Scope[] }) => void;
+  "admin:activity": (payload: AdminActivityEvent) => void;
   "presence:sync": (payload: { boardId: string; viewers: string[] }) => void;
   "board:evicted": (payload: { boardId: string }) => void;
 }
@@ -35,9 +36,20 @@ export interface JoinResult {
   ok: boolean;
 }
 
+// Carries only what a scoped admin feed needs to decide relevance. Never the
+// row: the admin surfaces re-read through their own endpoints, which is what
+// keeps D-10 intact on this path too.
+export interface AdminActivityEvent {
+  boardId: string;
+  entity: string;
+  entityId: string | null;
+}
+
 export interface ClientToServerEvents {
   "board:join": (boardId: string, ack: (result: JoinResult) => void) => void;
   "board:leave": (boardId: string) => void;
+  "admin:join": (ack: (result: JoinResult) => void) => void;
+  "admin:leave": () => void;
 }
 
 // Mirrors express.d.ts's `Request.actor`, and for the same reason: everything
@@ -48,6 +60,8 @@ export interface SocketData {
   actor: { id: string };
   boards: Set<string>;
 }
+
+export const ADMIN_ROOM = "admin";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface InterServerEvents {}
@@ -74,6 +88,12 @@ export function boardRoom(boardId: string): string {
 
 export function userRoom(userId: string): string {
   return `user:${userId}`;
+}
+
+// One room for every superadmin, not one per board: a superadmin is not a
+// member of the boards they watch, so boardRoom would refuse them.
+export function adminRoom(): string {
+  return ADMIN_ROOM;
 }
 
 // `handshake.auth`, not a cookie and not the query string. The refresh cookie
