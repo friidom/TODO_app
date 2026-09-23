@@ -168,6 +168,40 @@ model notifications {
   @@index([user_id], map: "notifications_user_unread_idx", where: raw("(read_at IS NULL)"))
 }
 
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model oauth_accounts {
+  id                      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                 String    @db.Uuid
+  provider                String
+  provider_account_id     String
+  provider_email          String?   @db.Citext
+  provider_email_verified Boolean   @default(false)
+  created_at              DateTime  @default(now()) @db.Timestamptz(6)
+  last_login_at           DateTime? @db.Timestamptz(6)
+  users                   users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([provider, provider_account_id], map: "oauth_accounts_provider_account_key")
+  @@index([user_id], map: "oauth_accounts_user_id_idx")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model oauth_link_tokens {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  token_hash          String    @unique
+  user_id             String    @db.Uuid
+  provider            String
+  provider_account_id String
+  provider_email      String?   @db.Citext
+  expires_at          DateTime  @db.Timestamptz(6)
+  used_at             DateTime? @db.Timestamptz(6)
+  created_at          DateTime  @default(now()) @db.Timestamptz(6)
+  users               users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id], map: "oauth_link_tokens_user_id_idx")
+}
+
 model password_reset_tokens {
   id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id    String    @db.Uuid
@@ -313,13 +347,15 @@ model todos {
 model users {
   id                    String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email                 String                  @unique @db.Citext
-  password_hash         String
+  password_hash         String?
   email_verified_at     DateTime?               @db.Timestamptz(6)
   deactivated_at        DateTime?               @db.Timestamptz(6)
   created_at            DateTime                @default(now()) @db.Timestamptz(6)
   updated_at            DateTime                @default(now()) @db.Timestamptz(6)
   org_role              String                  @default("member")
   seniority             String?
+  oauth_accounts        oauth_accounts[]
+  oauth_link_tokens     oauth_link_tokens[]
   password_reset_tokens password_reset_tokens[]
   profiles              profiles?
   sessions              sessions[]

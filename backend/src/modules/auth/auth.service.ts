@@ -59,7 +59,10 @@ function sessionRejected(): AppError {
   return new AppError("unauthorized", "Session expired. Please sign in again.");
 }
 
-async function issueSession(userId: string, meta: RequestMeta): Promise<IssuedSession> {
+// Exported for the OAuth callback (0023): a provider sign-in is a new way to
+// ARRIVE here, never a second session mechanism. Everything downstream —
+// rotation, the family id, the refresh cookie — stays identical.
+export async function issueSession(userId: string, meta: RequestMeta): Promise<IssuedSession> {
   const { token, tokenHash } = mintOpaqueToken();
 
   // No withActor: nothing on sessions reads app.actor_id.
@@ -153,14 +156,21 @@ export async function login(input: LoginInput, meta: RequestMeta): Promise<AuthR
       ? await authRepo.findUserByEmail(value)
       : await authRepo.findUserByUsername(value);
 
-  // Dummy verify keeps both branches the same cost — without it, "no such
+  // Dummy verify keeps every branch the same cost — without it, "no such
   // user" returns in a millisecond and "wrong password" in a hundred.
-  const correct =
-    found === null
-      ? await verifyDummyPassword(input.password)
-      : await verifyPassword(found.password_hash, input.password);
+  //
+  // A null hash is an OAuth-only account (0023), and it takes the dummy branch
+  // rather than returning early: skipping the argon2 verify there would make
+  // "this address signs in with Google" measurable, which is the same
+  // enumeration leak in a subtler form.
+  const hash = found?.password_hash ?? null;
 
-  if (found === null || !correct) throw invalidCredentials();
+  const correct =
+    hash === null
+      ? await verifyDummyPassword(input.password)
+      : await verifyPassword(hash, input.password);
+
+  if (found === null || hash === null || !correct) throw invalidCredentials();
 
   // After the hash, so this costs the same time as an active account.
   if (found.deactivated_at !== null) throw invalidCredentials();

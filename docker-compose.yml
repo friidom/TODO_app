@@ -25,6 +25,21 @@ services:
 
   backend:
     build: ./backend
+    # Local development only. `${VAR}` in this file is substituted from the
+    # COMPOSE environment -- the shell, or a .env beside this file -- never from
+    # backend/.env, which is where the API's own credentials actually live. That
+    # mismatch is why the OAuth buttons were missing: all four resolved to "".
+    #
+    # required:false keeps `docker compose up` working from a bare clone, which
+    # README promises. Everything under `environment:` below still wins over
+    # this file, so the host-oriented DATABASE_URL and JWT_SECRET it also
+    # carries are overridden rather than leaking into the container.
+    #
+    # Production supplies these as real environment variables and never ships
+    # this file.
+    env_file:
+      - path: ./backend/.env
+        required: false
     environment:
       # development, not production: config/env.ts refuses to start in production
       # unless COOKIE_SECURE, AUTH_REQUIRE_EMAIL_VERIFICATION and an SMTP mail
@@ -34,9 +49,24 @@ services:
       PORT: 4000
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/todo_app
       JWT_SECRET: ${JWT_SECRET:-docker-demo-secret-change-me-at-least-32-chars}
+      # Blanked rather than inherited: backend/.env carries it for the
+      # integration suite, nothing in the container reads it, and it would
+      # otherwise put a host-only database credential inside the image's env.
+      TEST_DATABASE_URL: ""
       # The browser's origin, not the backend's: nginx serves both.
       CORS_ORIGIN: http://localhost:3000
       APP_URL: http://localhost:3000
+      # nginx on :3000, NOT the backend on :4000. This value is handed to
+      # Google and GitHub as the redirect target, so it has to be a url the
+      # BROWSER can reach -- and nginx only proxies paths under /api/v1/, so
+      # dropping that prefix would return index.html with a 200 and the code
+      # would never be exchanged.
+      API_PUBLIC_URL: http://localhost:3000/api/v1
+      # GOOGLE_* and GITHUB_* are deliberately NOT listed here: `environment:`
+      # takes precedence over `env_file:`, so naming them would reinstate the
+      # empty values that hid the buttons. They come from backend/.env above.
+      # Callbacks to register:
+      # http://localhost:3000/api/v1/auth/oauth/{google,github}/callback
       MINIO_ENDPOINT: minio
       MINIO_PORT: 9000
       MINIO_USE_SSL: false

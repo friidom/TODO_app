@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 
 import { env } from "../config/env.js";
 import { AppError, toAppError } from "../lib/errors.js";
+import { redactUrl } from "../lib/redact.js";
 
 export function notFoundHandler(
   _req: Request,
@@ -29,13 +30,17 @@ export function errorHandler(
 
   const appError = toAppError(error);
 
+  // Redacted because a failed OAuth exchange reaches here with the live
+  // authorization code still in the query string.
+  const url = redactUrl(req.originalUrl);
+
   // The database speaks the server's locale and names its own constraints, so
   // its message is for the log only. The client gets the mapped message.
   if (appError.status >= 500) {
-    console.error(`[api] ${req.method} ${req.originalUrl} ->`, error);
+    console.error(`[api] ${req.method} ${url} ->`, error);
   } else if (!env.isProduction) {
     console.warn(
-      `[api] ${req.method} ${req.originalUrl} -> ${appError.status} ${appError.code}: ${appError.message}`,
+      `[api] ${req.method} ${url} -> ${appError.status} ${appError.code}: ${appError.message}`,
     );
   }
 

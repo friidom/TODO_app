@@ -1,0 +1,24 @@
+{
+  "_comment": "Shared by src/utils/nextPath.ts (frontend) and backend/src/lib/nextPath.ts. Both screen the ?next= query parameter against open redirects; since migration 0023 the BACKEND also builds a Location header from it, in the OAuth callback. nextPath.parity.test.ts in each package reads this file, so the two copies cannot drift.",
+  "safe": [
+    "/",
+    "/boards",
+    "/invite/abc123",
+    "/boards/3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+    "/boards/x?view=list#top",
+    "/profile",
+    "/admin/users/1"
+  ],
+  "rejected": [
+    "https://evil.test/login",
+    "http://evil.test",
+    "//evil.test",
+    "/\\evil.test",
+    "javascript:alert(1)",
+    "data:text/html,<script>alert(1)</script>",
+    "boards",
+    "../boards",
+    "",
+    " /boards"
+  ]
+}

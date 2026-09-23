@@ -1,0 +1,25 @@
+# Backend, development only. Dockerfile (the production one) compiles to dist/
+# and runs `node dist/server.js`; this image runs `tsx watch` against
+# bind-mounted source, so a .ts edit restarts the server without a rebuild.
+
+FROM node:24-alpine
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# prisma.config.ts resolves env("DATABASE_URL") eagerly even for `generate`,
+# which never connects. Any parseable URL satisfies it; this one is never used.
+ENV DATABASE_URL=postgresql://build:build@localhost:5432/build
+
+# Generated into node_modules/.prisma, so it has to happen before the named
+# volume is seeded from this layer. The dev command regenerates on every start
+# anyway, which is what keeps it honest after a schema edit.
+COPY prisma ./prisma
+COPY prisma.config.ts ./prisma.config.ts
+RUN npm run db:generate
+
+EXPOSE 4000
+
+CMD ["npm", "run", "dev"]

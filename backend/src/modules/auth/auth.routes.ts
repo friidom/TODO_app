@@ -13,6 +13,7 @@ import {
 } from "../../middleware/rateLimit.js";
 import { validate } from "../../middleware/validate.js";
 import * as controller from "./auth.controller.js";
+import { oauthRoutes } from "./oauth.routes.js";
 import {
   forgotPasswordSchema,
   loginSchema,
@@ -23,6 +24,11 @@ import {
 } from "./auth.schema.js";
 
 export const authRoutes = Router();
+
+// Inside the auth module rather than a module of its own: an OAuth sign-in
+// ends in this module's issueSession, auth.cookies and PublicUser, and a
+// separate module would have to have all three exported to reach them.
+authRoutes.use("/oauth", oauthRoutes);
 
 authRoutes.post(
   "/register",

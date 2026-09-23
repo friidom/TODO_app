@@ -18,6 +18,9 @@ const PREFIX = "b5-probe-";
 const DOMAIN = "@probe.invalid";
 const PASSWORD = "probe-password-9273";
 
+// Distinctive so the log scan below cannot match it by accident.
+const FORGED_CODE = "probe-authcode-a1b2c3d4e5";
+
 let failures = 0;
 
 function check(label: string, pass: boolean, detail?: unknown): void {
@@ -45,7 +48,21 @@ function captureConsole(): () => void {
   console.warn = record(original.warn);
   console.error = record(original.error);
 
-  return () => Object.assign(console, original);
+  // morgan writes through process.stdout, never console.*, so without this the
+  // access log -- the one place a live authorization code is guaranteed to be
+  // printed -- is invisible to every check below.
+  const originalWrite = process.stdout.write.bind(process.stdout);
+
+  process.stdout.write = ((chunk: unknown, ...rest: unknown[]) => {
+    if (typeof chunk === "string") transcript.push(chunk);
+
+    return (originalWrite as (...args: unknown[]) => boolean)(chunk, ...rest);
+  }) as typeof process.stdout.write;
+
+  return () => {
+    Object.assign(console, original);
+    process.stdout.write = originalWrite;
+  };
 }
 
 interface ApiResponse {
@@ -740,8 +757,143 @@ async function part10_deactivatedAccount() {
   check("the refused refresh revoked its family", live === 0, live);
 }
 
-async function part11_rateLimit() {
-  console.log("\n--- Part 11: the rate limiter trips (last: it spends the IP budget) ---");
+// Drives the two redirect-shaped routes directly: api() above always sends the
+// refresh cookie and always follows redirects, and neither is right here.
+async function oauthFetch(
+  path: string,
+  cookie?: string,
+): Promise<{ status: number; location: string | null; cookies: string[]; cacheControl: string | null }> {
+  const response = await fetch(`${baseUrl}${path}`, {
+    headers: cookie === undefined ? {} : { cookie },
+    redirect: "manual",
+  });
+
+  await response.text();
+
+  return {
+    status: response.status,
+    location: response.headers.get("location"),
+    cookies: response.headers.getSetCookie(),
+    cacheControl: response.headers.get("cache-control"),
+  };
+}
+
+function oauthCookieFrom(cookies: string[]): string | undefined {
+  const found = cookies.find((value) => value.startsWith("oauth_tx="));
+
+  return found === undefined ? undefined : found.slice(0, found.indexOf(";"));
+}
+
+async function part11_oauth() {
+  console.log("\n--- Part 11: OAuth redirect routes ---");
+
+  const listed = await api("GET", "/api/v1/auth/oauth/providers", { cookie: null });
+
+  check(
+    "the provider list is an array the sign-in page can render",
+    listed.status === 200 && Array.isArray(listed.body.providers),
+    listed.body,
+  );
+
+  const configured = (listed.body.providers as string[] | undefined) ?? [];
+
+  if (configured.length === 0) {
+    console.log("(no OAuth provider configured -- redirect probes skipped)");
+
+    return;
+  }
+
+  const provider = configured[0];
+
+  const started = await oauthFetch(`/api/v1/auth/oauth/${provider}/start`);
+  const txCookie = oauthCookieFrom(started.cookies);
+
+  check("start answers a redirect, not JSON", started.status === 302, started.status);
+  check(
+    "start leaves the app for the provider",
+    started.location?.startsWith("https://") === true,
+    started.location,
+  );
+  check("start sets the transaction cookie", txCookie !== undefined);
+  check(
+    "the transaction cookie is HttpOnly and SameSite=Lax",
+    started.cookies.some(
+      (c) => c.startsWith("oauth_tx=") && /HttpOnly/i.test(c) && /SameSite=Lax/i.test(c),
+    ),
+    started.cookies.find((c) => c.startsWith("oauth_tx=")),
+  );
+  check(
+    "and is scoped to the auth path",
+    started.cookies.some((c) => c.startsWith("oauth_tx=") && c.includes("Path=/api/v1/auth")),
+  );
+  check("start is not cacheable", started.cacheControl?.includes("no-store") === true, started.cacheControl);
+
+  // The CSRF check: a code delivered with a state the cookie does not agree
+  // with must never be exchanged.
+  const forged = await oauthFetch(
+    `/api/v1/auth/oauth/${provider}/callback?code=${FORGED_CODE}&state=forged`,
+    txCookie,
+  );
+
+  check("a forged state is refused", forged.status === 302, forged.status);
+  check(
+    "and refused as invalid_state, with no session issued",
+    forged.location?.includes("error=invalid_state") === true &&
+      !forged.cookies.some((c) => c.startsWith("refresh=")),
+    forged.location,
+  );
+
+  const noCookie = await oauthFetch(
+    `/api/v1/auth/oauth/${provider}/callback?code=${FORGED_CODE}&state=x`,
+  );
+
+  check(
+    "a callback with no transaction cookie is refused",
+    noCookie.location?.includes("error=") === true,
+    noCookie.location,
+  );
+
+  const cancelled = await oauthFetch(`/api/v1/auth/oauth/${provider}/callback?error=access_denied`);
+
+  check(
+    "a cancelled consent redirects without echoing the provider's text",
+    cancelled.location?.includes("error=provider_denied") === true &&
+      cancelled.location.includes("access_denied") === false,
+    cancelled.location,
+  );
+
+  const unknown = await oauthFetch("/api/v1/auth/oauth/myspace/start");
+
+  check(
+    "an unknown provider redirects rather than rendering a JSON error",
+    unknown.status === 302 && unknown.location?.includes("/login?error=") === true,
+    { status: unknown.status, location: unknown.location },
+  );
+
+  const anonymous = await api("POST", "/api/v1/auth/oauth/link/start", {
+    body: { provider },
+    cookie: null,
+  });
+
+  check("linking requires a session", anonymous.status === 401, anonymous.status);
+
+  // THE leak check. That code sat in the query string of every request above,
+  // and both morgan and the error handler print request URLs.
+  const logged = transcript.join("\n");
+
+  check("no authorization code appears in any log line", !logged.includes(FORGED_CODE));
+  check(
+    "the access log kept the line but redacted the code",
+    logged.includes("code=REDACTED"),
+    logged
+      .split("\n")
+      .filter((line) => line.includes("oauth"))
+      .slice(-2),
+  );
+}
+
+async function part12_rateLimit() {
+  console.log("\n--- Part 12: the rate limiter trips (last: it spends the IP budget) ---");
 
   let limited = 0;
   let status = 0;
@@ -798,7 +950,8 @@ async function main() {
     await part8_logoutEverywhere();
     await part9_expiredRefreshToken();
     await part10_deactivatedAccount();
-    await part11_rateLimit();
+    await part11_oauth();
+    await part12_rateLimit();
   } catch (error) {
     failures += 1;
     console.error(`\nERROR  ${describeError(error)}`);

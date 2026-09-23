@@ -18,6 +18,10 @@ export const PASSWORD_MAX_BYTES = 128;
 
 export const PASSWORD_RESET_TTL_MINUTES = 60;
 
+// Shorter than a reset link because the person is already at the keyboard: the
+// challenge is issued mid-flow and confirmed as soon as they sign in.
+export const OAUTH_LINK_TTL_MINUTES = 15;
+
 // Mirror the frontend's ACTIVITY_PAGE / NOTIFICATION_PAGE / FEED_PAGE. They
 // cap the query, not the render: activities has no retention policy.
 export const ACTIVITY_PAGE = 50;

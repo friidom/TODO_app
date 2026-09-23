@@ -7,6 +7,7 @@ import { FIELD_INPUT } from "@/components/ui/fieldInput";
 import LanguageSwitcher from "@/components/layout/header/LanguageSwitcher";
 import ThemeToggle from "@/components/layout/header/ThemeToggle";
 import DefaultPeriodSetting from "@/components/admin/DefaultPeriodSetting";
+import ConnectedAccounts from "@/components/profile/ConnectedAccounts";
 import { useLogout } from "@/services/auth/useLogout";
 import { useProfile } from "@/services/profile/useProfile";
 import useUpdateProfile from "@/services/profile/useUpdateProfile";
@@ -179,6 +180,10 @@ export default function ProfilePage() {
                 {updateProfile.isPending ? "Saving…" : "Save changes"}
               </button>
             </div>
+          </Section>
+
+          <Section title="Connected accounts">
+            <ConnectedAccounts />
           </Section>
 
           <Section title="Preferences">

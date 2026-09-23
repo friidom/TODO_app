@@ -35,6 +35,15 @@ export default defineConfig({
       DATABASE_URL: url,
       JWT_SECRET: process.env.JWT_SECRET ?? "integration-secret-at-least-32-characters",
       MINIO_ACCESS_KEY: process.env.MINIO_ACCESS_KEY ?? "integration-access-key",
+      // Both providers are configured so the real adapters are built and the
+      // OAuth suite exercises them; it swaps globalThis.fetch for a fake
+      // provider rather than reaching the network.
+      GOOGLE_CLIENT_ID: "test-google-client-id",
+      GOOGLE_CLIENT_SECRET: "test-google-client-secret",
+      GITHUB_CLIENT_ID: "test-github-client-id",
+      GITHUB_CLIENT_SECRET: "test-github-client-secret",
+      APP_URL: "http://frontend.test",
+      API_PUBLIC_URL: "http://api.test/api/v1",
       MINIO_SECRET_KEY: process.env.MINIO_SECRET_KEY ?? "integration-secret-key",
     },
     hookTimeout: 30_000,

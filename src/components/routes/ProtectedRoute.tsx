@@ -1,4 +1,5 @@
 import { Navigate, Outlet } from "react-router";
+import OAuthLinkCompleter from "@/components/auth/OAuthLinkCompleter";
 import { useAuth } from "@/services/auth/useAuth";
 import type { AuthUser } from "@/services/auth/session";
 import Loading from "../loading/LoadingPage";
@@ -22,5 +23,11 @@ export default function ProtectedRoute() {
     return <Navigate to="/login?unconfirmed=1" replace />;
   }
 
-  return <Outlet />;
+  return (
+    <>
+      {/* Spends a parked link challenge now that a session exists. */}
+      <OAuthLinkCompleter />
+      <Outlet />
+    </>
+  );
 }

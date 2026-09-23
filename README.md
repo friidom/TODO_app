@@ -92,7 +92,16 @@ reach.
 
 **Auth.** Register and sign in, argon2 hashing, short-lived JWT access tokens
 held in memory, refresh-token rotation over an HttpOnly cookie, password reset
-by emailed link.
+by emailed link, and **"Continue with Google" / "Continue with GitHub"** when
+those are configured.
+
+OAuth signs in through the same session machinery as a password does — the
+provider callback sets the same refresh cookie — and an email address is never
+what authenticates. A provider identity whose verified address already belongs
+to an account does not sign in and does not create a second account: it asks
+you to sign in to the existing one first and connects the two explicitly.
+Connected providers are managed under **Profile -> Connected accounts**, where
+the last remaining way into an account cannot be removed.
 
 **Interface.** Light and dark themes from one set of CSS custom properties, a
 mobile pass across every view, keyboard-accessible drag and drop with
@@ -221,11 +230,14 @@ every variable the code reads, with comments.
 | File | Read by | Contains |
 |---|---|---|
 | `.env` | Vite, at build time | `VITE_API_URL` and the two `VITE_SUPABASE_*` placeholders |
-| `backend/.env` | The API, at startup | `DATABASE_URL`, `JWT_SECRET`, cookie/mail/token settings |
+| `backend/.env` | The API at startup, **and Docker Compose**, which passes it into the backend container | `DATABASE_URL`, `JWT_SECRET`, cookie/mail/token settings, OAuth credentials |
 
 Copy each `.example` and fill it in. **Docker needs neither** —
 `docker-compose.yml` passes working defaults for a local demo, so
-`docker compose up --build` works from a bare clone.
+`docker compose up --build` works from a bare clone. If `backend/.env` does
+exist it is passed into the backend container, which is how OAuth credentials
+reach Docker without being duplicated or written into `docker-compose.yml`;
+values set in the compose file itself still win over it.
 
 Two values must be set for anything beyond a local demo: `JWT_SECRET` (at least
 32 characters — `openssl rand -base64 48`) and `POSTGRES_PASSWORD`. Both are
@@ -233,7 +245,19 @@ overridable as environment variables; the compose defaults are self-labelled
 demo values and are not secrets.
 
 `VITE_*` variables are inlined at build time, so changing one means restarting
-the dev server, or rebuilding the image.
+the dev server, or rebuilding the image. **Never give an OAuth client secret a
+`VITE_` name** — it would be inlined into the public bundle. The frontend needs
+no OAuth variable at all: it never talks to a provider.
+
+OAuth is optional and set per provider, in pairs. Without
+`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` (or the GitHub pair) the buttons
+simply do not appear; an id without its secret refuses to start. Callback URLs
+are derived from `API_PUBLIC_URL`, which is the URL a **browser** uses to reach
+the API — `http://localhost:4000/api/v1` for `npm run dev`, but
+`http://localhost:3000/api/v1` under Docker, where nginx serves both. Register
+`<API_PUBLIC_URL>/auth/oauth/google/callback` and the GitHub equivalent with
+each provider. A GitHub OAuth App allows exactly one callback URL, so dev and
+production need separate apps.
 
 ---
 

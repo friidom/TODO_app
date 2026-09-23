@@ -3,9 +3,11 @@ import { Link } from "react-router";
 import { Loader2 } from "lucide-react";
 
 import AuthField from "@/components/authForm/AuthField";
+import OAuthButtons from "@/components/authForm/OAuthButtons";
 import PasswordInput from "@/components/authForm/PasswordInput";
 import { FORM_SUBMIT } from "@/components/ui/fieldInput";
 import { useLogin } from "@/services/auth/useLogin";
+import { useSearchParams } from "react-router";
 import {
   hasErrors,
   validateIdentifier,
@@ -15,6 +17,7 @@ import {
 
 export default function LoginForm() {
   const login = useLogin();
+  const [searchParams] = useSearchParams();
 
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -104,6 +107,12 @@ export default function LoginForm() {
           "Sign in"
         )}
       </button>
+
+      <OAuthButtons
+        next={searchParams.get("next")}
+        disabled={login.isPending}
+        divider="above"
+      />
     </form>
   );
 }

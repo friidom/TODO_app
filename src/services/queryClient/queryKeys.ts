@@ -66,6 +66,12 @@ export const queryKeys = {
 
   notifications: () => NOTIFICATION_ROOT,
 
+  // Not board-scoped: connected providers are a property of the account, like
+  // forYou and notifications.
+  oauthConnections: () => ["oauth-connections"] as const,
+
+  oauthProviders: () => ["oauth-providers"] as const,
+
   notificationList: () => [...NOTIFICATION_ROOT, "list"] as const,
 
   notificationUnread: () => [...NOTIFICATION_ROOT, "unread"] as const,

@@ -1,0 +1,20 @@
+# Frontend, development only. Dockerfile (the production one) builds static
+# files and hands them to nginx, which is why a .tsx edit needs a rebuild there.
+# This image runs the Vite dev server instead and the source arrives as a bind
+# mount, so nothing here is rebuilt for ordinary source changes.
+
+FROM node:24-alpine
+
+WORKDIR /app
+
+# Only the manifests are copied. The source is bind-mounted at runtime, and
+# /app/node_modules is a named volume seeded from this layer — that is what
+# keeps the Windows host's node_modules, with its Windows binaries, out of the
+# Linux container.
+COPY package.json package-lock.json ./
+RUN npm ci
+
+EXPOSE 5173
+
+# --config, because HMR behind a proxy needs a clientPort that has no CLI flag.
+CMD ["npm", "run", "dev", "--", "--config", "vite.config.docker.ts", "--host", "0.0.0.0"]

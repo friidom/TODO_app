@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { Check, Loader2, X as XIcon } from "lucide-react";
 
+import { useSearchParams } from "react-router";
+
 import AuthField from "@/components/authForm/AuthField";
+import OAuthButtons from "@/components/authForm/OAuthButtons";
 import PasswordInput from "@/components/authForm/PasswordInput";
 import { FORM_SUBMIT } from "@/components/ui/fieldInput";
 import { useRegister } from "@/services/auth/useRegister";
@@ -20,6 +23,7 @@ import {
 
 export default function RegisterForm() {
   const register = useRegister();
+  const [searchParams] = useSearchParams();
 
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -175,6 +179,12 @@ export default function RegisterForm() {
           "Create account"
         )}
       </button>
+
+      <OAuthButtons
+        next={searchParams.get("next")}
+        disabled={register.isPending}
+        divider="above"
+      />
     </form>
   );
 }

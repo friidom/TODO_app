@@ -71,6 +71,11 @@ describe("resetDatabase", () => {
       prisma.board_members.count(),
       prisma.spaces.count(),
       prisma.activities.count(),
+      // Both cascade from users (0023). Listed here so a cascade that stops
+      // working fails in the harness rather than as a stray row in a later
+      // suite, which is what §21.11 and §21.12 both were.
+      prisma.oauth_accounts.count(),
+      prisma.oauth_link_tokens.count(),
     ])) {
       expect(count).toBe(0);
     }

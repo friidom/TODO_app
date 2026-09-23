@@ -5,7 +5,9 @@ import { prisma } from "../../db/prisma.js";
 export interface CredentialRow {
   id: string;
   email: string;
-  password_hash: string;
+  // Null since 0023: an OAuth-only account has no password. login() must keep
+  // hashing on that branch — see the column comment.
+  password_hash: string | null;
   email_verified_at: Date | null;
   deactivated_at: Date | null;
 }
@@ -39,7 +41,7 @@ export async function findUserByUsername(username: string): Promise<CredentialRo
 
 export function insertUser(
   tx: Prisma.TransactionClient,
-  user: { id: string; email: string; passwordHash: string; emailVerifiedAt: Date | null },
+  user: { id: string; email: string; passwordHash: string | null; emailVerifiedAt: Date | null },
 ): Promise<{ id: string; email: string; email_verified_at: Date | null; created_at: Date }> {
   return tx.users.create({
     data: {

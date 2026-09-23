@@ -98,10 +98,15 @@ async function part1_sqlStateMapping() {
     400,
   );
 
+  // org_role, not password_hash: 0023 made password_hash nullable for
+  // OAuth-only accounts, so the old probe raised nothing and this check would
+  // have passed for the wrong reason. org_role is not null (0011), and its
+  // DEFAULT does not rescue an EXPLICIT null. The email literal stays as it
+  // was, because the residue count below names it.
   expect(
     "not-null violation",
     await captureError(
-      (tx) => tx.$executeRaw`insert into users (email, password_hash) values ('nn@example.test', null)`,
+      (tx) => tx.$executeRaw`insert into users (email, org_role) values ('nn@example.test', null)`,
     ),
     "bad_request",
     400,

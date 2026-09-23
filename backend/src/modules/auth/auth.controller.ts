@@ -21,7 +21,9 @@ import type { AuthResult, RequestMeta } from "./auth.service.js";
 // and the service silently receives raw input wearing a validated type. The
 // type system cannot catch that, so the schema and the route belong together.
 
-function metaOf(req: Request): RequestMeta {
+// Exported for oauth.controller.ts, which issues the same sessions and so
+// records the same request metadata against them.
+export function metaOf(req: Request): RequestMeta {
   const ip = req.ip;
 
   return {

@@ -102,6 +102,16 @@ const schema = z.object({
 
   APP_URL: z.string().min(1).default("http://localhost:5173"),
 
+  // The API's own EXTERNALLY REACHABLE base url — the one a browser uses,
+  // which is not necessarily the one this process listens on. Under docker
+  // compose the browser reaches the API through nginx on :3000, so this is
+  // http://localhost:3000/api/v1 there and http://localhost:4000/api/v1 for
+  // `npm run dev`. OAuth callback urls are derived from it (never configured
+  // per provider), because the redirect uri has to be byte-identical in the
+  // authorize request, the token exchange and the provider's console, and
+  // three variables is three chances to make them disagree.
+  API_PUBLIC_URL: z.string().min(1).default("http://localhost:4000/api/v1"),
+
   MAIL_DRIVER: z.enum(["console", "smtp"]).default("console"),
   MAIL_FROM: z.string().min(1).default("TODO App <no-reply@todo.local>"),
   SMTP_HOST: z.string().min(1).optional(),
@@ -110,6 +120,15 @@ const schema = z.object({
   SMTP_PASS: z.string().min(1).optional(),
 
   AUTH_REQUIRE_EMAIL_VERIFICATION: flag("false"),
+
+  // Optional in pairs: a provider with no credentials simply does not appear
+  // on the sign-in page. The client ids are PUBLIC — they travel in the
+  // authorize url, in the address bar. The secrets are not, and must never be
+  // given a VITE_ name: Vite inlines those into the browser bundle.
+  GOOGLE_CLIENT_ID: z.string().min(1).optional(),
+  GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
+  GITHUB_CLIENT_ID: z.string().min(1).optional(),
+  GITHUB_CLIENT_SECRET: z.string().min(1).optional(),
 
   // Every admin bucket is computed in this one zone (M34 D-11). "Today"
   // differs by up to a day across zones, and a KPI that disagrees with the
@@ -145,9 +164,31 @@ export const env = {
   isProduction: parsed.data.NODE_ENV === "production",
 } as const;
 
+// Half a provider is worse than none: the button would render and the
+// exchange would fail at the last step, after the user had already consented.
+{
+  const halves: [string, string | undefined, string | undefined][] = [
+    ["GOOGLE", env.GOOGLE_CLIENT_ID, env.GOOGLE_CLIENT_SECRET],
+    ["GITHUB", env.GITHUB_CLIENT_ID, env.GITHUB_CLIENT_SECRET],
+  ];
+
+  for (const [name, id, secret] of halves) {
+    if ((id === undefined) !== (secret === undefined)) {
+      throw new Error(
+        `Invalid backend environment: ${name}_CLIENT_ID and ${name}_CLIENT_SECRET must be set together.`,
+      );
+    }
+  }
+}
+
 if (env.isProduction) {
+  const oauthConfigured = env.GOOGLE_CLIENT_ID !== undefined || env.GITHUB_CLIENT_ID !== undefined;
+
   const unsafe = [
     !env.COOKIE_SECURE && "COOKIE_SECURE must be true — the refresh cookie would otherwise travel in clear text",
+    oauthConfigured &&
+      !env.API_PUBLIC_URL.startsWith("https://") &&
+      "API_PUBLIC_URL must be https — it is handed to Google and GitHub as the redirect target, and an authorization code would travel back in clear text",
     !env.AUTH_REQUIRE_EMAIL_VERIFICATION &&
       "AUTH_REQUIRE_EMAIL_VERIFICATION must be true — auto-verification lets anyone claim an address they do not own",
     env.MAIL_DRIVER === "console" &&
