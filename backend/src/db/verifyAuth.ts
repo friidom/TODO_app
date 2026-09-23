@@ -246,7 +246,7 @@ async function part2_provisioning(userId: string) {
       JSON.stringify([
         ["To Do", "todo"],
         ["In Progress", "in_progress"],
-        ["In Review", "in_progress"],
+        ["In Review", "in_review"],
         ["Done", "done"],
       ]),
     columns,

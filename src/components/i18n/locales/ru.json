@@ -4,6 +4,7 @@
   "columnCategory": {
     "todo": "Нужно сделать",
     "in_progress": "В процессе",
+    "in_review": "На проверке",
     "done": "Выполнено"
   },
   "loading": "Загрузка..."

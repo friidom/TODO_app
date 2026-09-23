@@ -30,15 +30,10 @@ async function columnsOf(board: string): Promise<Cols> {
   const of = (category: string): string[] =>
     rows.filter((row) => row.category === category).map((row) => row.id);
 
-  const doing = of("in_progress");
-
-  if (doing.length < 2)
-    throw new Error("the provisioned board should have two in_progress columns");
-
   return {
     todo: of("todo")[0]!,
-    doing: doing[0]!,
-    review: doing[1]!,
+    doing: of("in_progress")[0]!,
+    review: of("in_review")[0]!,
     done: of("done")[0]!,
   };
 }
@@ -144,7 +139,7 @@ describe("the todos-side start trigger", () => {
   });
 
   it("keeps the start date when the card is completed", async () => {
-    const todo = await addTodo(cols.doing);
+    const todo = await addTodo(cols.review);
     const started = (await readTodo(todo)).started_at;
 
     await move(todo, cols.done);
@@ -155,7 +150,7 @@ describe("the todos-side start trigger", () => {
   });
 
   it("keeps the start date when a completed card is reopened", async () => {
-    const todo = await addTodo(cols.doing);
+    const todo = await addTodo(cols.review);
     const started = (await readTodo(todo)).started_at;
 
     await move(todo, cols.done);
@@ -167,7 +162,7 @@ describe("the todos-side start trigger", () => {
   });
 
   it("clears on returning to a todo column, alongside completed_at", async () => {
-    const todo = await addTodo(cols.doing);
+    const todo = await addTodo(cols.review);
 
     await move(todo, cols.done);
     await move(todo, cols.todo);
@@ -185,10 +180,13 @@ describe("the todos-side start trigger", () => {
     expect((await readTodo(todo)).started_at).toBeNull();
   });
 
-  it("stamps both ends for a card dragged straight from To Do to Done", async () => {
-    const todo = await addTodo(cols.todo);
+  // Created straight into Done rather than dragged there: the workflow refuses
+  // a todo -> done move, but a FIRST placement is not a transition, so a card
+  // can still reach done having never sat in an in_progress column — which is
+  // the case this is about.
+  it("stamps both ends for a card that never sat in an in_progress column", async () => {
+    const todo = await addTodo(cols.done);
 
-    await move(todo, cols.done);
     const row = await readTodo(todo);
 
     expect(row.started_at).not.toBeNull();
@@ -288,7 +286,7 @@ describe("the invariant", () => {
       await addTodo(cols.review),
     ];
 
-    await move(cards[0]!, cols.done);
+    await move(cards[0]!, cols.doing);
     await setCategory(cols.doing, "done");
     await client.patch(`/api/v1/columns/${cols.todo}`, { title: "Inbox" }, { token: owner.token });
     await move(cards[2]!, cols.todo);

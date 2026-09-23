@@ -6,6 +6,7 @@ import { cn } from "@/utils/cn";
 const TONES: Record<WipSlice["category"], string> = {
   todo: "bg-ink-3/45",
   in_progress: "bg-brand/80",
+  in_review: "bg-status-orange/70",
   done: "bg-status-green/70",
   none: "bg-ink/[0.08]",
 };

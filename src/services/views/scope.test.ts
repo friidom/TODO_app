@@ -13,6 +13,8 @@ function board(id: string, spaceId: string | null): IBoard {
     icon: null,
     cover_color: null,
     visibility: "private",
+    sprints_enabled: true,
+    workflow_enabled: true,
     next_key: 1,
     key_prefix: "KAN",
     created_at: "2026-08-14T00:00:00.000Z",

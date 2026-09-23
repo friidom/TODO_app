@@ -244,7 +244,7 @@ export interface DurationBin {
 export interface WipSlice {
   key: string;
   label: string;
-  category: "todo" | "in_progress" | "done" | "none";
+  category: "todo" | "in_progress" | "in_review" | "done" | "none";
   count: number;
 }
 

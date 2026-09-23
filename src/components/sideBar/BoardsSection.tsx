@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { NavLink, useLocation } from "react-router";
+import { Link, NavLink, useLocation } from "react-router";
 import {
   ChevronRightIcon,
   FolderIcon,
   FolderPlusIcon,
   KanbanIcon,
   MoreHorizontalIcon,
+  Settings2Icon,
   PlusIcon,
 } from "lucide-react";
 
@@ -32,13 +33,13 @@ import { useAuth } from "@/services/auth/useAuth";
 import { useBoards } from "@/services/boards/useBoards";
 import { groupBoardsBySpace } from "@/services/spaces/groupBoards";
 import { useSpaces } from "@/services/spaces/useSpaces";
+import { boardSettingsPath } from "@/services/boardSettings/registry";
 import type { IBoard, ISpace } from "@/types/data";
 import { cn } from "@/utils/cn";
 
 // gated on board.owner_id, not a roster fetch — filing/deleting is owner-only in the db anyway, and the row already has this field
 type Dialog =
   | { kind: "create-board"; spaceId: string | null }
-  | { kind: "edit-board"; board: IBoard }
   | { kind: "delete-board"; board: IBoard }
   | { kind: "create-space" }
   | { kind: "rename-space"; space: ISpace }
@@ -144,15 +145,21 @@ export default function BoardsSection() {
               <span>Create space</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
+
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              render={<Link to="/boards" />}
+              className="text-ink-3 hover:text-ink text-meta h-8"
+            >
+              <Settings2Icon className="size-4 shrink-0" />
+              <span>Manage boards</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
         </SidebarMenu>
       </SidebarGroup>
 
       {dialog?.kind === "create-board" && (
         <BoardFormModal spaceId={dialog.spaceId} onClose={close} />
-      )}
-
-      {dialog?.kind === "edit-board" && (
-        <BoardFormModal board={dialog.board} onClose={close} />
       )}
 
       {dialog?.kind === "delete-board" && (
@@ -314,7 +321,11 @@ function BoardRow({
   const location = useLocation();
 
   const to = `/boards/${board.id}`;
-  const isActive = location.pathname === to;
+  // startsWith, not equality: /boards/:id/settings/... is still this board, and
+  // an exact match would un-highlight the row the moment settings opened. The
+  // `/` guard keeps a sibling id whose prefix matches from lighting up too.
+  const isActive =
+    location.pathname === to || location.pathname.startsWith(`${to}/`);
 
   return (
     <SidebarMenuItem>
@@ -350,7 +361,7 @@ function BoardRow({
 
           <DropdownMenuContent align="start" className="w-44">
             <DropdownMenuItem
-              onClick={() => onDialog({ kind: "edit-board", board })}
+              render={<Link to={boardSettingsPath(board.id, "details")} />}
             >
               Board settings
             </DropdownMenuItem>

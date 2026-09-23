@@ -5,7 +5,15 @@ import type { IBoard } from "@/types/data";
 type BoardPatch = Partial<
   Pick<
     IBoard,
-    "title" | "description" | "icon" | "cover_color" | "visibility" | "space_id"
+    | "title"
+    | "description"
+    | "icon"
+    | "cover_color"
+    | "visibility"
+    | "space_id"
+    // Board Settings > Features (migration 0020).
+    | "sprints_enabled"
+    | "workflow_enabled"
   >
 >;
 

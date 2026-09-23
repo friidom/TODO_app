@@ -58,61 +58,100 @@ function column(over: Partial<IColumn> & { id: string }): IColumn {
   } as IColumn;
 }
 
-describe("isOnBoard", () => {
-  it("no active Sprint: unplanned work in a column still shows", () => {
+describe("isOnBoard — Sprints ON", () => {
+  const ON = true;
+
+  it("no active Sprint: unplanned work in a column is off the board", () => {
     expect(
-      isOnBoard(todo({ id: "a", column_id: "col-1", sprint_id: null }), null),
-    ).toBe(true);
+      isOnBoard(todo({ id: "a", column_id: "col-1", sprint_id: null }), null, ON),
+    ).toBe(false);
   });
 
   it("no active Sprint: a card committed to a Sprint stays off", () => {
     expect(
-      isOnBoard(todo({ id: "b", column_id: "col-1", sprint_id: "s-1" }), null),
+      isOnBoard(todo({ id: "b", column_id: "col-1", sprint_id: "s-1" }), null, ON),
     ).toBe(false);
   });
 
   it("no active Sprint: a card with no column doesn't qualify either", () => {
-    expect(isOnBoard(todo({ id: "a", column_id: null }), null)).toBe(false);
+    expect(isOnBoard(todo({ id: "a", column_id: null }), null, ON)).toBe(false);
   });
 
   it("active Sprint: its own item, with a column, qualifies", () => {
     expect(
-      isOnBoard(todo({ id: "a", column_id: "col-1", sprint_id: "s-1" }), "s-1"),
+      isOnBoard(todo({ id: "a", column_id: "col-1", sprint_id: "s-1" }), "s-1", ON),
     ).toBe(true);
   });
 
   it("active Sprint: an item with no column at all does not qualify", () => {
     expect(
-      isOnBoard(todo({ id: "a", column_id: null, sprint_id: "s-1" }), "s-1"),
+      isOnBoard(todo({ id: "a", column_id: null, sprint_id: "s-1" }), "s-1", ON),
     ).toBe(false);
   });
 
   it("active Sprint: a Future Sprint's item stays off, even with a column", () => {
     expect(
-      isOnBoard(todo({ id: "b", column_id: "col-1", sprint_id: "s-2" }), "s-1"),
+      isOnBoard(todo({ id: "b", column_id: "col-1", sprint_id: "s-2" }), "s-1", ON),
     ).toBe(false);
   });
 
-  it("active Sprint: a no-Sprint item is on the board alongside it", () => {
+  // The backlog never leaks onto the board: being unplanned is not the same as
+  // being in the running sprint, however many columns the card has passed through.
+  it("active Sprint: an unplanned item is NOT on the board alongside it", () => {
     expect(
-      isOnBoard(todo({ id: "c", column_id: "col-1", sprint_id: null }), "s-1"),
-    ).toBe(true);
+      isOnBoard(todo({ id: "c", column_id: "col-1", sprint_id: null }), "s-1", ON),
+    ).toBe(false);
   });
 
   it("starting a Sprint makes its planned items eligible: column_id is what start_sprint writes", () => {
     const planned = todo({ id: "a", column_id: null, sprint_id: "s-1" });
 
-    expect(isOnBoard(planned, "s-1")).toBe(false);
+    expect(isOnBoard(planned, "s-1", ON)).toBe(false);
 
     const startedOntoBoard = { ...planned, column_id: "todo-1" };
 
-    expect(isOnBoard(startedOntoBoard, "s-1")).toBe(true);
+    expect(isOnBoard(startedOntoBoard, "s-1", ON)).toBe(true);
   });
 
-  it("completing a Sprint leaves its unfinished work on the board as unplanned", () => {
-    const carried = todo({ id: "a", column_id: "col-1", sprint_id: null });
+  // rehomeUnfinished clears sprint_id and keeps column_id, so the only thing
+  // that takes carried work off the board is this rule.
+  it("completing a Sprint takes its unfinished work off the board", () => {
+    const inSprint = todo({ id: "a", column_id: "col-1", sprint_id: "s-1" });
 
-    expect(isOnBoard(carried, null)).toBe(true);
+    expect(isOnBoard(inSprint, "s-1", ON)).toBe(true);
+
+    const carried = { ...inSprint, sprint_id: null };
+
+    expect(isOnBoard(carried, null, ON)).toBe(false);
+  });
+});
+
+// boards.sprints_enabled = false (migration 0020). A column is the whole rule
+// again — the board a team gets when it does not plan in sprints. Without this,
+// turning the feature off would empty the board rather than simplify it.
+describe("isOnBoard — Sprints OFF", () => {
+  const OFF = false;
+
+  it("a card with a column is on the board whatever its sprint", () => {
+    for (const sprintId of [null, "s-1", "s-2"]) {
+      expect(
+        isOnBoard(todo({ id: "a", column_id: "col-1", sprint_id: sprintId }), null, OFF),
+        String(sprintId),
+      ).toBe(true);
+    }
+  });
+
+  it("still refuses a card with no column — the backlog stays the backlog", () => {
+    expect(
+      isOnBoard(todo({ id: "a", column_id: null, sprint_id: "s-1" }), "s-1", OFF),
+    ).toBe(false);
+  });
+
+  it("ignores the active sprint entirely", () => {
+    const card = todo({ id: "a", column_id: "col-1", sprint_id: "s-2" });
+
+    expect(isOnBoard(card, "s-1", OFF)).toBe(true);
+    expect(isOnBoard(card, null, OFF)).toBe(true);
   });
 });
 

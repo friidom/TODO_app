@@ -37,6 +37,13 @@ services:
       # The browser's origin, not the backend's: nginx serves both.
       CORS_ORIGIN: http://localhost:3000
       APP_URL: http://localhost:3000
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_USE_SSL: false
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin123
+      MINIO_BUCKET: todo-attachments
+
     ports:
       - "4000:4000"
     depends_on:
@@ -64,5 +71,21 @@ services:
       - backend
     restart: unless-stopped
 
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: todo-minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+
+
 volumes:
   pgdata:
+  minio_data:

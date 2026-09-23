@@ -113,6 +113,8 @@ export function useAddTodo() {
         updated_at: null,
         sprint_id: sprint_id === undefined ? activeSprintId : sprint_id,
         backlog_rank: null,
+        creator_id: null,
+        completed_at: null,
       };
 
       queryClient.setQueryData<Todo[]>(

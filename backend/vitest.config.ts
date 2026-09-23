@@ -14,6 +14,8 @@ export default defineConfig({
     env: {
       DATABASE_URL: "postgresql://postgres:stub@localhost:5432/todo_app_stub",
       JWT_SECRET: "test-secret-that-is-at-least-32-characters-long",
+      MINIO_ACCESS_KEY: "test-access-key",
+      MINIO_SECRET_KEY: "test-secret-key",
     },
   },
 });

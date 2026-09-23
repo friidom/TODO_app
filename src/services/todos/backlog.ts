@@ -8,22 +8,29 @@ import { byRank, rankForAppend } from "@/utils/rank";
 import { isGenuineSubtask } from "./subtasks";
 
 // column_id and sprint_id are independent: column_id says it's on the board, sprint_id says it's planned.
-// Don't collapse them into "has a column AND is in the active sprint" — that was tried and it made every
-// pre-sprint card and every newly created card vanish from the board.
+// The board shows the intersection — see isOnBoard. Every other reader of these two fields (the Backlog,
+// sprintAssignmentPatch) still treats them separately, so don't fold the pair together anywhere else.
 export interface SprintSection {
   sprint: Sprint;
   items: Todo[];
 }
 
-// No column = not on the board, full stop. With a column, sprint_id only ever excludes (a card
-// committed to a future/completed sprint keeps its column but stays off the board until its own
-// sprint runs). No active sprint doesn't mean an empty board — unplanned cards still show.
+// With Sprints ON the board is the running sprint's work and nothing else: a card needs a column AND
+// must be committed to the sprint that is currently active. Unplanned work, a future sprint's work and
+// a finished sprint's work are all off it — with no active sprint the board is empty by design, and
+// KanbanBoard says so rather than leaving it looking broken.
+//
+// With Sprints OFF (boards.sprints_enabled, migration 0020) a column is the whole rule again, which is
+// what the board did before sprints existed. Without this branch, turning the feature off would empty
+// every board instead of simplifying it — the failure M31-C already shipped once.
 export function isOnBoard(
   todo: Pick<Todo, "column_id" | "sprint_id">,
   activeSprintId: string | null,
+  sprintsEnabled: boolean,
 ): boolean {
   if (todo.column_id === null) return false;
-  if (todo.sprint_id === null) return true;
+  if (!sprintsEnabled) return true;
+  if (activeSprintId === null) return false;
 
   return todo.sprint_id === activeSprintId;
 }

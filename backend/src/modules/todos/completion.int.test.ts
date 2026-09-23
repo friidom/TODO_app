@@ -14,6 +14,7 @@ let boardId: string;
 interface Cols {
   todo: string;
   doing: string;
+  review: string;
   done: string;
 }
 
@@ -34,7 +35,12 @@ async function columnsOf(board: string): Promise<Cols> {
     return row.id;
   };
 
-  return { todo: first("todo"), doing: first("in_progress"), done: first("done") };
+  return {
+    todo: first("todo"),
+    doing: first("in_progress"),
+    review: first("in_review"),
+    done: first("done"),
+  };
 }
 
 async function addTodo(
@@ -111,8 +117,10 @@ afterAll(async () => {
 });
 
 describe("the todos-side trigger", () => {
+  // From review, not todo: the workflow refuses anything but a single step into
+  // done, and what this is about is the trigger firing on entry to done.
   it("stamps on entering a done column, and credits the assignee", async () => {
-    const todo = await addTodo(cols.todo, { assignee_id: owner.id });
+    const todo = await addTodo(cols.review, { assignee_id: owner.id });
 
     expect((await readTodo(todo)).completed_at).toBeNull();
 
@@ -177,7 +185,7 @@ describe("the todos-side trigger", () => {
   });
 
   it("leaves completed_by null when nobody was assigned", async () => {
-    const todo = await addTodo(cols.todo);
+    const todo = await addTodo(cols.review);
 
     await move(todo, cols.done);
 
@@ -194,7 +202,7 @@ describe("the todos-side trigger", () => {
 
     await addMember(boardId, other, "editor", owner.id);
 
-    const todo = await addTodo(cols.todo, { assignee_id: owner.id });
+    const todo = await addTodo(cols.review, { assignee_id: owner.id });
 
     await move(todo, cols.done);
 

@@ -4,6 +4,7 @@
   "columnCategory": {
     "todo": "Bajarilishi kerak",
     "in_progress": "Jarayonda",
+    "in_review": "Ko'rib chiqilmoqda",
     "done": "Bajarilgan"
   },
   "loading": "Yuklanmoqda..."

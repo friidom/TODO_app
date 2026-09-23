@@ -64,6 +64,8 @@ export function useAddSubtask() {
         updated_at: null,
         sprint_id: null,
         backlog_rank: null,
+        creator_id: null,
+        completed_at: null,
       };
 
       queryClient.setQueryData<Todo[]>(

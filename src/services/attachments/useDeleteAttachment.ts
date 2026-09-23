@@ -1,26 +1,17 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { deleteAttachmentRow, removeObject } from "./attachmentsApi";
+import { deleteAttachment } from "./attachmentsApi";
 import { queryKeys } from "@/services/queryClient/queryKeys";
 import type { Attachment } from "@/types/data";
 
-// Object deleted before the row — the storage policy locates the object through the row, so deleting the row first would orphan the bytes permanently.
+// One request: the endpoint removes the object before the row, so a failure
+// part-way leaves a visible row rather than bytes nothing points at.
 export function useDeleteAttachment() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
-      id,
-      storagePath,
-    }: {
-      id: string;
-      storagePath: string;
-      todoId: string;
-    }) => {
-      await removeObject(storagePath);
-
-      return deleteAttachmentRow(id);
-    },
+    mutationFn: ({ todoId, id }: { id: string; todoId: string }) =>
+      deleteAttachment(todoId, id),
 
     onMutate: async ({ id, todoId }) => {
       const key = queryKeys.attachments(todoId);

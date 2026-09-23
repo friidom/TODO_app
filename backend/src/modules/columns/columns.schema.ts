@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const category = z.enum(["todo", "in_progress", "done"]);
+const category = z.enum(["todo", "in_progress", "in_review", "done"]);
 // int4 is the column width, not an invented product rule: a larger value is an
 // overflow rather than a big limit.
 const INT4_MAX = 2_147_483_647;

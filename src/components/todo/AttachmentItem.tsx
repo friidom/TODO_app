@@ -17,7 +17,8 @@ import {
   formatBytes,
   previewKind,
 } from "@/services/attachments/fileMeta";
-import { useAttachmentUrl } from "@/services/attachments/useAttachmentUrl";
+import { useAttachmentObjectUrl } from "@/services/attachments/useAttachmentObjectUrl";
+import { useDownloadAttachment } from "@/services/attachments/useDownloadAttachment";
 import { useDeleteAttachment } from "@/services/attachments/useDeleteAttachment";
 import type { Attachment } from "@/types/data";
 import { cn } from "@/utils/cn";
@@ -78,12 +79,10 @@ function dateAdded(iso: string, locale: string): string {
 export function AttachmentRow({
   attachment,
   todoId,
-  thumbUrl,
   onPreview,
 }: {
   attachment: Attachment;
   todoId: string;
-  thumbUrl: string | undefined;
   onPreview: () => void;
 }) {
   const actions = useRowActions(attachment, todoId);
@@ -112,11 +111,7 @@ export function AttachmentRow({
         "hover:bg-ink/[0.035] transition-colors",
       )}
     >
-      <AttachmentThumb
-        attachment={attachment}
-        url={thumbUrl}
-        onClick={onPreview}
-      />
+      <AttachmentThumb attachment={attachment} onClick={onPreview} />
 
       <div role="cell" className="min-w-0">
         <button
@@ -154,12 +149,10 @@ export function AttachmentRow({
 export function AttachmentCard({
   attachment,
   todoId,
-  thumbUrl,
   onPreview,
 }: {
   attachment: Attachment;
   todoId: string;
-  thumbUrl: string | undefined;
   onPreview: () => void;
 }) {
   const actions = useRowActions(attachment, todoId);
@@ -172,7 +165,6 @@ export function AttachmentCard({
     <li className="border-hairline rounded-card hover:border-ink/20 overflow-hidden border transition-colors">
       <AttachmentThumb
         attachment={attachment}
-        url={thumbUrl}
         onClick={onPreview}
         variant="card"
       />
@@ -208,41 +200,25 @@ function useRowActions(attachment: Attachment, todoId: string) {
   const { user } = useAuth();
   const { role } = usePermissions();
   const remove = useDeleteAttachment();
-  const link = useAttachmentUrl();
+  const download = useDownloadAttachment();
 
   const [confirming, setConfirming] = useState(false);
-
-  function download() {
-    link.mutate(
-      {
-        storagePath: attachment.storage_path,
-        filename: attachment.filename,
-      },
-      {
-        onSuccess: (url) => {
-          // location.href, not window.open — popup blockers stop a popup opened after an async gap.
-          window.location.href = url;
-        },
-      },
-    );
-
-    // No onError — falls through to the global MutationCache toast.
-  }
 
   return {
     filename: attachment.filename,
     confirming,
     setConfirming,
-    downloading: link.isPending,
+    downloading: download.isPending,
     removing: remove.isPending,
     mayDelete: canDeleteAttachment(role, user?.id, attachment.uploader_id),
-    download,
-    remove: () =>
-      remove.mutate({
-        id: attachment.id,
-        storagePath: attachment.storage_path,
+    // No onError — falls through to the global MutationCache toast.
+    download: () =>
+      download.mutate({
         todoId,
+        id: attachment.id,
+        filename: attachment.filename,
       }),
+    remove: () => remove.mutate({ id: attachment.id, todoId }),
   };
 }
 
@@ -404,23 +380,28 @@ export function MenuItem({
   );
 }
 
-// Full-size image, not a generated thumbnail — no image transform on this Supabase plan. loading="lazy" blunts the cost.
+// Full-size image, not a generated thumbnail — the endpoint streams the stored
+// object and there is no resizing behind it. loading="lazy" blunts the cost.
 function AttachmentThumb({
   attachment,
-  url,
   onClick,
   variant = "row",
 }: {
   attachment: Attachment;
-  url: string | undefined;
   onClick: () => void;
   variant?: "row" | "card";
 }) {
   const [broken, setBroken] = useState(false);
 
+  const isImage = previewKind(attachment.mime_type) === "image";
+  const { url } = useAttachmentObjectUrl(
+    attachment.todo_id,
+    attachment.id,
+    isImage,
+  );
+
   const Icon = KIND_ICONS[fileKind(attachment.mime_type, attachment.filename)];
-  const showImage =
-    previewKind(attachment.mime_type) === "image" && url && !broken;
+  const showImage = isImage && url && !broken;
 
   const card = variant === "card";
 
@@ -514,7 +495,7 @@ export function PendingRow({
           </button>
         </span>
       ) : (
-        // Text, not a progress bar — supabase-js exposes no upload progress events.
+        // Text, not a progress bar — fetch exposes no upload progress events.
         <span className="text-ink-3 text-mini shrink-0">Uploading…</span>
       )}
     </div>

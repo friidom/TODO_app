@@ -5,8 +5,13 @@ import { toNumber } from "../../lib/numeric.js";
 import { RANK_GAP } from "../../lib/rank.js";
 
 // TODO_FIELDS in src/types/data.ts, in its order. The board's narrow slice:
-// description and creator_id are deliberately absent and only GET /todos/:id
-// returns them.
+// description is deliberately absent and only GET /todos/:id returns it.
+//
+// creator_id and completed_at WERE absent too, until the predefined filters
+// needed them: "Reported by me" and "Resolved recently" are questions about a
+// card that cannot be asked without them, and answering those from a second
+// endpoint would fork the cache every mutation already patches. Two scalars on
+// a projection this wide is the cheaper of the two.
 export const LIST_FIELDS = {
   id: true,
   board_id: true,
@@ -24,14 +29,15 @@ export const LIST_FIELDS = {
   parent_id: true,
   sprint_id: true,
   backlog_rank: true,
+  creator_id: true,
   created_at: true,
   updated_at: true,
+  completed_at: true,
 } satisfies Prisma.todosSelect;
 
 const DETAIL_FIELDS = {
   ...LIST_FIELDS,
   description: true,
-  creator_id: true,
 } satisfies Prisma.todosSelect;
 
 type ListRecord = Prisma.todosGetPayload<{ select: typeof LIST_FIELDS }>;
@@ -79,6 +85,18 @@ export async function findOne(boardId: string, todoId: string): Promise<TodoDeta
   });
 
   return row === null ? null : toRow(row);
+}
+
+// The column the card is in now, for the workflow check. findOne would read the
+// whole detail projection, relations included, to answer one field.
+export function columnOf(
+  boardId: string,
+  todoId: string,
+): Promise<{ column_id: string | null } | null> {
+  return prisma.todos.findFirst({
+    where: { id: todoId, board_id: boardId },
+    select: { column_id: true },
+  });
 }
 
 export async function lastInColumn(

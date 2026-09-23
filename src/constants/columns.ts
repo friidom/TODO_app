@@ -17,6 +17,13 @@ export const COLUMN_CATEGORIES = {
     tone: "text-status-blue",
     band: "bg-gradient-to-b from-status-blue/10 via-status-blue/[0.03] to-transparent",
   },
+  in_review: {
+    swatch: "bg-[#fedec8]",
+    pill: "bg-[#fedec8] text-[#172b4d]",
+    dot: "bg-status-orange",
+    tone: "text-status-orange",
+    band: "bg-gradient-to-b from-status-orange/10 via-status-orange/[0.03] to-transparent",
+  },
   done: {
     swatch: "bg-[#b3df72]",
     pill: "bg-[#b3df72] text-[#172b4d]",

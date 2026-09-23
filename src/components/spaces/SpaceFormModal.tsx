@@ -40,10 +40,7 @@ export default function SpaceFormModal({
     if (!trimmed || tooLong) return;
 
     if (space) {
-      updateSpace.mutate(
-        { id: space.id, title: trimmed },
-        { onSuccess: onClose },
-      );
+      updateSpace.mutate({ id: space.id, title: trimmed }, { onSuccess: onClose });
     } else {
       createSpace.mutate({ title: trimmed }, { onSuccess: onClose });
     }

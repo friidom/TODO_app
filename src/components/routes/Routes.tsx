@@ -1,5 +1,5 @@
 import { Suspense, type ReactNode } from "react";
-import { createBrowserRouter } from "react-router";
+import { Navigate, createBrowserRouter } from "react-router";
 
 import ProtectedRoute from "./ProtectedRoute";
 import SuperadminRoute from "./SuperadminRoute";
@@ -22,6 +22,10 @@ import {
   AdminUserPage,
   AdminUsersPage,
   BoardPage,
+  BoardSettingsDetailsPage,
+  BoardSettingsFeaturesPage,
+  FilterPage,
+  ManageBoardsPage,
   ForgotPasswordPage,
   InvitePage,
   ProfilePage,
@@ -44,9 +48,34 @@ export const router = createBrowserRouter([
         path: "/",
         element: <ForYouPage />,
       },
+      // Declared before /boards/:boardId so the literal segment is not swallowed
+      // by the param — the rule the API's own routers follow.
+      {
+        path: "/boards",
+        element: deferred(<ManageBoardsPage />),
+      },
       {
         path: "/boards/:boardId",
         element: deferred(<BoardPage />),
+      },
+      // Flat, not nested, like every other route here — each settings page
+      // renders the shell itself, the way the admin pages render AdminShell.
+      // The param stays :boardId because useBoardId and usePermissions read it.
+      {
+        path: "/boards/:boardId/settings",
+        element: <Navigate to="details" replace />,
+      },
+      {
+        path: "/boards/:boardId/settings/details",
+        element: deferred(<BoardSettingsDetailsPage />),
+      },
+      {
+        path: "/boards/:boardId/settings/features",
+        element: deferred(<BoardSettingsFeaturesPage />),
+      },
+      {
+        path: "/filters/:filterId",
+        element: deferred(<FilterPage />),
       },
       {
         path: "/profile",

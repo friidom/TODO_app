@@ -29,9 +29,7 @@ import {
 import {
   MAX_ATTACHMENT_BYTES,
   formatBytes,
-  previewKind,
 } from "@/services/attachments/fileMeta";
-import { useAttachmentPreviews } from "@/services/attachments/useAttachmentPreviews";
 import { useAttachments } from "@/services/attachments/useAttachments";
 import {
   useDeleteAllAttachments,
@@ -89,18 +87,6 @@ export default function AttachmentsSection({ todoId }: { todoId: string }) {
     () => rows.filter((row) => matchesFilter(row, filter)),
     [rows, filter],
   );
-
-  // From every attachment, not just visible ones — filtering by tab would re-key and re-sign URLs on every tab change.
-  const previewPaths = useMemo(
-    () =>
-      rows
-        .filter((row) => previewKind(row.mime_type) !== "none")
-        .map((row) => row.storage_path),
-    [rows],
-  );
-
-  const { data: previewUrls, isPending: previewsPending } =
-    useAttachmentPreviews(previewPaths);
 
   // "All" means what's on screen (the current tab) — the count on the menu item must match what's visible.
   const deletable = useMemo(
@@ -308,7 +294,6 @@ export default function AttachmentsSection({ todoId }: { todoId: string }) {
                   key={attachment.id}
                   attachment={attachment}
                   todoId={todoId}
-                  thumbUrl={previewUrls?.[attachment.storage_path]}
                   onPreview={() => setPreviewing(attachment)}
                 />
               ))}
@@ -326,7 +311,6 @@ export default function AttachmentsSection({ todoId }: { todoId: string }) {
                   key={attachment.id}
                   attachment={attachment}
                   todoId={todoId}
-                  thumbUrl={previewUrls?.[attachment.storage_path]}
                   onPreview={() => setPreviewing(attachment)}
                 />
               ))}
@@ -370,8 +354,6 @@ export default function AttachmentsSection({ todoId }: { todoId: string }) {
         <AttachmentPreview
           key={previewing.id}
           attachment={previewing}
-          url={previewUrls?.[previewing.storage_path]}
-          urlPending={previewsPending}
           onClose={() => setPreviewing(null)}
         />
       )}

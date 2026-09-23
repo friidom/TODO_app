@@ -91,6 +91,8 @@ export function useAddBacklogItem() {
         position: null,
         rank: entry?.rank ?? null,
         backlog_rank: backlogRankForAppend(section),
+        creator_id: null,
+        completed_at: null,
         board_key: null,
         type,
         priority: null,

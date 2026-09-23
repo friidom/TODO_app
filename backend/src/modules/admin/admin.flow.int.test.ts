@@ -281,8 +281,13 @@ describe("work in progress", () => {
 
     const { body } = await flow();
 
-    expect(body.wip.map((slice) => slice.key)).toEqual(["backlog", "todo", "in_progress"]);
-    expect(body.wip.map((slice) => slice.count)).toEqual([1, 1, 1]);
+    expect(body.wip.map((slice) => slice.key)).toEqual([
+      "backlog",
+      "todo",
+      "in_progress",
+      "in_review",
+    ]);
+    expect(body.wip.map((slice) => slice.count)).toEqual([1, 1, 1, 0]);
   });
 
   it("omits done work, which is finished rather than in progress", async () => {
@@ -301,7 +306,8 @@ describe("work in progress", () => {
     const { body } = await flow(`?period=30d&board=${admin.boardId}`);
 
     expect(body.wip).toHaveLength(4);
-    expect(body.wip.filter((slice) => slice.category === "in_progress")).toHaveLength(2);
+    expect(body.wip.filter((slice) => slice.category === "in_progress")).toHaveLength(1);
+    expect(body.wip.filter((slice) => slice.category === "in_review")).toHaveLength(1);
     expect(body.wip.find((slice) => slice.label === "To Do")!.count).toBe(1);
     expect(body.wip.find((slice) => slice.label === "In Review")!.count).toBe(0);
   });

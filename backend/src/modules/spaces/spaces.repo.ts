@@ -47,10 +47,16 @@ export function insert(
 export function update(
   ownerId: string,
   spaceId: string,
-  patch: { title: string },
+  patch: { title?: string },
 ): Promise<number> {
   return prisma.spaces
-    .updateMany({ where: { id: spaceId, owner_id: ownerId }, data: { title: patch.title } })
+    .updateMany({
+      where: { id: spaceId, owner_id: ownerId },
+      // Named, never spread: owner_id and created_at are not settable from a body.
+      data: {
+        ...(patch.title !== undefined && { title: patch.title }),
+      },
+    })
     .then((result) => result.count);
 }
 

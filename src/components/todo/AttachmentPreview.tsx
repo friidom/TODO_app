@@ -9,7 +9,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import { useAttachmentUrl } from "@/services/attachments/useAttachmentUrl";
+import { useAttachmentObjectUrl } from "@/services/attachments/useAttachmentObjectUrl";
+import { useDownloadAttachment } from "@/services/attachments/useDownloadAttachment";
 import {
   fileKind,
   formatBytes,
@@ -26,16 +27,20 @@ import { KIND_ICONS } from "./attachmentIcons";
 // previewKind decides whether a file gets a renderable URL at all; this only renders what it's given.
 export default function AttachmentPreview({
   attachment,
-  url,
-  urlPending,
   onClose,
 }: {
   attachment: Attachment;
-  url: string | undefined;
-  urlPending: boolean;
   onClose: () => void;
 }) {
   const kind = previewKind(attachment.mime_type);
+
+  // Its own fetch rather than the thumbnail's URL — the row that opened this
+  // owns and revokes that one, and the endpoint answers no-store.
+  const { url, pending: urlPending } = useAttachmentObjectUrl(
+    attachment.todo_id,
+    attachment.id,
+    kind !== "none",
+  );
 
   const panel = useRef<HTMLDivElement>(null);
   const [zoomed, setZoomed] = useState(false);
@@ -138,7 +143,7 @@ function Header({
   onToggleZoom: () => void;
   onClose: () => void;
 }) {
-  const download = useAttachmentUrl();
+  const download = useDownloadAttachment();
   const age = relativeTime(attachment.created_at, undefined, { short: true });
 
   return (
@@ -169,19 +174,13 @@ function Header({
         icon={DownloadIcon}
         label="Download"
         busy={download.isPending}
-        onClick={() => {
-          download.mutate(
-            {
-              storagePath: attachment.storage_path,
-              filename: attachment.filename,
-            },
-            {
-              onSuccess: (href) => {
-                window.location.href = href;
-              },
-            },
-          );
-        }}
+        onClick={() =>
+          download.mutate({
+            todoId: attachment.todo_id,
+            id: attachment.id,
+            filename: attachment.filename,
+          })
+        }
       />
 
       <PreviewAction icon={XIcon} label="Close preview" onClick={onClose} />
@@ -220,7 +219,7 @@ function PreviewAction({
 }
 
 function Fallback({ attachment }: { attachment: Attachment }) {
-  const download = useAttachmentUrl();
+  const download = useDownloadAttachment();
   const Icon = KIND_ICONS[fileKind(attachment.mime_type, attachment.filename)];
 
   return (
@@ -247,19 +246,13 @@ function Fallback({ attachment }: { attachment: Attachment }) {
       <button
         type="button"
         disabled={download.isPending}
-        onClick={() => {
-          download.mutate(
-            {
-              storagePath: attachment.storage_path,
-              filename: attachment.filename,
-            },
-            {
-              onSuccess: (href) => {
-                window.location.href = href;
-              },
-            },
-          );
-        }}
+        onClick={() =>
+          download.mutate({
+            todoId: attachment.todo_id,
+            id: attachment.id,
+            filename: attachment.filename,
+          })
+        }
         className="bg-brand rounded-control mt-4 inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-45"
       >
         {download.isPending ? (

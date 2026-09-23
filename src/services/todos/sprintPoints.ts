@@ -29,7 +29,10 @@ export function sprintPoints(
   const doneColumns = doneColumnIds(columns);
   const inProgressColumns = new Set(
     columns
-      .filter((column) => column.category === "in_progress")
+      .filter(
+        (column) =>
+          column.category === "in_progress" || column.category === "in_review",
+      )
       .map((column) => column.id),
   );
 

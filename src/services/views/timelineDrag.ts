@@ -96,7 +96,12 @@ export function progressRatio(
 ): number {
   if (category === ("done" satisfies ColumnCategory)) return 1;
 
-  if (category !== ("in_progress" satisfies ColumnCategory)) return 0;
+  if (
+    category !== ("in_progress" satisfies ColumnCategory) &&
+    category !== ("in_review" satisfies ColumnCategory)
+  ) {
+    return 0;
+  }
 
   const total = rangeLength(range);
   const elapsed = daysBetween(range.start, today) + 1;

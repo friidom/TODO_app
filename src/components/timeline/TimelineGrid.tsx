@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { CalendarRangeIcon, ChevronRightIcon } from "lucide-react";
 
 import { useTimelineDrag, CREATE_EPIC_KEY } from "@/hooks/useTimelineDrag";
+import { useSprintsEnabled } from "@/hooks/useSprintsEnabled";
 import { NO_SUBTASKS, type SubtaskProgress } from "@/services/todos/subtasks";
 import type { Schedulable } from "@/services/todos/useTimelineSchedule";
 import { monthLabel } from "@/services/views/calendar";
@@ -72,6 +73,8 @@ export default function TimelineGrid({
   onCreate: (title: string, range: DayRange, options?: CreateOptions) => void;
   emptyReason: { title: string; hint: string } | null;
 }) {
+  const sprintsEnabled = useSprintsEnabled();
+
   const bands = monthBands(ticks);
   const todayIndex = tickIndexOf(today, ticks, scale);
   const columns = trackColumns(ticks.length, scale);
@@ -218,7 +221,7 @@ export default function TimelineGrid({
 
           {emptyReason && <Empty {...emptyReason} />}
 
-          {!emptyReason && hierarchy.sprints.length > 0 && (
+          {!emptyReason && sprintsEnabled && hierarchy.sprints.length > 0 && (
             <TimelineSprintBand
               sprints={hierarchy.sprints}
               ticks={ticks}

@@ -53,6 +53,32 @@ export async function findOne(boardId: string, columnId: string): Promise<Column
   return row === null ? null : toRow(row);
 }
 
+// Categories only, for the workflow check on every move — COLUMN_FIELDS would
+// be a wide read to answer one field, twice.
+export async function categoriesOf(
+  boardId: string,
+  columnIds: string[],
+): Promise<Map<string, string | null>> {
+  const rows = await prisma.columns.findMany({
+    where: { board_id: boardId, id: { in: columnIds } },
+    select: { id: true, category: true },
+  });
+
+  return new Map(rows.map((row) => [row.id, row.category]));
+}
+
+// The distinct categories this board actually uses. A board with no In Review
+// column cannot be asked to pass through one — see todos.service.
+export async function categoriesOnBoard(boardId: string): Promise<string[]> {
+  const rows = await prisma.columns.findMany({
+    where: { board_id: boardId },
+    select: { category: true },
+    distinct: ["category"],
+  });
+
+  return rows.flatMap((row) => (row.category === null ? [] : [row.category]));
+}
+
 export async function lastOf(
   boardId: string,
 ): Promise<{ rank: number | null; position: number | null } | null> {

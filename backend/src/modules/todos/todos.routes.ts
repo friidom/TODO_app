@@ -8,6 +8,7 @@ import * as controller from "./todos.controller.js";
 import { todoActivitiesRoutes } from "../activities/activities.routes.js";
 import { todoCommentsRoutes } from "../comments/comments.routes.js";
 import { createTodoSchema, moveTodoSchema, todoParamsSchema, upsertTodoSchema } from "./todos.schema.js";
+import { todoAttachmentsRoutes } from "../attachments/attachments.routes.js";
 
 export const boardTodosRoutes = Router({ mergeParams: true });
 
@@ -64,3 +65,4 @@ todosRoutes.delete(
 
 todosRoutes.use("/:todoId/comments", todoCommentsRoutes);
 todosRoutes.use("/:todoId/activities", todoActivitiesRoutes);
+todosRoutes.use("/:todoId/attachments", todoAttachmentsRoutes);

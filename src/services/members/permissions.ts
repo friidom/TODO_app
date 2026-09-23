@@ -28,6 +28,10 @@ export interface Permissions {
   canEditTodos: boolean;
   canManageColumns: boolean;
   canManageMembers: boolean;
+  // Board Settings (Details + Features). admin+, matching PATCH /boards/:boardId's
+  // own requireRole("admin") — the two entry points used to gate on ownership,
+  // which was stricter than the server and hid the page from board admins.
+  canEditBoard: boolean;
   canManageAdmins: boolean;
   canDeleteBoard: boolean;
   canComment: boolean;
@@ -42,6 +46,7 @@ export const NO_PERMISSIONS: Permissions = {
   canEditTodos: false,
   canManageColumns: false,
   canManageMembers: false,
+  canEditBoard: false,
   canManageAdmins: false,
   canDeleteBoard: false,
   canComment: false,
@@ -60,6 +65,7 @@ export function permissionsFor(role: string | null | undefined): Permissions {
     canEditTodos: rank >= RANK.editor,
     canManageColumns: rank >= RANK.editor,
     canManageMembers: rank >= RANK.admin,
+    canEditBoard: rank >= RANK.admin,
     canManageAdmins: rank >= RANK.owner,
     canDeleteBoard: rank >= RANK.owner,
     canComment: true,

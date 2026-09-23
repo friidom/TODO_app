@@ -24,6 +24,22 @@ export async function accessibleBoardIds(actor: Actor): Promise<string[]> {
   return rows.map((row) => row.board_id);
 }
 
+// Mirrors `default true` on boards.workflow_enabled (migration 0020), for a
+// board id that no longer names a row — a request in flight while the board is
+// deleted must not read as "workflow off".
+const WORKFLOW_ENABLED_DEFAULT = true;
+
+// One field, for the check todos.service runs on every status transition.
+// BOARD_FIELDS would be a wide read to answer a boolean.
+export async function workflowEnabledFor(boardId: string): Promise<boolean> {
+  const board = await prisma.boards.findUnique({
+    where: { id: boardId },
+    select: { workflow_enabled: true },
+  });
+
+  return board?.workflow_enabled ?? WORKFLOW_ENABLED_DEFAULT;
+}
+
 const BOARD_FIELDS = {
   id: true,
   owner_id: true,
@@ -32,6 +48,8 @@ const BOARD_FIELDS = {
   icon: true,
   cover_color: true,
   visibility: true,
+  sprints_enabled: true,
+  workflow_enabled: true,
   created_at: true,
   updated_at: true,
   next_key: true,
@@ -81,6 +99,8 @@ export interface BoardPatch {
   cover_color?: string | null;
   visibility?: "private" | "team";
   space_id?: string | null;
+  sprints_enabled?: boolean;
+  workflow_enabled?: boolean;
 }
 
 export function update(
@@ -97,6 +117,12 @@ export function update(
       ...(patch.cover_color !== undefined && { cover_color: patch.cover_color }),
       ...(patch.visibility !== undefined && { visibility: patch.visibility }),
       ...(patch.space_id !== undefined && { space_id: patch.space_id }),
+      ...(patch.sprints_enabled !== undefined && {
+        sprints_enabled: patch.sprints_enabled,
+      }),
+      ...(patch.workflow_enabled !== undefined && {
+        workflow_enabled: patch.workflow_enabled,
+      }),
     },
     select: BOARD_FIELDS,
   });

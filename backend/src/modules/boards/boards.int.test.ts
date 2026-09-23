@@ -619,3 +619,87 @@ describe("DELETE /boards/:boardId", () => {
     expect(await prisma.boards.count({ where: { id: mallory.boardId } })).toBe(1);
   });
 });
+
+// Board Settings > Features (migration 0020). The flags ride on the board's
+// existing PATCH rather than a /settings route of its own: a board already has
+// one admin-gated update, and a second endpoint would be a second place for the
+// authorization to be wrong.
+describe("board feature flags", () => {
+  interface Flags {
+    sprints_enabled: boolean;
+    workflow_enabled: boolean;
+    title: string | null;
+  }
+
+  function settings(actor: TestUser, boardId: string, patch: Record<string, unknown>) {
+    return client.patch<Flags>(`/api/v1/boards/${boardId}`, patch, { token: actor.token });
+  }
+
+  it("both default on, so 0020 changed no behaviour on deploy", async () => {
+    const alice = await makeUser("alice");
+
+    const listed = await client.get<Flags[]>("/api/v1/boards", { token: alice.token });
+
+    expect(listed.body[0]!.sprints_enabled).toBe(true);
+    expect(listed.body[0]!.workflow_enabled).toBe(true);
+  });
+
+  it("lets an admin turn each off and back on", async () => {
+    const owner = await makeUser("owner");
+    const admin = await makeUser("admin");
+
+    await addMember(owner.boardId, admin, "admin", owner.id);
+
+    const off = await settings(admin, owner.boardId, {
+      sprints_enabled: false,
+      workflow_enabled: false,
+    });
+
+    expect(off.status).toBe(200);
+    expect(off.body.sprints_enabled).toBe(false);
+    expect(off.body.workflow_enabled).toBe(false);
+
+    const on = await settings(admin, owner.boardId, { sprints_enabled: true });
+
+    expect(on.body.sprints_enabled).toBe(true);
+    // Untouched by a patch that did not name it.
+    expect(on.body.workflow_enabled).toBe(false);
+  });
+
+  it("REFUSES an editor and a viewer, leaving the flags alone", async () => {
+    const owner = await makeUser("owner");
+    const editor = await makeUser("editor");
+    const viewer = await makeUser("viewer");
+
+    await addMember(owner.boardId, editor, "editor", owner.id);
+    await addMember(owner.boardId, viewer, "viewer", owner.id);
+
+    expect((await settings(editor, owner.boardId, { sprints_enabled: false })).status).toBe(403);
+    expect((await settings(viewer, owner.boardId, { sprints_enabled: false })).status).toBe(403);
+
+    const row = await prisma.boards.findUniqueOrThrow({ where: { id: owner.boardId } });
+
+    expect(row.sprints_enabled).toBe(true);
+  });
+
+  it("answers 404 for a non-member and 401 with no token", async () => {
+    const owner = await makeUser("owner");
+    const outsider = await makeUser("outsider");
+
+    expect((await settings(outsider, owner.boardId, { sprints_enabled: false })).status).toBe(404);
+    expect(
+      (await client.patch(`/api/v1/boards/${owner.boardId}`, { sprints_enabled: false })).status,
+    ).toBe(401);
+  });
+
+  it("does not disturb the flags when only the title is patched", async () => {
+    const owner = await makeUser("owner");
+
+    await settings(owner, owner.boardId, { workflow_enabled: false });
+
+    const renamed = await settings(owner, owner.boardId, { title: "Renamed" });
+
+    expect(renamed.body.title).toBe("Renamed");
+    expect(renamed.body.workflow_enabled).toBe(false);
+  });
+});

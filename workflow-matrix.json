@@ -1,0 +1,38 @@
+{
+  "$comment": "Shared parity fixture for the sequential column-category workflow. Read independently by src/services/todos/workflow.parity.test.ts and backend/src/lib/workflow.parity.test.ts. The backend is the enforcement (todos.service.ts); the frontend copy only decides whether a control is offered. If the two drift, one of those tests fails instead of the board silently offering a move the API will refuse. Regenerate only when the workflow deliberately changes, and change both packages with it.",
+  "stages": ["todo", "in_progress", "in_review", "done"],
+  "canTransition": [
+    { "from": "todo", "to": "in_progress", "expected": true },
+    { "from": "in_progress", "to": "in_review", "expected": true },
+    { "from": "in_review", "to": "done", "expected": true },
+
+    { "from": "todo", "to": "in_review", "expected": false },
+    { "from": "todo", "to": "done", "expected": false },
+    { "from": "in_progress", "to": "done", "expected": false },
+
+    { "from": "todo", "to": "todo", "expected": true },
+    { "from": "in_progress", "to": "in_progress", "expected": true },
+    { "from": "in_review", "to": "in_review", "expected": true },
+    { "from": "done", "to": "done", "expected": true },
+
+    { "from": "in_progress", "to": "todo", "expected": true },
+    { "from": "in_review", "to": "in_progress", "expected": true },
+    { "from": "in_review", "to": "todo", "expected": true },
+    { "from": "done", "to": "in_review", "expected": true },
+    { "from": "done", "to": "in_progress", "expected": true },
+    { "from": "done", "to": "todo", "expected": true },
+
+    { "from": null, "to": "done", "expected": true },
+    { "from": "todo", "to": null, "expected": true },
+    { "from": "archived", "to": "done", "expected": true },
+    { "from": "todo", "to": "archived", "expected": true }
+  ],
+  "stagesBetween": [
+    { "from": "todo", "to": "done", "expected": ["in_progress", "in_review"] },
+    { "from": "todo", "to": "in_review", "expected": ["in_progress"] },
+    { "from": "in_progress", "to": "done", "expected": ["in_review"] },
+    { "from": "todo", "to": "in_progress", "expected": [] },
+    { "from": "done", "to": "todo", "expected": [] },
+    { "from": "todo", "to": null, "expected": [] }
+  ]
+}

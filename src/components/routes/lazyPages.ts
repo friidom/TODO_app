@@ -5,6 +5,20 @@ export const BoardPage = lazy(() => import("@/pages/board/BoardPage"));
 
 export const ProfilePage = lazy(() => import("@/pages/profile/ProfilePage"));
 
+export const FilterPage = lazy(() => import("@/pages/filters/FilterPage"));
+
+export const ManageBoardsPage = lazy(
+  () => import("@/pages/boards/ManageBoardsPage"),
+);
+
+export const BoardSettingsDetailsPage = lazy(
+  () => import("@/pages/boardSettings/BoardSettingsDetailsPage"),
+);
+
+export const BoardSettingsFeaturesPage = lazy(
+  () => import("@/pages/boardSettings/BoardSettingsFeaturesPage"),
+);
+
 export const InvitePage = lazy(() => import("@/pages/invite/InvitePage"));
 
 export const RegisterPage = lazy(() => import("@/pages/auth/RegisterPage"));

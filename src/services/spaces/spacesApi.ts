@@ -17,6 +17,8 @@ export function createSpace({
   return api.post<ISpace>("/spaces", { id, title });
 }
 
+// A space is a folder: renaming it is the whole of its settings. Board Settings
+// owns the feature flags (0020).
 export function updateSpace({
   id,
   title,

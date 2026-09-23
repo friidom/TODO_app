@@ -37,6 +37,7 @@ import ColumnLimitModal from "../columns/ColumnLimitModal";
 import DeleteColumnModal from "../columns/DeleteColumnModal";
 import CollapsedColumn from "../columns/CollapsedColumn";
 import ViewNotice from "../board/ViewNotice";
+import EmptyState from "../ui/EmptyState";
 import Loading from "../loading/LoadingPage";
 import { byRank } from "@/utils/rank";
 import { columnTitle } from "@/constants/columns";
@@ -58,7 +59,7 @@ export default function KanbanBoard() {
 
   const swimlanes = isSwimlaneGroup(view.group);
 
-  const { todosByColumn, columns, activeSprintId, sprintsPending } =
+  const { todosByColumn, columns, activeSprintId, sprintsEnabled, sprintsPending } =
     useTodosByColumns(todos);
 
   const {
@@ -97,12 +98,12 @@ export default function KanbanBoard() {
     () =>
       swimlanes
         ? groupTodos(
-            todos.filter((todo) => isOnBoard(todo, activeSprintId)),
+            todos.filter((todo) => isOnBoard(todo, activeSprintId, sprintsEnabled)),
             view.group,
             { columns, members },
           )
         : [],
-    [swimlanes, todos, activeSprintId, view.group, columns, members],
+    [swimlanes, todos, activeSprintId, sprintsEnabled, view.group, columns, members],
   );
 
   const { moveColumn } = useColumnReorder(orderedColumns);
@@ -207,13 +208,11 @@ export default function KanbanBoard() {
       onDragCancel={resetDrag}
     >
       <div className="flex h-full min-h-0 flex-col">
-        {activeSprintId === null && (
-          <NoActiveSprintNotice onGoToBacklog={() => view.setMode("backlog")} />
-        )}
-
         <ViewNotice view={view} visibleCount={todos.length} showDragHint />
 
-        {swimlanes ? (
+        {sprintsEnabled && activeSprintId === null ? (
+          <NoActiveSprint onGoToBacklog={() => view.setMode("backlog")} />
+        ) : swimlanes ? (
           <Swimlanes
             groups={lanes}
             group={view.group}
@@ -328,26 +327,22 @@ export default function KanbanBoard() {
   );
 }
 
-// A strip above the board, not a takeover — the board underneath still has real columns and cards.
-function NoActiveSprintNotice({
-  onGoToBacklog,
-}: {
-  onGoToBacklog: () => void;
-}) {
+// Replaces the columns rather than sitting above them: with Sprints on and none
+// running the board has nothing to show, and a row of empty columns reads as a
+// bug where this reads as a state. Column management stays reachable from the
+// Backlog and from Board settings.
+//
+// Only rendered when the Sprints feature is on — with it off, a column is the
+// whole rule again and the board is never empty for this reason.
+function NoActiveSprint({ onGoToBacklog }: { onGoToBacklog: () => void }) {
   return (
-    <p className="text-ink-3 mb-3 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs">
-      <RocketIcon className="size-3.5 shrink-0" />
-      <span>
-        No sprint is running. Cards below are unplanned work — plan a sprint to
-        commit to a set of it.
-      </span>
-      <button
-        type="button"
-        onClick={onGoToBacklog}
-        className="text-brand hover:bg-brand-soft focus-visible:ring-brand rounded px-1.5 py-0.5 font-medium transition-colors outline-none focus-visible:ring-2"
-      >
-        Go to Backlog
-      </button>
-    </p>
+    <div className="grid min-h-0 flex-1 place-items-center">
+      <EmptyState
+        icon={RocketIcon}
+        title="No active sprint"
+        hint="Start a sprint to see work on this board."
+        action={{ label: "Go to Backlog", run: onGoToBacklog }}
+      />
+    </div>
   );
 }

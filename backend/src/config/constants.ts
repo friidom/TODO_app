@@ -7,7 +7,7 @@ export const DEFAULT_BOARD_TITLE = "My Board";
 export const DEFAULT_COLUMNS = [
   { title: "To Do", category: "todo" },
   { title: "In Progress", category: "in_progress" },
-  { title: "In Review", category: "in_progress" },
+  { title: "In Review", category: "in_review" },
   { title: "Done", category: "done" },
 ] as const;
 

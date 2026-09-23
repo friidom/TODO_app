@@ -51,10 +51,6 @@ export const queryKeys = {
 
   attachments: (todoId: string | undefined) => ["attachments", todoId] as const,
 
-  // Keyed by the sorted paths, not the todo — the entry should change exactly when the set of files does.
-  attachmentPreviews: (paths: string[]) =>
-    ["attachment-previews", [...paths].sort().join(",")] as const,
-
   forYou: () => FOR_YOU_ROOT,
 
   forYouRecent: () => [...FOR_YOU_ROOT, "recent"] as const,

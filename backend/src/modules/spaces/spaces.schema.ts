@@ -5,6 +5,8 @@ const title = z.string().trim().min(1).max(60);
 
 export const createSpaceSchema = z.object({ id: z.uuid().optional(), title });
 
+// A space is a folder: its one setting is its name. The board owns the feature
+// flags (migration 0020) — docs/ARCHITECTURE.md, "Does this belong to a Board?"
 export const updateSpaceSchema = z.object({ title });
 
 export const spaceParamsSchema = z.object({ spaceId: z.uuid() });

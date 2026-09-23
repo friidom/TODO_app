@@ -61,7 +61,8 @@ export function summaryStats(
     const category = categoryOfTodo(todo, index);
 
     if (category === "done") stats.done += 1;
-    else if (category === "in_progress") stats.inProgress += 1;
+    else if (category === "in_progress" || category === "in_review")
+      stats.inProgress += 1;
     else stats.todo += 1;
 
     if (category === "done") continue;

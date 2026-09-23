@@ -76,7 +76,7 @@ async function main(): Promise<void> {
     select gen_random_uuid(),
            b.id,
            (array['Backlog', 'In progress', 'Review', 'Done'])[c],
-           (array['todo', 'in_progress', 'in_progress', 'done'])[c],
+           (array['todo', 'in_progress', 'in_review', 'done'])[c],
            c,
            c * 1024
       from boards b

@@ -19,6 +19,7 @@ import Loading from "@/components/loading/LoadingPage";
 import { useBoard } from "@/services/boards/useBoard";
 import { useBoardId } from "@/hooks/useBoardId";
 import { useBoardView } from "@/hooks/useBoardView";
+import { useSprintsEnabled } from "@/hooks/useSprintsEnabled";
 import { usePanel } from "@/hooks/usePanel";
 import { useVisibleTodos } from "@/hooks/useVisibleTodos";
 import { useColumns } from "@/services/columns/useColumnsApi";
@@ -40,6 +41,8 @@ function BoardView({ boardId }: { boardId: string }) {
   const { data: board, isPending, error } = useBoard(boardId);
 
   const view = useBoardView();
+  // A stale ?view=backlog must not outlive the feature being switched off.
+  const sprintsEnabled = useSprintsEnabled();
 
   const { panel, closePanel } = usePanel();
 
@@ -79,7 +82,7 @@ function BoardView({ boardId }: { boardId: string }) {
           <CalendarView />
         ) : view.mode === "timeline" ? (
           <TimelineView />
-        ) : view.mode === "backlog" ? (
+        ) : view.mode === "backlog" && sprintsEnabled ? (
           <BacklogView />
         ) : (
           <KanbanBoard />

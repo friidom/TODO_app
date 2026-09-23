@@ -140,8 +140,11 @@ export interface RequestOptions {
 
 function send(path: string, options: RequestOptions): Promise<Response> {
   const headers: Record<string, string> = {};
+  // The multipart boundary is part of the content-type and only fetch knows
+  // it, so naming the type here would make the body unparseable.
+  const form = options.body instanceof FormData;
 
-  if (options.body !== undefined) headers["content-type"] = "application/json";
+  if (options.body !== undefined && !form) headers["content-type"] = "application/json";
 
   if (!options.anonymous && accessToken !== null) {
     headers.authorization = `Bearer ${accessToken}`;
@@ -152,7 +155,12 @@ function send(path: string, options: RequestOptions): Promise<Response> {
     headers,
     credentials: "include",
     signal: options.signal,
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    body:
+      options.body === undefined
+        ? undefined
+        : form
+          ? (options.body as FormData)
+          : JSON.stringify(options.body),
   });
 }
 
@@ -174,7 +182,7 @@ async function toApiError(response: Response): Promise<ApiError> {
   return new ApiError(response.status, code, message);
 }
 
-export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+async function sendAuthorized(path: string, options: RequestOptions): Promise<Response> {
   let response = await send(path, options);
 
   if (response.status === 401 && !options.anonymous) {
@@ -191,11 +199,24 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 
   if (!response.ok) throw await toApiError(response);
 
+  return response;
+}
+
+export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const response = await sendAuthorized(path, options);
+
   if (response.status === 204) return undefined as T;
 
   const text = await response.text();
 
   return (text === "" ? undefined : JSON.parse(text)) as T;
+}
+
+// The bytes of a response rather than its JSON — an attachment is read through
+// the same authorized path as everything else, and the token is in memory, so
+// an <img src> or a bare link could never fetch one.
+export async function requestBlob(path: string, options: RequestOptions = {}): Promise<Blob> {
+  return (await sendAuthorized(path, options)).blob();
 }
 
 export function toQuery(params: Record<string, string | number | undefined | null>): string {
@@ -220,4 +241,5 @@ export const api = {
     request<T>(path, { ...options, method: "PUT", body }),
   del: <T>(path: string, body?: unknown, options?: RequestOptions) =>
     request<T>(path, { ...options, method: "DELETE", body }),
+  blob: (path: string, options?: RequestOptions) => requestBlob(path, { ...options }),
 };

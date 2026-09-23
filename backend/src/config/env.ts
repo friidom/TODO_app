@@ -86,6 +86,13 @@ const schema = z.object({
   CORS_ORIGIN: z.string().min(1).default("http://localhost:5173"),
   DATABASE_URL: databaseUrl,
 
+  MINIO_ENDPOINT: z.string().min(1).default("minio"),
+  MINIO_PORT: z.coerce.number().int().min(1).max(65535).default(9000),
+  MINIO_USE_SSL: flag("false"),
+  MINIO_ACCESS_KEY: z.string().min(1),
+  MINIO_SECRET_KEY: z.string().min(1),
+  MINIO_BUCKET: z.string().min(1).default("todo-attachments"),
+
   JWT_SECRET: z.string().min(32, "must be at least 32 characters — generate one with: openssl rand -base64 48"),
   ACCESS_TOKEN_TTL: duration("15m"),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(30),

@@ -21,6 +21,10 @@ export const updateBoardSchema = z
     cover_color: optionalText(60),
     visibility: z.enum(["private", "team"]).optional(),
     space_id: z.uuid().nullable().optional(),
+    // Board Settings > Features. Optional like everything else here, so a
+    // toggle does not resend the name and a rename does not resend the toggles.
+    sprints_enabled: z.boolean().optional(),
+    workflow_enabled: z.boolean().optional(),
   })
   .refine((patch) => Object.keys(patch).length > 0, {
     message: "at least one field must be given",

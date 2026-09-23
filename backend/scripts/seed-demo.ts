@@ -188,7 +188,7 @@ const SENIORITIES = ["junior", "middle", "senior", null] as const;
 const COLUMN_SETS = [
   [
     ["Backlog", "todo"], ["To do", "todo"], ["In progress", "in_progress"],
-    ["In review", "in_progress"], ["Done", "done"],
+    ["In review", "in_review"], ["Done", "done"],
   ],
   [
     ["Triage", "todo"], ["Ready", "todo"], ["Building", "in_progress"],

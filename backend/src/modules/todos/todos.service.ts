@@ -3,8 +3,11 @@ import { randomUUID } from "node:crypto";
 import { withActor } from "../../db/withActor.js";
 import { AppError, uniqueConstraintOf } from "../../lib/errors.js";
 import { rankForAppend } from "../../lib/rank.js";
+import { canTransition, stagesBetween } from "../../lib/workflow.js";
 import type { Actor } from "../../types/actor.js";
 import { emitChange, emitDeleted, emitInvalidate } from "../../realtime/emit.js";
+import * as boardsRepo from "../boards/boards.repo.js";
+import * as columnsRepo from "../columns/columns.repo.js";
 import * as membersRepo from "../members/members.repo.js";
 import type { BoardContext } from "../members/members.service.js";
 import * as todosRepo from "./todos.repo.js";
@@ -38,6 +41,67 @@ async function requireBoardMember(
   if ((await membersRepo.roleOf(board.id, assigneeId)) === null) {
     throw new AppError("bad_request", "That person is not a member of this board.");
   }
+}
+
+// THE one place the workflow is enforced. Both user-driven writes of column_id
+// call it -- move (drag and drop) and upsert (PATCH) -- so a rule added to
+// lib/workflow.ts cannot be missed by one of them, and neither controller
+// knows the rule exists.
+//
+// Deliberately NOT called from create (a first placement has no "from"), from
+// columnsRepo.rehomeColumn (deleting a column has to move its cards somewhere
+// whatever their category, or the column could not be deleted) or from the
+// sprint start bulk-assign (it only fills column_id where it is null).
+//
+// Whether it runs at all is boards.workflow_enabled (migration 0020), one
+// field on the board this request already resolved. The rule in lib/workflow.ts
+// stays pure -- the setting is read here, never in there.
+async function requireAllowedTransition(
+  board: BoardContext,
+  todoId: string,
+  nextColumnId: string | null | undefined,
+): Promise<void> {
+  // undefined: the patch does not touch the column. null: the card is being
+  // taken off the board entirely, which is a Backlog move, not a transition.
+  if (nextColumnId === undefined || nextColumnId === null) return;
+
+  if (!(await boardsRepo.workflowEnabledFor(board.id))) return;
+
+  const current = await todosRepo.columnOf(board.id, todoId);
+
+  // No row yet (the upsert is about to create it) or no column yet (a backlog
+  // card arriving on the board): a first placement is not a transition.
+  if (current === null || current.column_id === null) return;
+
+  // Same column: a reorder, which changes rank and never status.
+  if (current.column_id === nextColumnId) return;
+
+  const categories = await columnsRepo.categoriesOf(board.id, [
+    current.column_id,
+    nextColumnId,
+  ]);
+
+  const from = categories.get(current.column_id) ?? null;
+  const to = categories.get(nextColumnId) ?? null;
+
+  if (canTransition(from, to)) return;
+
+  // The move skips a stage in the sequence — but only stages this board
+  // actually has are ones it can be asked to pass through. A board whose
+  // columns are To Do / In Progress / Done has no In Review to stop at, and
+  // refusing in_progress -> done there would leave work unable to reach Done
+  // at all.
+  const skipped = stagesBetween(from, to);
+  const present = new Set(await columnsRepo.categoriesOnBoard(board.id));
+  const reachable = skipped.filter((stage) => present.has(stage));
+
+  if (reachable.length === 0) return;
+
+  throw new AppError(
+    "bad_request",
+    `A card cannot move straight from ${from} to ${to}; it has to pass through ` +
+      `${reachable.join(", ")} first.`,
+  );
 }
 
 export function list(board: BoardContext): Promise<TodoRow[]> {
@@ -114,6 +178,7 @@ export async function upsert(
   input: UpsertTodoInput,
 ): Promise<TodoDetailRow> {
   await requireBoardMember(board, input.assignee_id);
+  await requireAllowedTransition(board, todoId, input.column_id);
 
   try {
     const saved = await withActor(actor.id, (tx) =>
@@ -148,6 +213,8 @@ export async function move(
   todoId: string,
   input: MoveTodoInput,
 ): Promise<TodoDetailRow> {
+  await requireAllowedTransition(board, todoId, input.column_id);
+
   const moved = await withActor(actor.id, (tx) =>
     todosRepo.update(tx, board.id, todoId, { column_id: input.column_id, rank: input.rank }),
   );

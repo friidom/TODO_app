@@ -388,6 +388,7 @@ const SYSTEM_WIP: { key: string; label: string; category: string }[] = [
   { key: "backlog", label: "Backlog", category: "none" },
   { key: "todo", label: "To do", category: "todo" },
   { key: "in_progress", label: "In progress", category: "in_progress" },
+  { key: "in_review", label: "In review", category: "in_review" },
 ];
 
 function shapeWip(rows: adminRepo.WipRow[], scoped: boolean): WipSlice[] {

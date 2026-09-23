@@ -178,6 +178,9 @@ export const SORT_KEYS = [
   "due",
   "created",
   "updated",
+  // Sortable since completed_at joined the list projection for the predefined
+  // filters. Cards that are not done have no value and sort last, both ways.
+  "completed",
   "priority",
   "title",
 ] as const;
@@ -190,6 +193,7 @@ export const SORT_LABELS: Record<SortKey, string> = {
   due: "Due date",
   created: "Created",
   updated: "Updated",
+  completed: "Completed",
   priority: "Priority",
   title: "Title",
 };
@@ -203,6 +207,8 @@ function sortValue(todo: Todo, key: SortKey): string | number | null {
       return todo.created_at;
     case "updated":
       return todo.updated_at;
+    case "completed":
+      return todo.completed_at;
     case "priority":
       return toPriority(todo.priority) === null
         ? null

@@ -23,6 +23,7 @@ export interface TestClient {
   patch<T = unknown>(path: string, body?: unknown, options?: RequestOptions): Promise<TestResponse<T>>;
   put<T = unknown>(path: string, body?: unknown, options?: RequestOptions): Promise<TestResponse<T>>;
   del<T = unknown>(path: string, body?: unknown, options?: RequestOptions): Promise<TestResponse<T>>;
+  postForm<T = unknown>(path: string, form: FormData, options?: RequestOptions): Promise<TestResponse<T>>;
   close(): Promise<void>;
 }
 
@@ -56,10 +57,16 @@ export async function startTestServer(instance: Express = realApp): Promise<Test
     if (options.cookie !== undefined) headers.cookie = options.cookie;
     if (body !== undefined) headers["content-type"] = "application/json";
 
+    // fetch names the multipart boundary in the content-type it sets itself,
+    // so a FormData body must go through untouched.
+    const form = body instanceof FormData;
+
+    if (form) delete headers["content-type"];
+
     const response = await fetch(`${url}${path}`, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : form ? (body as FormData) : JSON.stringify(body),
     });
 
     const text = await response.text();
@@ -81,6 +88,7 @@ export async function startTestServer(instance: Express = realApp): Promise<Test
     patch: (path, body, options) => send("PATCH", path, body, options),
     put: (path, body, options) => send("PUT", path, body, options),
     del: (path, body, options) => send("DELETE", path, body, options),
+    postForm: (path, form, options) => send("POST", path, form, options),
     close: () =>
       new Promise<void>((resolve, reject) => {
         server.close((error) => (error ? reject(error) : resolve()));

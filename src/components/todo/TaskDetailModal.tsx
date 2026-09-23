@@ -28,7 +28,8 @@ import {
 import { useTodo } from "@/services/todos/useTodo";
 import { useTodoHierarchy } from "@/services/todos/useSubtasks";
 import { useSprints } from "@/services/sprints/useSprints";
-import type { TodoRow } from "@/types/data";
+import { useSprintsEnabled } from "@/hooks/useSprintsEnabled";
+import type { TodoDetail } from "@/types/data";
 import { cn } from "@/utils/cn";
 import { relativeTime } from "@/utils/relativeTime";
 import { taskKey } from "@/utils/taskKey";
@@ -154,7 +155,7 @@ function Body({
   onClose,
   bindCloseRef,
 }: {
-  todo: TodoRow;
+  todo: TodoDetail;
   onClose: () => void;
   bindCloseRef: React.RefObject<() => void>;
 }) {
@@ -165,6 +166,7 @@ function Body({
   const hierarchy = useTodoHierarchy(todo);
 
   const { data: sprints = [] } = useSprints();
+  const sprintsEnabled = useSprintsEnabled();
 
   const [title, setTitle] = useState(todo.title ?? "");
   const [description, setDescription] = useState(todo.description ?? "");
@@ -324,8 +326,10 @@ function Body({
                 </Field>
               )}
 
-              {/* A genuine Subtask has no sprint of its own — it inherits its parent Task's. */}
-              {!hierarchy.isGenuineSubtask && (
+              {/* A genuine Subtask has no sprint of its own — it inherits its parent Task's.
+                  The field also goes with the Sprints feature (0020); the stored
+                  sprint_id is left alone so turning it back on restores it. */}
+              {sprintsEnabled && !hierarchy.isGenuineSubtask && (
                 <Field label="Sprint">
                   <SprintControl
                     value={todo.sprint_id}

@@ -1,102 +1,69 @@
-import { supabase } from "../api/supabase";
+import { api, requestBlob, toQuery } from "../api/client";
+import { downloadName } from "./fileMeta";
+import type { Attachment } from "@/types/data";
 
-// Table calls and storage calls in one file — the row exists to describe the object, so they're one concern.
-
-const ATTACHMENT_FIELDS =
-  "id, board_id, todo_id, uploader_id, filename, storage_path, size_bytes, mime_type, created_at";
-
-const BUCKET = "task-attachments";
-
-// Minted per click, consumed immediately — this is a ceiling, not a live window.
-const SIGNED_URL_TTL_SECONDS = 60;
-
-export async function fetchAttachments(todoId: string) {
-  const { data, error } = await supabase
-    .from("attachments")
-    .select(ATTACHMENT_FIELDS)
-    .eq("todo_id", todoId)
-    .order("created_at", { ascending: true });
-
-  if (error) throw error;
-
-  return data;
+export function fetchAttachments(todoId: string): Promise<Attachment[]> {
+  return api.get<Attachment[]>(`/todos/${todoId}/attachments`);
 }
 
-// Object uploaded before this is called — a row with no bytes is visible and retryable; bytes with no row are invisible orphans.
-export async function insertAttachment(row: {
-  id: string;
-  board_id: string;
-  todo_id: string;
-  uploader_id: string;
-  filename: string;
-  storage_path: string;
-  size_bytes: number;
-  mime_type: string;
-}) {
-  const { data, error } = await supabase
-    .from("attachments")
-    .insert(row)
-    .select(ATTACHMENT_FIELDS)
-    .single();
+// Only the bytes and the name travel: board_id, uploader_id and the object key
+// are all the server's, so nothing the client sends decides where a file lands.
+export function uploadAttachment(todoId: string, file: File): Promise<Attachment> {
+  const form = new FormData();
 
-  if (error) throw error;
+  form.append("file", file);
 
-  return data;
+  return api.post<Attachment>(`/todos/${todoId}/attachments`, form);
 }
 
-export async function deleteAttachmentRow(id: string) {
-  const { error } = await supabase.from("attachments").delete().eq("id", id);
-
-  if (error) throw error;
+export async function deleteAttachment(todoId: string, id: string): Promise<string> {
+  await api.del<void>(`/todos/${todoId}/attachments/${id}`);
 
   return id;
 }
 
-// No upsert — attachments are append-only, keyed by a fresh uuid, so a collision means something is wrong.
-export async function uploadObject(path: string, file: File, mime: string) {
-  const { error } = await supabase.storage
-    .from(BUCKET)
-    .upload(path, file, { contentType: mime });
-
-  if (error) throw error;
+function contentPath(
+  todoId: string,
+  id: string,
+  disposition: "inline" | "attachment",
+): string {
+  return `/todos/${todoId}/attachments/${id}/content${toQuery({ disposition })}`;
 }
 
-// Called on both failure paths (insert failed post-upload, and ordinary delete) to avoid a row-less orphan object.
-export async function removeObject(path: string) {
-  const { error } = await supabase.storage.from(BUCKET).remove([path]);
-
-  if (error) throw error;
+// The server decides whether "inline" is honoured — only images and PDFs get
+// their own Content-Type, everything else comes back as a forced download.
+// The caller owns revoking the URL.
+export async function attachmentObjectUrl(todoId: string, id: string): Promise<string> {
+  return URL.createObjectURL(await requestBlob(contentPath(todoId, id, "inline")));
 }
 
-// download forces Content-Disposition: attachment — the bucket has no mime allow-list, so this stops an uploaded .html executing inline.
-export async function signedUrl(path: string, downloadAs: string) {
-  const { data, error } = await supabase.storage
-    .from(BUCKET)
-    .createSignedUrl(path, SIGNED_URL_TTL_SECONDS, { download: downloadAs });
+// Long enough for the browser to have taken the blob; revoking synchronously
+// after click() cancels the download in Chrome.
+const REVOKE_DELAY_MS = 30_000;
 
-  if (error) throw error;
-
-  return data.signedUrl;
-}
-
-// Longer than the download TTL — a preview URL sits in an <img> for as long as the panel stays open.
-const PREVIEW_URL_TTL_SECONDS = 3600;
-
-// The one call that omits `download` — that's what lets the URL be an <img>/<iframe> source. Don't call with a previewKind "none" path.
-export async function signedPreviewUrls(
-  paths: string[],
-): Promise<Record<string, string>> {
-  if (paths.length === 0) return {};
-
-  const { data, error } = await supabase.storage
-    .from(BUCKET)
-    .createSignedUrls(paths, PREVIEW_URL_TTL_SECONDS);
-
-  if (error) throw error;
-
-  return Object.fromEntries(
-    data.flatMap((row) =>
-      row.path && row.signedUrl ? [[row.path, row.signedUrl]] : [],
-    ),
+// Fetch-then-anchor rather than a link to the endpoint: the access token lives
+// in a module variable, so a plain navigation would arrive unauthenticated.
+export async function downloadAttachment(
+  todoId: string,
+  id: string,
+  filename: string,
+): Promise<void> {
+  const url = URL.createObjectURL(
+    await requestBlob(contentPath(todoId, id, "attachment")),
   );
+
+  // A detached anchor, not location.href — several downloads in a loop would
+  // cancel each other through a navigation.
+  const anchor = document.createElement("a");
+
+  anchor.href = url;
+  anchor.download = downloadName(filename);
+  anchor.rel = "noopener";
+  anchor.style.display = "none";
+
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+
+  setTimeout(() => URL.revokeObjectURL(url), REVOKE_DELAY_MS);
 }

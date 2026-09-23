@@ -2,6 +2,8 @@ import type { DragEndEvent } from "@dnd-kit/core";
 
 import { resolveDropIndex } from "@/services/todos/dropIndex";
 import { useTodoDrop } from "@/services/todos/useTodoDrop";
+import { useWorkflowGate } from "@/services/todos/useWorkflowGate";
+import { toast } from "@/stores/toasts";
 import { useDoneFlash } from "@/stores/doneFlash";
 import type { IColumn, Todo } from "@/types/data";
 import { byRank } from "@/utils/rank";
@@ -33,6 +35,7 @@ export function useBoardDragEnd({
   moveColumn,
 }: BoardDragEndParams) {
   const todoDrop = useTodoDrop();
+  const workflow = useWorkflowGate();
   const flashDone = useDoneFlash((state) => state.flash);
 
   const onDragEnd = ({ active }: DragEndEvent) => {
@@ -57,6 +60,20 @@ export function useBoardDragEnd({
       const destination = orderedColumns.find(
         (c) => c.id === indicator.columnId,
       );
+
+      const source = orderedColumns.find((c) => c.id === activeTodo.column_id);
+
+      // Checked before the optimistic write, so a refused drop never paints the
+      // card into the new column and then snaps it back. The API refuses it too;
+      // this exists so the drag does not LOOK like it worked.
+      const refusal = workflow.refusal(source?.category, destination?.category);
+
+      if (refusal !== null) {
+        toast.error(`That move skips a step. ${refusal}`);
+        resetDrag();
+
+        return;
+      }
 
       // fired before the mutation so it rides the optimistic move, not the network round-trip
       if (

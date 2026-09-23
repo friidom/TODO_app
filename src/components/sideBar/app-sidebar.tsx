@@ -18,6 +18,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/SideBarUI/sidebar";
 import BoardsSection from "./BoardsSection";
+import FiltersSection from "./FiltersSection";
 import NotificationsButton from "@/components/notifications/NotificationsButton";
 import { useAuth } from "@/services/auth/useAuth";
 import { useProfile } from "@/services/profile/useProfile";
@@ -117,6 +118,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarGroup>
 
         <BoardsSection />
+
+        <FiltersSection />
       </SidebarContent>
 
       <SidebarFooter className="border-hairline border-t p-2.5">

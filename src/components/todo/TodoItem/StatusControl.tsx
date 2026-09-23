@@ -5,6 +5,7 @@ import { useCardPopover } from "./useCardPopover";
 import { categoryOf, columnTitle } from "@/constants/columns";
 import { useColumns } from "@/services/columns/useColumnsApi";
 import { useMoveTodo } from "@/services/todos/useMoveTodo";
+import { useWorkflowGate } from "@/services/todos/useWorkflowGate";
 import { byRank } from "@/utils/rank";
 import { cn } from "@/utils/cn";
 
@@ -19,6 +20,7 @@ export default function StatusControl({
   const { mounted, close, triggerProps, panelProps } = useCardPopover();
   const { data: columns = [] } = useColumns();
   const moveTo = useMoveTodo(todoId);
+  const workflow = useWorkflowGate();
 
   const ordered = columns.slice().sort(byRank);
   const current = ordered.find((column) => column.id === columnId) ?? null;
@@ -56,6 +58,11 @@ export default function StatusControl({
 
             {ordered.map((column) => {
               const selected = column.id === columnId;
+              // Offered only if the workflow would accept it. The API refuses it
+              // too — this is so the option is not there to click in the first place.
+              const refusal = selected
+                ? null
+                : workflow.refusal(current?.category, column.category);
 
               return (
                 <button
@@ -63,11 +70,13 @@ export default function StatusControl({
                   type="button"
                   role="menuitemradio"
                   aria-checked={selected}
+                  disabled={refusal !== null}
+                  title={refusal ?? undefined}
                   onClick={() => {
                     if (!selected) moveTo(column);
                     close();
                   }}
-                  className="text-ink hover:bg-ink/10 focus-visible:bg-ink/10 rounded-control flex w-full items-center gap-2 px-2 py-1.5 text-sm transition-colors outline-none"
+                  className="text-ink hover:bg-ink/10 focus-visible:bg-ink/10 rounded-control flex w-full items-center gap-2 px-2 py-1.5 text-sm transition-colors outline-none disabled:pointer-events-none disabled:opacity-40"
                 >
                   <span
                     className={cn(

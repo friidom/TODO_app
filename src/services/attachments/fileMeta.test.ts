@@ -1,62 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  attachmentPath,
   downloadName,
   fileKind,
   formatBytes,
   previewKind,
 } from "./fileMeta";
-
-const BOARD = "11111111-1111-4111-8111-111111111111";
-const TODO = "22222222-2222-4222-8222-222222222222";
-const ID = "33333333-3333-4333-8333-333333333333";
-
-const prefix = `${BOARD}/${TODO}/${ID}`;
-
-const folders = (path: string) => path.split("/").slice(0, -1);
-
-describe("attachmentPath", () => {
-  it("builds board/todo/id with the extension kept", () => {
-    expect(attachmentPath(BOARD, TODO, ID, "spec.pdf")).toBe(`${prefix}.pdf`);
-  });
-
-  it("lowercases the extension", () => {
-    expect(attachmentPath(BOARD, TODO, ID, "SHOT.PNG")).toBe(`${prefix}.png`);
-  });
-
-  it("A FILENAME CANNOT CHANGE WHICH BOARD THE POLICY SEES", () => {
-    const hostile = [
-      "../../../evil.png",
-      "a/b/c.png",
-      "..%2F..%2Fevil.png",
-      "evil.png/../../x",
-      "....//evil.png",
-    ];
-
-    for (const name of hostile) {
-      const path = attachmentPath(BOARD, TODO, ID, name);
-
-      expect(folders(path)).toEqual([BOARD, TODO]);
-      expect(path.startsWith(prefix)).toBe(true);
-    }
-  });
-
-  it("drops an extension that is not one", () => {
-    expect(attachmentPath(BOARD, TODO, ID, "README")).toBe(prefix);
-    expect(attachmentPath(BOARD, TODO, ID, ".env")).toBe(prefix);
-    expect(attachmentPath(BOARD, TODO, ID, "trailing.")).toBe(prefix);
-    expect(attachmentPath(BOARD, TODO, ID, "weird.p n g")).toBe(prefix);
-    expect(attachmentPath(BOARD, TODO, ID, "long.abcdefghij")).toBe(prefix);
-    expect(attachmentPath(BOARD, TODO, ID, "unicode.pnɡ")).toBe(prefix);
-  });
-
-  it("keeps only the last extension of a double one", () => {
-    expect(attachmentPath(BOARD, TODO, ID, "archive.tar.gz")).toBe(
-      `${prefix}.gz`,
-    );
-  });
-});
 
 describe("downloadName", () => {
   it("keeps an ordinary name unchanged, spaces included", () => {

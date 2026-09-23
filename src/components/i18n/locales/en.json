@@ -4,6 +4,7 @@
   "columnCategory": {
     "todo": "To do",
     "in_progress": "In progress",
+    "in_review": "In review",
     "done": "Done"
   },
   "loading": "Loading..."

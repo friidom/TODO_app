@@ -51,8 +51,10 @@ const TODO_FIELDS = [
   "parent_id",
   "sprint_id",
   "backlog_rank",
+  "creator_id",
   "created_at",
   "updated_at",
+  "completed_at",
 ];
 
 async function setup(role: "owner" | "editor" | "viewer" = "owner") {
@@ -98,7 +100,10 @@ describe("GET /boards/:boardId/todos", () => {
     expect(Object.keys(response.body[0]!).sort()).toEqual([...TODO_FIELDS].sort());
   });
 
-  it("omits description and creator_id, which only the detail route returns", async () => {
+  // description is the only field the detail route adds now: creator_id joined
+  // the list projection for the predefined filters ("Reported by me"), which
+  // cannot ask their question without it.
+  it("omits description, which only the detail route returns", async () => {
     const { actor, boardId, columnId } = await setup();
 
     await makeTodo(actor, boardId, { title: "One", column_id: columnId, description: "secret" });
@@ -106,7 +111,7 @@ describe("GET /boards/:boardId/todos", () => {
     const listed = await client.get<Todo[]>(todosUrl(boardId), { token: actor.token });
 
     expect(listed.body[0]).not.toHaveProperty("description");
-    expect(listed.body[0]).not.toHaveProperty("creator_id");
+    expect(listed.body[0]).toHaveProperty("creator_id", actor.id);
   });
 
   // position is int8 and estimate is numeric: JSON.stringify throws on the
@@ -653,5 +658,336 @@ describe("GET and DELETE /todos/:todoId", () => {
     expect(
       (await client.del(`/api/v1/todos/${todo.id}`, undefined, { token: actor.token })).status,
     ).toBe(403);
+  });
+});
+
+// The workflow is enforced in todos.service, so both paths that write column_id
+// are exercised here rather than only the unit rule in lib/workflow.
+describe("sequential workflow", () => {
+  // The four columns every board is provisioned with, one per stage since 0019:
+  // To Do, In Progress, In Review, Done.
+  async function stages(boardId: string) {
+    const columns = await prisma.columns.findMany({
+      where: { board_id: boardId },
+      orderBy: { rank: "asc" },
+      select: { id: true, title: true, category: true },
+    });
+
+    const byCategory = (category: string) => {
+      const column = columns.find((it) => it.category === category);
+
+      if (!column) throw new Error(`no ${category} column: ${JSON.stringify(columns)}`);
+
+      return column.id;
+    };
+
+    return {
+      todo: byCategory("todo"),
+      inProgress: byCategory("in_progress"),
+      inReview: byCategory("in_review"),
+      done: byCategory("done"),
+    };
+  }
+
+  function moveTo(actor: TestUser, todoId: string, columnId: string) {
+    return client.post(
+      `/api/v1/todos/${todoId}/move`,
+      { column_id: columnId, rank: 1024 },
+      { token: actor.token },
+    );
+  }
+
+  function patchTo(actor: TestUser, boardId: string, todoId: string, columnId: string) {
+    return client.patch(
+      todosUrl(boardId, `/${todoId}`),
+      { column_id: columnId },
+      { token: actor.token },
+    );
+  }
+
+  async function columnOf(todoId: string): Promise<string | null> {
+    return (await prisma.todos.findUniqueOrThrow({ where: { id: todoId } })).column_id;
+  }
+
+  describe("drag and drop (POST /todos/:todoId/move)", () => {
+    it("walks the whole chain one step at a time", async () => {
+      const { actor, boardId } = await setup();
+      const column = await stages(boardId);
+      const todo = await makeTodo(actor, boardId, { title: "A", column_id: column.todo });
+
+      for (const next of [column.inProgress, column.inReview, column.done]) {
+        expect((await moveTo(actor, todo.id, next)).status).toBe(204);
+        expect(await columnOf(todo.id)).toBe(next);
+      }
+    });
+
+    // The three the product forbids. The first two were impossible to refuse
+    // before 0019, because In Review was filed as in_progress.
+    it.each([
+      ["todo -> in_review", "todo", "inReview", "in_progress"],
+      ["in_progress -> done", "inProgress", "done", "in_review"],
+      ["todo -> done", "todo", "done", "in_progress"],
+    ])("REFUSES %s, naming what it skipped", async (_label, from, to, skipped) => {
+      const { actor, boardId } = await setup();
+      const column = (await stages(boardId)) as Record<string, string>;
+      const todo = await makeTodo(actor, boardId, { title: "A", column_id: column[from] });
+
+      const response = await client.post<{ error: { code: string; message: string } }>(
+        `/api/v1/todos/${todo.id}/move`,
+        { column_id: column[to], rank: 1024 },
+        { token: actor.token },
+      );
+
+      expect(response.status).toBe(400);
+      expect(response.body.error.code).toBe("bad_request");
+      expect(response.body.error.message).toContain(skipped);
+      expect(await columnOf(todo.id)).toBe(column[from]);
+    });
+  });
+
+  describe("status update (PATCH /boards/:boardId/todos/:todoId)", () => {
+    it("walks the whole chain one step at a time", async () => {
+      const { actor, boardId } = await setup();
+      const column = await stages(boardId);
+      const todo = await makeTodo(actor, boardId, { title: "A", column_id: column.todo });
+
+      for (const next of [column.inProgress, column.inReview, column.done]) {
+        expect((await patchTo(actor, boardId, todo.id, next)).status).toBe(200);
+      }
+    });
+
+    // The same rule through the other door: PATCH must not be the way round it.
+    it.each([
+      ["todo -> in_review", "todo", "inReview"],
+      ["in_progress -> done", "inProgress", "done"],
+      ["todo -> done", "todo", "done"],
+    ])("REFUSES %s", async (_label, from, to) => {
+      const { actor, boardId } = await setup();
+      const column = (await stages(boardId)) as Record<string, string>;
+      const todo = await makeTodo(actor, boardId, { title: "A", column_id: column[from] });
+
+      expect((await patchTo(actor, boardId, todo.id, column[to])).status).toBe(400);
+      expect(await columnOf(todo.id)).toBe(column[from]);
+    });
+  });
+
+  // The flag moved from the space to the board in 0020; turning it off must
+  // reach the transition API, not merely the settings row.
+  describe("boards.workflow_enabled = false", () => {
+    function setWorkflow(actor: TestUser, boardId: string, enabled: boolean) {
+      return client.patch(
+        `/api/v1/boards/${boardId}`,
+        { workflow_enabled: enabled },
+        { token: actor.token },
+      );
+    }
+
+    it("allows todo -> done through move", async () => {
+      const { actor, boardId } = await setup();
+      const column = await stages(boardId);
+      const todo = await makeTodo(actor, boardId, { title: "A", column_id: column.todo });
+
+      expect((await setWorkflow(actor, boardId, false)).status).toBe(200);
+
+      expect((await moveTo(actor, todo.id, column.done)).status).toBe(204);
+      expect(await columnOf(todo.id)).toBe(column.done);
+    });
+
+    it("allows todo -> done through patch", async () => {
+      const { actor, boardId } = await setup();
+      const column = await stages(boardId);
+      const todo = await makeTodo(actor, boardId, { title: "A", column_id: column.todo });
+
+      await setWorkflow(actor, boardId, false);
+
+      expect((await patchTo(actor, boardId, todo.id, column.done)).status).toBe(200);
+    });
+
+    // The switch is the only thing that changed, so flipping it back has to
+    // restore the refusal on the very same card.
+    it("refuses again once it is switched back on", async () => {
+      const { actor, boardId } = await setup();
+      const column = await stages(boardId);
+      const todo = await makeTodo(actor, boardId, { title: "A", column_id: column.todo });
+
+      await setWorkflow(actor, boardId, false);
+      expect((await moveTo(actor, todo.id, column.done)).status).toBe(204);
+      expect((await moveTo(actor, todo.id, column.todo)).status).toBe(204);
+
+      await setWorkflow(actor, boardId, true);
+
+      expect((await moveTo(actor, todo.id, column.done)).status).toBe(400);
+    });
+
+    it("is per board: turning it off on one leaves the other enforcing", async () => {
+      const mine = await setup();
+      const theirs = await setup();
+      const myColumns = await stages(mine.boardId);
+      const theirColumns = await stages(theirs.boardId);
+
+      await setWorkflow(mine.actor, mine.boardId, false);
+
+      const myTodo = await makeTodo(mine.actor, mine.boardId, {
+        title: "A",
+        column_id: myColumns.todo,
+      });
+      const theirTodo = await makeTodo(theirs.actor, theirs.boardId, {
+        title: "B",
+        column_id: theirColumns.todo,
+      });
+
+      expect((await moveTo(mine.actor, myTodo.id, myColumns.done)).status).toBe(204);
+      expect((await moveTo(theirs.actor, theirTodo.id, theirColumns.done)).status).toBe(400);
+    });
+
+    it("REFUSES a viewer changing it, and an editor too", async () => {
+      const viewer = await setup("viewer");
+      const editor = await setup("editor");
+
+      expect((await setWorkflow(viewer.actor, viewer.boardId, false)).status).toBe(403);
+      expect((await setWorkflow(editor.actor, editor.boardId, false)).status).toBe(403);
+
+      expect(
+        (await prisma.boards.findUniqueOrThrow({ where: { id: viewer.boardId } }))
+          .workflow_enabled,
+      ).toBe(true);
+    });
+  });
+
+  // A board is only held to the stages it has. Refusing in_progress -> done on
+  // a board with no In Review column would leave work unable to reach Done at
+  // all, since there is nowhere to pass through.
+  describe("a stage the board does not have", () => {
+    it("allows in_progress -> done once the In Review column is gone", async () => {
+      const { actor, boardId } = await setup();
+      const column = await stages(boardId);
+      const todo = await makeTodo(actor, boardId, {
+        title: "A",
+        column_id: column.inProgress,
+      });
+
+      expect((await moveTo(actor, todo.id, column.done)).status).toBe(400);
+
+      const removed = await client.del(
+        `/api/v1/columns/${column.inReview}`,
+        { moveToColumnId: column.done },
+        { token: actor.token },
+      );
+
+      expect(removed.status).toBe(204);
+
+      expect((await moveTo(actor, todo.id, column.done)).status).toBe(204);
+    });
+
+    it("still refuses todo -> done, because In Progress is still there", async () => {
+      const { actor, boardId } = await setup();
+      const column = await stages(boardId);
+      const todo = await makeTodo(actor, boardId, { title: "A", column_id: column.todo });
+
+      await client.del(
+        `/api/v1/columns/${column.inReview}`,
+        { moveToColumnId: column.done },
+        { token: actor.token },
+      );
+
+      const response = await client.post<{ error: { message: string } }>(
+        `/api/v1/todos/${todo.id}/move`,
+        { column_id: column.done, rank: 1024 },
+        { token: actor.token },
+      );
+
+      expect(response.status).toBe(400);
+      // Names only the stage that is actually reachable.
+      expect(response.body.error.message).toContain("in_progress");
+      expect(response.body.error.message).not.toContain("in_review");
+    });
+  });
+
+  describe("transitions outside the workflow keep working", () => {
+    it("a first placement is not a transition: create straight into Done", async () => {
+      const { actor, boardId } = await setup();
+      const column = await stages(boardId);
+
+      const todo = await makeTodo(actor, boardId, { title: "A", column_id: column.done });
+
+      expect(todo.column_id).toBe(column.done);
+    });
+
+    it("a backlog card arriving on the board may land anywhere", async () => {
+      const { actor, boardId } = await setup();
+      const column = await stages(boardId);
+      const todo = await makeTodo(actor, boardId, { title: "A", column_id: null });
+
+      expect((await moveTo(actor, todo.id, column.done)).status).toBe(204);
+    });
+
+    // A board may still have two columns sharing a category; that is a sideways
+    // move, not a transition.
+    it("sideways between two columns of one category is allowed", async () => {
+      const { actor, boardId } = await setup();
+      const column = await stages(boardId);
+      const second = await client.post<{ id: string }>(
+        `/api/v1/boards/${boardId}/columns`,
+        { title: "Building", category: "in_progress" },
+        { token: actor.token },
+      );
+
+      expect(second.status).toBe(201);
+
+      const todo = await makeTodo(actor, boardId, {
+        title: "A",
+        column_id: column.inProgress,
+      });
+
+      expect((await moveTo(actor, todo.id, second.body.id)).status).toBe(204);
+    });
+
+    it("going backwards is allowed, including done -> todo", async () => {
+      const { actor, boardId } = await setup();
+      const column = await stages(boardId);
+      const todo = await makeTodo(actor, boardId, { title: "A", column_id: column.done });
+
+      expect((await moveTo(actor, todo.id, column.inReview)).status).toBe(204);
+      expect((await moveTo(actor, todo.id, column.todo)).status).toBe(204);
+    });
+
+    it("reordering within a column is not a transition", async () => {
+      const { actor, boardId } = await setup();
+      const column = await stages(boardId);
+      const todo = await makeTodo(actor, boardId, { title: "A", column_id: column.todo });
+
+      expect((await moveTo(actor, todo.id, column.todo)).status).toBe(204);
+    });
+
+    it("a patch that does not name a column is untouched", async () => {
+      const { actor, boardId } = await setup();
+      const column = await stages(boardId);
+      const todo = await makeTodo(actor, boardId, { title: "A", column_id: column.todo });
+
+      const response = await client.patch(
+        todosUrl(boardId, `/${todo.id}`),
+        { title: "Renamed" },
+        { token: actor.token },
+      );
+
+      expect(response.status).toBe(200);
+    });
+
+    // Deleting a column has to move its cards somewhere whatever their
+    // category, or a To Do column could not be deleted into a Done one.
+    it("deleting a column rehomes its cards across stages", async () => {
+      const { actor, boardId } = await setup();
+      const column = await stages(boardId);
+      const todo = await makeTodo(actor, boardId, { title: "A", column_id: column.todo });
+
+      const response = await client.del(
+        `/api/v1/columns/${column.todo}`,
+        { moveToColumnId: column.done },
+        { token: actor.token },
+      );
+
+      expect(response.status).toBe(204);
+      expect(await columnOf(todo.id)).toBe(column.done);
+    });
   });
 });

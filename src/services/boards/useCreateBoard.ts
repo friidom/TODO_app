@@ -37,6 +37,8 @@ export function useCreateBoard() {
         icon: null,
         cover_color: null,
         visibility: "private",
+        sprints_enabled: true,
+        workflow_enabled: true,
         next_key: 1,
         key_prefix: DEFAULT_KEY_PREFIX,
         space_id: spaceId,

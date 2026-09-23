@@ -1,6 +1,6 @@
 import { DEFAULT_WORK_TYPE } from "@/constants/workTypes";
 import { ApiError, api } from "../api/client";
-import type { Todo, TodoRow } from "../../types/data";
+import type { Todo, TodoDetail, TodoRow } from "../../types/data";
 
 export function fetchTodos(boardId: string): Promise<Todo[]> {
   return api.get<Todo[]>(`/boards/${boardId}/todos`);
@@ -9,9 +9,9 @@ export function fetchTodos(boardId: string): Promise<Todo[]> {
 // null rather than a throw: ?task=<id> is user input, so a pasted id from
 // another board answers 404 and the modal renders "not found" instead of
 // leaking that the card exists.
-export async function fetchTodo(todoId: string): Promise<TodoRow | null> {
+export async function fetchTodo(todoId: string): Promise<TodoDetail | null> {
   try {
-    return await api.get<TodoRow>(`/todos/${todoId}`);
+    return await api.get<TodoDetail>(`/todos/${todoId}`);
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) return null;
 

@@ -1,22 +1,14 @@
-// Pure functions of a file's name/size — no React, no network. attachmentPath and previewKind are security boundaries; read them before changing.
+// Pure functions of a file's name/size — no React, no network. previewKind is a
+// security boundary; read it before changing.
 
-export const MAX_ATTACHMENT_BYTES = 26_214_400;
+// UX only, and it must not exceed multer's limit in
+// backend/src/modules/attachments/attachments.upload.ts — the server is the
+// enforcement, this is just a faster "no".
+export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 
 export const FALLBACK_MIME = "application/octet-stream";
 
-// The user's filename never reaches this key — storage policies read the first path segment as the board id, so a `/` in it would let an uploader pick a different board.
-export function attachmentPath(
-  boardId: string,
-  todoId: string,
-  attachmentId: string,
-  filename: string,
-): string {
-  const ext = fileExtension(filename);
-
-  return `${boardId}/${todoId}/${attachmentId}${ext ? `.${ext}` : ""}`;
-}
-
-// Strict on purpose: refuses tar.gz's second dot, dotfiles, and anything not [a-z0-9]{1,8} — a loose extension is a path-injection surface in attachmentPath.
+// Strict on purpose: refuses tar.gz's second dot, dotfiles, and anything not [a-z0-9]{1,8}.
 export function fileExtension(filename: string): string {
   const dot = filename.lastIndexOf(".");
 
@@ -29,7 +21,8 @@ export function fileExtension(filename: string): string {
 
 const HEADER_UNSAFE = '"\\/';
 
-// Sanitises for a Content-Disposition header — belt to supabase-js's encoding braces. Spaces survive; only control chars/quotes/slashes are stripped.
+// The name an <a download> is given. Spaces survive; only control chars,
+// quotes and slashes are stripped.
 export function downloadName(filename: string): string {
   const cleaned = Array.from(filename)
     .filter((char) => {

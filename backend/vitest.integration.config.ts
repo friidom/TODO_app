@@ -34,6 +34,8 @@ export default defineConfig({
       NODE_ENV: "test",
       DATABASE_URL: url,
       JWT_SECRET: process.env.JWT_SECRET ?? "integration-secret-at-least-32-characters",
+      MINIO_ACCESS_KEY: process.env.MINIO_ACCESS_KEY ?? "integration-access-key",
+      MINIO_SECRET_KEY: process.env.MINIO_SECRET_KEY ?? "integration-secret-key",
     },
     hookTimeout: 30_000,
     testTimeout: 30_000,

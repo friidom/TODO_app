@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { useNavigate } from "react-router";
 import {
   ChevronRightIcon,
   ClockIcon,
@@ -10,7 +11,6 @@ import {
   UsersIcon,
 } from "lucide-react";
 
-import BoardFormModal from "@/components/boards/BoardFormModal";
 import DeleteBoardModal from "@/components/boards/DeleteBoardModal";
 import MemberStack from "@/components/board/MemberStack";
 import PresenceStack from "@/components/board/PresenceStack";
@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SidebarTrigger } from "@/components/ui/SideBarUI/sidebar";
 import { useBoardId } from "@/hooks/useBoardId";
+import { usePermissions } from "@/hooks/usePermissions";
+import { boardSettingsPath } from "@/services/boardSettings/registry";
 import { usePanel } from "@/hooks/usePanel";
 import { useAuth } from "@/services/auth/useAuth";
 import { useBoardMembers } from "@/services/members/useBoardMembers";
@@ -49,15 +51,18 @@ export default function BoardIdentity({
   const { user } = useAuth();
   const { data: spaces = [] } = useSpaces();
   const { openPanel } = usePanel();
+  const navigate = useNavigate();
   const boardId = useBoardId();
   const { data: members = [] } = useBoardMembers(boardId);
   const memberCount = members.length;
 
-  const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const space = spaces.find((it) => it.id === board.space_id);
   const owned = board.owner_id === user?.id;
+  // Settings is admin+, matching PATCH /boards/:boardId; deleting stays
+  // owner-only, which is what `owned` still gates.
+  const { canEditBoard } = usePermissions(boardId);
   const narrowed = visibleCount !== todoCount;
 
   return (
@@ -116,7 +121,7 @@ export default function BoardIdentity({
           <HistoryIcon className="size-4" />
         </button>
 
-        {owned && (
+        {(canEditBoard || owned) && (
           <DropdownMenu>
             <DropdownMenuTrigger
               aria-label="Board actions"
@@ -126,26 +131,30 @@ export default function BoardIdentity({
             </DropdownMenuTrigger>
 
             <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuItem onClick={() => setEditing(true)}>
-                Board settings
-              </DropdownMenuItem>
+              {canEditBoard && (
+                <DropdownMenuItem
+                  onClick={() =>
+                    void navigate(boardSettingsPath(board.id, "details"))
+                  }
+                >
+                  Board settings
+                </DropdownMenuItem>
+              )}
 
-              <DropdownMenuSeparator />
+              {canEditBoard && owned && <DropdownMenuSeparator />}
 
-              <DropdownMenuItem
-                onClick={() => setDeleting(true)}
-                className="text-status-red"
-              >
-                Delete board
-              </DropdownMenuItem>
+              {owned && (
+                <DropdownMenuItem
+                  onClick={() => setDeleting(true)}
+                  className="text-status-red"
+                >
+                  Delete board
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         )}
       </div>
-
-      {editing && (
-        <BoardFormModal board={board} onClose={() => setEditing(false)} />
-      )}
 
       {deleting && (
         <DeleteBoardModal board={board} onClose={() => setDeleting(false)} />
