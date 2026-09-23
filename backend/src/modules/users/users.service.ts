@@ -1,7 +1,18 @@
+import { randomUUID } from "node:crypto";
+
 import type { Prisma } from "@prisma/client";
+import type { Readable } from "node:stream";
 
 import { DEFAULT_BOARD_TITLE, DEFAULT_SPACE_TITLE } from "../../config/constants.js";
+import { avatarStorage } from "../../infrastructure/storage/minio-storage.js";
 import { AppError, uniqueConstraintOf } from "../../lib/errors.js";
+import {
+  avatarKeyFromUrl,
+  avatarStorageKey,
+  avatarUrl,
+  isAvatarObjectName,
+  sniffAvatarMime,
+} from "./users.avatar.js";
 import { suffixedUsername, usernameBase } from "../../lib/username.js";
 import * as usersRepo from "./users.repo.js";
 import type { UpdateProfileInput } from "./users.schema.js";
@@ -79,5 +90,97 @@ export async function updateProfile(
     }
 
     throw error;
+  }
+}
+
+// The previous object is deleted only after the profile already points at the
+// new one, which is the opposite order to attachments and deliberately so:
+// there, a failed insert leaves an orphan nobody can see; here, deleting first
+// would leave every roster, comment and feed row rendering a broken image if
+// the upload or the update then failed. An orphan is cheap; a broken avatar is
+// visible to the whole team.
+export async function setAvatar(
+  userId: string,
+  file: Express.Multer.File,
+): Promise<usersRepo.ProfileRow> {
+  const mime = sniffAvatarMime(file.buffer);
+
+  // The bytes decide, not file.mimetype or the filename — both are the
+  // client's to choose.
+  if (mime === null) {
+    throw new AppError("bad_request", "That file is not a PNG, JPEG or WebP image.");
+  }
+
+  const previous = await usersRepo.findAvatarUrl(userId);
+  const avatarId = randomUUID();
+  const key = avatarStorageKey(userId, avatarId, mime);
+
+  await avatarStorage.upload(key, file.buffer, mime);
+
+  let profile: usersRepo.ProfileRow;
+
+  try {
+    profile = await usersRepo.setAvatarUrl(userId, avatarUrl(userId, avatarId, mime));
+  } catch (error) {
+    // The profile still points at the old object, so the new one is the orphan.
+    await avatarStorage.delete(key).catch(() => {});
+
+    throw error;
+  }
+
+  await deleteAvatarObject(userId, previous?.avatar_url ?? null);
+
+  return profile;
+}
+
+export async function removeAvatar(userId: string): Promise<usersRepo.ProfileRow> {
+  const previous = await usersRepo.findAvatarUrl(userId);
+
+  const profile = await usersRepo.setAvatarUrl(userId, null);
+
+  await deleteAvatarObject(userId, previous?.avatar_url ?? null);
+
+  return profile;
+}
+
+// Never fails the operation. An object that is already gone, a MinIO blip, or
+// a leftover Supabase url that names no object here are all the same answer:
+// the profile no longer points at it, which is the part that had to be true.
+async function deleteAvatarObject(userId: string, url: string | null): Promise<void> {
+  const key = avatarKeyFromUrl(url);
+
+  if (key === null) return;
+
+  // The url is stored by this server, but it is still read back out of a
+  // database column before becoming a delete — so the prefix is checked rather
+  // than assumed, and one account can never delete another's object.
+  if (!key.startsWith(`${userId}/`)) return;
+
+  await avatarStorage.delete(key).catch(() => {});
+}
+
+export async function openAvatar(
+  userId: string,
+  object: string,
+): Promise<{ stream: Readable; contentType: string }> {
+  if (!isAvatarObjectName(object)) throw new AppError("not_found", "Not found.");
+
+  const key = `${userId}/${object}`;
+
+  try {
+    return {
+      stream: await avatarStorage.download(key),
+      // Pinned from the extension this server wrote, never from anything
+      // stored with the object: the response is served from the API's own
+      // origin, so the content type is what decides whether a crafted upload
+      // could ever be interpreted as a document.
+      contentType: object.endsWith(".png")
+        ? "image/png"
+        : object.endsWith(".webp")
+          ? "image/webp"
+          : "image/jpeg",
+    };
+  } catch {
+    throw new AppError("not_found", "Not found.");
   }
 }

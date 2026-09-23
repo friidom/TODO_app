@@ -67,14 +67,31 @@ describe("PATCH /users/me", () => {
     const alice = await makeUser("alice");
     const response = await client.patch<Profile>(
       "/api/v1/users/me",
-      { full_name: "Ada Lovelace", bio: "Analytical", avatar_url: "https://x/y.png" },
+      { full_name: "Ada Lovelace", bio: "Analytical" },
       { token: alice.token },
     );
 
     expect(response.status).toBe(200);
     expect(response.body.full_name).toBe("Ada Lovelace");
     expect(response.body.bio).toBe("Analytical");
-    expect(response.body.avatar_url).toBe("https://x/y.png");
+  });
+
+  // This used to assert the opposite — that a body could set avatar_url to any
+  // string. That was the hole: the value was the client's to choose, so an
+  // account could point its avatar at another user's object, or at any url at
+  // all. It now moves only through POST/DELETE /users/me/avatar.
+  it("does not let the body set avatar_url", async () => {
+    const alice = await makeUser("alice");
+
+    const response = await client.patch<Profile>(
+      "/api/v1/users/me",
+      { full_name: "Ada", avatar_url: "https://evil.test/y.png" },
+      { token: alice.token },
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body.full_name).toBe("Ada");
+    expect(response.body.avatar_url).toBeNull();
   });
 
   it("clears a nullable field when sent null", async () => {

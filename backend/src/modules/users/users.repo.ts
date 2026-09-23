@@ -109,11 +109,27 @@ export function findProfileById(userId: string): Promise<ProfileRow | null> {
   return prisma.profiles.findUnique({ where: { id: userId }, select: PROFILE_FIELDS });
 }
 
+// avatar_url is absent on purpose: it is set only by uploading or removing an
+// avatar, never by a general profile PATCH. Accepting it here would let anyone
+// point their profile at another user's object.
 export interface ProfilePatch {
   username?: string;
   full_name?: string | null;
   bio?: string | null;
-  avatar_url?: string | null;
+}
+
+export function findAvatarUrl(userId: string): Promise<{ avatar_url: string | null } | null> {
+  return prisma.profiles.findUnique({ where: { id: userId }, select: { avatar_url: true } });
+}
+
+// Scoped to the one column. The general updateProfile no longer accepts
+// avatar_url at all, so this is the only way it changes.
+export function setAvatarUrl(userId: string, avatarUrl: string | null): Promise<ProfileRow> {
+  return prisma.profiles.update({
+    where: { id: userId },
+    data: { avatar_url: avatarUrl },
+    select: PROFILE_FIELDS,
+  });
 }
 
 export function updateProfile(userId: string, patch: ProfilePatch): Promise<ProfileRow> {
@@ -123,7 +139,6 @@ export function updateProfile(userId: string, patch: ProfilePatch): Promise<Prof
       ...(patch.username !== undefined && { username: patch.username }),
       ...(patch.full_name !== undefined && { full_name: patch.full_name }),
       ...(patch.bio !== undefined && { bio: patch.bio }),
-      ...(patch.avatar_url !== undefined && { avatar_url: patch.avatar_url }),
     },
     select: PROFILE_FIELDS,
   });

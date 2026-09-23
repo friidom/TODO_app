@@ -1,22 +1,23 @@
-import { supabase } from "../api/supabase";
+import { api } from "../api/client";
+import type { Profile } from "./profileApi";
 
-// Path is the authorization: storage policies scope writes to the uid folder, so this path and the policy have to agree.
-export async function uploadAvatar(
-  file: File,
-  userId: string,
-): Promise<string> {
-  const fileExt = file.name.split(".").pop();
+// Was a direct Supabase Storage upload from the browser. It is now a multipart
+// POST to our own API, which is the only side that holds MinIO credentials and
+// the only side that may name an object: the old version built the key from
+// `${userId}/avatar.${ext}` in the browser, so both the path and the extension
+// were the client's to choose.
+//
+// Returns the updated profile rather than a url, because the server writes
+// profiles.avatar_url itself — there is no longer a second round trip in which
+// the two could disagree.
+export function uploadAvatar(file: File): Promise<Profile> {
+  const form = new FormData();
 
-  // fixed filename, not a hash — one avatar per person, upsert replaces it instead of piling up orphans
-  const path = `${userId}/avatar.${fileExt}`;
+  form.append("file", file);
 
-  const { error } = await supabase.storage.from("avatars").upload(path, file, {
-    upsert: true,
-  });
+  return api.post<Profile>("/users/me/avatar", form);
+}
 
-  if (error) throw error;
-
-  const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-
-  return data.publicUrl;
+export function removeAvatar(): Promise<Profile> {
+  return api.del<Profile>("/users/me/avatar");
 }

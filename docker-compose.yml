@@ -73,6 +73,7 @@ services:
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin123
       MINIO_BUCKET: todo-attachments
+      MINIO_AVATAR_BUCKET: todo-avatars
 
     ports:
       - "4000:4000"

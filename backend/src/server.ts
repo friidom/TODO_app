@@ -5,7 +5,7 @@ import { describeDatabase, env } from "./config/env.js";
 import { closePool, describeError, ping } from "./db/client.js";
 import { prisma } from "./db/prisma.js";
 import { createRealtimeServer } from "./realtime/io.js";
-import { minioStorage } from "./infrastructure/storage/minio-storage.js";
+import { avatarStorage, minioStorage } from "./infrastructure/storage/minio-storage.js";
 
 // Explicit, because Socket.IO needs the http.Server itself — app.listen()
 // creates one and returns it, but only after it is already bound.
@@ -32,8 +32,11 @@ server.listen(env.PORT, async () => {
 
   try {
     await minioStorage.ensureBucket();
+    await avatarStorage.ensureBucket();
 
-    console.log(`[minio] connected, bucket "${env.MINIO_BUCKET}" is ready`);
+    console.log(
+      `[minio] connected, buckets "${env.MINIO_BUCKET}" and "${env.MINIO_AVATAR_BUCKET}" are ready`,
+    );
   } catch (error) {
     console.error(`[minio] NOT connected to ${env.MINIO_ENDPOINT}:${env.MINIO_PORT}`);
     console.error(error);

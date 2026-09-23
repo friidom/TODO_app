@@ -80,6 +80,7 @@ services:
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin123
       MINIO_BUCKET: todo-attachments
+      MINIO_AVATAR_BUCKET: todo-avatars
       # tsx bundles chokidar, and chokidar reads these. Windows bind mounts
       # deliver no inotify events into the Linux VM, so without polling an edit
       # is never noticed and the server never restarts.
@@ -102,6 +103,11 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      # Start order only, but it is what stops the common race: ensureBucket
+      # runs once at boot, so a MinIO that arrives later leaves the avatar and
+      # attachment buckets uncreated and every upload failing until a restart.
+      minio:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O- http://localhost:4000/health || exit 1"]
       interval: 10s
@@ -122,11 +128,6 @@ services:
       # host-side `npm run dev`; Vite gives process.env precedence over .env
       # files, which is what overrides it here.
       VITE_API_URL: /api/v1
-      # Placeholders, not credentials. services/api/supabase.ts throws at module
-      # load without them and the board page still imports it, so the app would
-      # not open. Set here as well as in .env so a bare clone works.
-      VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-https://placeholder.supabase.co}
-      VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY:-placeholder-key}
     volumes:
       - .:/app
       - frontend_node_modules:/app/node_modules

@@ -92,6 +92,10 @@ const schema = z.object({
   MINIO_ACCESS_KEY: z.string().min(1),
   MINIO_SECRET_KEY: z.string().min(1),
   MINIO_BUCKET: z.string().min(1).default("todo-attachments"),
+  // Its own bucket, not a prefix inside todo-attachments: an avatar is served
+  // to anyone holding its url and an attachment never is, so the two must not
+  // share a container whose policy could later be widened for one of them.
+  MINIO_AVATAR_BUCKET: z.string().min(1).default("todo-avatars"),
 
   JWT_SECRET: z.string().min(32, "must be at least 32 characters — generate one with: openssl rand -base64 48"),
   ACCESS_TOKEN_TTL: duration("15m"),

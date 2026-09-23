@@ -41,15 +41,15 @@ export default function ProfilePage() {
 
     if (!file || !form) return;
 
+    // One call, not two: the server stores the object and writes
+    // profiles.avatar_url in the same request, so there is no longer a second
+    // mutation that could leave the column pointing at nothing. Only the
+    // avatar is taken from the response — anything unsaved in the other fields
+    // stays as the person typed it.
     uploadAvatar.mutate(
-      { file, userId: form.id },
+      { file },
       {
-        onSuccess: (url) => {
-          const updated = { ...form, avatar_url: url };
-
-          setForm(updated);
-          updateProfile.mutate(updated);
-        },
+        onSuccess: (saved) => setForm({ ...form, avatar_url: saved.avatar_url }),
       },
     );
   }

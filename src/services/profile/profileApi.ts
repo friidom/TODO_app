@@ -14,12 +14,15 @@ export function fetchProfile(): Promise<Profile> {
 }
 
 // Takes the whole profile because the caller keys its cache by id; only the
-// four editable fields are sent, and the API ignores an id in a body anyway.
+// three editable fields are sent, and the API ignores an id in a body anyway.
+//
+// avatar_url is NOT among them, and the API now refuses it: it used to be a
+// free-text field the client chose, so any account could point its avatar at
+// any url. It changes only through POST/DELETE /users/me/avatar.
 export function updateProfile(profile: Profile): Promise<Profile> {
   return api.patch<Profile>("/users/me", {
     username: profile.username,
     full_name: profile.full_name,
     bio: profile.bio,
-    avatar_url: profile.avatar_url,
   });
 }

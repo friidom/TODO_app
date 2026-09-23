@@ -62,7 +62,7 @@ containers on one network. Authorization is enforced in the API
 | `src/` | Frontend. `services/<feature>/` pairs an API module with its hooks |
 | `backend/src/` | Express API. `modules/<feature>/` is routes + controller + service + repo |
 | `backend/prisma/` | **The schema and its migrations — authoritative** |
-| `supabase/` | Historical. The pre-B5 schema and CLI config, kept for B9/B10 |
+| `supabase/` | Historical. The pre-B5 schema and CLI config; nothing applies it |
 | `docs/` | Project ledgers and design notes |
 | `Dockerfile`, `backend/Dockerfile`, `nginx.conf`, `docker-compose.yml` | Docker setup |
 
@@ -229,7 +229,7 @@ every variable the code reads, with comments.
 
 | File | Read by | Contains |
 |---|---|---|
-| `.env` | Vite, at build time | `VITE_API_URL` and the two `VITE_SUPABASE_*` placeholders |
+| `.env` | Vite, at build time | `VITE_API_URL` — the only variable the frontend reads |
 | `backend/.env` | The API at startup, **and Docker Compose**, which passes it into the backend container | `DATABASE_URL`, `JWT_SECRET`, cookie/mail/token settings, OAuth credentials |
 
 Copy each `.example` and fill it in. **Docker needs neither** —
@@ -272,17 +272,18 @@ backend is complete for every data path. Three surfaces have not moved yet.
 | Docker Compose setup | ✅ Complete |
 | CI — GitHub Actions runs lint, build, unit and integration tests | ✅ Running |
 | **Realtime updates and presence** (B9) | ⏳ Pending — still calls Supabase |
-| **Storage: attachments and avatar upload** (B10) | ⏳ Pending — still calls Supabase |
+| **Storage: attachments and avatars** (B10) | ✅ Complete — MinIO, `todo-attachments` and `todo-avatars` |
 | **Swagger / OpenAPI docs** | ⏳ Not started |
 | **Deployment pipeline** (B12) | ⏳ Not started |
 
-Because of B9 and B10, `@supabase/supabase-js` is still a dependency and
-`src/services/api/supabase.ts` still exists. It is imported by exactly three
-modules — `services/realtime/useBoardRealtime.ts`,
-`services/attachments/attachmentsApi.ts` and `services/profile/uploadAvatars.ts`
-— and nothing else. In Docker those three run against placeholder credentials,
-so **realtime, attachments and avatar upload do not work there**; everything
-else does.
+`@supabase/supabase-js` and `src/services/api/supabase.ts` are gone: realtime
+runs on the API's own Socket.IO server and both attachments and avatars are
+stored in MinIO, so nothing in the browser reaches Supabase and every feature
+works in Docker.
+
+`src/types/database.ts` stays — it is generated Supabase typing, but
+`src/types/data.ts` derives every row type from it, so it is load-bearing.
+The schema itself is authoritative in `backend/prisma/schema.prisma`.
 
 ---
 
