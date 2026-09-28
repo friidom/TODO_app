@@ -44,6 +44,8 @@ export interface BoardView {
   setQuery: (query: string) => void;
   setSort: (sort: SortKey) => void;
   setDir: (dir: SortDir) => void;
+  /** Both at once, in one history entry — see setSortBy. */
+  setSortBy: (sort: SortKey, dir: SortDir) => void;
   setGroup: (group: GroupKey) => void;
   enableDnd: () => void;
 }
@@ -194,6 +196,21 @@ export function useBoardView(): BoardView {
     [write, set],
   );
 
+  // One write, because a sortable table header changes both at once: clicking a
+  // new column must start it ascending rather than inherit the direction the
+  // previous column was left in, and setSort followed by setDir is two router
+  // navigations for one click.
+  const setSortBy = useCallback(
+    (sort: SortKey, dir: SortDir) =>
+      write((params) => {
+        set(params, "sort", sort, "manual");
+
+        if (sort === "manual") params.delete("dir");
+        else set(params, "dir", dir, "asc");
+      }),
+    [write, set],
+  );
+
   const setGroup = useCallback(
     (group: GroupKey) => write((params) => set(params, "group", group, "none")),
     [write, set],
@@ -237,6 +254,7 @@ export function useBoardView(): BoardView {
     setQuery,
     setSort,
     setDir,
+    setSortBy,
     setGroup,
     enableDnd,
   };

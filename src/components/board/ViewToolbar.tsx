@@ -2,12 +2,15 @@ import BoardFilters from "@/components/board/BoardFilters";
 import BoardGroup from "@/components/board/BoardGroup";
 import BoardSearch from "@/components/board/BoardSearch";
 import BoardSort from "@/components/board/BoardSort";
+import ListColumns from "@/components/board/ListColumns";
 import ViewTabs from "@/components/board/ViewTabs";
 import HeaderTodoForm from "@/components/layout/header/HeaderTodoForm";
 import type { BoardView } from "@/hooks/useBoardView";
 import { capabilitiesOf } from "@/services/views/registry";
 
-// group/sort are gated per view in the registry — Summary can't do either, a chart of counts has no order
+// group/sort are gated per view in the registry — Summary can't do either, a chart of counts has no order.
+// Columns is gated on the mode itself rather than a capability: it configures one
+// view's table, not a property every view could have.
 export default function ViewToolbar({ view }: { view: BoardView }) {
   const { canGroup, canSort } = capabilitiesOf(view.mode);
 
@@ -20,6 +23,7 @@ export default function ViewToolbar({ view }: { view: BoardView }) {
         <BoardFilters view={view} />
         {canGroup && <BoardGroup view={view} />}
         {canSort && <BoardSort view={view} />}
+        {view.mode === "list" && <ListColumns />}
 
         <span
           aria-hidden

@@ -1,0 +1,259 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { SORT_KEYS } from "@/services/todos/view";
+import {
+  ACTION_COLUMN_WIDTH,
+  DEFAULT_LIST_COLUMNS,
+  LIST_COLUMNS,
+  LIST_COLUMN_IDS,
+  PINNED_COLUMN,
+  isDefaultListColumns,
+  swapListColumns,
+  normalizeListColumns,
+  offeredListColumns,
+  readListColumns,
+  resolveListColumns,
+  tableMinWidth,
+  toggleListColumn,
+  writeListColumns,
+  type ListColumnId,
+} from "./listColumns";
+
+describe("the registry", () => {
+  it("declares every id exactly once, keyed by itself", () => {
+    for (const id of LIST_COLUMN_IDS) {
+      expect(LIST_COLUMNS[id].id).toBe(id);
+    }
+
+    expect(new Set(LIST_COLUMN_IDS).size).toBe(LIST_COLUMN_IDS.length);
+  });
+
+  // The whole point of `sort: null` — a header may only offer sorting the
+  // pipeline can actually perform, and sortTodos only knows SORT_KEYS.
+  it("never names a sort key sortTodos does not have", () => {
+    for (const id of LIST_COLUMN_IDS) {
+      const { sort } = LIST_COLUMNS[id];
+
+      if (sort === null) continue;
+
+      expect(SORT_KEYS).toContain(sort);
+      expect(sort).not.toBe("manual");
+    }
+  });
+
+  it("makes exactly one column elastic, and it is the pinned one", () => {
+    const elastic = LIST_COLUMN_IDS.filter((id) => LIST_COLUMNS[id].elastic);
+
+    expect(elastic).toEqual([PINNED_COLUMN]);
+  });
+
+  it("opens on defaults that start with the pinned column", () => {
+    expect(DEFAULT_LIST_COLUMNS[0]).toBe(PINNED_COLUMN);
+    expect(isDefaultListColumns([...DEFAULT_LIST_COLUMNS])).toBe(true);
+  });
+});
+
+describe("normalizeListColumns", () => {
+  it("drops ids the registry no longer has", () => {
+    expect(normalizeListColumns(["work", "labels", "status"])).toEqual([
+      "work",
+      "status",
+    ]);
+  });
+
+  it("drops duplicates", () => {
+    expect(normalizeListColumns(["work", "due", "due"])).toEqual([
+      "work",
+      "due",
+    ]);
+  });
+
+  it("restores the pinned column to the front when it is missing or misplaced", () => {
+    expect(normalizeListColumns(["status"])).toEqual(["work", "status"]);
+    expect(normalizeListColumns(["status", "work"])).toEqual([
+      "work",
+      "status",
+    ]);
+  });
+
+  it("survives a stored value that is not a list of strings", () => {
+    expect(normalizeListColumns([null, 7, {}, "due"])).toEqual(["work", "due"]);
+  });
+});
+
+describe("toggleListColumn", () => {
+  it("appends a hidden column and removes a shown one", () => {
+    expect(toggleListColumn(["work", "status"], "due")).toEqual([
+      "work",
+      "status",
+      "due",
+    ]);
+
+    expect(toggleListColumn(["work", "status", "due"], "status")).toEqual([
+      "work",
+      "due",
+    ]);
+  });
+
+  it("refuses to hide the pinned column", () => {
+    expect(toggleListColumn(["work", "status"], PINNED_COLUMN)).toEqual([
+      "work",
+      "status",
+    ]);
+  });
+});
+
+describe("swapListColumns", () => {
+  const columns: ListColumnId[] = ["work", "assignee", "priority", "status"];
+
+  it("trades the two named slots and leaves the rest alone", () => {
+    expect(swapListColumns(columns, "priority", "assignee")).toEqual([
+      "work",
+      "priority",
+      "assignee",
+      "status",
+    ]);
+
+    expect(swapListColumns(columns, "priority", "status")).toEqual([
+      "work",
+      "assignee",
+      "status",
+      "priority",
+    ]);
+  });
+
+  it("refuses the pinned column's slot from either side", () => {
+    expect(swapListColumns(columns, "assignee", PINNED_COLUMN)).toEqual(
+      columns,
+    );
+    expect(swapListColumns(columns, PINNED_COLUMN, "assignee")).toEqual(
+      columns,
+    );
+  });
+
+  it("leaves a column it does not hold alone", () => {
+    expect(swapListColumns(columns, "sprint", "assignee")).toEqual(columns);
+    expect(swapListColumns(columns, "assignee", "assignee")).toEqual(columns);
+  });
+
+  // The reason this swaps named columns instead of moving one by an offset.
+  // The stored list is shared across boards, so it can hold a column the board
+  // in front of you hides; counting "one step left" over it would swap with the
+  // invisible neighbour and look like the button did nothing.
+  it("steps over a stored column the sprints flag is hiding", () => {
+    const stored: ListColumnId[] = ["work", "sprint", "status", "due"];
+
+    const shown = resolveListColumns(stored, { sprintsEnabled: false }).map(
+      (column) => column.id,
+    );
+
+    expect(shown).toEqual(["work", "status", "due"]);
+
+    // "move due left" resolves its neighbour over `shown`, which is `status`
+    const next = swapListColumns(stored, "due", "status");
+
+    expect(next).toEqual(["work", "sprint", "due", "status"]);
+
+    expect(
+      resolveListColumns(next, { sprintsEnabled: false }).map((c) => c.id),
+    ).toEqual(["work", "due", "status"]);
+
+    // and the hidden column kept its stored slot, so turning sprints back on
+    // does not move it
+    expect(next.indexOf("sprint")).toBe(stored.indexOf("sprint"));
+  });
+});
+
+describe("sprint gating", () => {
+  it("drops the sprint column from both the table and the menu when sprints are off", () => {
+    const ids: ListColumnId[] = ["work", "sprint", "status"];
+
+    expect(
+      resolveListColumns(ids, { sprintsEnabled: false }).map((c) => c.id),
+    ).toEqual(["work", "status"]);
+
+    expect(
+      offeredListColumns({ sprintsEnabled: false }).map((c) => c.id),
+    ).not.toContain("sprint");
+
+    expect(
+      resolveListColumns(ids, { sprintsEnabled: true }).map((c) => c.id),
+    ).toEqual(ids);
+  });
+});
+
+describe("tableMinWidth", () => {
+  it("sums the visible tracks plus the pinned action column", () => {
+    const columns = resolveListColumns(["work", "status"], {
+      sprintsEnabled: true,
+    });
+
+    expect(tableMinWidth(columns)).toBe(
+      LIST_COLUMNS.work.width + LIST_COLUMNS.status.width + ACTION_COLUMN_WIDTH,
+    );
+  });
+});
+
+describe("storage", () => {
+  let store: Record<string, string>;
+
+  beforeEach(() => {
+    store = {};
+
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => store[key] ?? null,
+      setItem: (key: string, value: string) => {
+        store[key] = value;
+      },
+      removeItem: (key: string) => {
+        delete store[key];
+      },
+    });
+  });
+
+  it("round-trips a choice", () => {
+    writeListColumns(["work", "estimate", "sprint"]);
+
+    expect(readListColumns()).toEqual(["work", "estimate", "sprint"]);
+  });
+
+  it("stores nothing at all for the default set", () => {
+    writeListColumns([...DEFAULT_LIST_COLUMNS]);
+
+    expect(store["list:columns"]).toBeUndefined();
+    expect(readListColumns()).toEqual([...DEFAULT_LIST_COLUMNS]);
+  });
+
+  it("falls back to the defaults rather than throwing on unreadable storage", () => {
+    // What a private window with site data blocked actually does: throws on
+    // access rather than returning null.
+    vi.stubGlobal("localStorage", {
+      getItem: () => {
+        throw new Error("blocked");
+      },
+      setItem: () => {
+        throw new Error("blocked");
+      },
+      removeItem: () => {
+        throw new Error("blocked");
+      },
+    });
+
+    expect(readListColumns()).toEqual([...DEFAULT_LIST_COLUMNS]);
+    expect(() => writeListColumns(["work", "due"])).not.toThrow();
+  });
+
+  it("falls back to the defaults on a corrupt entry", () => {
+    store["list:columns"] = "{not json";
+    expect(readListColumns()).toEqual([...DEFAULT_LIST_COLUMNS]);
+
+    store["list:columns"] = '"work"';
+    expect(readListColumns()).toEqual([...DEFAULT_LIST_COLUMNS]);
+  });
+
+  it("repairs a stored entry written by an older registry", () => {
+    store["list:columns"] = JSON.stringify(["status", "labels", "status"]);
+
+    expect(readListColumns()).toEqual(["work", "status"]);
+  });
+});
