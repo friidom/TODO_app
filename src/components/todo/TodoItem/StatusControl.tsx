@@ -19,8 +19,8 @@ export default function StatusControl({
 }: {
   todoId: string;
   columnId: string | null;
-  // "field" is the task detail's primary control; the chip stays the dense default for cards, rows and menus
-  variant?: "chip" | "field";
+  // "field" is the task detail's primary control, "lozenge" the List's cell; the chip stays the dense default for cards and menus
+  variant?: "chip" | "field" | "lozenge";
 }) {
   const { mounted, close, triggerProps, panelProps } = useCardPopover();
   const { data: columns = [] } = useColumns();
@@ -39,21 +39,28 @@ export default function StatusControl({
         title={`Status: ${label}`}
         aria-label={`Status: ${label}`}
         className={
-          variant === "field"
-            ? "border-hairline bg-surface text-ink hover:bg-wash-strong focus-visible:ring-brand rounded-control text-meta flex h-8 w-full min-w-0 items-center gap-2 border px-3 font-medium transition-colors outline-none focus-visible:ring-2"
-            : cn(
-                FIELD_CHIP,
-                "bg-wash-strong text-ink-2 hover:bg-ink/15 hover:text-ink min-w-0 shrink gap-1.5",
+          variant === "lozenge"
+            ? cn(
+                "text-ink focus-visible:ring-brand text-meta inline-flex h-5 max-w-full min-w-0 items-center gap-1 rounded border px-1.5 transition-colors outline-none focus-visible:ring-2",
+                categoryOf(current?.category).lozenge,
               )
+            : variant === "field"
+              ? "border-hairline bg-surface text-ink hover:bg-wash-strong focus-visible:ring-brand rounded-control text-meta flex h-8 w-full min-w-0 items-center gap-2 border px-3 font-medium transition-colors outline-none focus-visible:ring-2"
+              : cn(
+                  FIELD_CHIP,
+                  "bg-wash-strong text-ink-2 hover:bg-ink/15 hover:text-ink min-w-0 shrink gap-1.5",
+                )
         }
       >
-        <span
-          className={cn(
-            "shrink-0 rounded-full",
-            variant === "field" ? "size-2" : "size-1.5",
-            categoryOf(current?.category).dot,
-          )}
-        />
+        {variant !== "lozenge" && (
+          <span
+            className={cn(
+              "shrink-0 rounded-full",
+              variant === "field" ? "size-2" : "size-1.5",
+              categoryOf(current?.category).dot,
+            )}
+          />
+        )}
         <span
           className={cn(
             "truncate",
@@ -64,6 +71,9 @@ export default function StatusControl({
         </span>
         {variant === "field" && (
           <ChevronDownIcon className="text-ink-3 -mr-1 size-3.5 shrink-0" />
+        )}
+        {variant === "lozenge" && (
+          <ChevronDownIcon className="size-3 shrink-0 opacity-70" />
         )}
       </button>
 

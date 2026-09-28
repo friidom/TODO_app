@@ -13,7 +13,12 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useBoardMembers } from "@/services/members/useBoardMembers";
 import { cn } from "@/utils/cn";
-import { FIELD_EMPTY, HOVER_REVEAL, OPTION_ITEM } from "./fieldChrome";
+import {
+  FIELD_CELL,
+  FIELD_EMPTY,
+  HOVER_REVEAL,
+  OPTION_ITEM,
+} from "./fieldChrome";
 import { useCardPopover } from "./useCardPopover";
 
 export default function AssigneeControl({
@@ -22,6 +27,7 @@ export default function AssigneeControl({
   onChange,
   alwaysVisible = false,
   showName = false,
+  variant,
 }: {
   boardId: string;
   value: string | null;
@@ -29,6 +35,7 @@ export default function AssigneeControl({
   alwaysVisible?: boolean;
   // avatar + name for a labelled field row; the avatar alone stays the default for cards
   showName?: boolean;
+  variant?: "cell";
 }) {
   const { mounted, close, triggerProps, panelProps } = useCardPopover();
 
@@ -39,6 +46,9 @@ export default function AssigneeControl({
     ? `Assigned to ${memberName(assignee)}`
     : "Assign a member";
 
+  const cell = variant === "cell";
+  const named = showName || cell;
+
   return (
     <>
       <button
@@ -47,10 +57,12 @@ export default function AssigneeControl({
         title={label}
         aria-label={label}
         className={cn(
-          showName
-            ? "text-meta hover:bg-wash-strong focus-visible:ring-brand rounded-control -mx-1.5 flex h-8 min-w-0 items-center gap-2 px-1.5 transition-colors outline-none focus-visible:ring-2"
-            : "focus-visible:ring-brand shrink-0 rounded-full transition-opacity duration-150 outline-none focus-visible:ring-2",
-          !showName && !assigneeId && !alwaysVisible && HOVER_REVEAL,
+          cell
+            ? FIELD_CELL
+            : showName
+              ? "text-meta hover:bg-wash-strong focus-visible:ring-brand rounded-control -mx-1.5 flex h-8 min-w-0 items-center gap-2 px-1.5 transition-colors outline-none focus-visible:ring-2"
+              : "focus-visible:ring-brand shrink-0 rounded-full transition-opacity duration-150 outline-none focus-visible:ring-2",
+          !named && !assigneeId && !alwaysVisible && HOVER_REVEAL,
         )}
       >
         {assignee ? (
@@ -63,17 +75,21 @@ export default function AssigneeControl({
         ) : (
           <span
             className={cn(
-              FIELD_EMPTY,
               "grid size-6 shrink-0 place-items-center rounded-full transition-colors duration-150",
-              assigneeId && "border-solid",
+              cell
+                ? "bg-ink/10 text-ink-2"
+                : cn(FIELD_EMPTY, assigneeId && "border-solid"),
             )}
           >
-            <UserIcon className="size-3" />
+            <UserIcon className={cell ? "size-3.5" : "size-3"} />
           </span>
         )}
-        {showName && (
+        {named && (
           <span
-            className={cn("truncate", assignee ? "text-ink" : "text-ink-3")}
+            className={cn(
+              "truncate",
+              assignee ? "text-ink" : cell ? "text-ink-2" : "text-ink-3",
+            )}
           >
             {assignee ? memberName(assignee) : "Unassigned"}
           </span>

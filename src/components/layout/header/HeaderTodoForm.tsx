@@ -49,7 +49,7 @@ export default function HeaderTodoForm() {
         onClick={() => setOpen(true)}
         disabled={!targetColumn}
         title={t("createTodo")}
-        className="bg-brand text-brand-fg hover:bg-brand/90 active:bg-brand/80 focus-visible:ring-brand rounded-control text-meta shadow-e1 flex h-9 shrink-0 items-center gap-1.5 px-3 font-medium transition-colors outline-none focus-visible:ring-2 disabled:cursor-default disabled:opacity-50"
+        className="bg-brand text-brand-fg hover:bg-brand/90 active:bg-brand/80 focus-visible:ring-brand shadow-e1 flex h-8 shrink-0 items-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors outline-none focus-visible:ring-2 disabled:cursor-default disabled:opacity-50"
       >
         <PlusIcon className="size-4" />
         <span className="hidden sm:inline">New task</span>
@@ -67,7 +67,7 @@ export default function HeaderTodoForm() {
       onBlur={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget)) close();
       }}
-      className="border-brand/40 bg-surface focus-within:ring-brand/40 rounded-control flex h-9 w-56 min-w-0 shrink items-center gap-1.5 border px-1.5 focus-within:ring-2"
+      className="border-brand/40 bg-surface focus-within:ring-brand/40 flex h-8 w-56 min-w-0 shrink items-center gap-1.5 rounded-md border px-1.5 focus-within:ring-2"
     >
       <button
         type="submit"
@@ -87,7 +87,7 @@ export default function HeaderTodoForm() {
           if (e.key === "Escape") close();
         }}
         placeholder={t("createTodo")}
-        className="text-ink placeholder:text-ink-3 text-meta min-w-0 flex-1 bg-transparent outline-none"
+        className="text-ink placeholder:text-ink-3 min-w-0 flex-1 bg-transparent text-sm outline-none"
       />
     </form>
   );

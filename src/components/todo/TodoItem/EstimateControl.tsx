@@ -11,7 +11,12 @@ import {
   parseEstimateDraft,
 } from "@/services/todos/estimateInput";
 import { cn } from "@/utils/cn";
-import { FIELD_CHIP, FIELD_EMPTY, HOVER_REVEAL } from "./fieldChrome";
+import {
+  FIELD_CELL,
+  FIELD_CHIP,
+  FIELD_EMPTY,
+  HOVER_REVEAL,
+} from "./fieldChrome";
 import { useCardPopover } from "./useCardPopover";
 
 export default function EstimateControl({
@@ -20,6 +25,7 @@ export default function EstimateControl({
   alwaysVisible = false,
   showLabel = false,
   placement,
+  variant,
 }: {
   value: number | null;
   onChange: (value: number | null) => void;
@@ -28,6 +34,7 @@ export default function EstimateControl({
   // "3 points" / "None" as text, for a labelled field row rather than a dense card footer
   showLabel?: boolean;
   placement?: Placement;
+  variant?: "cell";
 }) {
   const { close, triggerProps, panelProps, mounted } = useCardPopover({
     placement,
@@ -67,26 +74,32 @@ export default function EstimateControl({
         title={label}
         aria-label={label}
         className={cn(
-          showLabel
-            ? cn(
-                "text-meta hover:bg-wash-strong focus-visible:ring-brand rounded-control -mx-1.5 flex h-7 shrink-0 items-center px-1.5 transition-colors outline-none focus-visible:ring-2",
-                value === null ? "text-ink-3" : "text-ink",
-              )
-            : cn(
-                FIELD_CHIP,
-                "min-w-5 shrink-0 justify-center px-1 font-semibold tabular-nums",
-                value === null
-                  ? FIELD_EMPTY
-                  : "bg-wash-strong text-ink-2 hover:bg-ink/15 hover:text-ink",
-                !estimateAlwaysVisible(value, alwaysVisible) && HOVER_REVEAL,
-              ),
+          variant === "cell"
+            ? cn(FIELD_CELL, "tabular-nums", value === null && "text-ink-3")
+            : showLabel
+              ? cn(
+                  "text-meta hover:bg-wash-strong focus-visible:ring-brand rounded-control -mx-1.5 flex h-7 shrink-0 items-center px-1.5 transition-colors outline-none focus-visible:ring-2",
+                  value === null ? "text-ink-3" : "text-ink",
+                )
+              : cn(
+                  FIELD_CHIP,
+                  "min-w-5 shrink-0 justify-center px-1 font-semibold tabular-nums",
+                  value === null
+                    ? FIELD_EMPTY
+                    : "bg-wash-strong text-ink-2 hover:bg-ink/15 hover:text-ink",
+                  !estimateAlwaysVisible(value, alwaysVisible) && HOVER_REVEAL,
+                ),
         )}
       >
-        {showLabel
+        {variant === "cell"
           ? value === null
             ? "None"
-            : `${formatEstimate(value)} ${value === 1 ? "point" : "points"}`
-          : formatEstimate(value)}
+            : formatEstimate(value)
+          : showLabel
+            ? value === null
+              ? "None"
+              : `${formatEstimate(value)} ${value === 1 ? "point" : "points"}`
+            : formatEstimate(value)}
       </button>
 
       {mounted && (

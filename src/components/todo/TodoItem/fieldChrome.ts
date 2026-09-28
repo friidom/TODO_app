@@ -9,6 +9,10 @@ export const FIELD_ICON = `${FIELD_MOTION} grid size-5 shrink-0 place-items-cent
 export const FIELD_ROW =
   "text-meta hover:bg-wash-strong focus-visible:ring-brand rounded-control -mx-1.5 flex h-7 shrink-0 items-center gap-1.5 px-1.5 whitespace-nowrap transition-colors outline-none focus-visible:ring-2";
 
+// a List table cell: the value reads as plain text on the row; -mx-1 lets the hover box overhang the column's padding
+export const FIELD_CELL =
+  "text-sm text-ink hover:bg-wash-strong focus-visible:ring-brand -mx-1 flex h-7 min-w-0 items-center gap-2 rounded px-1 whitespace-nowrap transition-colors outline-none focus-visible:ring-2";
+
 export const FIELD_EMPTY =
   "border-hairline text-ink-3 hover:bg-wash-strong hover:text-ink-2 border border-dashed";
 

@@ -13,6 +13,7 @@ import {
 import { cn } from "@/utils/cn";
 import DatePanel from "./DatePanel";
 import {
+  FIELD_CELL,
   FIELD_CHIP,
   FIELD_EMPTY,
   FIELD_ICON,
@@ -26,6 +27,12 @@ const CHIP_TONE = {
   overdue: "bg-status-red/15 text-status-red hover:bg-status-red/25",
   today: "bg-status-orange/15 text-status-orange hover:bg-status-orange/25",
   upcoming: "text-ink-2 hover:bg-wash-strong hover:text-ink",
+} as const;
+
+const CELL_TONE = {
+  overdue: "text-status-red",
+  today: "text-status-orange",
+  upcoming: "text-ink",
 } as const;
 
 const BARE_TONE = {
@@ -45,6 +52,7 @@ export default function DueDateControl({
   bare = false,
   showLabel = false,
   placement,
+  variant,
 }: {
   value: string | null;
   onChange: (value: string | null) => void;
@@ -55,6 +63,7 @@ export default function DueDateControl({
   bare?: boolean;
   showLabel?: boolean;
   placement?: Placement;
+  variant?: "cell";
 }) {
   const { mounted, close, triggerProps, panelProps } = useCardPopover({
     placement,
@@ -66,6 +75,7 @@ export default function DueDateControl({
   const label = dueDate
     ? `Due ${formatDue(dueDate, todayISO(), i18n.language)}`
     : "Set a due date";
+  const cell = variant === "cell";
 
   function commit(day: string | null) {
     onChange(day ? fromCalendarDay(day) : null);
@@ -80,28 +90,45 @@ export default function DueDateControl({
         title={label}
         aria-label={label}
         className={
-          showLabel
-            ? cn(FIELD_ROW, dueDate ? BARE_TONE[status!] : "text-ink-3")
-            : dueDate
-              ? cn(
-                  FIELD_CHIP,
-                  "shrink-0 whitespace-nowrap",
-                  bare
-                    ? cn("px-1", BARE_TONE[status!])
-                    : cn("px-1.5", CHIP_TONE[status!]),
-                )
-              : cn(FIELD_ICON, FIELD_EMPTY, !alwaysVisible && HOVER_REVEAL)
+          cell
+            ? cn(FIELD_CELL, dueDate ? CELL_TONE[status!] : "text-ink-3")
+            : showLabel
+              ? cn(FIELD_ROW, dueDate ? BARE_TONE[status!] : "text-ink-3")
+              : dueDate
+                ? cn(
+                    FIELD_CHIP,
+                    "shrink-0 whitespace-nowrap",
+                    bare
+                      ? cn("px-1", BARE_TONE[status!])
+                      : cn("px-1.5", CHIP_TONE[status!]),
+                  )
+                : cn(FIELD_ICON, FIELD_EMPTY, !alwaysVisible && HOVER_REVEAL)
         }
       >
-        {/* icon takes the chip's own colour — a fixed red on a muted "upcoming" chip said "urgent" wrongly */}
-        {(!dueDate || !bare || showLabel) && (
-          <CalendarIcon
-            className={dueDate && !showLabel ? "size-3" : "size-3.5"}
-          />
+        {cell ? (
+          dueDate ? (
+            <>
+              <CalendarIcon className="size-4 shrink-0 opacity-70" />
+              <span className="truncate">
+                {formatDue(dueDate, todayISO(), i18n.language)}
+              </span>
+            </>
+          ) : (
+            "None"
+          )
+        ) : (
+          <>
+            {/* icon takes the chip's own colour — a fixed red on a muted "upcoming" chip said "urgent" wrongly */}
+            {(!dueDate || !bare || showLabel) && (
+              <CalendarIcon
+                className={dueDate && !showLabel ? "size-3" : "size-3.5"}
+              />
+            )}
+            {dueDate
+              ? formatDue(dueDate, todayISO(), i18n.language)
+              : showLabel && "None"}
+          </>
         )}
-        {dueDate
-          ? formatDue(dueDate, todayISO(), i18n.language)
-          : showLabel && "None"}
       </button>
 
       {mounted && (

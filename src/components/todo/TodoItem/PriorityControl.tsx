@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/controlChrome";
 import { cn } from "@/utils/cn";
 import {
+  FIELD_CELL,
   FIELD_CHIP,
   FIELD_EMPTY,
   FIELD_ICON,
@@ -30,6 +31,7 @@ export default function PriorityControl({
   bare = false,
   alwaysVisible = false,
   placement,
+  variant,
 }: {
   value: string | null;
   onChange: (value: Priority | null) => void;
@@ -39,6 +41,7 @@ export default function PriorityControl({
   // keeps the empty-state placeholder visible even without row hover — for surfaces with no row to hover, like the detail rail
   alwaysVisible?: boolean;
   placement?: Placement;
+  variant?: "cell";
 }) {
   const { mounted, close, triggerProps, panelProps } = useCardPopover({
     placement,
@@ -48,6 +51,7 @@ export default function PriorityControl({
   const meta = priorityOf(current);
   const Icon = meta?.icon ?? SignalIcon;
   const label = meta?.label ?? "No priority";
+  const cell = variant === "cell";
 
   return (
     <>
@@ -57,15 +61,26 @@ export default function PriorityControl({
         title={`Priority: ${label}`}
         aria-label={`Priority: ${label}`}
         className={cn(
-          bare
-            ? cn(FIELD_ICON, meta ? meta.tone : FIELD_EMPTY)
-            : cn(FIELD_CHIP, "shrink-0", meta ? meta.chip : FIELD_EMPTY),
+          cell
+            ? cn(FIELD_CELL, !meta && "text-ink-3")
+            : bare
+              ? cn(FIELD_ICON, meta ? meta.tone : FIELD_EMPTY)
+              : cn(FIELD_CHIP, "shrink-0", meta ? meta.chip : FIELD_EMPTY),
           // opacity, not display — keeps the row from reflowing under the cursor
-          !meta && !alwaysVisible && HOVER_REVEAL,
+          !cell && !meta && !alwaysVisible && HOVER_REVEAL,
         )}
       >
-        <Icon className={bare ? "size-3.5" : "size-3"} />
-        {showLabel && label}
+        {cell ? (
+          <>
+            {meta && <Icon className={cn("size-4 shrink-0", meta.tone)} />}
+            <span className="truncate">{meta ? meta.label : "None"}</span>
+          </>
+        ) : (
+          <>
+            <Icon className={bare ? "size-3.5" : "size-3"} />
+            {showLabel && label}
+          </>
+        )}
       </button>
 
       {mounted && (

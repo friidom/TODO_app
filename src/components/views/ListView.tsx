@@ -1,25 +1,73 @@
-import { useMemo } from "react";
-import { InboxIcon } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { ChevronRightIcon, InboxIcon } from "lucide-react";
 
 import Loading from "@/components/loading/LoadingPage";
+import EmptyState from "@/components/ui/EmptyState";
 import { categoryOf } from "@/constants/columns";
 import { useBoardId } from "@/hooks/useBoardId";
 import { useBoardView, type BoardView } from "@/hooks/useBoardView";
+import { useKeyPrefix } from "@/hooks/useKeyPrefix";
+import { useOpenTask } from "@/hooks/useOpenTask";
+import { usePermissions } from "@/hooks/usePermissions";
+import { useSprintsEnabled } from "@/hooks/useSprintsEnabled";
 import { useVisibleTodos } from "@/hooks/useVisibleTodos";
 import { useColumns } from "@/services/columns/useColumnsApi";
 import { useBoardMembers } from "@/services/members/useBoardMembers";
+import { doneColumnIds, subtasksByParent } from "@/services/todos/subtasks";
+import { useTodos } from "@/services/todos/useTodos";
 import { groupTodos } from "@/services/todos/view";
+import {
+  ACTION_COLUMN_WIDTH,
+  SELECT_COLUMN_WIDTH,
+  resolveListColumns,
+  tableMinWidth,
+} from "@/services/views/listColumns";
+import { useListColumns } from "@/stores/listColumns";
+import type { Todo } from "@/types/data";
 import { cn } from "@/utils/cn";
+import { byRank } from "@/utils/rank";
+import ListCreateRow from "./ListCreateRow";
+import ListHeader from "./ListHeader";
 import ListRow from "./ListRow";
-import { LIST_GRID, LIST_MIN_WIDTH } from "./listGrid";
-import EmptyState from "@/components/ui/EmptyState";
+import { FRAME, GROUP_ROW_TOP, TABLE } from "./listTable";
+
+const NO_TODOS: Todo[] = [];
+const NO_CHILDREN: Todo[] = [];
 
 export default function ListView() {
   const boardId = useBoardId();
   const view = useBoardView();
-  const { todos, isLoading, error } = useVisibleTodos();
+
+  const { todos, total, isLoading, error } = useVisibleTodos();
+  const { data: rows = NO_TODOS } = useTodos();
   const { data: columns = [] } = useColumns();
   const { data: members = [] } = useBoardMembers(boardId);
+
+  const { canEditTodos } = usePermissions();
+  const sprintsEnabled = useSprintsEnabled();
+
+  // Hoisted out of the row on purpose: each of these is a query observer, and
+  // one per row rather than one per table is what ListRow's memo is protecting.
+  const keyPrefix = useKeyPrefix();
+  const { openTask } = useOpenTask();
+
+  const columnIds = useListColumns((state) => state.columns);
+
+  const visibleColumns = useMemo(
+    () => resolveListColumns(columnIds, { sprintsEnabled }),
+    [columnIds, sprintsEnabled],
+  );
+
+  const membersById = useMemo(
+    () => new Map(members.map((member) => [member.id, member])),
+    [members],
+  );
+
+  // The pipeline drops genuine subtasks from every view; the List files them
+  // back under their parent rather than listing them among the rows.
+  const subtasks = useMemo(() => subtasksByParent(rows), [rows]);
+
+  const doneColumns = useMemo(() => doneColumnIds(columns), [columns]);
 
   const groups = useMemo(() => {
     const all = groupTodos(todos, view.group, { columns, members });
@@ -28,100 +76,281 @@ export default function ListView() {
     return view.group === "none" ? all : all.filter((g) => g.todos.length > 0);
   }, [todos, view.group, columns, members]);
 
+  // Client-only, like KanbanBoard's collapsed columns: which sections you have
+  // folded away, which parents you opened and which rows you ticked are not
+  // worth a URL param or a row in the database.
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const [selected, setSelected] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+
+  const toggleGroup = useCallback((key: string) => {
+    setCollapsed((current) => toggled(current, key));
+  }, []);
+
+  const toggleExpand = useCallback((id: string) => {
+    setExpanded((current) => toggled(current, id));
+  }, []);
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelected((current) => toggled(current, id));
+  }, []);
+
+  const parents = useMemo(
+    () => todos.filter((todo) => subtasks.has(todo.id)).map((todo) => todo.id),
+    [todos, subtasks],
+  );
+
+  const allExpanded =
+    parents.length > 0 && parents.every((id) => expanded.has(id));
+
+  // Counted over what the table can show, so a row a filter has since hidden
+  // does not keep "3 selected" alive with nothing ticked on screen.
+  const selectedCount = useMemo(() => {
+    let count = 0;
+
+    for (const todo of todos) {
+      if (selected.has(todo.id)) count += 1;
+
+      for (const child of subtasks.get(todo.id) ?? NO_CHILDREN) {
+        if (selected.has(child.id)) count += 1;
+      }
+    }
+
+    return count;
+  }, [todos, subtasks, selected]);
+
+  const allSelected =
+    todos.length > 0 && todos.every((todo) => selected.has(todo.id));
+
+  // Same target HeaderTodoForm picks, and for the same reason: sorted by rank
+  // rather than array order, since the cache is not guaranteed to stay sorted.
+  const createColumnId = useMemo(
+    () => [...columns].sort(byRank)[0]?.id,
+    [columns],
+  );
+
   if (isLoading) return <Loading />;
 
   if (error) return <p className="text-status-red text-sm">{error.message}</p>;
 
   const grouped = view.group !== "none";
+  const span = visibleColumns.length + 2;
 
-  const dotFor = (key: string) => {
-    const column = columns.find((it) => it.id === key);
+  function row(todo: Todo, depth: number, childCount: number, open: boolean) {
+    return (
+      <ListRow
+        key={todo.id}
+        todo={todo}
+        columns={visibleColumns}
+        canEdit={canEditTodos}
+        keyPrefix={keyPrefix}
+        membersById={membersById}
+        openTask={openTask}
+        done={todo.column_id !== null && doneColumns.has(todo.column_id)}
+        depth={depth}
+        childCount={childCount}
+        expanded={open}
+        onToggleExpand={toggleExpand}
+        selected={selected.has(todo.id)}
+        onToggleSelect={toggleSelect}
+      />
+    );
+  }
 
-    return column ? categoryOf(column.category).dot : "bg-ink/25";
-  };
+  // One level only: enforce_work_item_hierarchy refuses a Subtask children of its own.
+  function withSubtasks(todo: Todo) {
+    const children = subtasks.get(todo.id) ?? NO_CHILDREN;
+    const open = children.length > 0 && expanded.has(todo.id);
+
+    return [
+      row(todo, 0, children.length, open),
+      ...(open ? children.map((child) => row(child, 1, 0, false)) : []),
+    ];
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="border-hairline rounded-surface mb-4 min-h-0 flex-1 overflow-auto border">
-        <div role="table" aria-label="Work items" className={LIST_MIN_WIDTH}>
-          <div role="rowgroup" className="bg-canvas sticky top-0 z-20">
-            <div
-              role="row"
-              className={cn(
-                LIST_GRID,
-                "border-hairline text-ink-3/70 text-micro h-8 border-b font-medium tracking-[0.08em] uppercase",
-              )}
+      <div
+        className={cn(FRAME, "flex min-h-0 flex-1 flex-col overflow-hidden")}
+      >
+        {todos.length === 0 ? (
+          <div className="min-h-0 flex-1 overflow-auto">
+            <EmptyList view={view} />
+          </div>
+        ) : (
+          <div className="min-h-0 flex-1 overflow-auto">
+            <table
+              className={TABLE}
+              style={{ minWidth: tableMinWidth(visibleColumns) }}
             >
-              {/* sr-only on the inner span, not the header itself — sr-only is position:absolute, which would drop the header out of the grid track */}
-              <span role="columnheader">
-                <span className="sr-only">Type</span>
-              </span>
-              <span role="columnheader">Key</span>
-              <span role="columnheader">Title</span>
-              <span role="columnheader">Status</span>
-              <span role="columnheader" className="hidden lg:block">
-                <span className="sr-only">Priority</span>
-              </span>
-              <span role="columnheader">
-                <span className="sr-only">Assignee</span>
-              </span>
-              <span role="columnheader" className="hidden text-right lg:block">
-                Due
-              </span>
-              <span role="columnheader">
-                <span className="sr-only">Actions</span>
-              </span>
-            </div>
+              {/* table-fixed reads these, which is what keeps a long title from
+                  widening a column and what makes the widths predictable. The
+                  elastic column is left auto so it absorbs the slack. */}
+              <colgroup>
+                <col style={{ width: SELECT_COLUMN_WIDTH }} />
+                {visibleColumns.map((column) => (
+                  <col
+                    key={column.id}
+                    style={column.elastic ? undefined : { width: column.width }}
+                  />
+                ))}
+                <col style={{ width: ACTION_COLUMN_WIDTH }} />
+              </colgroup>
+
+              <ListHeader
+                columns={visibleColumns}
+                view={view}
+                allSelected={allSelected}
+                someSelected={selectedCount > 0}
+                onSelectAll={(next) =>
+                  setSelected(
+                    next ? new Set(todos.map((todo) => todo.id)) : new Set(),
+                  )
+                }
+                canExpand={parents.length > 0}
+                allExpanded={allExpanded}
+                onExpandAll={() =>
+                  setExpanded(allExpanded ? new Set() : new Set(parents))
+                }
+              />
+
+              {groups.map((group) => (
+                <tbody key={group.key}>
+                  {grouped && (
+                    <GroupRow
+                      span={span}
+                      label={group.label}
+                      count={group.todos.length}
+                      lozenge={
+                        view.group === "status"
+                          ? categoryOf(
+                              columns.find((column) => column.id === group.key)
+                                ?.category,
+                            ).lozenge
+                          : null
+                      }
+                      collapsed={collapsed.has(group.key)}
+                      onToggle={() => toggleGroup(group.key)}
+                    />
+                  )}
+
+                  {!collapsed.has(group.key) &&
+                    group.todos.flatMap(withSubtasks)}
+                </tbody>
+              ))}
+            </table>
+          </div>
+        )}
+
+        {/* Outside the scroller, so Create and the count stay put while the
+            fields are scrolled sideways. */}
+        <div className="grid h-10 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 border-t border-(--list-line) px-2">
+          <div className="min-w-0">
+            <ListCreateRow columnId={createColumnId} disabled={!canEditTodos} />
           </div>
 
-          {groups.map((group) => (
-            <div role="rowgroup" key={group.key}>
-              {grouped && (
-                <GroupDivider
-                  label={group.label}
-                  count={group.todos.length}
-                  dot={dotFor(group.key)}
-                />
-              )}
+          <span className="text-ink-2 text-sm tabular-nums">
+            {todos.length === total
+              ? `${total} ${total === 1 ? "item" : "items"}`
+              : `${todos.length} of ${total}`}
+          </span>
 
-              {group.todos.map((todo) => (
-                <ListRow key={todo.id} todo={todo} />
-              ))}
-            </div>
-          ))}
+          {selectedCount > 0 && (
+            <span className="text-ink-2 flex items-center gap-2 justify-self-end text-sm">
+              <span className="tabular-nums">{selectedCount} selected</span>
+              <button
+                type="button"
+                onClick={() => setSelected(new Set())}
+                className="text-brand focus-visible:ring-brand rounded font-medium outline-none hover:underline focus-visible:ring-2"
+              >
+                Clear
+              </button>
+            </span>
+          )}
         </div>
-
-        {todos.length === 0 && <EmptyList view={view} />}
       </div>
     </div>
   );
 }
 
-function GroupDivider({
+function toggled(set: ReadonlySet<string>, key: string): ReadonlySet<string> {
+  const next = new Set(set);
+
+  if (!next.delete(key)) next.add(key);
+
+  return next;
+}
+
+function GroupRow({
+  span,
   label,
   count,
-  dot,
+  lozenge,
+  collapsed,
+  onToggle,
 }: {
+  span: number;
   label: string;
   count: number;
-  dot: string;
+  /** A status group reads as the status control it collects; null for the rest. */
+  lozenge: string | null;
+  collapsed: boolean;
+  onToggle: () => void;
 }) {
   return (
-    <div
-      role="row"
-      className="bg-canvas sticky top-8 z-10 flex h-8 items-center gap-2 px-4 shadow-[inset_0_-1px_0_var(--hairline)]"
-    >
-      <span role="rowheader" className="flex min-w-0 items-center gap-2">
-        <span className={cn("size-1.5 shrink-0 rounded-full", dot)} />
-        <span className="text-ink-2 text-mini truncate font-semibold tracking-[0.04em] uppercase">
-          {label}
-        </span>
-      </span>
+    <tr>
+      <td
+        colSpan={span}
+        className={cn(
+          "sticky z-10 border-b border-(--list-line) bg-(--list-head) p-0",
+          GROUP_ROW_TOP,
+        )}
+      >
+        {/* w-fit + sticky left-0 pins the heading to the viewport's left edge:
+            the cell spans the whole scroll width, so without it the label
+            scrolls out of sight as soon as the fields are panned. */}
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={!collapsed}
+          className="focus-visible:ring-brand text-ink sticky left-0 flex h-10 w-fit max-w-full items-center gap-2 pr-3 pl-2 outline-none focus-visible:ring-2 focus-visible:ring-inset"
+        >
+          <span className="text-ink-2 grid size-6 shrink-0 place-items-center">
+            <ChevronRightIcon
+              className={cn(
+                "size-4 transition-transform duration-150",
+                !collapsed && "rotate-90",
+              )}
+            />
+          </span>
 
-      <span className="text-ink-3 text-mini ml-auto shrink-0 tabular-nums">
-        {count} {count === 1 ? "task" : "tasks"}
-      </span>
-    </div>
+          {lozenge === null ? (
+            <span className="max-w-[22rem] truncate text-sm font-semibold">
+              {label}
+            </span>
+          ) : (
+            <span
+              className={cn(
+                "text-meta inline-flex h-5 max-w-[22rem] items-center rounded border px-1.5",
+                lozenge,
+              )}
+            >
+              <span className="truncate">{label}</span>
+            </span>
+          )}
+
+          <span className="bg-ink/[0.08] text-ink-2 rounded-full px-1.5 text-xs font-medium tabular-nums">
+            {count}
+          </span>
+        </button>
+      </td>
+    </tr>
   );
 }
 
@@ -142,7 +371,7 @@ function EmptyList({ view }: { view: BoardView }) {
         }
       : {
           title: "No work items yet",
-          hint: "Create one from the toolbar and it will appear here.",
+          hint: "Create one below and it will appear here.",
           action: null,
         };
 

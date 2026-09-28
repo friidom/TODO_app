@@ -1,161 +1,161 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useState } from "react";
+import { PanelRightOpenIcon } from "lucide-react";
 
-import AssigneeControl from "@/components/todo/TodoItem/AssigneeControl";
-import DueDateControl from "@/components/todo/TodoItem/DueDateControl";
-import PriorityControl from "@/components/todo/TodoItem/PriorityControl";
-import StatusControl from "@/components/todo/TodoItem/StatusControl";
 import TodoMenu from "@/components/todo/TodoItem/TodoMenu";
-import WorkTypeControl from "@/components/todo/TodoItem/WorkTypeControl";
-import { useKeyPrefix } from "@/hooks/useKeyPrefix";
-import { useOpenTask } from "@/hooks/useOpenTask";
-import { usePermissions } from "@/hooks/usePermissions";
+import IconButton from "@/components/ui/IconButton";
 import { useTodoPatch } from "@/hooks/useTodoPatch";
-import type { Todo } from "@/types/data";
+import type { BoardMember } from "@/services/members/membersApi";
+import {
+  PINNED_COLUMN,
+  SELECT_COLUMN_WIDTH,
+  type ListColumnDef,
+} from "@/services/views/listColumns";
 import { useDoneFlash } from "@/stores/doneFlash";
+import type { Todo } from "@/types/data";
 import { cn } from "@/utils/cn";
 import { taskKey } from "@/utils/taskKey";
-import { LIST_GRID } from "./listGrid";
+import ListCell from "./ListCell";
+import ListCheckbox from "./ListCheckbox";
+import {
+  CELL,
+  ROW_IDLE,
+  ROW_SELECTED,
+  STICKY_LEFT,
+  STICKY_RIGHT,
+} from "./listTable";
 
-export default function ListRow({ todo }: { todo: Todo }) {
+export interface ListRowProps {
+  todo: Todo;
+  columns: ListColumnDef[];
+  canEdit: boolean;
+  keyPrefix: string;
+  membersById: Map<string, BoardMember>;
+  openTask: (todoId: string) => void;
+  done: boolean;
+  depth: number;
+  childCount: number;
+  expanded: boolean;
+  onToggleExpand: (todoId: string) => void;
+  selected: boolean;
+  onToggleSelect: (todoId: string) => void;
+}
+
+// memo'd because a patch to one card would otherwise re-render every row, and
+// each row carries several popover controls. Every prop but `todo` is hoisted
+// into ListView and stable across renders, which is what makes the memo hold —
+// passing `keyPrefix`/`canEdit`/`openTask` down instead of calling the hooks
+// here also drops one query observer per row per hook.
+const ListRow = memo(function ListRow({
+  todo,
+  columns,
+  canEdit,
+  keyPrefix,
+  membersById,
+  openTask,
+  done,
+  depth,
+  childCount,
+  expanded,
+  onToggleExpand,
+  selected,
+  onToggleSelect,
+}: ListRowProps) {
   const [editing, setEditing] = useState(false);
-  const [title, setTitle] = useState(todo.title ?? "");
-  const inputRef = useRef<HTMLInputElement>(null);
-
   const patch = useTodoPatch(todo);
-
-  const { canEditTodos } = usePermissions();
-  const { openTask } = useOpenTask();
-  const key = taskKey(useKeyPrefix(), todo.board_key);
 
   const celebrate = useDoneFlash((state) => state.todoId === todo.id);
 
-  // pointer-events-none rather than read-only twins of every control — same look, just inert
-  const inert = canEditTodos ? undefined : "pointer-events-none";
-
-  useEffect(() => {
-    if (editing) {
-      inputRef.current?.focus();
-      inputRef.current?.select();
-    }
-  }, [editing]);
-
-  function save() {
-    if (title.trim() === "" || title === todo.title) {
-      setTitle(todo.title ?? "");
-      setEditing(false);
-      return;
-    }
-
-    patch({ title }, { onSuccess: () => setEditing(false) });
-  }
-
-  function cancel() {
-    setTitle(todo.title ?? "");
-    setEditing(false);
-  }
+  const background = selected ? ROW_SELECTED : ROW_IDLE;
+  const name = taskKey(keyPrefix, todo.board_key) ?? todo.title ?? "work item";
 
   return (
-    <div
-      role="row"
-      className={cn(
-        LIST_GRID,
-        "border-hairline group hover:bg-ink/[0.035] h-11 border-b transition-colors duration-150",
-        celebrate && "done-flash",
-      )}
-    >
-      <div role="cell" className={cn("flex", inert)}>
-        <WorkTypeControl
-          bare
-          value={todo.type}
-          onChange={(type) => patch({ type })}
-        />
-      </div>
-
-      <div role="cell" className="min-w-0">
-        {key !== null ? (
-          <button
-            type="button"
-            onClick={() => openTask(todo.id)}
-            title={`Open ${key}`}
-            className="text-ink-3/80 hover:text-brand focus-visible:ring-brand text-mini block truncate rounded font-medium tabular-nums transition-colors outline-none focus-visible:ring-2"
-          >
-            {key}
-          </button>
-        ) : (
-          <span className="text-ink-3/40 text-mini">—</span>
-        )}
-      </div>
-
-      <div role="cell" className="min-w-0">
-        {editing ? (
-          <input
-            ref={inputRef}
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            onBlur={save}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") save();
-              if (event.key === "Escape") cancel();
-            }}
-            className="border-brand bg-surface text-ink rounded-control w-full border px-2 py-0.5 text-sm outline-none"
-          />
-        ) : canEditTodos ? (
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            title={todo.title ?? undefined}
-            className="text-ink hover:text-brand focus-visible:ring-brand text-meta block w-full truncate rounded text-left font-medium transition-colors outline-none focus-visible:ring-2"
-          >
-            {todo.title || <span className="text-ink-3/60">Untitled</span>}
-          </button>
-        ) : (
-          <span
-            title={todo.title ?? undefined}
-            className="text-ink text-meta block w-full truncate font-medium"
-          >
-            {todo.title || <span className="text-ink-3/60">Untitled</span>}
-          </span>
-        )}
-      </div>
-
-      <div role="cell" className={cn("flex min-w-0", inert)}>
-        <StatusControl todoId={todo.id} columnId={todo.column_id} />
-      </div>
-
-      <div role="cell" className={cn("hidden lg:flex", inert)}>
-        <PriorityControl
-          bare
-          value={todo.priority}
-          onChange={(priority) => patch({ priority })}
-        />
-      </div>
-
-      <div role="cell" className={cn("flex", inert)}>
-        <AssigneeControl
-          boardId={todo.board_id}
-          value={todo.assignee_id}
-          onChange={(assignee_id) => patch({ assignee_id })}
-        />
-      </div>
-
-      <div
-        role="cell"
-        className={cn("hidden justify-end whitespace-nowrap lg:flex", inert)}
+    <tr className={cn("group", celebrate && "done-flash")}>
+      <td
+        style={{ left: 0 }}
+        className={cn(CELL, background, STICKY_LEFT, "p-0")}
       >
-        <DueDateControl
-          bare
-          value={todo.due_date}
-          onChange={(due_date) => patch({ due_date })}
+        <ListCheckbox
+          checked={selected}
+          label={`Select ${name}`}
+          onChange={() => onToggleSelect(todo.id)}
         />
-      </div>
+      </td>
 
-      <div role="cell" className="flex justify-end">
-        {canEditTodos && (
-          <div className="coarse:opacity-100 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100">
+      {columns.map((column) => {
+        const pinned = column.id === PINNED_COLUMN;
+
+        return (
+          <td
+            key={column.id}
+            style={pinned ? { left: SELECT_COLUMN_WIDTH } : undefined}
+            className={cn(
+              CELL,
+              background,
+              column.align === "center" && "text-center",
+              pinned && STICKY_LEFT,
+              // pointer-events-none rather than read-only twins of every
+              // control — same look, just inert. The identity column is spared
+              // because its key still has to open the task.
+              !canEdit && !pinned && "pointer-events-none",
+            )}
+          >
+            {/* A flex wrapper inside the cell, never `display:flex` on the
+                <td> itself: that would drop the cell out of the table
+                formatting context and table-fixed would stop sizing it. The
+                controls shrink and truncate with `min-w-0 shrink`, which needs
+                a flex parent to mean anything. */}
+            <div
+              className={cn(
+                "flex min-w-0 items-center",
+                column.align === "center" && "justify-center",
+              )}
+            >
+              <ListCell
+                column={column.id}
+                todo={todo}
+                patch={patch}
+                canEdit={canEdit}
+                keyPrefix={keyPrefix}
+                membersById={membersById}
+                openTask={openTask}
+                editing={editing}
+                onEditStart={() => setEditing(true)}
+                onEditEnd={() => setEditing(false)}
+                done={done}
+                depth={depth}
+                childCount={childCount}
+                expanded={expanded}
+                onToggleExpand={onToggleExpand}
+              />
+            </div>
+
+            {/* Laid over the end of the title rather than given a slot of its
+                own, as Jira does, so it costs the title no width. bg-inherit
+                takes the cell's own background, hover and selection included. */}
+            {pinned && !editing && (
+              <span className="coarse:flex absolute inset-y-0 right-0 hidden items-center bg-inherit pr-2 pl-1 group-hover:flex">
+                <IconButton
+                  size="xs"
+                  label="Open details"
+                  onClick={() => openTask(todo.id)}
+                >
+                  <PanelRightOpenIcon />
+                </IconButton>
+              </span>
+            )}
+          </td>
+        );
+      })}
+
+      <td className={cn(CELL, background, STICKY_RIGHT, "px-1")}>
+        {canEdit && (
+          <div className="coarse:opacity-100 flex justify-center opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100">
             <TodoMenu todo={todo} onEdit={() => setEditing(true)} />
           </div>
         )}
-      </div>
-    </div>
+      </td>
+    </tr>
   );
-}
+});
+
+export default ListRow;

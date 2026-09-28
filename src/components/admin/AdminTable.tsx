@@ -2,9 +2,12 @@ import type { KeyboardEvent, ReactNode } from "react";
 
 import { cn } from "@/utils/cn";
 
-// An ARIA grid over a CSS grid template, not a <table> — the reason
-// components/views/listGrid.ts already records: a colgroup's widths and the
-// row's cells fall out of step once columns drop below lg.
+// An ARIA grid over a CSS grid template, not a <table>: these tables hide
+// columns with responsive classes on both the header and the row, and a
+// colgroup's widths fall out of step with the cells as soon as they do. The
+// List left this pattern when its columns became data rather than lg: classes
+// — see services/views/listColumns.ts — which is a move available to any of
+// these that grows the same need.
 export function AdminGrid({
   columns,
   children,

@@ -44,14 +44,20 @@ export default function BoardActions() {
         size="toolbar"
         active={panel === "activity"}
         onClick={() => openPanel("activity")}
-        className="hidden @lg:inline-grid"
+        className="border-ink/15 hover:bg-wash-strong hidden size-8 rounded-md bg-transparent @lg:inline-grid"
       >
         <HistoryIcon />
       </IconButton>
 
       <DropdownMenu>
         <DropdownMenuTrigger
-          render={<IconButton label="Board actions" size="toolbar" />}
+          render={
+            <IconButton
+              label="Board actions"
+              size="toolbar"
+              className="border-ink/15 hover:bg-wash-strong size-8 rounded-md bg-transparent"
+            />
+          }
         >
           <MoreHorizontalIcon />
         </DropdownMenuTrigger>

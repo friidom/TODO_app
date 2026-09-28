@@ -5,6 +5,7 @@ export const COLUMN_CATEGORIES = {
     swatch: "bg-[#dcdfe4]",
     pill: "bg-[#dcdfe4] text-[#172b4d]",
     dot: "bg-brand",
+    lozenge: "border-ink/25 bg-ink/[0.07] hover:bg-ink/[0.13]",
     // same colour as text — an SVG currentColor stroke needs this, bg- utilities can't paint a stroke
     tone: "text-brand",
     // spills past the header into the first card's row on purpose, so the wash reads as the column's, not a band behind the header
@@ -14,6 +15,7 @@ export const COLUMN_CATEGORIES = {
     swatch: "bg-[#cfe1fd]",
     pill: "bg-[#cfe1fd] text-[#172b4d]",
     dot: "bg-status-blue",
+    lozenge: "border-status-blue/50 bg-status-blue/15 hover:bg-status-blue/25",
     tone: "text-status-blue",
     band: "bg-gradient-to-b from-status-blue/10 via-status-blue/[0.03] to-transparent",
   },
@@ -21,6 +23,8 @@ export const COLUMN_CATEGORIES = {
     swatch: "bg-[#fedec8]",
     pill: "bg-[#fedec8] text-[#172b4d]",
     dot: "bg-status-orange",
+    lozenge:
+      "border-status-orange/50 bg-status-orange/15 hover:bg-status-orange/25",
     tone: "text-status-orange",
     band: "bg-gradient-to-b from-status-orange/10 via-status-orange/[0.03] to-transparent",
   },
@@ -28,6 +32,8 @@ export const COLUMN_CATEGORIES = {
     swatch: "bg-[#b3df72]",
     pill: "bg-[#b3df72] text-[#172b4d]",
     dot: "bg-status-green",
+    lozenge:
+      "border-status-green/50 bg-status-green/15 hover:bg-status-green/25",
     tone: "text-status-green",
     band: "bg-gradient-to-b from-status-green/10 via-status-green/[0.03] to-transparent",
   },

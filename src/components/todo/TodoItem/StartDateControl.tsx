@@ -12,6 +12,7 @@ import {
 import { cn } from "@/utils/cn";
 import DatePanel from "./DatePanel";
 import {
+  FIELD_CELL,
   FIELD_CHIP,
   FIELD_EMPTY,
   FIELD_ICON,
@@ -27,12 +28,14 @@ export default function StartDateControl({
   notAfter,
   alwaysVisible = false,
   showLabel = false,
+  variant,
 }: {
   value: string | null;
   onChange: (value: string | null) => void;
   notAfter?: string | null;
   alwaysVisible?: boolean;
   showLabel?: boolean;
+  variant?: "cell";
 }) {
   const { mounted, close, triggerProps, panelProps } = useCardPopover();
   const { i18n } = useTranslation();
@@ -41,6 +44,7 @@ export default function StartDateControl({
   const label = startDate
     ? `Starts ${formatDue(startDate, todayISO(), i18n.language)}`
     : "Set a start date";
+  const cell = variant === "cell";
 
   function commit(day: string | null) {
     onChange(day ? fromCalendarDay(day) : null);
@@ -55,24 +59,41 @@ export default function StartDateControl({
         title={label}
         aria-label={label}
         className={
-          showLabel
-            ? cn(FIELD_ROW, startDate ? "text-ink" : "text-ink-3")
-            : startDate
-              ? cn(
-                  FIELD_CHIP,
-                  "text-ink-2 hover:bg-wash-strong hover:text-ink shrink-0 whitespace-nowrap",
-                )
-              : cn(FIELD_ICON, FIELD_EMPTY, !alwaysVisible && HOVER_REVEAL)
+          cell
+            ? cn(FIELD_CELL, !startDate && "text-ink-3")
+            : showLabel
+              ? cn(FIELD_ROW, startDate ? "text-ink" : "text-ink-3")
+              : startDate
+                ? cn(
+                    FIELD_CHIP,
+                    "text-ink-2 hover:bg-wash-strong hover:text-ink shrink-0 whitespace-nowrap",
+                  )
+                : cn(FIELD_ICON, FIELD_EMPTY, !alwaysVisible && HOVER_REVEAL)
         }
       >
-        {/* icon stays even with a date set, so this doesn't get confused with the due date beside it */}
-        <PlayIcon
-          className={startDate && !showLabel ? "size-3" : "size-3.5"}
-          strokeWidth={startDate ? 2.5 : 2}
-        />
-        {startDate
-          ? formatDue(startDate, todayISO(), i18n.language)
-          : showLabel && "None"}
+        {cell ? (
+          startDate ? (
+            <>
+              <PlayIcon className="size-3.5 shrink-0 opacity-70" />
+              <span className="truncate">
+                {formatDue(startDate, todayISO(), i18n.language)}
+              </span>
+            </>
+          ) : (
+            "None"
+          )
+        ) : (
+          <>
+            {/* icon stays even with a date set, so this doesn't get confused with the due date beside it */}
+            <PlayIcon
+              className={startDate && !showLabel ? "size-3" : "size-3.5"}
+              strokeWidth={startDate ? 2.5 : 2}
+            />
+            {startDate
+              ? formatDue(startDate, todayISO(), i18n.language)
+              : showLabel && "None"}
+          </>
+        )}
       </button>
 
       {mounted && (

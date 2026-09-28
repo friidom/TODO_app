@@ -13,6 +13,7 @@ import {
   parentOf,
   subtaskProgress,
   subtaskProgressByParent,
+  subtasksByParent,
   topLevelTodos,
 } from "./subtasks";
 import type { IColumn, Todo } from "@/types/data";
@@ -256,6 +257,52 @@ describe("topLevelTodos", () => {
     const orphan = todo({ id: "b", parent_id: "missing" });
 
     expect(topLevelTodos([orphan]).map((t) => t.id)).toEqual(["b"]);
+  });
+});
+
+describe("subtasksByParent", () => {
+  const ids = (map: Map<string, Todo[]>) =>
+    Object.fromEntries([...map].map(([key, rows]) => [key, rows.map((t) => t.id)]));
+
+  it("files each genuine subtask under its parent, oldest first", () => {
+    const todos = [
+      todo({ id: "a" }),
+      todo({ id: "late", parent_id: "a", created_at: "2026-08-29T00:00:00.000Z" }),
+      todo({ id: "early", parent_id: "a", created_at: "2026-08-27T00:00:00.000Z" }),
+      todo({ id: "c" }),
+      todo({ id: "d", parent_id: "c" }),
+    ];
+
+    expect(ids(subtasksByParent(todos))).toEqual({
+      a: ["early", "late"],
+      c: ["d"],
+    });
+  });
+
+  it("leaves an Epic's Tasks out — they are top-level rows already", () => {
+    const todos = [
+      epic({ id: "e" }),
+      todo({ id: "t", parent_id: "e" }),
+      todo({ id: "s", parent_id: "t" }),
+    ];
+
+    expect(ids(subtasksByParent(todos))).toEqual({ t: ["s"] });
+  });
+
+  it("is exactly what topLevelTodos drops, so nesting shows every row once", () => {
+    const todos = [
+      epic({ id: "e" }),
+      todo({ id: "t", parent_id: "e" }),
+      todo({ id: "s", parent_id: "t" }),
+      todo({ id: "orphan", parent_id: "missing" }),
+      todo({ id: "a" }),
+      todo({ id: "b", parent_id: "a" }),
+    ];
+
+    const nested = [...subtasksByParent(todos).values()].flat();
+    const shown = [...topLevelTodos(todos), ...nested].map((t) => t.id);
+
+    expect(shown.sort()).toEqual(todos.map((t) => t.id).sort());
   });
 });
 

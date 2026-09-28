@@ -11,16 +11,23 @@ import {
   POPOVER_PANEL,
 } from "@/components/ui/controlChrome";
 import { cn } from "@/utils/cn";
-import { FIELD_CHIP, FIELD_EMPTY, OPTION_ITEM } from "./fieldChrome";
+import {
+  FIELD_CELL,
+  FIELD_CHIP,
+  FIELD_EMPTY,
+  OPTION_ITEM,
+} from "./fieldChrome";
 import { useCardPopover } from "./useCardPopover";
 
 // list is exactly the board's Epics — anything else would be refused by enforce_work_item_hierarchy anyway
 export default function EpicParentControl({
   value: epicId,
   onChange,
+  variant,
 }: {
   value: string | null;
   onChange: (value: string | null) => void;
+  variant?: "cell";
 }) {
   const { mounted, close, triggerProps, panelProps } = useCardPopover();
   const { epics } = useEpics();
@@ -40,18 +47,37 @@ export default function EpicParentControl({
         {...triggerProps}
         title={label}
         aria-label={label}
-        className={cn(
-          FIELD_CHIP,
-          "min-w-0 shrink",
-          epic
-            ? "bg-status-orange/15 text-status-orange hover:bg-status-orange/25"
-            : FIELD_EMPTY,
-        )}
+        className={
+          variant === "cell"
+            ? cn(FIELD_CELL, !epic && "text-ink-3")
+            : cn(
+                FIELD_CHIP,
+                "min-w-0 shrink",
+                epic
+                  ? "bg-status-orange/15 text-status-orange hover:bg-status-orange/25"
+                  : FIELD_EMPTY,
+              )
+        }
       >
-        <LinkIcon className="size-3 shrink-0" />
-        <span className="min-w-0 truncate">
-          {epic ? (key ?? epic.title ?? "Untitled") : "None"}
-        </span>
+        {variant === "cell" ? (
+          epic ? (
+            <>
+              {key && <span className="text-ink-3 shrink-0">{key}</span>}
+              <span className="min-w-0 truncate">
+                {epic.title || "Untitled"}
+              </span>
+            </>
+          ) : (
+            "None"
+          )
+        ) : (
+          <>
+            <LinkIcon className="size-3 shrink-0" />
+            <span className="min-w-0 truncate">
+              {epic ? (key ?? epic.title ?? "Untitled") : "None"}
+            </span>
+          </>
+        )}
       </button>
 
       {mounted && (

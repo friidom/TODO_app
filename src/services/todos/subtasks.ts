@@ -33,14 +33,15 @@ export function canPickEpicParent(todos: Todo[], todo: Todo): boolean {
   return !isGenuineSubtask(todos, todo);
 }
 
+function byCreation(a: Todo, b: Todo): number {
+  return (
+    (a.created_at ?? "").localeCompare(b.created_at ?? "") ||
+    a.id.localeCompare(b.id)
+  );
+}
+
 export function childrenOf(todos: Todo[], parentId: string): Todo[] {
-  return todos
-    .filter((todo) => todo.parent_id === parentId)
-    .sort(
-      (a, b) =>
-        (a.created_at ?? "").localeCompare(b.created_at ?? "") ||
-        a.id.localeCompare(b.id),
-    );
+  return todos.filter((todo) => todo.parent_id === parentId).sort(byCreation);
 }
 
 export function epicsOf(todos: Todo[]): Todo[] {
@@ -60,6 +61,26 @@ export function topLevelTodos(todos: Todo[]): Todo[] {
   const byId = new Map(todos.map((todo) => [todo.id, todo]));
 
   return todos.filter((todo) => !isHiddenSubtask(todo, byId));
+}
+
+// Exactly the rows topLevelTodos drops, filed under their parent — so a view nesting them cannot
+// show a row twice or lose one. An Epic's Tasks are never here: they are top-level rows already.
+export function subtasksByParent(todos: Todo[]): Map<string, Todo[]> {
+  const byId = new Map(todos.map((todo) => [todo.id, todo]));
+  const buckets = new Map<string, Todo[]>();
+
+  for (const todo of todos) {
+    if (todo.parent_id === null || !isHiddenSubtask(todo, byId)) continue;
+
+    const bucket = buckets.get(todo.parent_id);
+
+    if (bucket) bucket.push(todo);
+    else buckets.set(todo.parent_id, [todo]);
+  }
+
+  for (const bucket of buckets.values()) bucket.sort(byCreation);
+
+  return buckets;
 }
 
 export interface SubtaskProgress {

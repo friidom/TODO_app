@@ -9,7 +9,12 @@ import {
   POPOVER_PANEL,
 } from "@/components/ui/controlChrome";
 import { cn } from "@/utils/cn";
-import { FIELD_CHIP, FIELD_EMPTY, OPTION_ITEM } from "./fieldChrome";
+import {
+  FIELD_CELL,
+  FIELD_CHIP,
+  FIELD_EMPTY,
+  OPTION_ITEM,
+} from "./fieldChrome";
 import { useCardPopover } from "./useCardPopover";
 
 // controlled — reports the chosen id via onChange and never writes itself; the caller decides what else to patch
@@ -17,10 +22,12 @@ export default function SprintControl({
   value: sprintId,
   sprints,
   onChange,
+  variant,
 }: {
   value: string | null;
   sprints: Sprint[];
   onChange: (value: string | null) => void;
+  variant?: "cell";
 }) {
   const { mounted, close, triggerProps, panelProps } = useCardPopover();
 
@@ -37,15 +44,19 @@ export default function SprintControl({
         {...triggerProps}
         title={label}
         aria-label={label}
-        className={cn(
-          FIELD_CHIP,
-          "min-w-0 shrink",
-          sprint
-            ? "bg-status-blue/15 text-status-blue hover:bg-status-blue/25"
-            : FIELD_EMPTY,
-        )}
+        className={
+          variant === "cell"
+            ? cn(FIELD_CELL, !sprint && "text-ink-3")
+            : cn(
+                FIELD_CHIP,
+                "min-w-0 shrink",
+                sprint
+                  ? "bg-status-blue/15 text-status-blue hover:bg-status-blue/25"
+                  : FIELD_EMPTY,
+              )
+        }
       >
-        <LayersIcon className="size-3 shrink-0" />
+        {variant !== "cell" && <LayersIcon className="size-3 shrink-0" />}
         <span className="min-w-0 truncate">
           {sprint ? sprint.name : "None"}
         </span>

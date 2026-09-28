@@ -4,6 +4,7 @@ import BoardIdentity from "@/components/layout/BoardIdentity";
 import Drawer from "@/components/layout/Drawer";
 import Layout from "@/components/layout/Layout";
 import ViewShell from "@/components/layout/ViewShell";
+import ViewTabs from "@/components/board/ViewTabs";
 import ViewToolbar from "@/components/board/ViewToolbar";
 import ActivityDrawer from "@/components/activity/ActivityDrawer";
 import MembersDrawer from "@/components/members/MembersDrawer";
@@ -61,7 +62,9 @@ function BoardView({ boardId }: { boardId: string }) {
     <Layout>
       <ViewShell
         identity={<BoardMeta board={board} viewers={viewers} />}
+        tabs={<ViewTabs view={view} />}
         toolbar={<ViewToolbar view={view} />}
+        framed={view.mode === "list"}
         drawer={
           panel === "members" ? (
             <Drawer title="Members" onClose={closePanel}>

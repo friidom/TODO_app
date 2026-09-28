@@ -12,3 +12,8 @@ export const HEADER_CONTROL_QUIET =
 
 export const HEADER_CONTROL_BADGE =
   "bg-brand text-brand-fg ml-0.5 grid h-4 min-w-4 place-items-center rounded-full px-1 text-[10px] font-semibold";
+
+// the board toolbar's size, laid over HEADER_CONTROL: Jira's 32px row, outlined rather than filled so the same
+// button sits right on the page and inside the List's panel
+export const TOOLBAR_COMPACT =
+  "border-ink/15 hover:bg-wash-strong h-8 rounded-md bg-transparent px-2.5 text-sm font-medium";

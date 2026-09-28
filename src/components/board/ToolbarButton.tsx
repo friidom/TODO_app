@@ -6,7 +6,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/utils/cn";
-import { HEADER_CONTROL, HEADER_CONTROL_ACTIVE } from "./headerControl";
+import {
+  HEADER_CONTROL,
+  HEADER_CONTROL_ACTIVE,
+  TOOLBAR_COMPACT,
+} from "./headerControl";
 
 // `collapse` hides the text by container width, which a portalled tooltip can't see — so the tooltip checks at open
 // time whether the text is on screen, and only shows once the button has gone icon-only.
@@ -54,6 +58,7 @@ export default function ToolbarButton({
         aria-label={label}
         className={cn(
           HEADER_CONTROL,
+          TOOLBAR_COMPACT,
           "shrink-0 whitespace-nowrap",
           active
             ? HEADER_CONTROL_ACTIVE
