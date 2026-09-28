@@ -1,14 +1,18 @@
 import { useState } from "react";
-import {
-  ChevronDownIcon,
-  ChevronRightIcon,
-  ListTreeIcon,
-  PlusIcon,
-} from "lucide-react";
+import { ListTreeIcon, PlusIcon } from "lucide-react";
 
+import SectionHeader, { EmptyLine } from "./SectionHeader";
 import AssigneeControl from "./TodoItem/AssigneeControl";
 import PriorityControl from "./TodoItem/PriorityControl";
 import StatusControl from "./TodoItem/StatusControl";
+import {
+  INLINE_ACTION,
+  TABLE,
+  TABLE_HEAD,
+  TABLE_ROW,
+  TEXT_FIELD,
+} from "./detailChrome";
+import IconButton from "@/components/ui/IconButton";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useKeyPrefix } from "@/hooks/useKeyPrefix";
 import { useOpenTask } from "@/hooks/useOpenTask";
@@ -31,52 +35,33 @@ export default function SubtasksSection({ todo }: { todo: Todo }) {
   const [adding, setAdding] = useState(false);
 
   return (
-    <section className="mt-8">
-      <div className="mb-2 flex items-center gap-2">
-        <button
-          type="button"
-          aria-expanded={!collapsed}
-          aria-label={`${collapsed ? "Expand" : "Collapse"} subtasks`}
-          onClick={() => setCollapsed((open) => !open)}
-          className="text-ink-3 hover:text-ink hover:bg-ink/10 focus-visible:ring-brand -ml-1 rounded p-1 transition-colors outline-none focus-visible:ring-2"
-        >
-          {collapsed ? (
-            <ChevronRightIcon className="size-4" />
-          ) : (
-            <ChevronDownIcon className="size-4" />
-          )}
-        </button>
-
-        <h3 className="text-ink-3 text-mini font-semibold tracking-[0.08em] uppercase">
-          Subtasks
-        </h3>
-
-        {/* stays visible when collapsed — closing the section shouldn't hide the count */}
-        {progress.total > 0 && (
-          <span className="bg-ink/10 text-ink-3 text-mini shrink-0 rounded px-1.5 py-0.5 font-semibold tabular-nums">
-            {progress.done}/{progress.total}
-          </span>
-        )}
-
-        {canEditTodos && (
-          <button
-            type="button"
-            onClick={() => {
-              setCollapsed(false);
-              setAdding(true);
-            }}
-            aria-label="Add subtask"
-            title="Add subtask"
-            className="text-ink-3 hover:bg-ink/10 hover:text-ink focus-visible:ring-brand ml-auto grid size-6 shrink-0 place-items-center rounded transition-colors outline-none focus-visible:ring-2"
-          >
-            <PlusIcon className="size-4" />
-          </button>
-        )}
-      </div>
+    <section>
+      <SectionHeader
+        title="Subtasks"
+        count={progress.total > 0 ? `${progress.done}/${progress.total}` : null}
+        collapse={{
+          collapsed,
+          onToggle: () => setCollapsed((open) => !open),
+          noun: "subtasks",
+        }}
+        actions={
+          canEditTodos && (
+            <IconButton
+              label="Add subtask"
+              onClick={() => {
+                setCollapsed(false);
+                setAdding(true);
+              }}
+            >
+              <PlusIcon />
+            </IconButton>
+          )
+        }
+      />
 
       {progress.total > 0 && (
         <div
-          className="bg-ink/[0.06] mb-3 h-1 overflow-hidden rounded-full"
+          className="bg-wash-strong mb-3 h-1 overflow-hidden rounded-full"
           role="progressbar"
           aria-valuenow={progress.done}
           aria-valuemin={0}
@@ -99,27 +84,16 @@ export default function SubtasksSection({ todo }: { todo: Todo }) {
               ))}
             </div>
           ) : subtasks.length === 0 && !adding ? (
-            <div className="text-ink-3 flex items-center gap-2 py-1 text-sm">
-              <ListTreeIcon className="size-4 shrink-0" />
+            <EmptyLine icon={ListTreeIcon}>
               <span>
                 No subtasks yet.
                 {canEditTodos && " Break this task down with the + above."}
               </span>
-            </div>
+            </EmptyLine>
           ) : (
             subtasks.length > 0 && (
-              <div
-                role="table"
-                aria-label="Subtasks"
-                className="border-hairline rounded-card overflow-hidden border"
-              >
-                <div
-                  role="row"
-                  className={cn(
-                    SUBTASK_GRID,
-                    "border-hairline text-ink-3/70 text-micro bg-surface/40 h-8 border-b font-medium tracking-[0.08em] uppercase",
-                  )}
-                >
+              <div role="table" aria-label="Subtasks" className={TABLE}>
+                <div role="row" className={cn(SUBTASK_GRID, TABLE_HEAD)}>
                   <span role="columnheader">Work</span>
                   <span role="columnheader">
                     {/* sr-only on the span, not the grid item, or it'd drop out of the grid */}
@@ -164,26 +138,20 @@ function SubtaskRow({ subtask }: { subtask: Todo }) {
   const inert = canEditTodos ? undefined : "pointer-events-none";
 
   return (
-    <div
-      role="row"
-      className={cn(
-        SUBTASK_GRID,
-        "border-hairline group hover:bg-ink/[0.035] h-11 border-b transition-colors duration-150 last:border-b-0",
-      )}
-    >
+    <div role="row" className={cn(SUBTASK_GRID, TABLE_ROW, "group h-11")}>
       <div role="cell" className="min-w-0">
         {key !== null ? (
           <button
             type="button"
             onClick={() => openTask(subtask.id)}
             title={`Open ${key}`}
-            className="text-ink-3/80 hover:text-brand focus-visible:ring-brand text-mini block truncate rounded font-medium tabular-nums transition-colors outline-none focus-visible:ring-2"
+            className="text-ink-3 hover:text-brand focus-visible:ring-brand text-mini block truncate rounded font-medium tabular-nums transition-colors outline-none focus-visible:ring-2"
           >
             {key}
           </button>
         ) : (
           // no key yet means the create is still in flight
-          <span className="text-ink-3/40 text-mini">—</span>
+          <span className="text-ink-3/50 text-mini">—</span>
         )}
       </div>
 
@@ -194,7 +162,7 @@ function SubtaskRow({ subtask }: { subtask: Todo }) {
           title={subtask.title ?? undefined}
           className="text-ink hover:text-brand focus-visible:ring-brand text-meta block w-full truncate rounded text-left font-medium transition-colors outline-none focus-visible:ring-2"
         >
-          {subtask.title || <span className="text-ink-3/60">Untitled</span>}
+          {subtask.title || <span className="text-ink-3">Untitled</span>}
         </button>
       </div>
 
@@ -220,6 +188,7 @@ function SubtaskRow({ subtask }: { subtask: Todo }) {
     </div>
   );
 }
+
 function AddSubtaskRow({
   parent,
   onDone,
@@ -270,14 +239,17 @@ function AddSubtaskRow({
         onBlur={submit}
         placeholder="What needs doing?"
         aria-label="Subtask title"
-        className="border-hairline text-ink placeholder:text-ink-3 focus:border-brand/60 focus:ring-brand/25 rounded-control min-w-0 flex-1 border bg-transparent px-2.5 py-1.5 text-sm outline-none focus:ring-2"
+        className={cn(
+          TEXT_FIELD,
+          "rounded-control h-8 min-w-0 flex-1 px-2.5 text-sm",
+        )}
       />
 
       <button
         type="button"
         // mousedown, not click — the input's onBlur fires first and unmounts this button
         onMouseDown={onDone}
-        className="text-ink-3 hover:text-ink rounded-control shrink-0 px-2 py-1 text-xs font-medium"
+        className={cn(INLINE_ACTION, "py-1 text-xs")}
       >
         Done
       </button>

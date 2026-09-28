@@ -4,10 +4,12 @@ import { useEffect, useState, type RefObject } from "react";
 import AssigneeControl from "@/components/todo/TodoItem/AssigneeControl";
 import DueDateControl from "@/components/todo/TodoItem/DueDateControl";
 import WorkTypeControl from "@/components/todo/TodoItem/WorkTypeControl";
+import IconButton from "@/components/ui/IconButton";
 import { DEFAULT_WORK_TYPE, type WorkType } from "@/constants/workTypes";
+import { cn } from "@/utils/cn";
 
 const CARD =
-  "mb-2 rounded-card border-2 border-brand bg-elevated px-2.5 py-2 shadow-e1";
+  "rounded-card border-brand/60 bg-elevated ring-brand/15 shadow-e1 border px-2.5 py-2 ring-2";
 
 export interface CreateDraft {
   assignee_id: string | null;
@@ -22,6 +24,7 @@ interface Props {
   onCancel: () => void;
   boardId: string;
   skeleton?: boolean;
+  className?: string;
   ref?: RefObject<HTMLDivElement | null>;
 }
 
@@ -33,12 +36,15 @@ export default function TodoCreateForm({
   onCancel,
   boardId,
   skeleton = false,
+  className,
   ref,
 }: Props) {
   const [ready, setReady] = useState(!skeleton);
   const [assigneeId, setAssigneeId] = useState<string | null>(null);
   const [dueDate, setDueDate] = useState<string | null>(null);
   const [type, setType] = useState<WorkType>(DEFAULT_WORK_TYPE);
+
+  const canSubmit = !!value.trim();
 
   const submit = () =>
     onSubmit({ assignee_id: assigneeId, due_date: dueDate, type });
@@ -53,16 +59,16 @@ export default function TodoCreateForm({
 
   if (!ready) {
     return (
-      <div ref={ref} className={CARD}>
+      <div ref={ref} className={cn(CARD, className)}>
         <div className="animate-pulse">
-          <div className="bg-ink/10 h-5 w-full rounded-md" />
+          <div className="bg-wash-strong rounded-control h-5 w-full" />
 
           <div className="mt-2.5 flex items-center gap-1">
-            <div className="bg-ink/10 size-6 rounded-md" />
-            <div className="bg-ink/10 size-6 rounded-md" />
-            <div className="bg-ink/10 size-6 rounded-md" />
+            <div className="bg-wash-strong rounded-control size-6" />
+            <div className="bg-wash-strong rounded-control size-6" />
+            <div className="bg-wash-strong rounded-control size-6" />
 
-            <div className="bg-ink/10 ml-auto size-7 rounded-md" />
+            <div className="bg-wash-strong rounded-control ml-auto size-7" />
           </div>
         </div>
       </div>
@@ -70,9 +76,10 @@ export default function TodoCreateForm({
   }
 
   return (
-    <div ref={ref} className={CARD}>
+    <div ref={ref} className={cn(CARD, className)}>
       <input
         autoFocus
+        aria-label="Work item title"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="What needs to be done?"
@@ -99,14 +106,20 @@ export default function TodoCreateForm({
           alwaysVisible
         />
 
-        <button
-          type="button"
-          disabled={!value.trim()}
+        <IconButton
+          label="Create work item"
+          tooltipSide="top"
+          disabled={!canSubmit}
           onClick={submit}
-          className="bg-ink/5 text-ink-3 hover:bg-ink/15 ml-auto flex size-7 items-center justify-center rounded-md disabled:opacity-40"
+          className={cn(
+            "ml-auto",
+            canSubmit
+              ? "bg-brand text-brand-fg hover:bg-brand/90 hover:text-brand-fg active:bg-brand/80"
+              : "bg-wash",
+          )}
         >
-          <CornerDownLeft size={17} />
-        </button>
+          <CornerDownLeft />
+        </IconButton>
       </div>
     </div>
   );

@@ -1,10 +1,17 @@
-import { useEffect, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { FloatingPortal } from "@floating-ui/react";
+import {
+  CircleAlertIcon,
+  MoreHorizontalIcon,
+  Trash2Icon,
+  XIcon,
+} from "lucide-react";
 
 import ActivitySection from "./ActivitySection";
 import AttachmentsSection from "./AttachmentsSection";
 import EpicTasksSection from "./EpicTasksSection";
 import ParentLine from "./ParentLine";
+import SectionHeader from "./SectionHeader";
 import SubtasksSection from "./SubtasksSection";
 import AssigneeControl from "./TodoItem/AssigneeControl";
 import DueDateControl from "./TodoItem/DueDateControl";
@@ -15,7 +22,13 @@ import SprintControl from "./TodoItem/SprintControl";
 import StartDateControl from "./TodoItem/StartDateControl";
 import StatusControl from "./TodoItem/StatusControl";
 import WorkTypeControl from "./TodoItem/WorkTypeControl";
+import { useCardPopover } from "./TodoItem/useCardPopover";
+import { SECTION_TITLE, TEXT_FIELD } from "./detailChrome";
+import IconButton from "@/components/ui/IconButton";
+import { MENU_ITEM_DANGER, POPOVER_PANEL } from "@/components/ui/controlChrome";
+import { DIALOG_CANCEL, DIALOG_DANGER } from "@/components/ui/dialogChrome";
 import { Skeleton } from "@/components/ui/skeleton";
+import { workTypeOf } from "@/constants/workTypes";
 import { useKeyPrefix } from "@/hooks/useKeyPrefix";
 import { useOpenTask } from "@/hooks/useOpenTask";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -25,6 +38,7 @@ import {
   descriptionValue,
   titleValue,
 } from "@/services/todos/taskDraft";
+import { useDeleteTodo } from "@/services/todos/useDeleteTodo";
 import { useTodo } from "@/services/todos/useTodo";
 import { useTodoHierarchy } from "@/services/todos/useSubtasks";
 import { useSprints } from "@/services/sprints/useSprints";
@@ -103,11 +117,13 @@ function Overlay({
     return () => document.removeEventListener("keydown", handleEscape);
   }, []);
 
+  const requestClose = () => requestCloseRef.current();
+
   return (
     <div
       // onMouseDown, not onClick — a text selection dragged past the panel edge shouldn't dismiss.
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) requestCloseRef.current();
+        if (event.target === event.currentTarget) requestClose();
       }}
       className={cn(
         "fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-3 sm:p-6",
@@ -121,24 +137,24 @@ function Overlay({
         aria-modal="true"
         aria-label="Task details"
         className={cn(
-          "border-hairline bg-canvas rounded-surface shadow-e3 flex h-[min(46rem,100%)] w-[min(1100px,100%)] flex-col overflow-hidden border",
+          "border-hairline bg-surface rounded-surface shadow-e3 flex h-[min(46rem,100%)] w-[min(1100px,100%)] flex-col overflow-hidden border",
           leaving
             ? "animate-out fade-out-0 slide-out-to-bottom-1 fill-mode-forwards duration-150"
             : "animate-in fade-in-0 slide-in-from-bottom-1 duration-200",
         )}
       >
         {isPending ? (
-          <Loading onClose={onClose} />
+          <Loading onClose={requestClose} />
         ) : error ? (
           <Dead
-            onClose={onClose}
+            onClose={requestClose}
             title="Could not load this task"
             body="Something went wrong fetching it. Close this and try again."
           />
         ) : !todo ? (
           // Deliberately doesn't distinguish "deleted" from "wrong board" — fetchTodo is board-scoped.
           <Dead
-            onClose={onClose}
+            onClose={requestClose}
             title="Task not found"
             body="This task no longer exists, or it belongs to a different board."
           />
@@ -160,6 +176,7 @@ function Body({
   bindCloseRef: React.RefObject<() => void>;
 }) {
   const patch = useTodoPatch(todo);
+  const deleteTodo = useDeleteTodo();
   const { canEditTodos } = usePermissions();
   const key = taskKey(useKeyPrefix(), todo.board_key);
 
@@ -176,11 +193,11 @@ function Body({
     titleValue(title, todo.title) !== null ||
     descriptionChanged(description, todo.description);
 
-  const [confirmingClose, setConfirmingClose] = useState(false);
+  const [confirming, setConfirming] = useState<"close" | "delete" | null>(null);
 
   function requestClose() {
     if (dirty) {
-      setConfirmingClose(true);
+      setConfirming("close");
       return;
     }
 
@@ -190,6 +207,11 @@ function Body({
   // No dependency array — requestClose closes over dirty, which changes on every keystroke.
   useEffect(() => {
     bindCloseRef.current = requestClose;
+
+    // Unmounting (the task was deleted or failed to load) must not leave the ref on a dead Body's guard.
+    return () => {
+      bindCloseRef.current = onClose;
+    };
   });
 
   function saveTitle() {
@@ -210,50 +232,117 @@ function Body({
     patch({ description: descriptionValue(description) });
   }
 
+  function confirmDelete() {
+    deleteTodo.mutate(todo.id);
+    setConfirming(null);
+    requestClose();
+  }
+
   const created = relativeTime(todo.created_at);
   const updated = relativeTime(todo.updated_at);
 
   return (
     <>
-      <Header keyLabel={key} onClose={requestClose} />
+      <Header
+        keyLabel={key}
+        type={todo.type}
+        breadcrumb={
+          <ParentLine parentId={todo.parent_id} boardId={todo.board_id} />
+        }
+        actions={
+          canEditTodos && (
+            <MoreActions onDelete={() => setConfirming("delete")} />
+          )
+        }
+        onClose={requestClose}
+      />
+
+      {confirming === "delete" && (
+        <ConfirmBar
+          tone="danger"
+          message={`Delete ${key ?? "this task"}? It is removed for everyone and cannot be restored.`}
+          onCancel={() => setConfirming(null)}
+        >
+          <button
+            type="button"
+            autoFocus
+            onClick={() => setConfirming(null)}
+            className={cn(DIALOG_CANCEL, "h-8 px-3")}
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            onClick={confirmDelete}
+            className={cn(DIALOG_DANGER, "h-8 px-3")}
+          >
+            Delete task
+          </button>
+        </ConfirmBar>
+      )}
+
+      {confirming === "close" && (
+        <ConfirmBar
+          message="Close with unsaved changes? They will be lost."
+          onCancel={() => setConfirming(null)}
+        >
+          <button
+            type="button"
+            onClick={() => setConfirming(null)}
+            className={cn(DIALOG_CANCEL, "h-8 px-3")}
+          >
+            Keep editing
+          </button>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className={cn(DIALOG_DANGER, "h-8 px-3")}
+          >
+            Discard
+          </button>
+        </ConfirmBar>
+      )}
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto md:flex-row md:overflow-hidden">
-        <div className="min-w-0 flex-1 px-5 py-5 md:overflow-y-auto md:px-6">
-          {/* Renders nothing for a top-level card, which is most of them. */}
-          <ParentLine parentId={todo.parent_id} boardId={todo.board_id} />
+        <div className="min-w-0 flex-1 space-y-8 px-5 py-6 md:overflow-y-auto md:px-7">
+          <div>
+            <textarea
+              value={title}
+              readOnly={!canEditTodos}
+              onChange={(e) => setTitle(e.target.value)}
+              onBlur={saveTitle}
+              rows={1}
+              aria-label="Title"
+              className={cn(
+                "text-ink rounded-control -mx-2 field-sizing-content w-[calc(100%+1rem)] resize-none bg-transparent px-2 py-1 text-xl leading-snug font-semibold tracking-tight transition-colors duration-150 outline-none",
+                canEditTodos &&
+                  "hover:bg-wash-strong focus:ring-brand focus:bg-transparent focus:ring-2",
+              )}
+            />
 
-          <textarea
-            value={title}
-            readOnly={!canEditTodos}
-            onChange={(e) => setTitle(e.target.value)}
-            onBlur={saveTitle}
-            rows={1}
-            aria-label="Title"
-            className={cn(
-              "text-ink -mx-2 mb-6 field-sizing-content w-[calc(100%+1rem)] resize-none rounded-md bg-transparent px-2 py-1 text-xl leading-snug font-semibold tracking-tight outline-none",
-              canEditTodos && "hover:bg-ink/5 focus:ring-brand focus:ring-2",
-            )}
-          />
+            <div className="mt-5">
+              <SectionHeader title="Description" />
 
-          <h3 className="text-ink-3 text-mini mb-2 font-semibold tracking-[0.08em] uppercase">
-            Description
-          </h3>
-
-          <textarea
-            value={description}
-            readOnly={!canEditTodos}
-            onChange={(e) => setDescription(e.target.value)}
-            onBlur={saveDescription}
-            rows={12}
-            placeholder={
-              canEditTodos ? "Add a description…" : "No description."
-            }
-            className={cn(
-              "border-hairline text-ink placeholder:text-ink-3 rounded-card h-36 w-full resize-y border bg-transparent px-3 py-2.5 text-sm leading-relaxed outline-none md:h-auto",
-              canEditTodos &&
-                "focus:border-brand/60 focus:ring-brand/25 focus:ring-2",
-            )}
-          />
+              <textarea
+                value={description}
+                readOnly={!canEditTodos}
+                onChange={(e) => setDescription(e.target.value)}
+                onBlur={saveDescription}
+                rows={5}
+                placeholder={
+                  canEditTodos ? "Add a description…" : "No description."
+                }
+                aria-label="Description"
+                className={cn(
+                  TEXT_FIELD,
+                  "rounded-card block field-sizing-content max-h-[28rem] min-h-24 w-full resize-y px-3 py-2.5 text-sm leading-relaxed",
+                  !canEditTodos && "focus:border-hairline focus:ring-0",
+                )}
+              />
+            </div>
+          </div>
 
           {/* Attachments are content, not Activity (comments/history) — filed as its own section, not a fifth tab. */}
           <AttachmentsSection todoId={todo.id} />
@@ -269,20 +358,41 @@ function Body({
         {/* pointer-events-none for a viewer — these controls are popover triggers, not readOnly like the textareas. */}
         <aside
           className={cn(
-            "border-hairline bg-surface/40 shrink-0 border-t p-5 md:w-[19rem] md:overflow-y-auto md:border-t-0 md:border-l",
+            "border-hairline bg-canvas/50 shrink-0 space-y-5 border-t p-5 md:w-[20rem] md:overflow-y-auto md:border-t-0 md:border-l",
             !canEditTodos && "pointer-events-none",
           )}
         >
-          <div className="mb-4 flex">
-            <StatusControl todoId={todo.id} columnId={todo.column_id} />
+          <div>
+            <p className={cn(SECTION_TITLE, "mb-2")}>Status</p>
+
+            <StatusControl
+              todoId={todo.id}
+              columnId={todo.column_id}
+              variant="field"
+            />
           </div>
 
-          <div className="border-hairline rounded-card border">
-            <h3 className="text-ink-3 border-hairline text-mini border-b px-3.5 py-2 font-semibold tracking-[0.08em] uppercase">
+          <section className="border-hairline bg-surface rounded-card border">
+            <h3
+              className={cn(
+                SECTION_TITLE,
+                "border-hairline border-b px-3.5 py-2.5",
+              )}
+            >
               Details
             </h3>
 
-            <dl className="grid grid-cols-[5.5rem_1fr] items-center gap-x-3 gap-y-3 px-3.5 py-3.5">
+            <dl className="px-3.5 py-1.5">
+              <Field label="Assignee">
+                <AssigneeControl
+                  boardId={todo.board_id}
+                  value={todo.assignee_id}
+                  onChange={(assignee_id) => patch({ assignee_id })}
+                  alwaysVisible
+                  showName
+                />
+              </Field>
+
               <Field label="Work type">
                 <WorkTypeControl
                   value={todo.type}
@@ -305,15 +415,7 @@ function Body({
                   value={todo.estimate}
                   onChange={(estimate) => patch({ estimate })}
                   alwaysVisible
-                />
-              </Field>
-
-              <Field label="Assignee">
-                <AssigneeControl
-                  boardId={todo.board_id}
-                  value={todo.assignee_id}
-                  onChange={(assignee_id) => patch({ assignee_id })}
-                  alwaysVisible
+                  showLabel
                 />
               </Field>
 
@@ -346,6 +448,7 @@ function Body({
                   onChange={(start_date) => patch({ start_date })}
                   notAfter={todo.due_date}
                   alwaysVisible
+                  showLabel
                 />
               </Field>
 
@@ -355,74 +458,144 @@ function Body({
                   onChange={(due_date) => patch({ due_date })}
                   notBefore={todo.start_date}
                   alwaysVisible
+                  showLabel
                 />
               </Field>
             </dl>
-          </div>
+          </section>
 
           {(created || updated) && (
-            <p className="text-ink-3/80 text-mini mt-3 px-0.5 leading-relaxed">
+            <p className="text-ink-3 text-mini px-0.5 leading-relaxed">
               {created && <span className="block">Created {created}</span>}
               {updated && <span className="block">Updated {updated}</span>}
             </p>
           )}
         </aside>
       </div>
-
-      {confirmingClose && (
-        <div className="border-hairline bg-elevated flex flex-wrap items-center gap-3 border-t px-5 py-3">
-          <p className="text-ink mr-auto text-sm">
-            Close with unsaved changes? They will be lost.
-          </p>
-
-          <button
-            type="button"
-            onClick={() => setConfirmingClose(false)}
-            className="text-ink hover:bg-ink/10 rounded-control focus-visible:ring-brand px-3 py-1.5 text-sm transition-colors outline-none focus-visible:ring-2"
-          >
-            Keep editing
-          </button>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="bg-status-red hover:bg-status-red/85 rounded-control focus-visible:ring-status-red px-3 py-1.5 text-sm font-medium text-white transition-colors outline-none focus-visible:ring-2"
-          >
-            Discard
-          </button>
-        </div>
-      )}
     </>
   );
 }
 
 function Header({
   keyLabel,
+  type,
+  breadcrumb,
+  actions,
   onClose,
 }: {
   keyLabel: string | null;
+  type?: string | null;
+  breadcrumb?: ReactNode;
+  actions?: ReactNode;
   onClose: () => void;
 }) {
+  const workType = type === undefined ? null : workTypeOf(type);
+  const TypeIcon = workType?.icon;
+
   return (
-    <header className="border-hairline flex h-12 shrink-0 items-center gap-2 border-b px-4 md:px-5">
-      {keyLabel !== null ? (
-        <span className="text-ink-3 text-xs font-semibold tabular-nums">
-          {keyLabel}
-        </span>
+    <header className="border-hairline flex h-14 shrink-0 items-center gap-3 border-b px-5">
+      <div className="flex min-w-0 flex-1 items-center gap-1.5">
+        {breadcrumb}
+
+        {TypeIcon && (
+          <TypeIcon className={cn("size-4 shrink-0", workType?.tone)} />
+        )}
+
+        {keyLabel !== null ? (
+          <span className="text-ink-2 text-meta shrink-0 font-medium tabular-nums">
+            {keyLabel}
+          </span>
+        ) : (
+          // Absent means the create is still in flight — the server allocates the key.
+          <span className="text-ink-3/50 text-meta">—</span>
+        )}
+      </div>
+
+      <div className="flex shrink-0 items-center gap-1">
+        {actions}
+
+        <IconButton label="Close task details" onClick={onClose}>
+          <XIcon />
+        </IconButton>
+      </div>
+    </header>
+  );
+}
+
+function MoreActions({ onDelete }: { onDelete: () => void }) {
+  const { mounted, close, triggerProps, panelProps } = useCardPopover();
+
+  return (
+    <>
+      <IconButton label="More actions" aria-haspopup="menu" {...triggerProps}>
+        <MoreHorizontalIcon />
+      </IconButton>
+
+      {mounted && (
+        <FloatingPortal>
+          <div
+            {...panelProps}
+            role="menu"
+            aria-label="Task actions"
+            className={cn(POPOVER_PANEL, "z-50 w-48")}
+          >
+            <button
+              type="button"
+              role="menuitem"
+              // Portalled to the end of body, so Tab from the trigger would never reach it.
+              autoFocus
+              onClick={() => {
+                close();
+                onDelete();
+              }}
+              className={MENU_ITEM_DANGER}
+            >
+              <Trash2Icon />
+              Delete task
+            </button>
+          </div>
+        </FloatingPortal>
+      )}
+    </>
+  );
+}
+
+// Inline, never a dialog over the task — a nested dialog's Escape would reach the task's listener too.
+function ConfirmBar({
+  tone = "neutral",
+  message,
+  onCancel,
+  children,
+}: {
+  tone?: "neutral" | "danger";
+  message: string;
+  onCancel: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      role="alert"
+      onKeyDown={(event) => {
+        if (event.key !== "Escape") return;
+
+        event.preventDefault();
+        onCancel();
+      }}
+      className={cn(
+        "border-hairline flex shrink-0 flex-wrap items-center gap-2 border-b px-5 py-2.5",
+        tone === "danger" ? "bg-status-red/[0.06]" : "bg-elevated",
+      )}
+    >
+      {tone === "danger" ? (
+        <Trash2Icon className="text-status-red size-4 shrink-0" />
       ) : (
-        // Absent means the create is still in flight — the server allocates the key.
-        <span className="text-ink-3/50 text-xs">—</span>
+        <CircleAlertIcon className="text-status-orange size-4 shrink-0" />
       )}
 
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="Close task details"
-        className="text-ink-3 hover:bg-ink/10 hover:text-ink focus-visible:ring-brand rounded-control coarse:size-9 ml-auto grid size-7 shrink-0 place-items-center transition-colors outline-none focus-visible:ring-2"
-      >
-        <X size={16} />
-      </button>
-    </header>
+      <p className="text-ink text-meta mr-auto min-w-0">{message}</p>
+
+      {children}
+    </div>
   );
 }
 
@@ -434,10 +607,10 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <>
-      <dt className="text-ink-3 text-xs">{label}</dt>
+    <div className="grid min-h-9 grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-x-2">
+      <dt className="text-ink-3 text-meta truncate">{label}</dt>
       <dd className="flex min-w-0 items-center">{children}</dd>
-    </>
+    </div>
   );
 }
 
@@ -447,14 +620,14 @@ function Loading({ onClose }: { onClose: () => void }) {
       <Header keyLabel={null} onClose={onClose} />
 
       <div className="flex min-h-0 flex-1 flex-col md:flex-row" aria-busy>
-        <div className="min-w-0 flex-1 space-y-4 px-5 py-5 md:px-6">
-          <Skeleton className="h-7 w-2/3" />
-          <Skeleton className="h-40 w-full" />
+        <div className="min-w-0 flex-1 space-y-5 px-5 py-6 md:px-7">
+          <Skeleton className="h-8 w-2/3" />
+          <Skeleton className="h-24 w-full" />
         </div>
 
-        <div className="border-hairline bg-surface/40 shrink-0 space-y-3 border-t p-5 md:w-[19rem] md:border-t-0 md:border-l">
-          <Skeleton className="h-6 w-28" />
-          <Skeleton className="h-36 w-full" />
+        <div className="border-hairline bg-canvas/50 shrink-0 space-y-5 border-t p-5 md:w-[20rem] md:border-t-0 md:border-l">
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-72 w-full" />
         </div>
       </div>
     </>
@@ -476,12 +649,12 @@ function Dead({
 
       <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
         <p className="text-ink text-sm font-semibold">{title}</p>
-        <p className="text-ink-3 max-w-sm text-xs leading-relaxed">{body}</p>
+        <p className="text-ink-3 text-meta max-w-sm leading-relaxed">{body}</p>
 
         <button
           type="button"
           onClick={onClose}
-          className="text-brand hover:bg-brand-soft focus-visible:ring-brand rounded-control mt-2 px-2.5 py-1 text-xs font-medium transition-colors outline-none focus-visible:ring-2"
+          className={cn(DIALOG_CANCEL, "mt-2 h-8 px-3")}
         >
           Close
         </button>

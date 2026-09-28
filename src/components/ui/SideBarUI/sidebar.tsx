@@ -1,5 +1,9 @@
-import * as React from "react"
-import { SidebarContext, useSidebar, type SidebarContextProps } from "./use-sidebar";
+import * as React from "react";
+import {
+  SidebarContext,
+  useSidebar,
+  type SidebarContextProps,
+} from "./use-sidebar";
 import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
 import { cva, type VariantProps } from "class-variance-authority";
@@ -220,7 +224,7 @@ function Sidebar({
         <div
           data-sidebar="sidebar"
           data-slot="sidebar-inner"
-          className="bg-sidebar group-data-[variant=floating]:ring-sidebar-border flex size-full flex-col group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:shadow-e1 group-data-[variant=floating]:ring-1"
+          className="bg-sidebar group-data-[variant=floating]:ring-sidebar-border group-data-[variant=floating]:shadow-e1 flex size-full flex-col group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:ring-1"
         >
           {children}
         </div>
@@ -285,7 +289,7 @@ function SidebarInset({ className, ...props }: React.ComponentProps<"main">) {
     <main
       data-slot="sidebar-inset"
       className={cn(
-        "bg-background relative flex w-full flex-1 flex-col md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-e1 md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2",
+        "bg-background md:peer-data-[variant=inset]:shadow-e1 relative flex w-full flex-1 flex-col md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2",
         className,
       )}
       {...props}
@@ -362,7 +366,10 @@ function SidebarGroup({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="sidebar-group"
       data-sidebar="group"
-      className={cn("relative flex w-full min-w-0 flex-col p-2", className)}
+      className={cn(
+        "relative flex w-full min-w-0 flex-col px-2 py-1",
+        className,
+      )}
       {...props}
     />
   );
@@ -378,7 +385,7 @@ function SidebarGroupLabel({
     props: mergeProps<"div">(
       {
         className: cn(
-          "flex h-8 shrink-0 items-center rounded-md px-2 text-xs font-medium text-sidebar-foreground/70 ring-sidebar-ring outline-hidden transition-[margin,opacity] duration-200 ease-linear group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0 focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0",
+          "flex h-6 w-full shrink-0 items-center gap-1 rounded-control px-2 text-left text-mini font-semibold tracking-wide text-ink-3 uppercase outline-hidden transition-[margin,opacity,color] duration-150 group-data-[collapsible=icon]:-mt-6 group-data-[collapsible=icon]:opacity-0 hover:text-ink-2 focus-visible:ring-2 focus-visible:ring-brand coarse:h-8 [&>svg]:size-3 [&>svg]:shrink-0",
           className,
         ),
       },
@@ -435,7 +442,7 @@ function SidebarMenu({ className, ...props }: React.ComponentProps<"ul">) {
     <ul
       data-slot="sidebar-menu"
       data-sidebar="menu"
-      className={cn("flex w-full min-w-0 flex-col gap-0", className)}
+      className={cn("flex w-full min-w-0 flex-col gap-0.5", className)}
       {...props}
     />
   );
@@ -452,19 +459,20 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
   );
 }
 
+// Row states live here and nowhere else: a call-site bg-* loses to these data-active/hover rules at equal specificity.
+// Hover is group-hover on the item, never plain hover: a :hover selector outranks data-active's :where() and would wash out the active row.
 const sidebarMenuButtonVariants = cva(
-  "peer/menu-button group/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm ring-sidebar-ring outline-hidden transition-[width,height,padding] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-open:hover:bg-sidebar-accent data-open:hover:text-sidebar-accent-foreground data-active:bg-sidebar-accent data-active:font-medium data-active:text-sidebar-accent-foreground [&_svg]:size-4 [&_svg]:shrink-0 [&>span:last-child]:truncate",
+  "peer/menu-button group/menu-button relative flex w-full items-center gap-2 overflow-hidden rounded-control px-2 text-left text-ink-2 outline-hidden transition-colors duration-150 group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! group-hover/menu-item:bg-wash group-hover/menu-item:text-ink group-has-data-popup-open/menu-item:bg-wash group-has-data-popup-open/menu-item:text-ink focus-visible:ring-2 focus-visible:ring-brand active:bg-wash-strong disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:bg-transparent aria-disabled:text-ink-3 aria-disabled:opacity-50 data-popup-open:bg-wash-strong data-popup-open:text-ink data-active:bg-brand-soft data-active:font-medium data-active:text-ink data-active:before:absolute data-active:before:inset-y-2 data-active:before:left-0 data-active:before:w-0.5 data-active:before:rounded-r-full data-active:before:bg-brand data-active:[&_svg]:text-brand [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&>span:last-child]:truncate",
   {
     variants: {
       variant: {
-        default: "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-        outline:
-          "bg-background shadow-[0_0_0_1px_var(--sidebar-border)] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-[0_0_0_1px_var(--sidebar-accent)]",
+        default: "",
+        outline: "bg-surface shadow-[0_0_0_1px_var(--hairline)]",
       },
       size: {
-        default: "h-8 text-sm",
-        sm: "h-7 text-xs",
-        lg: "h-12 text-sm group-data-[collapsible=icon]:p-0!",
+        default: "h-8 text-meta",
+        sm: "h-7 text-mini",
+        lg: "h-12 text-meta group-data-[collapsible=icon]:p-0!",
       },
     },
     defaultVariants: {
@@ -542,9 +550,9 @@ function SidebarMenuAction({
     props: mergeProps<"button">(
       {
         className: cn(
-          "absolute top-1.5 right-1 flex aspect-square w-5 items-center justify-center rounded-md p-0 text-sidebar-foreground ring-sidebar-ring outline-hidden transition-transform group-data-[collapsible=icon]:hidden peer-hover/menu-button:text-sidebar-accent-foreground peer-data-[size=default]/menu-button:top-1.5 peer-data-[size=lg]/menu-button:top-2.5 peer-data-[size=sm]/menu-button:top-1 after:absolute after:-inset-2 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 md:after:hidden [&>svg]:size-4 [&>svg]:shrink-0",
+          "absolute top-1.5 right-1 flex aspect-square w-5 items-center justify-center rounded-control p-0 text-ink-3 ring-brand outline-hidden transition-colors duration-150 group-data-[collapsible=icon]:hidden peer-data-[size=default]/menu-button:top-1.5 peer-data-[size=lg]/menu-button:top-2.5 peer-data-[size=sm]/menu-button:top-1 after:absolute after:-inset-2 hover:bg-wash-strong hover:text-ink focus-visible:ring-2 md:after:hidden [&>svg]:size-4 [&>svg]:shrink-0",
           showOnHover &&
-            "group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 peer-data-active/menu-button:text-sidebar-accent-foreground aria-expanded:opacity-100 md:opacity-0",
+            "opacity-0 group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 aria-expanded:opacity-100 coarse:opacity-100",
           className,
         ),
       },
@@ -556,6 +564,24 @@ function SidebarMenuAction({
       sidebar: "menu-action",
     },
   });
+}
+
+// Hover-revealed cluster at a row's right edge; the row reserves room for it with its own pr-*.
+function SidebarMenuActions({
+  className,
+  ...props
+}: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="sidebar-menu-actions"
+      data-sidebar="menu-actions"
+      className={cn(
+        "coarse:opacity-100 absolute inset-y-0 right-1 flex items-center gap-0.5 opacity-0 transition-opacity duration-150 group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 group-data-[collapsible=icon]:hidden has-aria-expanded:opacity-100",
+        className,
+      )}
+      {...props}
+    />
+  );
 }
 
 function SidebarMenuBadge({
@@ -686,6 +712,7 @@ export {
   SidebarInset,
   SidebarMenu,
   SidebarMenuAction,
+  SidebarMenuActions,
   SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,

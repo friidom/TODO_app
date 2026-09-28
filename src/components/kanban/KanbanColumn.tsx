@@ -2,17 +2,22 @@ import { useDroppable } from "@dnd-kit/core";
 import TodoItem from "../todo/TodoItem";
 
 import type { IColumn, Todo } from "../../types/data";
-import { Plus, InboxIcon } from "lucide-react";
+import { Plus } from "lucide-react";
 import React, { useCallback, useState, useRef, useEffect } from "react";
 import { useAddTodo } from "@/services/todos/useAddTodo";
 import { useSubtaskProgressByParent } from "@/services/todos/useSubtasks";
 import DropZone from "./DropZone";
 import TodoCreateForm, { type CreateDraft } from "./TodoCreateForm";
 import ColumnHeader, { type TransitionPill } from "../columns/ColumnHeader";
+import {
+  COLUMN_TITLE,
+  COLUMN_WIDTH,
+  COUNT_CHIP,
+} from "../columns/columnChrome";
 import { categoryOf } from "@/constants/columns";
 import { cn } from "@/utils/cn";
-import EmptyState from "@/components/ui/EmptyState";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { useOpenTask } from "@/hooks/useOpenTask";
 import { usePermissions } from "@/hooks/usePermissions";
 import type { TodoIndicator } from "@/hooks/useKanbanDnd";
 
@@ -71,6 +76,8 @@ export default function KanbanColumn({
   const subtaskProgress = useSubtaskProgressByParent();
 
   const { canEditTodos } = usePermissions();
+
+  const { taskId } = useOpenTask();
 
   const [creatingAt, setCreatingAt] = useState<number | null>(null);
   const [skeleton, setSkeleton] = useState(false);
@@ -157,6 +164,8 @@ export default function KanbanColumn({
       onCancel={onClose}
       boardId={column.board_id}
       skeleton={skeleton}
+      // the form sits between a gap and the next card, so it supplies that gap's spacing itself; with gaps off the list's gap-2.5 does
+      className={dragDisabled ? undefined : "mb-2.5"}
     />
   );
 
@@ -164,18 +173,19 @@ export default function KanbanColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        "rounded-surface border-hairline relative flex w-[288px] shrink-0 flex-col overflow-hidden border transition-colors duration-150",
+        "rounded-surface border-hairline bg-surface relative flex shrink-0 flex-col overflow-hidden border transition-shadow duration-150",
+        COLUMN_WIDTH,
         // height comes from the flex row, not a hardcoded pixel sum, so it survives changes to the bars above the board
         lane ? "h-fit" : "h-fit max-h-full",
-        transition
-          ? "bg-status-blue/10 ring-status-blue ring-2 ring-inset"
-          : "bg-surface",
+        // tint as a gradient layer over bg-surface, not a translucent bg that would let the canvas show through
+        transition &&
+          "ring-brand/60 from-brand/10 to-brand/10 bg-linear-to-b ring-2 ring-inset",
       )}
     >
       <div
         aria-hidden
         className={cn(
-          "pointer-events-none absolute inset-x-0 top-0 h-32",
+          "pointer-events-none absolute inset-x-0 top-0 h-32 opacity-60",
           categoryOf(column.category).band,
         )}
       />
@@ -208,13 +218,17 @@ export default function KanbanColumn({
         ref={listRef}
         // overflow-x-hidden is load-bearing: overflow-y-auto alone leaves x at "visible", which
         // CSS then promotes to "auto" and the column gets a stray horizontal scrollbar
-        className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-2 pt-2 pb-1"
+        className={cn(
+          "min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-2",
+          // with gaps on, the first and last DropZone already pad the list by their own height
+          dragDisabled && "py-2.5",
+        )}
       >
         {/* a card that throws only costs this column its list, not the rest of the board */}
         <ErrorBoundary>
           <div
             className={cn(
-              "flex min-h-10 flex-col",
+              "flex min-h-16 flex-col",
               // DropZones normally carry the card spacing as a side effect of being h-2.5 — fall back to gap when they're not rendered
               dragDisabled && "gap-2.5",
             )}
@@ -233,13 +247,16 @@ export default function KanbanColumn({
 
             {creatingAt === 0 && createForm}
 
-            {todos.length === 0 && !dragging && creatingAt === null && (
-              <EmptyState
-                size="sm"
-                icon={InboxIcon}
-                title="Nothing here yet"
-                className="text-ink-3"
-              />
+            {todos.length === 0 && creatingAt === null && (
+              <p
+                className={cn(
+                  "text-ink-3 text-mini flex flex-1 items-center justify-center py-4 text-center",
+                  // hidden, not unmounted, so an empty column keeps its height as a drop target
+                  dragging && "invisible",
+                )}
+              >
+                Nothing here yet
+              </p>
             )}
 
             {todos.map((todo, index) => (
@@ -247,6 +264,7 @@ export default function KanbanColumn({
                 <TodoItem
                   todo={todo}
                   dragDisabled={dragDisabled}
+                  selected={taskId === todo.id}
                   // primitives, not an object, so TodoContainer's memo isn't broken by a fresh {done,total} every render
                   subtaskDone={subtaskProgress.get(todo.id)?.done ?? 0}
                   subtaskTotal={subtaskProgress.get(todo.id)?.total ?? 0}
@@ -273,13 +291,13 @@ export default function KanbanColumn({
       </div>
 
       {!lane && canEditTodos && (
-        <div className="relative shrink-0 px-2.5 pt-1 pb-2.5">
+        <div className="shrink-0 px-2 pb-2">
           <button
             type="button"
             onClick={() => openAt(todos.length)}
-            className="text-ink-3 border-ink/[0.09] hover:border-brand/40 hover:bg-brand-soft hover:text-brand rounded-card text-meta flex h-10 w-full items-center justify-center gap-1.5 border border-dashed font-medium transition-colors"
+            className="text-ink-3 hover:bg-wash-strong hover:text-ink focus-visible:ring-brand rounded-control text-meta flex h-8 w-full items-center gap-1.5 px-2 font-medium transition-colors duration-150 outline-none focus-visible:ring-2"
           >
-            <Plus size={15} />
+            <Plus className="size-4" />
             Create
           </button>
         </div>
@@ -298,16 +316,14 @@ function LaneColumnHeader({
   count: number;
 }) {
   return (
-    <div className="flex items-center gap-2 px-3 py-2">
+    <div className="flex h-10 items-center gap-2 pr-3 pl-4.5">
       <span
         className={cn("size-2 shrink-0 rounded-full", categoryOf(category).dot)}
       />
-      <span className="text-ink-2 min-w-0 truncate text-xs font-semibold tracking-wide uppercase">
-        {headerTitle}
-      </span>
-      <span className="bg-ink/10 text-ink-3 text-mini ml-auto shrink-0 rounded px-1.5 font-semibold">
-        {count}
-      </span>
+
+      <span className={COLUMN_TITLE}>{headerTitle}</span>
+
+      <span className={COUNT_CHIP}>{count}</span>
     </div>
   );
 }

@@ -1,6 +1,8 @@
 import { useEffect, type ReactNode } from "react";
 import { XIcon } from "lucide-react";
 
+import IconButton from "@/components/ui/IconButton";
+
 // pushes the board at xl, overlays with a scrim below it — no room to push without squeezing the board into a gutter
 export default function Drawer({
   title,
@@ -36,14 +38,13 @@ export default function Drawer({
         <header className="border-hairline flex h-12 shrink-0 items-center gap-2 border-b px-4">
           <h2 className="text-ink truncate text-sm font-semibold">{title}</h2>
 
-          <button
-            type="button"
+          <IconButton
+            label={`Close ${title}`}
             onClick={onClose}
-            aria-label={`Close ${title}`}
-            className="text-ink-3 hover:bg-elevated hover:text-ink focus-visible:ring-brand rounded-control ml-auto grid size-7 shrink-0 place-items-center transition-colors outline-none focus-visible:ring-2"
+            className="ml-auto"
           >
-            <XIcon className="size-4" />
-          </button>
+            <XIcon />
+          </IconButton>
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>

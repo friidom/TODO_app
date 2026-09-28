@@ -10,41 +10,55 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { BoardView } from "@/hooks/useBoardView";
 import { GROUP_KEYS, GROUP_LABELS, type GroupKey } from "@/services/todos/view";
-import { cn } from "@/utils/cn";
-import { HEADER_CONTROL, HEADER_CONTROL_ACTIVE } from "./headerControl";
+import ToolbarButton from "./ToolbarButton";
 
 // "Status" is offered even though it's the identity — the columns already are the statuses
-export default function BoardGroup({ view }: { view: BoardView }) {
-  const { group, setGroup } = view;
+export default function BoardGroup({
+  view,
+  className,
+}: {
+  view: BoardView;
+  className?: string;
+}) {
+  const { group } = view;
 
   const active = group !== "none";
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        aria-label={active ? `Group — ${GROUP_LABELS[group]}` : "Group"}
-        className={cn(HEADER_CONTROL, active && HEADER_CONTROL_ACTIVE)}
-      >
-        <Rows3Icon className="size-4" />
-        <span className="hidden md:inline">
-          {active ? GROUP_LABELS[group] : "Group"}
-        </span>
-      </DropdownMenuTrigger>
+        render={
+          <ToolbarButton
+            label={active ? `Group — ${GROUP_LABELS[group]}` : "Group"}
+            text={active ? `Group: ${GROUP_LABELS[group]}` : "Group"}
+            icon={<Rows3Icon className="size-4" />}
+            active={active}
+            className={className}
+          />
+        }
+      />
 
-      <DropdownMenuContent align="end" className="w-44">
-        {/* label goes inside the radio group — Base UI's Menu.GroupLabel needs the group context */}
-        <DropdownMenuRadioGroup
-          value={group}
-          onValueChange={(next) => setGroup(next as GroupKey)}
-        >
-          <DropdownMenuLabel>Group by</DropdownMenuLabel>
-          {GROUP_KEYS.map((key) => (
-            <DropdownMenuRadioItem key={key} value={key}>
-              {GROUP_LABELS[key]}
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
+      <DropdownMenuContent align="start" className="w-44">
+        <GroupOptions view={view} />
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+// shared with ViewOptions, so the folded menu offers exactly these choices
+export function GroupOptions({ view }: { view: BoardView }) {
+  return (
+    // label goes inside the radio group — Base UI's Menu.GroupLabel needs the group context
+    <DropdownMenuRadioGroup
+      value={view.group}
+      onValueChange={(next) => view.setGroup(next as GroupKey)}
+    >
+      <DropdownMenuLabel>Group by</DropdownMenuLabel>
+      {GROUP_KEYS.map((key) => (
+        <DropdownMenuRadioItem key={key} value={key}>
+          {GROUP_LABELS[key]}
+        </DropdownMenuRadioItem>
+      ))}
+    </DropdownMenuRadioGroup>
   );
 }

@@ -1,7 +1,14 @@
 import { useState } from "react";
 import { MessageSquareIcon } from "lucide-react";
 
+import SectionHeader, { EmptyLine } from "@/components/todo/SectionHeader";
+import {
+  INLINE_ACTION,
+  INLINE_ACTION_DANGER,
+  TEXT_FIELD,
+} from "@/components/todo/detailChrome";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { DIALOG_CONFIRM } from "@/components/ui/dialogChrome";
 import { Skeleton } from "@/components/ui/skeleton";
 import { memberInitial, memberName } from "@/components/members/memberLabels";
 import { useAuth } from "@/services/auth/useAuth";
@@ -43,14 +50,9 @@ export default function CommentThread({
   const count = comments?.length ?? 0;
 
   return (
-    <section className={hideHeading ? undefined : "mt-8"}>
+    <section>
       {!hideHeading && (
-        <h3 className="text-ink-3 text-mini mb-3 flex items-center gap-2 font-semibold tracking-[0.08em] uppercase">
-          Comments
-          {count > 0 && (
-            <span className="text-ink-3/70 tabular-nums">{count}</span>
-          )}
-        </h3>
+        <SectionHeader title="Comments" count={count > 0 ? count : null} />
       )}
 
       {isPending ? (
@@ -66,17 +68,16 @@ export default function CommentThread({
           ))}
         </div>
       ) : error ? (
-        <p className="text-status-red text-sm">
+        <p className="text-status-red text-meta">
           Could not load this discussion.
         </p>
       ) : count === 0 ? (
-        <div className="text-ink-3 flex items-center gap-2 py-1 text-sm">
-          <MessageSquareIcon className="size-4 shrink-0" />
+        <EmptyLine icon={MessageSquareIcon}>
           <span>
             No comments yet.
             {canComment && " Start the discussion below."}
           </span>
-        </div>
+        </EmptyLine>
       ) : (
         <ol className="space-y-4">
           {comments!.map((comment) => (
@@ -93,7 +94,7 @@ export default function CommentThread({
         </ol>
       )}
 
-      {canComment && <Composer todoId={todoId} />}
+      <Composer todoId={todoId} className="mt-5" />
     </section>
   );
 }
@@ -189,10 +190,13 @@ export function CommentRow({
               rows={3}
               autoFocus
               aria-label="Edit comment"
-              className="border-hairline text-ink focus:border-brand/60 focus:ring-brand/25 rounded-card w-full resize-y border bg-transparent px-3 py-2 text-sm leading-relaxed outline-none focus:ring-2"
+              className={cn(
+                TEXT_FIELD,
+                "rounded-card w-full resize-y px-3 py-2 text-sm leading-relaxed",
+              )}
             />
 
-            <div className="mt-1.5 flex items-center gap-2">
+            <div className="mt-2 flex items-center gap-1.5">
               <button
                 type="button"
                 onClick={save}
@@ -200,7 +204,7 @@ export function CommentRow({
                   update.isPending ||
                   editedValue(draft ?? "", comment.content) === null
                 }
-                className="bg-brand rounded-control px-2.5 py-1 text-xs font-medium text-white disabled:opacity-45"
+                className={cn(DIALOG_CONFIRM, "h-7 px-2.5 text-xs")}
               >
                 {update.isPending ? "Saving…" : "Save"}
               </button>
@@ -208,7 +212,7 @@ export function CommentRow({
               <button
                 type="button"
                 onClick={() => setDraft(null)}
-                className="text-ink-3 hover:text-ink rounded-control px-1.5 py-1 text-xs font-medium"
+                className={cn(INLINE_ACTION, "py-1 text-xs")}
               >
                 Cancel
               </button>
@@ -221,12 +225,12 @@ export function CommentRow({
             </p>
 
             {(mayEdit || mayDelete) && (
-              <div className="mt-1 flex items-center gap-3">
+              <div className="mt-0.5 -ml-1.5 flex items-center gap-1 text-xs">
                 {mayEdit && (
                   <button
                     type="button"
                     onClick={() => setDraft(comment.content)}
-                    className="text-ink-3 hover:text-ink text-xs font-medium"
+                    className={INLINE_ACTION}
                   >
                     Edit
                   </button>
@@ -234,8 +238,10 @@ export function CommentRow({
 
                 {mayDelete &&
                   (confirmingDelete ? (
-                    <span className="flex items-center gap-2 text-xs">
-                      <span className="text-ink-3">Delete this comment?</span>
+                    <span className="flex items-center gap-1">
+                      <span className="text-ink-3 px-1.5">
+                        Delete this comment?
+                      </span>
 
                       <button
                         type="button"
@@ -243,7 +249,7 @@ export function CommentRow({
                           remove.mutate({ id: comment.id, todoId })
                         }
                         disabled={remove.isPending}
-                        className="text-status-red font-medium disabled:opacity-45"
+                        className={INLINE_ACTION_DANGER}
                       >
                         {remove.isPending ? "Deleting…" : "Delete"}
                       </button>
@@ -251,7 +257,7 @@ export function CommentRow({
                       <button
                         type="button"
                         onClick={() => setConfirmingDelete(false)}
-                        className="text-ink-3 hover:text-ink font-medium"
+                        className={INLINE_ACTION}
                       >
                         Keep
                       </button>
@@ -260,7 +266,10 @@ export function CommentRow({
                     <button
                       type="button"
                       onClick={() => setConfirmingDelete(true)}
-                      className="text-ink-3 hover:text-status-red text-xs font-medium"
+                      className={cn(
+                        INLINE_ACTION,
+                        "hover:text-status-red hover:bg-status-red/10",
+                      )}
                     >
                       Delete
                     </button>
@@ -281,9 +290,17 @@ export function CommentRow({
   );
 }
 
-function Composer({ todoId }: { todoId: string }) {
+// gated here rather than at each call site, so no tab can render a composer for a role that can't comment
+export function Composer({
+  todoId,
+  className,
+}: {
+  todoId: string;
+  className?: string;
+}) {
   const [draft, setDraft] = useState("");
   const add = useAddComment();
+  const { canComment } = usePermissions();
 
   const value = commentValue(draft);
 
@@ -296,8 +313,10 @@ function Composer({ todoId }: { todoId: string }) {
     setDraft("");
   }
 
+  if (!canComment) return null;
+
   return (
-    <div className="mt-5">
+    <div className={className}>
       <textarea
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
@@ -306,10 +325,13 @@ function Composer({ todoId }: { todoId: string }) {
             post();
           }
         }}
-        rows={3}
+        rows={2}
         placeholder="Add a comment…"
         aria-label="Add a comment"
-        className="border-hairline text-ink placeholder:text-ink-3 focus:border-brand/60 focus:ring-brand/25 rounded-card w-full resize-y border bg-transparent px-3 py-2.5 text-sm leading-relaxed outline-none focus:ring-2"
+        className={cn(
+          TEXT_FIELD,
+          "rounded-card field-sizing-content max-h-72 min-h-16 w-full resize-y px-3 py-2.5 text-sm leading-relaxed",
+        )}
       />
 
       <div className="mt-2 flex items-center gap-3">
@@ -317,10 +339,7 @@ function Composer({ todoId }: { todoId: string }) {
           type="button"
           onClick={post}
           disabled={value === null || add.isPending}
-          className={cn(
-            "bg-brand rounded-control px-3 py-1.5 text-xs font-medium text-white",
-            "disabled:opacity-45",
-          )}
+          className={cn(DIALOG_CONFIRM, "h-8 px-3 text-xs")}
         >
           {add.isPending ? "Posting…" : "Comment"}
         </button>

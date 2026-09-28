@@ -1,5 +1,12 @@
-import { MoreHorizontal } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Gauge,
+  MoreHorizontal,
+  Trash2,
+} from "lucide-react";
 
+import IconButton from "@/components/ui/IconButton";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,15 +36,13 @@ export default function ColumnMenu({
 }: Props) {
   return (
     <DropdownMenu open={open} onOpenChange={onOpenChange}>
-      <DropdownMenuTrigger
-        aria-label="Column actions"
-        className="text-ink-2 hover:bg-ink/10 focus-visible:ring-brand coarse:size-8 coarse:p-0 coarse:grid coarse:place-items-center rounded p-1 outline-none focus-visible:ring-2"
-      >
-        <MoreHorizontal size={18} />
+      <DropdownMenuTrigger render={<IconButton label="Column actions" />}>
+        <MoreHorizontal />
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" className="min-w-52">
         <DropdownMenuItem onClick={onSetLimit}>
+          <Gauge />
           Set column limit
         </DropdownMenuItem>
 
@@ -45,12 +50,14 @@ export default function ColumnMenu({
 
         {onMoveLeft && (
           <DropdownMenuItem onClick={onMoveLeft}>
+            <ArrowLeft />
             Move column left
           </DropdownMenuItem>
         )}
 
         {onMoveRight && (
           <DropdownMenuItem onClick={onMoveRight}>
+            <ArrowRight />
             Move column right
           </DropdownMenuItem>
         )}
@@ -59,8 +66,9 @@ export default function ColumnMenu({
           <>
             <DropdownMenuSeparator />
 
-            <DropdownMenuItem onClick={onDelete}>
-              Delete status
+            <DropdownMenuItem variant="destructive" onClick={onDelete}>
+              <Trash2 />
+              Delete column
             </DropdownMenuItem>
           </>
         )}

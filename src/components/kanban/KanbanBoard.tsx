@@ -1,7 +1,7 @@
 import { Fragment, useMemo, useState } from "react";
 
 import { DndContext, type DataRef, type UniqueIdentifier } from "@dnd-kit/core";
-import { RocketIcon } from "lucide-react";
+import { CircleAlertIcon, RocketIcon } from "lucide-react";
 
 import {
   SCREEN_READER_INSTRUCTIONS,
@@ -59,8 +59,13 @@ export default function KanbanBoard() {
 
   const swimlanes = isSwimlaneGroup(view.group);
 
-  const { todosByColumn, columns, activeSprintId, sprintsEnabled, sprintsPending } =
-    useTodosByColumns(todos);
+  const {
+    todosByColumn,
+    columns,
+    activeSprintId,
+    sprintsEnabled,
+    sprintsPending,
+  } = useTodosByColumns(todos);
 
   const {
     sensors,
@@ -98,12 +103,22 @@ export default function KanbanBoard() {
     () =>
       swimlanes
         ? groupTodos(
-            todos.filter((todo) => isOnBoard(todo, activeSprintId, sprintsEnabled)),
+            todos.filter((todo) =>
+              isOnBoard(todo, activeSprintId, sprintsEnabled),
+            ),
             view.group,
             { columns, members },
           )
         : [],
-    [swimlanes, todos, activeSprintId, sprintsEnabled, view.group, columns, members],
+    [
+      swimlanes,
+      todos,
+      activeSprintId,
+      sprintsEnabled,
+      view.group,
+      columns,
+      members,
+    ],
   );
 
   const { moveColumn } = useColumnReorder(orderedColumns);
@@ -129,7 +144,17 @@ export default function KanbanBoard() {
   // sprintsPending still gates loading — without it a card in the running sprint flickers out of its column for a frame.
   if (isLoading || sprintsPending) return <Loading />;
 
-  if (error) return <p>{error.message}</p>;
+  if (error) {
+    return (
+      <div className="grid h-full place-items-center">
+        <EmptyState
+          icon={CircleAlertIcon}
+          title="Couldn't load this board"
+          hint={error.message}
+        />
+      </div>
+    );
+  }
 
   function labelOf(id: UniqueIdentifier, type: string | undefined) {
     if (type === "column") {
@@ -220,7 +245,8 @@ export default function KanbanBoard() {
             members={members}
           />
         ) : (
-          <div className="min-h-0 flex-1 overflow-x-auto pb-4">
+          // -mx-3 spends the leading gap's width from ViewShell's gutter, so the first column lines up with the toolbar
+          <div className="-mx-3 min-h-0 flex-1 overflow-x-auto pb-4">
             <div className="flex h-full min-w-max">
               {orderedColumns.map((column, index) => (
                 <Fragment key={column.id}>
@@ -295,7 +321,7 @@ export default function KanbanBoard() {
                 beforeId={orderedColumns[orderedColumns.length - 1]?.id}
               />
 
-              <div className="ml-2 shrink-0 self-start">
+              <div className="mt-1.5 shrink-0 self-start">
                 <AddColumnButton setCreateColumnOpen={setCreateColumnOpen} />
               </div>
             </div>

@@ -17,6 +17,7 @@ import {
   previewKind,
   type PreviewKind,
 } from "@/services/attachments/fileMeta";
+import { DIALOG_CONFIRM } from "@/components/ui/dialogChrome";
 import type { Attachment } from "@/types/data";
 import { cn } from "@/utils/cn";
 import { relativeTime } from "@/utils/relativeTime";
@@ -224,7 +225,7 @@ function Fallback({ attachment }: { attachment: Attachment }) {
 
   return (
     <div className="border-hairline bg-surface rounded-surface shadow-e3 m-auto w-full max-w-sm border p-6 text-center">
-      <span className="bg-ink/[0.06] text-ink-3 mx-auto mb-3 grid size-12 place-items-center rounded-full">
+      <span className="bg-wash-strong text-ink-3 mx-auto mb-3 grid size-12 place-items-center rounded-full">
         <Icon className="size-5" />
       </span>
 
@@ -239,7 +240,7 @@ function Fallback({ attachment }: { attachment: Attachment }) {
         {attachment.mime_type} · {formatBytes(attachment.size_bytes)}
       </p>
 
-      <p className="text-ink-3 mt-4 text-xs">
+      <p className="text-ink-3 text-meta mt-4">
         This file type can&rsquo;t be previewed here.
       </p>
 
@@ -253,7 +254,7 @@ function Fallback({ attachment }: { attachment: Attachment }) {
             filename: attachment.filename,
           })
         }
-        className="bg-brand rounded-control mt-4 inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-45"
+        className={cn(DIALOG_CONFIRM, "mt-4 h-8 px-3 text-xs")}
       >
         {download.isPending ? (
           <Loader2 className="size-3.5 animate-spin" />

@@ -11,6 +11,13 @@ import {
 
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuth } from "@/services/auth/useAuth";
+import IconButton from "@/components/ui/IconButton";
+import {
+  MENU_ITEM,
+  MENU_ITEM_DANGER,
+  MENU_SEPARATOR,
+  POPOVER_PANEL,
+} from "@/components/ui/controlChrome";
 import { canDeleteAttachment } from "@/services/members/permissions";
 import {
   fileKind,
@@ -24,6 +31,14 @@ import type { Attachment } from "@/types/data";
 import { cn } from "@/utils/cn";
 
 import { KIND_ICONS } from "./attachmentIcons";
+import {
+  COUNT_CHIP,
+  INLINE_ACTION,
+  INLINE_ACTION_BRAND,
+  INLINE_ACTION_DANGER,
+  TABLE_HEAD,
+  TABLE_ROW,
+} from "./detailChrome";
 import { useCardPopover } from "./TodoItem/useCardPopover";
 
 // Below sm, date/size are hidden (removed from grid flow), not squeezed.
@@ -41,13 +56,7 @@ export interface PendingUpload {
 
 export function AttachmentTableHeader() {
   return (
-    <div
-      role="row"
-      className={cn(
-        ATTACHMENT_GRID,
-        "border-hairline text-ink-3/70 text-micro bg-surface/40 h-8 border-b font-medium tracking-[0.08em] uppercase",
-      )}
-    >
+    <div role="row" className={cn(ATTACHMENT_GRID, TABLE_HEAD)}>
       <span role="columnheader" className="col-span-2">
         Name
       </span>
@@ -95,7 +104,7 @@ export function AttachmentRow({
     return (
       <div
         role="row"
-        className={cn(ROW, "bg-status-red/[0.04] flex items-center px-3")}
+        className={cn(ROW, "bg-status-red/[0.06] flex items-center px-3")}
       >
         <ConfirmStrip actions={actions} />
       </div>
@@ -103,14 +112,7 @@ export function AttachmentRow({
   }
 
   return (
-    <div
-      role="row"
-      className={cn(
-        ATTACHMENT_GRID,
-        ROW,
-        "hover:bg-ink/[0.035] transition-colors",
-      )}
-    >
+    <div role="row" className={cn(ATTACHMENT_GRID, TABLE_ROW, "h-12")}>
       <AttachmentThumb attachment={attachment} onClick={onPreview} />
 
       <div role="cell" className="min-w-0">
@@ -127,7 +129,7 @@ export function AttachmentRow({
       <span
         role="cell"
         title={new Date(attachment.created_at).toLocaleString(i18n.language)}
-        className="text-ink-3/80 text-mini hidden truncate tabular-nums sm:block"
+        className="text-ink-3 text-mini hidden truncate tabular-nums sm:block"
       >
         {added}
       </span>
@@ -162,14 +164,14 @@ export function AttachmentCard({
   const added = dateAdded(attachment.created_at, i18n.language);
 
   return (
-    <li className="border-hairline rounded-card hover:border-ink/20 overflow-hidden border transition-colors">
+    <li className="border-hairline rounded-card hover:border-ink/20 overflow-hidden border transition-colors duration-150">
       <AttachmentThumb
         attachment={attachment}
         onClick={onPreview}
         variant="card"
       />
 
-      <div className="border-hairline flex items-center gap-1 border-t px-2 py-1.5">
+      <div className="border-hairline flex items-center gap-1 border-t py-1.5 pr-1 pl-2">
         <div className="min-w-0 flex-1">
           <button
             type="button"
@@ -234,7 +236,7 @@ function ConfirmStrip({
 }) {
   return (
     <span
-      className="flex min-w-0 items-center gap-2 text-xs"
+      className="flex min-w-0 items-center gap-1 text-xs"
       onKeyDown={(event) => {
         if (event.key !== "Escape") return;
 
@@ -243,7 +245,7 @@ function ConfirmStrip({
       }}
     >
       {!compact && (
-        <span className="text-ink-2 min-w-0 truncate">
+        <span className="text-ink-2 text-meta mr-1 min-w-0 truncate">
           Remove <span className="font-medium">{actions.filename}</span>?
         </span>
       )}
@@ -253,7 +255,7 @@ function ConfirmStrip({
         autoFocus
         onClick={actions.remove}
         disabled={actions.removing}
-        className="text-status-red shrink-0 font-medium disabled:opacity-45"
+        className={INLINE_ACTION_DANGER}
       >
         {actions.removing ? "Removing…" : "Remove"}
       </button>
@@ -261,7 +263,7 @@ function ConfirmStrip({
       <button
         type="button"
         onClick={() => actions.setConfirming(false)}
-        className="text-ink-3 hover:text-ink shrink-0 font-medium"
+        className={INLINE_ACTION}
       >
         Keep
       </button>
@@ -275,19 +277,20 @@ function AttachmentMenu({ actions }: { actions: RowActions }) {
 
   return (
     <>
-      <button
-        type="button"
-        {...triggerProps}
-        aria-label={`Actions for ${actions.filename}`}
+      <IconButton
+        label={`Actions for ${actions.filename}`}
+        size="xs"
+        tooltip={false}
         title="More actions"
-        className="text-ink-3 hover:bg-ink/10 hover:text-ink focus-visible:ring-brand grid size-6 shrink-0 place-items-center rounded transition-colors outline-none focus-visible:ring-2"
+        aria-haspopup="menu"
+        {...triggerProps}
       >
         {actions.downloading ? (
-          <Loader2 className="size-3.5 animate-spin" />
+          <Loader2 className="animate-spin" />
         ) : (
           <MoreHorizontal className="size-4" />
         )}
-      </button>
+      </IconButton>
 
       {mounted && (
         <FloatingPortal>
@@ -295,7 +298,7 @@ function AttachmentMenu({ actions }: { actions: RowActions }) {
             {...panelProps}
             role="menu"
             aria-label={`Actions for ${actions.filename}`}
-            className="border-hairline bg-elevated rounded-card shadow-e2 z-[70] w-44 border p-1"
+            className={cn(POPOVER_PANEL, "z-[70] w-44")}
           >
             <MenuItem
               icon={DownloadIcon}
@@ -308,7 +311,7 @@ function AttachmentMenu({ actions }: { actions: RowActions }) {
 
             {actions.mayDelete && (
               <>
-                <div className="bg-hairline my-1 h-px" />
+                <div className={MENU_SEPARATOR} />
 
                 <MenuItem
                   icon={Trash2Icon}
@@ -351,31 +354,13 @@ export function MenuItem({
       role="menuitem"
       onClick={onClick}
       disabled={disabled || busy}
-      className={cn(
-        "rounded-control flex w-full items-center gap-2 px-2 py-1.5 text-sm transition-colors outline-none disabled:opacity-45",
-        danger
-          ? "text-status-red hover:bg-status-red/15 focus-visible:bg-status-red/15 font-medium"
-          : "text-ink hover:bg-ink/10 focus-visible:bg-ink/10",
-      )}
+      className={danger ? MENU_ITEM_DANGER : MENU_ITEM}
     >
-      {busy ? (
-        <Loader2
-          className={cn(
-            "size-4 shrink-0 animate-spin",
-            !danger && "text-ink-3",
-          )}
-        />
-      ) : (
-        <Icon className={cn("size-4 shrink-0", !danger && "text-ink-3")} />
-      )}
+      {busy ? <Loader2 className="animate-spin" /> : <Icon />}
 
-      <span className="min-w-0 flex-1 truncate text-left">{label}</span>
+      <span className="min-w-0 flex-1 truncate">{label}</span>
 
-      {badge !== undefined && (
-        <span className="bg-ink/10 text-ink-3 text-micro shrink-0 rounded px-1.5 py-0.5 font-semibold tabular-nums">
-          {badge}
-        </span>
-      )}
+      {badge !== undefined && <span className={COUNT_CHIP}>{badge}</span>}
     </button>
   );
 }
@@ -413,8 +398,8 @@ function AttachmentThumb({
       aria-hidden
       // Not a tab stop — the filename beside it is the same action with a readable label.
       className={cn(
-        "bg-ink/[0.04] grid place-items-center overflow-hidden outline-none",
-        card ? "aspect-video w-full" : "size-8 shrink-0 rounded",
+        "bg-wash grid place-items-center overflow-hidden outline-none",
+        card ? "aspect-video w-full" : "size-8 shrink-0 rounded-[6px]",
       )}
     >
       {showImage ? (
@@ -449,7 +434,7 @@ export function PendingRow({
       className={cn(
         ROW,
         "flex items-center gap-3 px-3",
-        failed && "bg-status-red/[0.04]",
+        failed && "bg-status-red/[0.06]",
       )}
     >
       <span className="grid size-8 shrink-0 place-items-center">
@@ -477,20 +462,16 @@ export function PendingRow({
       </div>
 
       {failed ? (
-        <span className="flex shrink-0 items-center gap-2 text-xs">
+        <span className="flex shrink-0 items-center gap-1 text-xs">
           <button
             type="button"
             onClick={onRetry}
-            className="text-brand font-medium"
+            className={INLINE_ACTION_BRAND}
           >
             Retry
           </button>
 
-          <button
-            type="button"
-            onClick={onDismiss}
-            className="text-ink-3 hover:text-ink font-medium"
-          >
+          <button type="button" onClick={onDismiss} className={INLINE_ACTION}>
             Dismiss
           </button>
         </span>

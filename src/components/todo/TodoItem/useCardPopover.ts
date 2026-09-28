@@ -6,19 +6,21 @@ import {
   shift,
   useFloating,
   useTransitionStyles,
+  type Placement,
 } from "@floating-ui/react";
 
 export function useCardPopover({
   // popovers nested inside this one live in a separate portal, so an outside-click check would
   // otherwise treat a click on them as outside and close the parent before the child's click fires
   hostsPopovers = false,
-}: { hostsPopovers?: boolean } = {}) {
+  placement = "bottom-end",
+}: { hostsPopovers?: boolean; placement?: Placement } = {}) {
   const [open, setOpen] = useState(false);
 
   const { refs, floatingStyles, context } = useFloating({
     open,
     onOpenChange: setOpen,
-    placement: "bottom-end",
+    placement,
     middleware: [offset(6), flip(), shift({ padding: 8 })],
     whileElementsMounted: autoUpdate,
     // top/left instead of transform, so the transition below can own the transform
@@ -65,18 +67,27 @@ export function useCardPopover({
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
 
+      const trigger = refs.reference.current;
+
+      if (
+        trigger instanceof HTMLElement &&
+        refs.floating.current?.contains(document.activeElement)
+      ) {
+        trigger.focus();
+      }
+
       setOpen(false);
 
-      // stop it bubbling so a nested Escape doesn't also close the modal underneath
+      // capture phase (below) so this runs before the task modal's bubble-phase listener, which skips defaultPrevented
       event.preventDefault();
     }
 
     document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown, true);
 
     return () => {
       document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keydown", handleKeyDown, true);
     };
   }, [open, refs, hostsPopovers]);
 
@@ -88,6 +99,7 @@ export function useCardPopover({
 
     triggerProps: {
       ref: refs.setReference,
+      "aria-expanded": open,
       // the card root has dnd-kit listeners on it, so stop pointerdown or clicking a control drags the card
       onPointerDown: (event: React.PointerEvent) => event.stopPropagation(),
       onClick: (event: React.MouseEvent) => {

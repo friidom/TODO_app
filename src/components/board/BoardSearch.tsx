@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { SearchIcon, XIcon } from "lucide-react";
 
+import { ICON_BUTTON } from "@/components/ui/controlChrome";
 import type { BoardView } from "@/hooks/useBoardView";
 import { cn } from "@/utils/cn";
-import { HEADER_CONTROL_ACTIVE, HEADER_CONTROL_QUIET } from "./headerControl";
 
 /** Long enough to swallow a burst of typing, short enough to feel immediate. */
 const WRITE_DELAY = 180;
@@ -41,9 +41,9 @@ export default function BoardSearch({ view }: { view: BoardView }) {
   return (
     <div
       className={cn(
-        HEADER_CONTROL_QUIET,
-        "min-w-0 flex-1 md:w-56 md:flex-none lg:w-72 2xl:w-96",
-        active && HEADER_CONTROL_ACTIVE,
+        "border-hairline bg-surface text-ink-3 rounded-control flex h-9 max-w-64 min-w-24 flex-1 items-center gap-2 border px-2.5 transition-colors duration-150 @max-md:min-w-20 @6xl:max-w-72",
+        "focus-within:border-brand/50 focus-within:ring-brand/30 focus-within:ring-2",
+        active && "border-brand/40 text-brand pr-1",
       )}
     >
       <SearchIcon className="size-4 shrink-0" />
@@ -59,8 +59,8 @@ export default function BoardSearch({ view }: { view: BoardView }) {
           }
         }}
         aria-label="Search work items"
-        placeholder="Search or KAN-12"
-        className="placeholder:text-ink-3 min-w-0 flex-1 bg-transparent text-sm outline-none [&::-webkit-search-cancel-button]:hidden"
+        placeholder="Search board"
+        className="text-ink placeholder:text-ink-3 text-meta min-w-0 flex-1 bg-transparent outline-none [&::-webkit-search-cancel-button]:hidden"
       />
 
       {active && (
@@ -68,9 +68,9 @@ export default function BoardSearch({ view }: { view: BoardView }) {
           type="button"
           onClick={clear}
           aria-label="Clear search"
-          className="hover:text-ink shrink-0"
+          className={ICON_BUTTON.xs}
         >
-          <XIcon className="size-3.5" />
+          <XIcon />
         </button>
       )}
     </div>

@@ -2,8 +2,7 @@ import { useTranslation } from "react-i18next";
 import { PlayIcon } from "lucide-react";
 import { FloatingPortal } from "@floating-ui/react";
 
-import DatePanel from "./DatePanel";
-import { useCardPopover } from "./useCardPopover";
+import { POPOVER_PANEL } from "@/components/ui/controlChrome";
 import {
   formatDue,
   fromCalendarDay,
@@ -11,6 +10,15 @@ import {
   todayISO,
 } from "@/utils/dueDate";
 import { cn } from "@/utils/cn";
+import DatePanel from "./DatePanel";
+import {
+  FIELD_CHIP,
+  FIELD_EMPTY,
+  FIELD_ICON,
+  FIELD_ROW,
+  HOVER_REVEAL,
+} from "./fieldChrome";
+import { useCardPopover } from "./useCardPopover";
 
 // Unlike the due date, this one never turns red for being in the past — a start date behind today is just a task already underway.
 export default function StartDateControl({
@@ -18,11 +26,13 @@ export default function StartDateControl({
   onChange,
   notAfter,
   alwaysVisible = false,
+  showLabel = false,
 }: {
   value: string | null;
   onChange: (value: string | null) => void;
   notAfter?: string | null;
   alwaysVisible?: boolean;
+  showLabel?: boolean;
 }) {
   const { mounted, close, triggerProps, panelProps } = useCardPopover();
   const { i18n } = useTranslation();
@@ -44,19 +54,25 @@ export default function StartDateControl({
         {...triggerProps}
         title={label}
         aria-label={label}
-        className={cn(
-          "text-mini flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 font-medium transition-colors",
-          startDate
-            ? "text-ink-2 hover:bg-ink/10"
-            : "text-ink-3 hover:bg-ink/10 hover:text-ink-2",
-          !startDate &&
-            !alwaysVisible &&
-            "coarse:opacity-100 opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
-        )}
+        className={
+          showLabel
+            ? cn(FIELD_ROW, startDate ? "text-ink" : "text-ink-3")
+            : startDate
+              ? cn(
+                  FIELD_CHIP,
+                  "text-ink-2 hover:bg-wash-strong hover:text-ink shrink-0 whitespace-nowrap",
+                )
+              : cn(FIELD_ICON, FIELD_EMPTY, !alwaysVisible && HOVER_REVEAL)
+        }
       >
         {/* icon stays even with a date set, so this doesn't get confused with the due date beside it */}
-        <PlayIcon className="size-3" strokeWidth={startDate ? 2.5 : 2} />
-        {startDate && formatDue(startDate, todayISO(), i18n.language)}
+        <PlayIcon
+          className={startDate && !showLabel ? "size-3" : "size-3.5"}
+          strokeWidth={startDate ? 2.5 : 2}
+        />
+        {startDate
+          ? formatDue(startDate, todayISO(), i18n.language)
+          : showLabel && "None"}
       </button>
 
       {mounted && (
@@ -65,7 +81,7 @@ export default function StartDateControl({
             {...panelProps}
             role="dialog"
             aria-label="Start date"
-            className="border-hairline bg-elevated rounded-surface z-50 w-[268px] border p-3 shadow-e2"
+            className={cn(POPOVER_PANEL, "z-50 w-[268px] p-3")}
           >
             <DatePanel
               title="Start date"

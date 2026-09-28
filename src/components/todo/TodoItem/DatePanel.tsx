@@ -6,6 +6,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import IconButton from "@/components/ui/IconButton";
 import { monthGrid, shiftMonth } from "@/utils/calendarGrid";
 import { todayISO } from "@/utils/dueDate";
 import { cn } from "@/utils/cn";
@@ -73,7 +74,7 @@ export default function DatePanel({
           <button
             type="button"
             onClick={onClear}
-            className="text-ink-3 hover:bg-ink/10 hover:text-ink ml-auto flex items-center gap-1 rounded px-1.5 py-0.5 text-xs transition-colors"
+            className="text-ink-3 hover:bg-wash-strong hover:text-ink focus-visible:ring-brand rounded-control text-mini ml-auto flex h-6 items-center gap-1 px-1.5 font-medium transition-colors outline-none focus-visible:ring-2"
           >
             <XIcon className="size-3" />
             Clear
@@ -96,27 +97,25 @@ export default function DatePanel({
       />
 
       <div className="mb-1 flex items-center justify-between">
-        <button
-          type="button"
-          aria-label="Previous month"
+        <IconButton
+          tooltip={false}
+          label="Previous month"
           onClick={() => setView((v) => shiftMonth(v.year, v.month, -1))}
-          className="text-ink-2 hover:bg-ink/10 hover:text-ink rounded-control grid size-7 place-items-center transition-colors"
         >
-          <ChevronLeftIcon className="size-4" />
-        </button>
+          <ChevronLeftIcon />
+        </IconButton>
 
         <span className="text-ink text-sm font-medium capitalize">
           {heading}
         </span>
 
-        <button
-          type="button"
-          aria-label="Next month"
+        <IconButton
+          tooltip={false}
+          label="Next month"
           onClick={() => setView((v) => shiftMonth(v.year, v.month, 1))}
-          className="text-ink-2 hover:bg-ink/10 hover:text-ink rounded-control grid size-7 place-items-center transition-colors"
         >
-          <ChevronRightIcon className="size-4" />
-        </button>
+          <ChevronRightIcon />
+        </IconButton>
       </div>
 
       <div className="grid grid-cols-7 gap-0.5">
@@ -143,12 +142,12 @@ export default function DatePanel({
               aria-current={isToday ? "date" : undefined}
               aria-pressed={isSelected}
               className={cn(
-                "rounded-control text-meta grid h-8 place-items-center transition-colors",
+                "rounded-control text-meta focus-visible:ring-brand grid h-8 place-items-center transition-colors outline-none focus-visible:ring-2",
                 isSelected
                   ? "bg-brand text-brand-fg font-semibold"
                   : inMonth
-                    ? "text-ink hover:bg-ink/10"
-                    : "text-ink-3 hover:bg-ink/5",
+                    ? "text-ink hover:bg-wash-strong"
+                    : "text-ink-3 hover:bg-wash",
                 isToday && !isSelected && "ring-brand/60 ring-1 ring-inset",
                 isBlocked &&
                   "text-ink-3/30 cursor-not-allowed line-through hover:bg-transparent",

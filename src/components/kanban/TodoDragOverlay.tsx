@@ -1,10 +1,15 @@
 import { DragOverlay } from "@dnd-kit/core";
 
 import TodoItem from "../todo/TodoItem";
-import { cn } from "@/utils/cn";
-
+import {
+  COLUMN_TITLE,
+  COLUMN_WIDTH,
+  COUNT_CHIP,
+} from "@/components/columns/columnChrome";
+import { categoryOf, columnTitle } from "@/constants/columns";
+import { useSubtaskProgressByParent } from "@/services/todos/useSubtasks";
 import type { IColumn, Todo } from "@/types/data";
-import { columnTitle } from "@/constants/columns";
+import { cn } from "@/utils/cn";
 
 interface Props {
   activeTodo: Todo | null;
@@ -20,38 +25,49 @@ export default function TodoDragOverlay({
   todosCount = 0,
   columnCollapsed = false,
 }: Props) {
+  const subtaskProgress = useSubtaskProgressByParent();
+  const progress = activeTodo ? subtaskProgress.get(activeTodo.id) : undefined;
+
   return (
-    <DragOverlay dropAnimation={null} adjustScale={false}>
-      {activeTodo && <TodoItem todo={activeTodo} overlay />}
+    // the lifted content is pointer-events-none, so the cursor has to come from this wrapper
+    <DragOverlay
+      dropAnimation={null}
+      adjustScale={false}
+      className="cursor-grabbing"
+    >
+      {activeTodo && (
+        <TodoItem
+          todo={activeTodo}
+          overlay
+          subtaskDone={progress?.done ?? 0}
+          subtaskTotal={progress?.total ?? 0}
+        />
+      )}
 
       {activeColumn && (
         <div
           className={cn(
-            "bg-surface rounded-xl shadow-e2",
+            "rounded-surface border-hairline bg-surface shadow-e3 pointer-events-none border",
             columnCollapsed
-              ? "flex w-14 flex-col items-center gap-3 py-3"
-              : "w-[280px] px-3 py-3",
+              ? "flex w-11 flex-col items-center gap-2 py-3.5"
+              : cn(COLUMN_WIDTH, "flex h-12 items-center gap-2 px-4.5"),
           )}
         >
-          <div
+          <span
             className={cn(
-              "flex items-center gap-2",
-              columnCollapsed && "flex-col",
+              "size-2 shrink-0 rounded-full",
+              categoryOf(activeColumn.category).dot,
             )}
-          >
-            <h2
-              className="text-ink text-sm font-semibold"
-              style={
-                columnCollapsed ? { writingMode: "vertical-rl" } : undefined
-              }
-            >
-              {columnTitle(activeColumn.title)}
-            </h2>
+          />
 
-            <span className="bg-ink/10 text-ink-2 shrink-0 rounded px-1.5 py-0.5 text-xs font-semibold">
-              {todosCount}
-            </span>
-          </div>
+          <h2
+            className={COLUMN_TITLE}
+            style={columnCollapsed ? { writingMode: "vertical-rl" } : undefined}
+          >
+            {columnTitle(activeColumn.title)}
+          </h2>
+
+          <span className={COUNT_CHIP}>{todosCount}</span>
         </div>
       )}
     </DragOverlay>

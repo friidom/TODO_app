@@ -1,7 +1,9 @@
-import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronRightIcon, InboxIcon } from "lucide-react";
 import { useState } from "react";
 
+import { COUNT_CHIP } from "@/components/columns/columnChrome";
 import MemberIdentity from "@/components/members/MemberIdentity";
+import EmptyState from "@/components/ui/EmptyState";
 import { columnTitle } from "@/constants/columns";
 import { PRIORITIES, type Priority } from "@/constants/priorities";
 import { workTypeOf } from "@/constants/workTypes";
@@ -28,24 +30,30 @@ export default function Swimlanes({
 
   if (!groups.length) {
     return (
-      <p className="text-ink-3 py-10 text-center text-sm">
-        Nothing to show in this view.
-      </p>
+      <EmptyState
+        size="sm"
+        icon={InboxIcon}
+        title="Nothing to show in this view"
+      />
     );
   }
 
   return (
     <div className="h-full overflow-auto pb-6">
-      <div className="flex min-w-max flex-col gap-5">
+      <div className="flex min-w-max flex-col gap-4">
         {groups.map((lane) => {
           const isCollapsed = collapsed.includes(lane.key);
 
           return (
-            <section key={lane.key}>
+            <section
+              key={lane.key}
+              className="border-hairline border-t pt-3 first:border-t-0 first:pt-0"
+            >
               <header className="sticky left-0 mb-2 flex w-fit max-w-full items-center gap-2 pr-4">
                 <button
                   type="button"
                   aria-expanded={!isCollapsed}
+                  aria-label={`${lane.label} lane`}
                   onClick={() =>
                     setCollapsed((open) =>
                       open.includes(lane.key)
@@ -53,7 +61,7 @@ export default function Swimlanes({
                         : [...open, lane.key],
                     )
                   }
-                  className="text-ink-3 hover:text-ink hover:bg-ink/10 focus-visible:ring-brand -ml-1 rounded p-1 transition-colors outline-none focus-visible:ring-2"
+                  className="text-ink-3 hover:text-ink hover:bg-wash-strong focus-visible:ring-brand rounded-control coarse:size-8 -ml-1 grid size-7 shrink-0 place-items-center transition-colors duration-150 outline-none focus-visible:ring-2"
                 >
                   {isCollapsed ? (
                     <ChevronRightIcon className="size-4" />
@@ -64,9 +72,7 @@ export default function Swimlanes({
 
                 <LaneLabel group={group} lane={lane} members={members} />
 
-                <span className="bg-ink/10 text-ink-3 text-mini shrink-0 rounded px-1.5 py-0.5 font-semibold">
-                  {lane.todos.length}
-                </span>
+                <span className={COUNT_CHIP}>{lane.todos.length}</span>
               </header>
 
               {!isCollapsed && (

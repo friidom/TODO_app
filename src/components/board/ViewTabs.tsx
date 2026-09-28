@@ -1,3 +1,4 @@
+import type { KeyboardEvent } from "react";
 import {
   CalendarIcon,
   GaugeIcon,
@@ -22,10 +23,19 @@ const ICONS: Record<ViewMode, LucideIcon> = {
   backlog: LayersIcon,
 };
 
-// driven by VIEW_MODES from the registry, not a tab list kept here — a new view means one registry entry + icon
+// the underline is a pseudo-element inset by the padding, so it spans the label rather than the hit area;
+// ring-inset because the tablist scrolls, and an outset ring would be clipped by it
 const TAB =
-  "flex h-full min-h-12 shrink-0 items-center gap-1.5 border-b-2 px-2.5 text-meta transition-colors";
+  "text-meta focus-visible:ring-brand rounded-control relative flex h-10 shrink-0 items-center gap-1.5 px-2 transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-inset after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full after:transition-colors after:duration-150";
 
+const STEP: Record<string, (index: number, count: number) => number> = {
+  ArrowRight: (index, count) => (index + 1) % count,
+  ArrowLeft: (index, count) => (index - 1 + count) % count,
+  Home: () => 0,
+  End: (_, count) => count - 1,
+};
+
+// driven by VIEW_MODES from the registry, not a tab list kept here — a new view means one registry entry + icon
 export default function ViewTabs({ view }: { view: BoardView }) {
   const sprintsEnabled = useSprintsEnabled();
 
@@ -36,11 +46,30 @@ export default function ViewTabs({ view }: { view: BoardView }) {
     (mode) => sprintsEnabled || mode !== "backlog",
   );
 
+  // a stale ?view=backlog selects no tab, and the tablist still needs one Tab stop
+  const tabStop = modes.includes(view.mode) ? view.mode : "board";
+
+  // arrows move focus only; Enter or Space switches, so passing over a tab doesn't render its whole view
+  function handleKeyDown(e: KeyboardEvent<HTMLDivElement>) {
+    const step = STEP[e.key];
+    const tabs = Array.from(
+      e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]'),
+    );
+    const index = tabs.indexOf(e.target as HTMLButtonElement);
+
+    if (!step || index < 0) return;
+
+    e.preventDefault();
+    tabs[step(index, tabs.length)]?.focus();
+  }
+
+  // the ! is needed: global.css sets scrollbar-width on `*` unlayered, which outranks any layered utility
   return (
     <div
       role="tablist"
       aria-label="View"
-      className="flex shrink-0 items-stretch gap-1 self-stretch overflow-x-auto"
+      onKeyDown={handleKeyDown}
+      className="-mb-px -ml-2 flex min-w-0 [scrollbar-width:none]! items-stretch gap-1 overflow-x-auto [&::-webkit-scrollbar]:hidden"
     >
       {modes.map((mode) => {
         const Icon = ICONS[mode];
@@ -52,16 +81,16 @@ export default function ViewTabs({ view }: { view: BoardView }) {
             type="button"
             role="tab"
             aria-selected={selected}
+            tabIndex={mode === tabStop ? 0 : -1}
             onClick={() => view.setMode(mode)}
             className={cn(
               TAB,
-              "focus-visible:ring-brand rounded-t-[6px] outline-none focus-visible:ring-2",
               selected
-                ? "border-brand text-ink font-medium"
-                : "hover:text-ink hover:border-hairline text-ink-3 border-transparent",
+                ? "text-ink after:bg-brand font-medium"
+                : "text-ink-3 hover:text-ink hover:after:bg-hairline",
             )}
           >
-            <Icon className={cn("size-[17px]", selected && "text-brand")} />
+            <Icon className={cn("size-4 shrink-0", selected && "text-brand")} />
             {VIEWS[mode].label}
           </button>
         );

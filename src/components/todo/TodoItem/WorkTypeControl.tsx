@@ -1,7 +1,7 @@
 import { CheckIcon } from "lucide-react";
-import { FloatingPortal } from "@floating-ui/react";
+import { FloatingPortal, type Placement } from "@floating-ui/react";
 
-import { useCardPopover } from "./useCardPopover";
+import { MENU_LABEL, POPOVER_PANEL } from "@/components/ui/controlChrome";
 import {
   WORK_TYPE_OPTIONS,
   type WorkType,
@@ -9,6 +9,8 @@ import {
   workTypeOf,
 } from "@/constants/workTypes";
 import { cn } from "@/utils/cn";
+import { FIELD_CHIP, FIELD_ICON, OPTION_ITEM } from "./fieldChrome";
+import { useCardPopover } from "./useCardPopover";
 
 // controlled, like the other card popovers — reports the chosen type and never writes itself
 export default function WorkTypeControl({
@@ -16,14 +18,18 @@ export default function WorkTypeControl({
   onChange,
   showLabel = false,
   bare = false,
+  placement,
 }: {
   value: string | null;
   onChange: (value: WorkType) => void;
   showLabel?: boolean;
   // no tinted background, just the coloured icon — for the list row, where a filled badge is too loud
   bare?: boolean;
+  placement?: Placement;
 }) {
-  const { mounted, close, triggerProps, panelProps } = useCardPopover();
+  const { mounted, close, triggerProps, panelProps } = useCardPopover({
+    placement,
+  });
 
   const current = toWorkType(value);
   const meta = workTypeOf(current);
@@ -36,12 +42,11 @@ export default function WorkTypeControl({
         {...triggerProps}
         title={`Work type: ${current}`}
         aria-label={`Work type: ${current}`}
-        className={cn(
-          "flex shrink-0 items-center gap-1 rounded transition-colors duration-150",
+        className={
           bare
-            ? cn("hover:bg-ink/10 p-0.5", meta.tone)
-            : cn("text-mini px-1.5 py-0.5 font-semibold", meta.chip),
-        )}
+            ? cn(FIELD_ICON, meta.tone)
+            : cn(FIELD_CHIP, "shrink-0", meta.chip)
+        }
       >
         <Icon className={bare ? "size-3.5" : "size-3"} />
         {showLabel && current}
@@ -53,11 +58,9 @@ export default function WorkTypeControl({
             {...panelProps}
             role="menu"
             aria-label="Work type"
-            className="border-hairline bg-elevated rounded-card z-50 w-44 overflow-hidden border p-1 shadow-e2"
+            className={cn(POPOVER_PANEL, "z-50 w-44")}
           >
-            <p className="text-ink-3 text-mini px-2 py-1.5 font-semibold tracking-wide uppercase">
-              Work type
-            </p>
+            <p className={MENU_LABEL}>Work type</p>
 
             {WORK_TYPE_OPTIONS.map((option) => {
               const optionMeta = workTypeOf(option);
@@ -74,15 +77,11 @@ export default function WorkTypeControl({
                     onChange(option);
                     close();
                   }}
-                  className="text-ink hover:bg-ink/10 focus-visible:bg-ink/10 rounded-control flex w-full items-center gap-2 px-2 py-1.5 text-sm transition-colors outline-none"
+                  className={OPTION_ITEM}
                 >
-                  <OptionIcon
-                    className={cn("size-4 shrink-0", optionMeta.tone)}
-                  />
-                  <span className="flex-1 text-left">{option}</span>
-                  {selected && (
-                    <CheckIcon className="text-brand size-4 shrink-0" />
-                  )}
+                  <OptionIcon className={cn("size-4", optionMeta.tone)} />
+                  <span className="flex-1">{option}</span>
+                  {selected && <CheckIcon className="text-brand size-4" />}
                 </button>
               );
             })}

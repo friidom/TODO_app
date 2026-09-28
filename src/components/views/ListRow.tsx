@@ -151,7 +151,7 @@ export default function ListRow({ todo }: { todo: Todo }) {
 
       <div role="cell" className="flex justify-end">
         {canEditTodos && (
-          <div className="coarse:opacity-100 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
+          <div className="coarse:opacity-100 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100">
             <TodoMenu todo={todo} onEdit={() => setEditing(true)} />
           </div>
         )}

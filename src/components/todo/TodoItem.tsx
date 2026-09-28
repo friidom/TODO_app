@@ -21,9 +21,19 @@ const TodoItem = memo(function TodoItem({
   dragDisabled = false,
   subtaskDone = 0,
   subtaskTotal = 0,
-}: { todo: Todo } & TodoViewState & SubtaskCounts) {
+  selected = false,
+}: { todo: Todo; selected?: boolean } & TodoViewState & SubtaskCounts) {
   // split so hooks are never called conditionally
-  if (overlay) return <TodoContainer todo={todo} overlay />;
+  if (overlay) {
+    return (
+      <TodoContainer
+        todo={todo}
+        overlay
+        subtaskDone={subtaskDone}
+        subtaskTotal={subtaskTotal}
+      />
+    );
+  }
 
   return (
     <DraggableTodo
@@ -31,6 +41,7 @@ const TodoItem = memo(function TodoItem({
       dragDisabled={dragDisabled}
       subtaskDone={subtaskDone}
       subtaskTotal={subtaskTotal}
+      selected={selected}
     />
   );
 });
@@ -48,9 +59,11 @@ function DraggableTodo({
   dragDisabled,
   subtaskDone,
   subtaskTotal,
+  selected,
 }: {
   todo: Todo;
   dragDisabled?: boolean;
+  selected: boolean;
 } & SubtaskCounts) {
   const keyPrefix = useKeyPrefix();
 
@@ -103,6 +116,7 @@ function DraggableTodo({
       dragDisabled={dragDisabled}
       subtaskDone={subtaskDone}
       subtaskTotal={subtaskTotal}
+      selected={selected}
       setNodeRef={setNodeRef}
       handleProps={handleProps}
     />
@@ -117,10 +131,12 @@ const TodoContainer = memo(function TodoContainer({
   dragDisabled = false,
   subtaskDone = 0,
   subtaskTotal = 0,
+  selected = false,
   setNodeRef,
   handleProps,
 }: { todo: Todo } & TodoViewState &
   SubtaskCounts & {
+    selected?: boolean;
     setNodeRef?: (element: HTMLElement | null) => void;
     handleProps?: Record<string, unknown>;
   }) {
@@ -161,6 +177,7 @@ const TodoContainer = memo(function TodoContainer({
       editing={editing}
       canEdit={canEditTodos}
       celebrate={celebrate}
+      selected={selected}
       overlay={overlay}
       dragging={dragging}
       dragDisabled={dragDisabled}

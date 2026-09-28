@@ -3,7 +3,6 @@ import { Gauge } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
@@ -15,19 +14,18 @@ export default function LimitWarning({
   side?: "top" | "bottom" | "left" | "right";
 }) {
   return (
-    <TooltipProvider delay={100}>
-      <Tooltip>
-        <TooltipTrigger
-          aria-label={message}
-          className="shrink-0 rounded bg-status-red/15 p-1 text-status-red outline-none focus-visible:ring-2 focus-visible:ring-brand"
-        >
-          <Gauge size={16} />
-        </TooltipTrigger>
+    <Tooltip>
+      <TooltipTrigger
+        type="button"
+        aria-label={message}
+        className="bg-status-red/15 text-status-red focus-visible:ring-brand rounded-control coarse:size-8 grid size-7 shrink-0 place-items-center outline-none focus-visible:ring-2"
+      >
+        <Gauge className="size-4" />
+      </TooltipTrigger>
 
-        <TooltipContent side={side} className="max-w-64 text-sm">
-          {message}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+      <TooltipContent side={side} className="max-w-64">
+        {message}
+      </TooltipContent>
+    </Tooltip>
   );
 }

@@ -4,12 +4,16 @@ import { X } from "lucide-react";
 import { useUpdateColumn } from "@/services/columns/useUpdateColumn";
 import type { IColumn } from "@/types/data";
 import {
+  DIALOG_ACTIONS,
+  DIALOG_BODY,
   DIALOG_CANCEL,
   DIALOG_CONFIRM,
+  DIALOG_ERROR,
   DIALOG_LABEL,
+  DIALOG_TITLE,
 } from "@/components/ui/dialogChrome";
-import { DIALOG_TITLE } from "@/components/ui/dialogChrome";
 import { FIELD_INPUT } from "@/components/ui/fieldInput";
+import IconButton from "@/components/ui/IconButton";
 
 interface Props {
   column: IColumn | null;
@@ -76,22 +80,23 @@ function ColumnLimitDialog({
     >
       <form
         onSubmit={handleSubmit}
-        className="border-hairline bg-surface rounded-surface max-h-full w-[480px] max-w-full overflow-y-auto border p-5 shadow-e3 sm:p-6"
+        className="border-hairline bg-surface rounded-surface shadow-e3 max-h-full w-[480px] max-w-full overflow-y-auto border p-5 sm:p-6"
       >
-        <div className="mb-4 flex items-start justify-between">
+        <div className="mb-4 flex items-start justify-between gap-4">
           <h2 className={DIALOG_TITLE}>Column limit</h2>
 
-          <button
-            type="button"
+          <IconButton
+            label="Close"
+            size="md"
+            tooltip={false}
             onClick={onClose}
-            aria-label="Close"
-            className="text-ink-3 hover:bg-ink/[0.06] hover:text-ink focus-visible:ring-brand rounded-control grid size-8 shrink-0 place-items-center transition-colors outline-none focus-visible:ring-2"
+            className="-mt-1"
           >
-            <X size={20} />
-          </button>
+            <X />
+          </IconButton>
         </div>
 
-        <p className="text-secondary mb-6 text-sm">
+        <p className={`${DIALOG_BODY} mb-6`}>
           Set minimum and maximum work item limits for this column.
         </p>
 
@@ -128,12 +133,10 @@ function ColumnLimitDialog({
         </div>
 
         {(error || updateColumn.error) && (
-          <p className="bg-status-red/15 text-status-red mt-4 rounded-xl px-4 py-3 text-sm">
-            {error ?? updateColumn.error?.message}
-          </p>
+          <p className={DIALOG_ERROR}>{error ?? updateColumn.error?.message}</p>
         )}
 
-        <div className="mt-8 flex justify-end gap-3">
+        <div className={DIALOG_ACTIONS}>
           <button type="button" onClick={onClose} className={DIALOG_CANCEL}>
             Cancel
           </button>

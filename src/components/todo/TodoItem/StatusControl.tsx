@@ -1,21 +1,26 @@
-import { CheckIcon } from "lucide-react";
+import { CheckIcon, ChevronDownIcon } from "lucide-react";
 import { FloatingPortal } from "@floating-ui/react";
 
-import { useCardPopover } from "./useCardPopover";
+import { MENU_LABEL, POPOVER_PANEL } from "@/components/ui/controlChrome";
 import { categoryOf, columnTitle } from "@/constants/columns";
 import { useColumns } from "@/services/columns/useColumnsApi";
 import { useMoveTodo } from "@/services/todos/useMoveTodo";
 import { useWorkflowGate } from "@/services/todos/useWorkflowGate";
 import { byRank } from "@/utils/rank";
 import { cn } from "@/utils/cn";
+import { FIELD_CHIP, OPTION_ITEM } from "./fieldChrome";
+import { useCardPopover } from "./useCardPopover";
 
 // Status isn't a field — it's which column the card is in, so this just calls useMoveTodo, same as the menu and a drag.
 export default function StatusControl({
   todoId,
   columnId,
+  variant = "chip",
 }: {
   todoId: string;
   columnId: string | null;
+  // "field" is the task detail's primary control; the chip stays the dense default for cards, rows and menus
+  variant?: "chip" | "field";
 }) {
   const { mounted, close, triggerProps, panelProps } = useCardPopover();
   const { data: columns = [] } = useColumns();
@@ -33,15 +38,33 @@ export default function StatusControl({
         {...triggerProps}
         title={`Status: ${label}`}
         aria-label={`Status: ${label}`}
-        className="bg-ink/10 text-ink-2 hover:bg-ink/15 hover:text-ink text-mini flex min-w-0 shrink items-center gap-1 rounded px-1.5 py-0.5 font-medium transition-colors"
+        className={
+          variant === "field"
+            ? "border-hairline bg-surface text-ink hover:bg-wash-strong focus-visible:ring-brand rounded-control text-meta flex h-8 w-full min-w-0 items-center gap-2 border px-3 font-medium transition-colors outline-none focus-visible:ring-2"
+            : cn(
+                FIELD_CHIP,
+                "bg-wash-strong text-ink-2 hover:bg-ink/15 hover:text-ink min-w-0 shrink gap-1.5",
+              )
+        }
       >
         <span
           className={cn(
-            "size-1.5 shrink-0 rounded-full",
+            "shrink-0 rounded-full",
+            variant === "field" ? "size-2" : "size-1.5",
             categoryOf(current?.category).dot,
           )}
         />
-        <span className="truncate">{label}</span>
+        <span
+          className={cn(
+            "truncate",
+            variant === "field" && "min-w-0 flex-1 text-left",
+          )}
+        >
+          {label}
+        </span>
+        {variant === "field" && (
+          <ChevronDownIcon className="text-ink-3 -mr-1 size-3.5 shrink-0" />
+        )}
       </button>
 
       {mounted && (
@@ -50,11 +73,9 @@ export default function StatusControl({
             {...panelProps}
             role="menu"
             aria-label="Status"
-            className="border-hairline bg-elevated rounded-card z-50 max-h-64 w-48 overflow-y-auto border p-1 shadow-e2"
+            className={cn(POPOVER_PANEL, "z-50 max-h-64 w-48 overflow-y-auto")}
           >
-            <p className="text-ink-3 text-mini px-2 py-1.5 font-semibold tracking-wide uppercase">
-              Status
-            </p>
+            <p className={MENU_LABEL}>Status</p>
 
             {ordered.map((column) => {
               const selected = column.id === columnId;
@@ -76,7 +97,7 @@ export default function StatusControl({
                     if (!selected) moveTo(column);
                     close();
                   }}
-                  className="text-ink hover:bg-ink/10 focus-visible:bg-ink/10 rounded-control flex w-full items-center gap-2 px-2 py-1.5 text-sm transition-colors outline-none disabled:pointer-events-none disabled:opacity-40"
+                  className={OPTION_ITEM}
                 >
                   <span
                     className={cn(
@@ -84,12 +105,10 @@ export default function StatusControl({
                       categoryOf(column.category).dot,
                     )}
                   />
-                  <span className="min-w-0 flex-1 truncate text-left">
+                  <span className="min-w-0 flex-1 truncate">
                     {columnTitle(column.title)}
                   </span>
-                  {selected && (
-                    <CheckIcon className="text-brand size-4 shrink-0" />
-                  )}
+                  {selected && <CheckIcon className="text-brand size-4" />}
                 </button>
               );
             })}

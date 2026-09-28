@@ -5,18 +5,21 @@ import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/SideBarUI/sidebar";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 // min-h-0/min-w-0 on the scrolling ancestors matters — a flex child defaults to min-height:auto and won't shrink below its content
 export default function Layout({ children }: { children: ReactNode }) {
   return (
     <SidebarProvider>
-      <div className="bg-canvas flex h-svh w-full overflow-hidden">
-        <AppSidebar />
+      <TooltipProvider delay={400}>
+        <div className="bg-canvas flex h-svh w-full overflow-hidden">
+          <AppSidebar />
 
-        <SidebarInset className="bg-canvas flex min-w-0 flex-1 flex-col overflow-hidden">
-          {children}
-        </SidebarInset>
-      </div>
+          <SidebarInset className="bg-canvas flex min-w-0 flex-1 flex-col overflow-hidden">
+            {children}
+          </SidebarInset>
+        </div>
+      </TooltipProvider>
     </SidebarProvider>
   );
 }

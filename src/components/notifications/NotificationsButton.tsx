@@ -32,15 +32,9 @@ export default function NotificationsButton() {
           onClick={() => setOpen(true)}
           aria-haspopup="dialog"
           aria-expanded={open}
-          className={cn(
-            "h-9 text-sm transition-colors duration-150",
-            open ? "bg-elevated text-ink font-medium" : "text-ink-2",
-            "hover:bg-ink/[0.04]",
-          )}
+          className={cn(open && "bg-wash-strong text-ink")}
         >
-          <BellIcon
-            className={cn("size-[18px] shrink-0", open && "text-brand")}
-          />
+          <BellIcon />
           <span>Notifications</span>
 
           {unread > 0 && (
@@ -63,7 +57,7 @@ export default function NotificationsButton() {
             role="dialog"
             aria-modal="true"
             aria-label="Notifications"
-            className="border-hairline bg-surface rounded-surface fixed z-50 overflow-hidden border shadow-e3 max-md:inset-x-4 max-md:top-16 md:top-20 md:left-[calc(var(--sidebar-width,16rem)+0.5rem)]"
+            className="border-hairline bg-surface rounded-surface shadow-e3 fixed z-50 overflow-hidden border max-md:inset-x-4 max-md:top-16 md:top-20 md:left-[calc(var(--sidebar-width,16rem)+0.5rem)]"
           >
             <NotificationsPanel onClose={() => setOpen(false)} />
           </div>

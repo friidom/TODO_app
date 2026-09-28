@@ -1,9 +1,16 @@
 import { CheckIcon, Link2OffIcon, LayersIcon } from "lucide-react";
 import { FloatingPortal } from "@floating-ui/react";
 
-import { useCardPopover } from "./useCardPopover";
 import type { Sprint } from "@/types/data";
+import {
+  MENU_ITEM,
+  MENU_LABEL,
+  MENU_SEPARATOR,
+  POPOVER_PANEL,
+} from "@/components/ui/controlChrome";
 import { cn } from "@/utils/cn";
+import { FIELD_CHIP, FIELD_EMPTY, OPTION_ITEM } from "./fieldChrome";
+import { useCardPopover } from "./useCardPopover";
 
 // controlled — reports the chosen id via onChange and never writes itself; the caller decides what else to patch
 export default function SprintControl({
@@ -31,10 +38,11 @@ export default function SprintControl({
         title={label}
         aria-label={label}
         className={cn(
-          "text-mini flex min-w-0 shrink items-center gap-1 rounded px-1.5 py-0.5 font-medium transition-colors",
+          FIELD_CHIP,
+          "min-w-0 shrink",
           sprint
             ? "bg-status-blue/15 text-status-blue hover:bg-status-blue/25"
-            : "border-hairline text-ink-3 hover:text-ink-2 border border-dashed",
+            : FIELD_EMPTY,
         )}
       >
         <LayersIcon className="size-3 shrink-0" />
@@ -49,14 +57,12 @@ export default function SprintControl({
             {...panelProps}
             role="menu"
             aria-label="Sprint"
-            className="border-hairline bg-elevated rounded-card z-50 max-h-64 w-56 overflow-y-auto border p-1 shadow-e2"
+            className={cn(POPOVER_PANEL, "z-50 max-h-64 w-56 overflow-y-auto")}
           >
-            <p className="text-ink-3 text-mini px-2 py-1.5 font-semibold tracking-wide uppercase">
-              Sprint
-            </p>
+            <p className={MENU_LABEL}>Sprint</p>
 
             {options.length === 0 ? (
-              <p className="text-ink-3 px-2 py-3 text-xs">
+              <p className="text-ink-3 text-meta px-2 py-2">
                 No open sprints on this board yet.
               </p>
             ) : (
@@ -72,7 +78,7 @@ export default function SprintControl({
                           onChange(selected ? null : candidate.id);
                           close();
                         }}
-                        className="hover:bg-ink/10 focus-visible:bg-ink/10 rounded-control flex w-full min-w-0 items-center gap-2 px-2 py-1.5 text-left text-sm transition-colors outline-none"
+                        className={cn(OPTION_ITEM, "min-w-0")}
                       >
                         <span className="min-w-0 flex-1 truncate">
                           {candidate.name}
@@ -85,7 +91,7 @@ export default function SprintControl({
                         )}
 
                         {selected && (
-                          <CheckIcon className="text-brand size-4 shrink-0" />
+                          <CheckIcon className="text-brand size-4" />
                         )}
                       </button>
                     </li>
@@ -96,7 +102,7 @@ export default function SprintControl({
 
             {sprintId !== null && (
               <>
-                <div className="bg-hairline my-1 h-px" />
+                <div className={MENU_SEPARATOR} />
 
                 <button
                   type="button"
@@ -104,9 +110,9 @@ export default function SprintControl({
                     onChange(null);
                     close();
                   }}
-                  className="text-ink-2 hover:bg-ink/10 rounded-control flex w-full items-center gap-2 px-2 py-1.5 text-sm transition-colors"
+                  className={MENU_ITEM}
                 >
-                  <Link2OffIcon className="size-3.5" />
+                  <Link2OffIcon />
                   Remove from sprint
                 </button>
               </>

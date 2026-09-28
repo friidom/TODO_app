@@ -21,7 +21,7 @@ export default function ColumnDropZone({
   });
 
   return (
-    <div ref={setNodeRef} className="relative min-h-32 w-6 shrink-0">
+    <div ref={setNodeRef} className="relative min-h-32 w-3 shrink-0">
       <div
         className={cn(
           "overlay-indicator-column bg-brand absolute inset-y-0 left-1/2 h-full w-[3px] -translate-x-1/2 rounded-full transition-opacity duration-100",

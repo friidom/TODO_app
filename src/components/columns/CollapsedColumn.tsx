@@ -1,6 +1,9 @@
 import { useDraggable } from "@dnd-kit/core";
 
 import LimitWarning from "./LimitWarning";
+import { COUNT_CHIP } from "./columnChrome";
+import IconButton from "@/components/ui/IconButton";
+import { categoryOf } from "@/constants/columns";
 import { limitBreach } from "@/services/columns/limitBreach";
 import { cn } from "@/utils/cn";
 import type { IColumn } from "@/types/data";
@@ -30,39 +33,43 @@ export default function CollapsedColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        "group/rail rounded-surface border-hairline bg-surface flex h-fit max-h-full w-11 shrink-0 flex-col items-center gap-3 border py-3",
+        "group/rail rounded-surface border-hairline bg-surface flex h-fit max-h-full w-11 shrink-0 flex-col items-center gap-2 border py-2.5",
         isDragging && "opacity-40",
       )}
     >
       <div
         {...attributes}
         {...listeners}
-        className="flex min-h-0 cursor-grab touch-none flex-col items-center gap-3 select-none active:cursor-grabbing"
+        aria-label={`Reorder ${headerTitle} column`}
+        aria-roledescription="column"
+        className="focus-visible:ring-brand rounded-control flex min-h-0 cursor-grab touch-none flex-col items-center gap-2 px-1 py-1 outline-none select-none focus-visible:ring-2 active:cursor-grabbing"
       >
+        <span
+          className={cn(
+            "size-2 shrink-0 rounded-full",
+            categoryOf(column.category).dot,
+          )}
+        />
+
         <h2
-          className="text-ink truncate text-sm font-semibold"
+          className="text-ink-2 text-mini truncate font-semibold tracking-wide uppercase"
           style={{ writingMode: "vertical-rl" }}
         >
           {headerTitle}
         </h2>
 
-        <span className="bg-ink/10 text-ink-2 shrink-0 rounded px-1.5 py-0.5 text-xs font-semibold">
-          {count}
-        </span>
+        <span className={COUNT_CHIP}>{count}</span>
       </div>
 
       {breach && <LimitWarning message={breach} side="right" />}
 
-      <button
-        type="button"
+      <IconButton
+        label="Expand column"
+        tooltipSide="right"
         onClick={onExpand}
-        aria-label="Expand column"
-        title="Expand column"
-        className="text-ink-2 hover:bg-ink/10 hidden rounded p-1 group-focus-within/rail:block group-hover/rail:block"
+        className="coarse:pointer-events-auto coarse:opacity-100 pointer-events-none opacity-0 transition-[opacity,color,background-color] group-focus-within/rail:pointer-events-auto group-focus-within/rail:opacity-100 group-hover/rail:pointer-events-auto group-hover/rail:opacity-100"
       >
         <svg
-          width="18"
-          height="18"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -73,7 +80,7 @@ export default function CollapsedColumn({
         >
           <path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4" />
         </svg>
-      </button>
+      </IconButton>
     </div>
   );
 }

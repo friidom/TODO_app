@@ -1,24 +1,34 @@
 import { CheckIcon, UserIcon, UserMinusIcon } from "lucide-react";
 import { FloatingPortal } from "@floating-ui/react";
 
-import { useCardPopover } from "./useCardPopover";
 import MemberIdentity from "@/components/members/MemberIdentity";
 import { memberInitial, memberName } from "@/components/members/memberLabels";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  MENU_ITEM,
+  MENU_LABEL,
+  MENU_SEPARATOR,
+  POPOVER_PANEL,
+} from "@/components/ui/controlChrome";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useBoardMembers } from "@/services/members/useBoardMembers";
 import { cn } from "@/utils/cn";
+import { FIELD_EMPTY, HOVER_REVEAL, OPTION_ITEM } from "./fieldChrome";
+import { useCardPopover } from "./useCardPopover";
 
 export default function AssigneeControl({
   boardId,
   value: assigneeId,
   onChange,
   alwaysVisible = false,
+  showName = false,
 }: {
   boardId: string;
   value: string | null;
   onChange: (value: string | null) => void;
   alwaysVisible?: boolean;
+  // avatar + name for a labelled field row; the avatar alone stays the default for cards
+  showName?: boolean;
 }) {
   const { mounted, close, triggerProps, panelProps } = useCardPopover();
 
@@ -37,10 +47,10 @@ export default function AssigneeControl({
         title={label}
         aria-label={label}
         className={cn(
-          "shrink-0 rounded-full transition-opacity",
-          !assigneeId &&
-            !alwaysVisible &&
-            "coarse:opacity-100 opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
+          showName
+            ? "text-meta hover:bg-wash-strong focus-visible:ring-brand rounded-control -mx-1.5 flex h-8 min-w-0 items-center gap-2 px-1.5 transition-colors outline-none focus-visible:ring-2"
+            : "focus-visible:ring-brand shrink-0 rounded-full transition-opacity duration-150 outline-none focus-visible:ring-2",
+          !showName && !assigneeId && !alwaysVisible && HOVER_REVEAL,
         )}
       >
         {assignee ? (
@@ -53,24 +63,27 @@ export default function AssigneeControl({
         ) : (
           <span
             className={cn(
-              "border-hairline text-ink-3 hover:text-ink-2 grid size-6 place-items-center rounded-full border border-dashed transition-colors",
+              FIELD_EMPTY,
+              "grid size-6 shrink-0 place-items-center rounded-full transition-colors duration-150",
               assigneeId && "border-solid",
             )}
           >
             <UserIcon className="size-3" />
           </span>
         )}
+        {showName && (
+          <span
+            className={cn("truncate", assignee ? "text-ink" : "text-ink-3")}
+          >
+            {assignee ? memberName(assignee) : "Unassigned"}
+          </span>
+        )}
       </button>
 
       {mounted && (
         <FloatingPortal>
-          <div
-            {...panelProps}
-            className="border-hairline bg-elevated rounded-card z-50 w-60 overflow-hidden border p-1 shadow-e2"
-          >
-            <p className="text-ink-3 text-mini px-2 py-1.5 font-semibold tracking-wide uppercase">
-              Assignee
-            </p>
+          <div {...panelProps} className={cn(POPOVER_PANEL, "z-50 w-60")}>
+            <p className={MENU_LABEL}>Assignee</p>
 
             <MemberList
               boardId={boardId}
@@ -115,7 +128,7 @@ function MemberList({
 
   if (error) {
     return (
-      <p className="text-status-red px-2 py-3 text-xs">
+      <p className="text-status-red text-meta px-2 py-2">
         Could not load members.
       </p>
     );
@@ -123,7 +136,9 @@ function MemberList({
 
   if (members.length === 0) {
     return (
-      <p className="text-ink-3 px-2 py-3 text-xs">No members on this board.</p>
+      <p className="text-ink-3 text-meta px-2 py-2">
+        No members on this board.
+      </p>
     );
   }
 
@@ -138,13 +153,11 @@ function MemberList({
               <button
                 type="button"
                 onClick={() => assign(selected ? null : member.id)}
-                className="hover:bg-ink/10 focus-visible:bg-ink/10 rounded-control flex w-full items-center gap-2.5 px-2 py-1.5 transition-colors outline-none"
+                className={cn(OPTION_ITEM, "gap-2.5")}
               >
                 <MemberIdentity member={member} />
 
-                {selected && (
-                  <CheckIcon className="text-brand size-4 shrink-0" />
-                )}
+                {selected && <CheckIcon className="text-brand size-4" />}
               </button>
             </li>
           );
@@ -153,14 +166,14 @@ function MemberList({
 
       {assigneeId && (
         <>
-          <div className="bg-hairline my-1 h-px" />
+          <div className={MENU_SEPARATOR} />
 
           <button
             type="button"
             onClick={() => assign(null)}
-            className="text-ink-2 hover:bg-ink/10 hover:text-ink rounded-control flex w-full items-center gap-2 px-2 py-1.5 text-sm transition-colors"
+            className={MENU_ITEM}
           >
-            <UserMinusIcon className="size-3.5" />
+            <UserMinusIcon />
             Unassign
           </button>
         </>

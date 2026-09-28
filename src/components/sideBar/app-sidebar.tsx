@@ -22,7 +22,6 @@ import FiltersSection from "./FiltersSection";
 import NotificationsButton from "@/components/notifications/NotificationsButton";
 import { useAuth } from "@/services/auth/useAuth";
 import { useProfile } from "@/services/profile/useProfile";
-import { cn } from "@/utils/cn";
 
 type Item = {
   label: string;
@@ -48,11 +47,11 @@ function NavItem({ item }: { item: Item }) {
         <SidebarMenuButton
           aria-disabled
           title={`${item.label} — not built yet`}
-          className="text-ink-3/70 h-9 cursor-default text-sm hover:bg-transparent hover:text-inherit"
+          className="cursor-default"
         >
-          <Icon className="size-[18px] shrink-0" />
+          <Icon />
           <span>{item.label}</span>
-          <span className="bg-elevated text-ink-3/80 text-micro ml-auto rounded px-1.5 py-0.5 font-medium">
+          <span className="bg-wash-strong text-micro ml-auto rounded px-1.5 py-0.5 font-medium">
             Soon
           </span>
         </SidebarMenuButton>
@@ -65,19 +64,8 @@ function NavItem({ item }: { item: Item }) {
 
   return (
     <SidebarMenuItem>
-      <SidebarMenuButton
-        render={<NavLink to={item.to} />}
-        isActive={isActive}
-        className={cn(
-          "relative h-9 text-sm transition-colors duration-150",
-          isActive
-            ? "bg-brand-soft text-ink before:bg-brand font-medium before:absolute before:top-1/2 before:left-0 before:h-4 before:w-0.5 before:-translate-y-1/2 before:rounded-r-full"
-            : "text-ink-2 hover:bg-ink/[0.04]",
-        )}
-      >
-        <Icon
-          className={cn("size-[18px] shrink-0", isActive && "text-brand")}
-        />
+      <SidebarMenuButton render={<NavLink to={item.to} />} isActive={isActive}>
+        <Icon />
         <span>{item.label}</span>
       </SidebarMenuButton>
     </SidebarMenuItem>
@@ -90,7 +78,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   return (
     <Sidebar className="border-hairline border-r" {...props}>
-      <SidebarHeader className="px-3 py-3">
+      <SidebarHeader className="px-4 py-3">
         <div className="flex items-center gap-2.5">
           <span className="bg-brand text-brand-fg rounded-control shadow-e1 grid size-7 place-items-center">
             <SquareKanbanIcon className="size-4" />
@@ -104,8 +92,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         {/* no collapse trigger here — sidebar is collapsible="offcanvas", so a trigger inside would hide with it */}
       </SidebarHeader>
 
-      <SidebarContent className="gap-1">
-        <SidebarGroup className="py-1">
+      <SidebarContent className="gap-2">
+        <SidebarGroup>
           <SidebarMenu>
             {WORKSPACE.map((item) => (
               <NavItem key={item.label} item={item} />
@@ -127,7 +115,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <NavLink
             to="/profile"
             title="Profile and preferences"
-            className="hover:bg-elevated rounded-control flex min-w-0 flex-1 items-center gap-2.5 p-1.5 transition-colors duration-150"
+            className="hover:bg-wash focus-visible:ring-brand rounded-control flex min-w-0 flex-1 items-center gap-2.5 p-1.5 transition-colors duration-150 outline-none focus-visible:ring-2"
           >
             {profile?.avatar_url ? (
               <img
@@ -136,7 +124,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 className="size-7 shrink-0 rounded-full object-cover"
               />
             ) : (
-              <span className="bg-elevated text-ink-2 grid size-7 shrink-0 place-items-center rounded-full">
+              <span className="bg-wash-strong text-ink-2 grid size-7 shrink-0 place-items-center rounded-full">
                 <CircleUserIcon className="size-4" />
               </span>
             )}

@@ -28,29 +28,27 @@ export default function ParentLine({
   const key = parent ? taskKey(keyPrefix, parent.board_key) : null;
 
   return (
-    <p className="text-ink-3 mb-3 flex min-w-0 items-center gap-1 text-xs">
-      <ListTreeIcon className="size-3.5 shrink-0" />
-
+    <>
       {parent ? (
-        <>
-          <button
-            type="button"
-            onClick={() => openTask(parent.id)}
-            title={`Open ${key ?? parent.title ?? "the parent task"}`}
-            className="hover:text-brand focus-visible:ring-brand min-w-0 truncate rounded font-medium transition-colors outline-none focus-visible:ring-2"
-          >
-            {key ? `${key} ` : ""}
-            {parent.title || "Untitled"}
-          </button>
-
-          <ChevronRightIcon className="text-ink-3/60 size-3 shrink-0" />
-
-          <span className="shrink-0">Subtask</span>
-        </>
+        <button
+          type="button"
+          onClick={() => openTask(parent.id)}
+          title={`Open ${key ?? parent.title ?? "the parent task"}`}
+          className="text-ink-3 hover:bg-wash-strong hover:text-ink focus-visible:ring-brand rounded-control text-meta -ml-1.5 flex h-7 max-w-64 min-w-0 items-center gap-1.5 px-1.5 transition-colors duration-150 outline-none focus-visible:ring-2"
+        >
+          <ListTreeIcon className="size-3.5 shrink-0" />
+          {key && <span className="shrink-0 tabular-nums">{key}</span>}
+          <span className="min-w-0 truncate">{parent.title || "Untitled"}</span>
+        </button>
       ) : (
         // board array not loaded yet, or (shouldn't happen — fk cascades) the parent is gone
-        <span className="italic">Subtask of a task</span>
+        <span className="text-ink-3 text-meta flex shrink-0 items-center gap-1.5 italic">
+          <ListTreeIcon className="size-3.5 shrink-0" />
+          Subtask of a task
+        </span>
       )}
-    </p>
+
+      <ChevronRightIcon className="text-ink-3/60 size-3.5 shrink-0" />
+    </>
   );
 }

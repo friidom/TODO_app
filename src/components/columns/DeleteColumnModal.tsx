@@ -8,10 +8,11 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import IconButton from "@/components/ui/IconButton";
 import { useDeleteColumn } from "@/services/columns/useDeleteColumn";
-import { categoryOf, columnTitle } from "@/constants/columns";
-import { cn } from "@/utils/cn";
+import { columnTitle } from "@/constants/columns";
 import type { IColumn } from "@/types/data";
+import CategoryPill from "./CategoryPill";
 import {
   DIALOG_ACTIONS,
   DIALOG_BODY,
@@ -20,9 +21,6 @@ import {
   DIALOG_ERROR,
   DIALOG_TITLE,
 } from "@/components/ui/dialogChrome";
-
-const PILL =
-  "truncate rounded px-1.5 py-0.5 text-xs font-bold tracking-wide uppercase";
 
 interface Props {
   column: IColumn | null;
@@ -80,7 +78,7 @@ function DeleteColumnDialog({
     >
       <form
         onSubmit={handleSubmit}
-        className="border-hairline bg-surface rounded-surface max-h-full w-[640px] max-w-full overflow-y-auto border p-5 shadow-e3 sm:p-6"
+        className="border-hairline bg-surface rounded-surface shadow-e3 max-h-full w-[640px] max-w-full overflow-y-auto border p-5 sm:p-6"
       >
         <div className="mb-5 flex items-start justify-between gap-4">
           <h2 className={`${DIALOG_TITLE} flex items-center gap-2.5`}>
@@ -88,14 +86,15 @@ function DeleteColumnDialog({
             Move work from {columnTitle(column.title)} column
           </h2>
 
-          <button
-            type="button"
+          <IconButton
+            label="Close"
+            size="md"
+            tooltip={false}
             onClick={onClose}
-            aria-label="Close"
-            className="text-ink-2 hover:bg-ink/10 -mt-1 shrink-0 rounded p-1"
+            className="-mt-1"
           >
-            <X size={22} />
-          </button>
+            <X />
+          </IconButton>
         </div>
 
         <p className={`${DIALOG_BODY} mb-6`}>
@@ -109,15 +108,11 @@ function DeleteColumnDialog({
               This status will be deleted
             </p>
 
-            <span
-              className={cn(
-                PILL,
-                "inline-block max-w-full",
-                categoryOf(column.category).pill,
-              )}
-            >
-              {columnTitle(column.title)}
-            </span>
+            <CategoryPill
+              title={columnTitle(column.title)}
+              category={column.category}
+              className="max-w-full"
+            />
           </div>
 
           <ArrowRight
@@ -133,15 +128,10 @@ function DeleteColumnDialog({
 
             <DropdownMenu>
               <DropdownMenuTrigger className="border-hairline bg-canvas focus-visible:border-brand focus-visible:ring-brand/30 data-[popup-open]:border-brand rounded-control flex w-full items-center gap-2 border px-3 py-2 text-left outline-none focus-visible:ring-2">
-                <span
-                  className={cn(
-                    PILL,
-                    "min-w-0",
-                    categoryOf(selected.category).pill,
-                  )}
-                >
-                  {columnTitle(selected.title)}
-                </span>
+                <CategoryPill
+                  title={columnTitle(selected.title)}
+                  category={selected.category}
+                />
 
                 <ChevronDown
                   size={16}
@@ -156,11 +146,10 @@ function DeleteColumnDialog({
                 >
                   {destinations.map((option) => (
                     <DropdownMenuRadioItem key={option.id} value={option.id}>
-                      <span
-                        className={cn(PILL, categoryOf(option.category).pill)}
-                      >
-                        {columnTitle(option.title)}
-                      </span>
+                      <CategoryPill
+                        title={columnTitle(option.title)}
+                        category={option.category}
+                      />
                     </DropdownMenuRadioItem>
                   ))}
                 </DropdownMenuRadioGroup>

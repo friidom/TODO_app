@@ -71,13 +71,16 @@ function CreateColumnDialog({ onClose }: { onClose: () => void }) {
     >
       <form
         onSubmit={handleSubmit}
-        className="border-hairline bg-surface rounded-surface max-h-full w-[420px] max-w-full overflow-y-auto border p-5 shadow-e3 sm:p-6"
+        className="border-hairline bg-surface rounded-surface shadow-e3 max-h-full w-[420px] max-w-full overflow-y-auto border p-5 sm:p-6"
       >
         <h2 className={`${DIALOG_TITLE} mb-5`}>Create column</h2>
 
-        <label className={DIALOG_LABEL}>Name</label>
+        <label htmlFor="create-column-name" className={DIALOG_LABEL}>
+          Name
+        </label>
 
         <input
+          id="create-column-name"
           autoFocus
           value={title}
           onChange={(e) => setTitle(e.target.value)}

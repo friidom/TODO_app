@@ -1,4 +1,5 @@
-import { InboxIcon, LockIcon } from "lucide-react";
+import type { ReactNode } from "react";
+import { InboxIcon, LockIcon, type LucideIcon } from "lucide-react";
 
 import type { BoardView } from "@/hooks/useBoardView";
 
@@ -19,41 +20,51 @@ export default function ViewNotice({
   if (!empty && !drag) return null;
 
   return (
-    <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+    <div className="mb-3 flex flex-col gap-2">
       {drag && (
-        <p className="text-ink-3 flex items-center gap-1.5 text-xs">
-          <LockIcon className="size-3.5 shrink-0" />
-          <span>
-            {view.dndReason} · cards cannot be dragged while the board is not
-            showing its own order
-          </span>
-          <button
-            type="button"
-            onClick={view.enableDnd}
-            className="text-brand hover:bg-brand-soft focus-visible:ring-brand rounded px-1.5 py-0.5 font-medium transition-colors outline-none focus-visible:ring-2"
-          >
-            Reset
-          </button>
-        </p>
+        <Notice icon={LockIcon} action="Reset" onAction={view.enableDnd}>
+          {view.dndReason} · cards cannot be dragged while the board is not
+          showing its own order
+        </Notice>
       )}
 
       {empty && (
-        <p className="text-ink-3 flex items-center gap-1.5 text-xs">
-          <InboxIcon className="size-3.5 shrink-0" />
-          <span>
-            {query
-              ? `Nothing matches “${query}”.`
-              : "No cards match the current filter."}
-          </span>
-          <button
-            type="button"
-            onClick={query ? () => view.setQuery("") : view.clearFilters}
-            className="text-brand hover:bg-brand-soft focus-visible:ring-brand rounded px-1.5 py-0.5 font-medium transition-colors outline-none focus-visible:ring-2"
-          >
-            {query ? "Clear search" : "Clear filters"}
-          </button>
-        </p>
+        <Notice
+          icon={InboxIcon}
+          action={query ? "Clear search" : "Clear filters"}
+          onAction={query ? () => view.setQuery("") : view.clearFilters}
+        >
+          {query
+            ? `Nothing matches “${query}”.`
+            : "No cards match the current filter."}
+        </Notice>
       )}
     </div>
+  );
+}
+
+function Notice({
+  icon: Icon,
+  action,
+  onAction,
+  children,
+}: {
+  icon: LucideIcon;
+  action: string;
+  onAction: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <p className="border-hairline bg-surface rounded-card text-meta text-ink-2 flex items-center gap-2 border py-1 pr-1 pl-3">
+      <Icon className="text-ink-3 size-4 shrink-0" />
+      <span className="min-w-0 flex-1">{children}</span>
+      <button
+        type="button"
+        onClick={onAction}
+        className="text-brand hover:bg-brand-soft focus-visible:ring-brand rounded-control h-7 shrink-0 px-2 font-medium transition-colors duration-150 outline-none focus-visible:ring-2"
+      >
+        {action}
+      </button>
+    </p>
   );
 }

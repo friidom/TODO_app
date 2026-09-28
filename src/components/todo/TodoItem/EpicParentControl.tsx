@@ -1,11 +1,18 @@
 import { CheckIcon, LinkIcon, Link2OffIcon } from "lucide-react";
 import { FloatingPortal } from "@floating-ui/react";
 
-import { useCardPopover } from "./useCardPopover";
 import { useEpics } from "@/services/todos/useSubtasks";
 import { useKeyPrefix } from "@/hooks/useKeyPrefix";
 import { taskKey } from "@/utils/taskKey";
+import {
+  MENU_ITEM,
+  MENU_LABEL,
+  MENU_SEPARATOR,
+  POPOVER_PANEL,
+} from "@/components/ui/controlChrome";
 import { cn } from "@/utils/cn";
+import { FIELD_CHIP, FIELD_EMPTY, OPTION_ITEM } from "./fieldChrome";
+import { useCardPopover } from "./useCardPopover";
 
 // list is exactly the board's Epics — anything else would be refused by enforce_work_item_hierarchy anyway
 export default function EpicParentControl({
@@ -34,10 +41,11 @@ export default function EpicParentControl({
         title={label}
         aria-label={label}
         className={cn(
-          "text-mini flex min-w-0 shrink items-center gap-1 rounded px-1.5 py-0.5 font-medium transition-colors",
+          FIELD_CHIP,
+          "min-w-0 shrink",
           epic
             ? "bg-status-orange/15 text-status-orange hover:bg-status-orange/25"
-            : "border-hairline text-ink-3 hover:text-ink-2 border border-dashed",
+            : FIELD_EMPTY,
         )}
       >
         <LinkIcon className="size-3 shrink-0" />
@@ -52,14 +60,12 @@ export default function EpicParentControl({
             {...panelProps}
             role="menu"
             aria-label="Parent epic"
-            className="border-hairline bg-elevated rounded-card z-50 max-h-64 w-56 overflow-y-auto border p-1 shadow-e2"
+            className={cn(POPOVER_PANEL, "z-50 max-h-64 w-56 overflow-y-auto")}
           >
-            <p className="text-ink-3 text-mini px-2 py-1.5 font-semibold tracking-wide uppercase">
-              Epic
-            </p>
+            <p className={MENU_LABEL}>Epic</p>
 
             {epics.length === 0 ? (
-              <p className="text-ink-3 px-2 py-3 text-xs">
+              <p className="text-ink-3 text-meta px-2 py-2">
                 No epics on this board yet.
               </p>
             ) : (
@@ -76,7 +82,7 @@ export default function EpicParentControl({
                           onChange(selected ? null : candidate.id);
                           close();
                         }}
-                        className="hover:bg-ink/10 focus-visible:bg-ink/10 rounded-control flex w-full min-w-0 items-center gap-2 px-2 py-1.5 text-left text-sm transition-colors outline-none"
+                        className={cn(OPTION_ITEM, "min-w-0")}
                       >
                         <span className="min-w-0 flex-1 truncate">
                           {candidateKey && (
@@ -88,7 +94,7 @@ export default function EpicParentControl({
                         </span>
 
                         {selected && (
-                          <CheckIcon className="text-brand size-4 shrink-0" />
+                          <CheckIcon className="text-brand size-4" />
                         )}
                       </button>
                     </li>
@@ -99,7 +105,7 @@ export default function EpicParentControl({
 
             {epicId !== null && (
               <>
-                <div className="bg-hairline my-1 h-px" />
+                <div className={MENU_SEPARATOR} />
 
                 <button
                   type="button"
@@ -107,9 +113,9 @@ export default function EpicParentControl({
                     onChange(null);
                     close();
                   }}
-                  className="text-ink-2 hover:bg-ink/10 rounded-control flex w-full items-center gap-2 px-2 py-1.5 text-sm transition-colors"
+                  className={MENU_ITEM}
                 >
-                  <Link2OffIcon className="size-3.5" />
+                  <Link2OffIcon />
                   Remove parent
                 </button>
               </>

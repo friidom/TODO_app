@@ -1,8 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { FloatingPortal } from "@floating-ui/react";
 import {
-  ChevronDownIcon,
-  ChevronRightIcon,
   CircleAlertIcon,
   DownloadIcon,
   LayoutGridIcon,
@@ -14,6 +12,8 @@ import {
   Trash2Icon,
 } from "lucide-react";
 
+import IconButton from "@/components/ui/IconButton";
+import { MENU_SEPARATOR, POPOVER_PANEL } from "@/components/ui/controlChrome";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuth } from "@/services/auth/useAuth";
@@ -40,6 +40,17 @@ import type { Attachment } from "@/types/data";
 import { cn } from "@/utils/cn";
 
 import AttachmentPreview from "./AttachmentPreview";
+import SectionHeader, { EmptyLine } from "./SectionHeader";
+import {
+  INLINE_ACTION,
+  INLINE_ACTION_BRAND,
+  INLINE_ACTION_DANGER,
+  SEGMENT,
+  SEGMENT_ACTIVE,
+  SEGMENT_IDLE,
+  SEGMENTED,
+  TABLE,
+} from "./detailChrome";
 import {
   AttachmentCard,
   AttachmentRow,
@@ -148,76 +159,58 @@ export default function AttachmentsSection({ todoId }: { todoId: string }) {
     !nothingAtAll && visible.length === 0 && pending.length === 0;
 
   return (
-    <section className="mt-8">
-      <div className="mb-2 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          aria-expanded={!collapsed}
-          aria-label={`${collapsed ? "Expand" : "Collapse"} attachments`}
-          onClick={() => setCollapsed((open) => !open)}
-          className="text-ink-3 hover:text-ink hover:bg-ink/10 focus-visible:ring-brand -ml-1 rounded p-1 transition-colors outline-none focus-visible:ring-2"
-        >
-          {collapsed ? (
-            <ChevronRightIcon className="size-4" />
-          ) : (
-            <ChevronDownIcon className="size-4" />
-          )}
-        </button>
+    <section>
+      <SectionHeader
+        title="Attachments"
+        // Total count, not the filtered subset — a heading that shrinks with the tab would look like lost files.
+        count={count > 0 ? count : null}
+        collapse={{
+          collapsed,
+          onToggle: () => setCollapsed((open) => !open),
+          noun: "attachments",
+        }}
+        actions={
+          <>
+            {count > 0 && (
+              <FilterTabs value={filter} counts={counts} onChange={setFilter} />
+            )}
 
-        <h3 className="text-ink-3 text-mini font-semibold tracking-[0.08em] uppercase">
-          Attachments
-        </h3>
+            {canAttach && (
+              <>
+                <IconButton
+                  label="Add attachment"
+                  onClick={() => fileInput.current?.click()}
+                >
+                  <PlusIcon />
+                </IconButton>
 
-        {/* Total count, not the filtered subset — a heading that shrinks with the tab would look like lost files. */}
-        {count > 0 && (
-          <span className="bg-ink/10 text-ink-3 text-mini shrink-0 rounded px-1.5 py-0.5 font-semibold tabular-nums">
-            {count}
-          </span>
-        )}
+                {/* No `accept` — the bucket has no mime allow-list to mirror. */}
+                <input
+                  ref={fileInput}
+                  type="file"
+                  multiple
+                  hidden
+                  onChange={handlePicked}
+                />
+              </>
+            )}
 
-        <div className="ml-auto flex min-w-0 items-center gap-1">
-          {count > 0 && (
-            <FilterTabs value={filter} counts={counts} onChange={setFilter} />
-          )}
-
-          {canAttach && (
-            <>
-              <button
-                type="button"
-                onClick={() => fileInput.current?.click()}
-                aria-label="Add attachment"
-                title="Add attachment"
-                className="text-ink-3 hover:bg-ink/10 hover:text-ink focus-visible:ring-brand grid size-7 shrink-0 place-items-center rounded transition-colors outline-none focus-visible:ring-2"
-              >
-                <PlusIcon className="size-4" />
-              </button>
-
-              {/* No `accept` — the bucket has no mime allow-list to mirror. */}
-              <input
-                ref={fileInput}
-                type="file"
-                multiple
-                hidden
-                onChange={handlePicked}
+            {count > 0 && (
+              <SectionMenu
+                view={view}
+                onToggleView={() =>
+                  setView((current) => (current === "list" ? "grid" : "list"))
+                }
+                downloadCount={visible.length}
+                downloading={downloadAll.isPending}
+                onDownloadAll={() => downloadAll.mutate(visible)}
+                deleteCount={deletable.length}
+                onDeleteAll={() => setConfirmingAll(true)}
               />
-            </>
-          )}
-
-          {count > 0 && (
-            <SectionMenu
-              view={view}
-              onToggleView={() =>
-                setView((current) => (current === "list" ? "grid" : "list"))
-              }
-              downloadCount={visible.length}
-              downloading={downloadAll.isPending}
-              onDownloadAll={() => downloadAll.mutate(visible)}
-              deleteCount={deletable.length}
-              onDeleteAll={() => setConfirmingAll(true)}
-            />
-          )}
-        </div>
-      </div>
+            )}
+          </>
+        }
+      />
 
       {!collapsed && (
         <>
@@ -242,7 +235,7 @@ export default function AttachmentsSection({ todoId }: { todoId: string }) {
               ))}
             </div>
           ) : isError ? (
-            <div className="border-hairline rounded-card flex flex-wrap items-center gap-2 border px-3 py-2.5 text-sm">
+            <div className="border-hairline rounded-card text-meta flex flex-wrap items-center gap-2 border px-3 py-2.5">
               <CircleAlertIcon className="text-status-red size-4 shrink-0" />
 
               <span className="text-ink-2 min-w-0 flex-1">
@@ -253,7 +246,10 @@ export default function AttachmentsSection({ todoId }: { todoId: string }) {
                 type="button"
                 onClick={() => void refetch()}
                 disabled={isFetching}
-                className="text-brand hover:bg-brand-soft rounded-control flex shrink-0 items-center gap-1.5 px-2 py-1 text-xs font-medium transition-colors disabled:opacity-45"
+                className={cn(
+                  INLINE_ACTION_BRAND,
+                  "flex items-center gap-1.5 px-2 py-1 text-xs",
+                )}
               >
                 <RotateCwIcon
                   className={cn("size-3.5", isFetching && "animate-spin")}
@@ -262,17 +258,14 @@ export default function AttachmentsSection({ todoId }: { todoId: string }) {
               </button>
             </div>
           ) : nothingAtAll ? (
-            <div className="text-ink-3 flex items-center gap-2 py-1 text-sm">
-              <PaperclipIcon className="size-4 shrink-0" />
+            <EmptyLine icon={PaperclipIcon}>
               <span>
                 No attachments yet.
                 {canAttach && " Add a file with the + above."}
               </span>
-            </div>
+            </EmptyLine>
           ) : emptyTab ? (
-            <div className="text-ink-3 flex flex-wrap items-center gap-2 py-1 text-sm">
-              <PaperclipIcon className="size-4 shrink-0" />
-
+            <EmptyLine icon={PaperclipIcon}>
               <span>
                 {filter === "all"
                   ? "No attachments yet."
@@ -282,11 +275,11 @@ export default function AttachmentsSection({ todoId }: { todoId: string }) {
               <button
                 type="button"
                 onClick={() => setFilter("all")}
-                className="text-brand hover:bg-brand-soft rounded-control px-1.5 py-0.5 text-xs font-medium transition-colors"
+                className={cn(INLINE_ACTION_BRAND, "text-xs")}
               >
                 Show all {count}
               </button>
-            </div>
+            </EmptyLine>
           ) : view === "grid" ? (
             <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {visible.map((attachment) => (
@@ -299,11 +292,7 @@ export default function AttachmentsSection({ todoId }: { todoId: string }) {
               ))}
             </ul>
           ) : (
-            <div
-              role="table"
-              aria-label="Attachments"
-              className="border-hairline rounded-card overflow-hidden border"
-            >
+            <div role="table" aria-label="Attachments" className={TABLE}>
               <AttachmentTableHeader />
 
               {visible.map((attachment) => (
@@ -332,7 +321,7 @@ export default function AttachmentsSection({ todoId }: { todoId: string }) {
             <div
               role="table"
               aria-label="Uploading"
-              className="border-hairline rounded-card mt-2 overflow-hidden border"
+              className={cn(TABLE, "mt-2")}
             >
               {pending.map((row) => (
                 <PendingRow
@@ -375,7 +364,7 @@ function FilterTabs({
     <div
       role="tablist"
       aria-label="Filter attachments by type"
-      className="border-hairline rounded-control flex min-w-0 shrink items-center gap-0.5 overflow-x-auto border p-0.5"
+      className={cn(SEGMENTED, "min-w-0 shrink overflow-x-auto")}
     >
       {ATTACHMENT_FILTERS.map((key) => {
         const active = key === value;
@@ -389,12 +378,12 @@ function FilterTabs({
             aria-selected={active}
             onClick={() => onChange(key)}
             className={cn(
-              "focus-visible:ring-brand rounded px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2",
+              SEGMENT,
               active
-                ? "bg-brand-soft text-brand"
+                ? SEGMENT_ACTIVE
                 : empty
                   ? "text-ink-3/60 hover:text-ink-3"
-                  : "text-ink-2 hover:bg-ink/[0.06] hover:text-ink",
+                  : SEGMENT_IDLE,
             )}
           >
             {FILTER_LABELS[key]}
@@ -422,25 +411,17 @@ function SectionMenu({
   deleteCount: number;
   onDeleteAll: () => void;
 }) {
-  const { open, mounted, close, triggerProps, panelProps } = useCardPopover();
+  const { mounted, close, triggerProps, panelProps } = useCardPopover();
 
   return (
     <>
-      <button
-        type="button"
+      <IconButton
+        label="Attachment actions"
+        aria-haspopup="menu"
         {...triggerProps}
-        aria-label="Attachment actions"
-        aria-expanded={open}
-        title="More actions"
-        className={cn(
-          "focus-visible:ring-brand grid size-7 shrink-0 place-items-center rounded transition-colors outline-none focus-visible:ring-2",
-          open
-            ? "bg-brand-soft text-brand ring-brand/40 ring-1"
-            : "text-ink-3 hover:bg-ink/10 hover:text-ink",
-        )}
       >
-        <MoreHorizontal className="size-4" />
-      </button>
+        <MoreHorizontal />
+      </IconButton>
 
       {mounted && (
         <FloatingPortal>
@@ -448,7 +429,7 @@ function SectionMenu({
             {...panelProps}
             role="menu"
             aria-label="Attachment actions"
-            className="border-hairline bg-elevated rounded-card shadow-e2 z-[70] w-56 border p-1"
+            className={cn(POPOVER_PANEL, "z-[70] w-56")}
           >
             <MenuItem
               icon={view === "list" ? LayoutGridIcon : ListIcon}
@@ -461,7 +442,7 @@ function SectionMenu({
               }}
             />
 
-            <div className="bg-hairline my-1 h-px" />
+            <div className={MENU_SEPARATOR} />
 
             <MenuItem
               icon={DownloadIcon}
@@ -508,7 +489,7 @@ function ConfirmDeleteAll({
 }) {
   return (
     <div
-      className="border-status-red/30 bg-status-red/[0.04] rounded-card mb-2 flex flex-wrap items-center gap-2 border px-3 py-2.5 text-xs"
+      className="border-status-red/30 bg-status-red/[0.06] rounded-card mb-2 flex flex-wrap items-center gap-1 border px-3 py-2 text-xs"
       onKeyDown={(event) => {
         if (event.key !== "Escape") return;
 
@@ -518,7 +499,7 @@ function ConfirmDeleteAll({
     >
       <CircleAlertIcon className="text-status-red size-4 shrink-0" />
 
-      <span className="text-ink-2 min-w-0 flex-1">
+      <span className="text-ink-2 text-meta mx-1 min-w-0 flex-1">
         Delete {count} {count === 1 ? "attachment" : "attachments"}? The files
         are removed from storage and cannot be restored.
       </span>
@@ -528,16 +509,12 @@ function ConfirmDeleteAll({
         autoFocus
         onClick={onConfirm}
         disabled={busy}
-        className="text-status-red shrink-0 font-medium disabled:opacity-45"
+        className={INLINE_ACTION_DANGER}
       >
         {busy ? "Deleting…" : "Delete all"}
       </button>
 
-      <button
-        type="button"
-        onClick={onCancel}
-        className="text-ink-3 hover:text-ink shrink-0 font-medium"
-      >
+      <button type="button" onClick={onCancel} className={INLINE_ACTION}>
         Cancel
       </button>
     </div>

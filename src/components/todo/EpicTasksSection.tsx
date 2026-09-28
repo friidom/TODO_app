@@ -1,14 +1,23 @@
 import { useState } from "react";
-import {
-  ChevronDownIcon,
-  ChevronRightIcon,
-  LayersIcon,
-  PlusIcon,
-} from "lucide-react";
+import { LayersIcon, PlusIcon } from "lucide-react";
 
+import SectionHeader, { EmptyLine } from "./SectionHeader";
 import AssigneeControl from "./TodoItem/AssigneeControl";
 import PriorityControl from "./TodoItem/PriorityControl";
 import StatusControl from "./TodoItem/StatusControl";
+import {
+  INLINE_ACTION,
+  SEGMENT,
+  SEGMENT_ACTIVE,
+  SEGMENT_IDLE,
+  SEGMENTED,
+  TABLE,
+  TABLE_HEAD,
+  TABLE_ROW,
+  TEXT_FIELD,
+} from "./detailChrome";
+import { MENU_ITEM } from "@/components/ui/controlChrome";
+import IconButton from "@/components/ui/IconButton";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useColumns } from "@/services/columns/useColumnsApi";
 import { useKeyPrefix } from "@/hooks/useKeyPrefix";
@@ -32,53 +41,36 @@ const TASK_GRID =
 // Never mounted alongside SubtasksSection — TaskDetailModal renders exactly one, decided by useTodoHierarchy.
 export default function EpicTasksSection({ epic }: { epic: Todo }) {
   const { tasks, isPending } = useEpicTasks(epic.id);
-  const { canEditTodos } = usePermissions();  
+  const { canEditTodos } = usePermissions();
 
   const [collapsed, setCollapsed] = useState(false);
   const [adding, setAdding] = useState(false);
 
   return (
-    <section className="mt-8">
-      <div className="mb-2 flex items-center gap-2">
-        <button
-          type="button"
-          aria-expanded={!collapsed}
-          aria-label={`${collapsed ? "Expand" : "Collapse"} tasks`}
-          onClick={() => setCollapsed((open) => !open)}
-          className="text-ink-3 hover:text-ink hover:bg-ink/10 focus-visible:ring-brand -ml-1 rounded p-1 transition-colors outline-none focus-visible:ring-2"
-        >
-          {collapsed ? (
-            <ChevronRightIcon className="size-4" />
-          ) : (
-            <ChevronDownIcon className="size-4" />
-          )}
-        </button>
-
-        <h3 className="text-ink-3 text-mini font-semibold tracking-[0.08em] uppercase">
-          Tasks
-        </h3>
-
-        {tasks.length > 0 && (
-          <span className="bg-ink/10 text-ink-3 text-mini shrink-0 rounded px-1.5 py-0.5 font-semibold tabular-nums">
-            {tasks.length}
-          </span>
-        )}
-
-        {canEditTodos && (
-          <button
-            type="button"
-            onClick={() => {
-              setCollapsed(false);
-              setAdding((open) => !open);
-            }}
-            aria-label="Add task to this epic"
-            title="Add task"
-            className="text-ink-3 hover:bg-ink/10 hover:text-ink focus-visible:ring-brand ml-auto grid size-6 shrink-0 place-items-center rounded transition-colors outline-none focus-visible:ring-2"
-          >
-            <PlusIcon className="size-4" />
-          </button>
-        )}
-      </div>
+    <section>
+      <SectionHeader
+        title="Tasks"
+        count={tasks.length > 0 ? tasks.length : null}
+        collapse={{
+          collapsed,
+          onToggle: () => setCollapsed((open) => !open),
+          noun: "tasks",
+        }}
+        actions={
+          canEditTodos && (
+            <IconButton
+              label="Add task to this epic"
+              aria-expanded={adding}
+              onClick={() => {
+                setCollapsed(false);
+                setAdding((open) => !open);
+              }}
+            >
+              <PlusIcon />
+            </IconButton>
+          )
+        }
+      />
 
       {!collapsed && (
         <>
@@ -97,30 +89,20 @@ export default function EpicTasksSection({ epic }: { epic: Todo }) {
               ))}
             </div>
           ) : tasks.length === 0 && !adding ? (
-            <div className="text-ink-3 flex items-center gap-2 py-1 text-sm">
-              <LayersIcon className="size-4 shrink-0" />
+            <EmptyLine icon={LayersIcon}>
               <span>
                 No tasks in this epic yet.
                 {canEditTodos && " Add one with the + above."}
               </span>
-            </div>
+            </EmptyLine>
           ) : (
             tasks.length > 0 && (
               <div
                 role="table"
                 aria-label="Tasks in this epic"
-                className={cn(
-                  "border-hairline rounded-card overflow-hidden border",
-                  adding && "mt-2",
-                )}
+                className={cn(TABLE, adding && "mt-3")}
               >
-                <div
-                  role="row"
-                  className={cn(
-                    TASK_GRID,
-                    "border-hairline text-ink-3/70 text-micro bg-surface/40 h-8 border-b font-medium tracking-[0.08em] uppercase",
-                  )}
-                >
+                <div role="row" className={cn(TASK_GRID, TABLE_HEAD)}>
                   <span role="columnheader">Work</span>
                   <span role="columnheader">
                     <span className="sr-only">Title</span>
@@ -155,25 +137,19 @@ function EpicTaskRow({ task }: { task: Todo }) {
   const inert = canEditTodos ? undefined : "pointer-events-none";
 
   return (
-    <div
-      role="row"
-      className={cn(
-        TASK_GRID,
-        "border-hairline group hover:bg-ink/[0.035] h-11 border-b transition-colors duration-150 last:border-b-0",
-      )}
-    >
+    <div role="row" className={cn(TASK_GRID, TABLE_ROW, "group h-11")}>
       <div role="cell" className="min-w-0">
         {key !== null ? (
           <button
             type="button"
             onClick={() => openTask(task.id)}
             title={`Open ${key}`}
-            className="text-ink-3/80 hover:text-brand focus-visible:ring-brand text-mini block truncate rounded font-medium tabular-nums transition-colors outline-none focus-visible:ring-2"
+            className="text-ink-3 hover:text-brand focus-visible:ring-brand text-mini block truncate rounded font-medium tabular-nums transition-colors outline-none focus-visible:ring-2"
           >
             {key}
           </button>
         ) : (
-          <span className="text-ink-3/40 text-mini">—</span>
+          <span className="text-ink-3/50 text-mini">—</span>
         )}
       </div>
 
@@ -184,7 +160,7 @@ function EpicTaskRow({ task }: { task: Todo }) {
           title={task.title ?? undefined}
           className="text-ink hover:text-brand focus-visible:ring-brand text-meta block w-full truncate rounded text-left font-medium transition-colors outline-none focus-visible:ring-2"
         >
-          {task.title || <span className="text-ink-3/60">Untitled</span>}
+          {task.title || <span className="text-ink-3">Untitled</span>}
         </button>
       </div>
 
@@ -224,27 +200,30 @@ function AddEpicTaskPanel({
 
   return (
     <div className={cn(hasRows ? "mt-2" : "mt-0")}>
-      <div className="mb-1.5 flex items-center gap-3 text-xs">
-        <button
-          type="button"
-          onClick={() => setMode("new")}
-          className={cn(
-            "font-medium transition-colors",
-            mode === "new" ? "text-brand" : "text-ink-3 hover:text-ink-2",
-          )}
-        >
-          New task
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode("existing")}
-          className={cn(
-            "font-medium transition-colors",
-            mode === "existing" ? "text-brand" : "text-ink-3 hover:text-ink-2",
-          )}
-        >
-          Existing task
-        </button>
+      <div
+        role="group"
+        aria-label="Add a new or an existing task"
+        className={cn(SEGMENTED, "mb-2 w-fit")}
+      >
+        {(
+          [
+            ["new", "New task"],
+            ["existing", "Existing task"],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            aria-pressed={mode === key}
+            onClick={() => setMode(key)}
+            className={cn(
+              SEGMENT,
+              mode === key ? SEGMENT_ACTIVE : SEGMENT_IDLE,
+            )}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       {mode === "new" ? (
@@ -299,13 +278,16 @@ function NewEpicTaskRow({ epic, onDone }: { epic: Todo; onDone: () => void }) {
         onBlur={submit}
         placeholder="What needs doing?"
         aria-label="New task title"
-        className="border-hairline text-ink placeholder:text-ink-3 focus:border-brand/60 focus:ring-brand/25 rounded-control min-w-0 flex-1 border bg-transparent px-2.5 py-1.5 text-sm outline-none focus:ring-2"
+        className={cn(
+          TEXT_FIELD,
+          "rounded-control h-8 min-w-0 flex-1 px-2.5 text-sm",
+        )}
       />
 
       <button
         type="button"
         onMouseDown={onDone}
-        className="text-ink-3 hover:text-ink rounded-control shrink-0 px-2 py-1 text-xs font-medium"
+        className={cn(INLINE_ACTION, "py-1 text-xs")}
       >
         Done
       </button>
@@ -332,9 +314,17 @@ function ExistingTaskPicker({
   );
 
   return (
-    <div className="border-hairline rounded-card max-h-48 overflow-y-auto border">
+    <div
+      className="border-hairline bg-surface rounded-card max-h-48 overflow-y-auto border p-1"
+      onKeyDown={(event) => {
+        if (event.key !== "Escape") return;
+
+        event.preventDefault();
+        onDone();
+      }}
+    >
       {candidates.length === 0 ? (
-        <p className="text-ink-3 px-2.5 py-3 text-xs">
+        <p className="text-ink-3 text-meta px-2 py-2.5">
           No other tasks are available to add.
         </p>
       ) : (
@@ -354,7 +344,7 @@ function ExistingTaskPicker({
                     });
                     onDone();
                   }}
-                  className="hover:bg-ink/10 focus-visible:bg-ink/10 flex w-full min-w-0 items-center gap-2 px-2.5 py-1.5 text-left text-sm transition-colors outline-none"
+                  className={cn(MENU_ITEM, "min-w-0")}
                 >
                   {key && (
                     <span className="text-ink-3 text-mini shrink-0 tabular-nums">

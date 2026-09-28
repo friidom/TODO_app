@@ -7,10 +7,18 @@ import {
   Trash2Icon,
 } from "lucide-react";
 
+import IconButton from "@/components/ui/IconButton";
+import {
+  MENU_ITEM,
+  MENU_ITEM_DANGER,
+  MENU_SEPARATOR,
+  POPOVER_PANEL,
+} from "@/components/ui/controlChrome";
 import { useOpenTask } from "@/hooks/useOpenTask";
 import { useTodoPatch } from "@/hooks/useTodoPatch";
 import { useDeleteTodo } from "@/services/todos/useDeleteTodo";
 import type { Todo } from "@/types/data";
+import { cn } from "@/utils/cn";
 
 import AssigneeControl from "./AssigneeControl";
 import DueDateControl from "./DueDateControl";
@@ -37,14 +45,9 @@ export default function TodoMenu({
 
   return (
     <>
-      <button
-        type="button"
-        {...triggerProps}
-        aria-label="Card actions"
-        className="text-ink-3 hover:bg-ink/10 hover:text-ink coarse:size-8 coarse:p-0 coarse:grid coarse:place-items-center rounded-md p-1 transition-colors"
-      >
-        <MoreHorizontal size={15} />
-      </button>
+      <IconButton size="xs" label="Card actions" {...triggerProps}>
+        <MoreHorizontal />
+      </IconButton>
 
       {mounted && (
         <FloatingPortal>
@@ -52,7 +55,7 @@ export default function TodoMenu({
             {...panelProps}
             role="menu"
             aria-label="Card actions"
-            className="border-hairline bg-elevated rounded-card z-50 w-60 border p-1 shadow-e2"
+            className={cn(POPOVER_PANEL, "z-50 w-60")}
           >
             <button
               type="button"
@@ -61,9 +64,9 @@ export default function TodoMenu({
                 openTask(todo.id);
                 close();
               }}
-              className="text-ink hover:bg-ink/10 focus-visible:bg-ink/10 rounded-control flex w-full items-center gap-2 px-2 py-1.5 text-sm transition-colors outline-none"
+              className={MENU_ITEM}
             >
-              <PanelRightOpenIcon className="text-ink-3 size-4 shrink-0" />
+              <PanelRightOpenIcon />
               Open details
             </button>
 
@@ -74,13 +77,13 @@ export default function TodoMenu({
                 onEdit();
                 close();
               }}
-              className="text-ink hover:bg-ink/10 focus-visible:bg-ink/10 rounded-control flex w-full items-center gap-2 px-2 py-1.5 text-sm transition-colors outline-none"
+              className={MENU_ITEM}
             >
-              <PencilIcon className="text-ink-3 size-4 shrink-0" />
+              <PencilIcon />
               Rename
             </button>
 
-            <div className="bg-hairline my-1 h-px" />
+            <div className={MENU_SEPARATOR} />
 
             <Field label="Status">
               <StatusControl todoId={todo.id} columnId={todo.column_id} />
@@ -120,7 +123,7 @@ export default function TodoMenu({
               />
             </Field>
 
-            <div className="bg-hairline my-1 h-px" />
+            <div className={MENU_SEPARATOR} />
 
             <button
               type="button"
@@ -129,9 +132,9 @@ export default function TodoMenu({
                 deleteTodo.mutate(todo.id);
                 close();
               }}
-              className="text-status-red hover:bg-status-red/15 focus-visible:bg-status-red/15 rounded-control flex w-full items-center gap-2 px-2 py-1.5 text-sm font-medium transition-colors outline-none"
+              className={MENU_ITEM_DANGER}
             >
-              <Trash2Icon className="size-4 shrink-0" />
+              <Trash2Icon />
               Delete
             </button>
           </div>
@@ -143,8 +146,8 @@ export default function TodoMenu({
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex min-w-0 items-center justify-between gap-2 px-2 py-1">
-      <span className="text-ink-3 shrink-0 text-xs">{label}</span>
+    <div className="flex min-h-8 min-w-0 items-center justify-between gap-2 px-2">
+      <span className="text-ink-2 text-meta shrink-0">{label}</span>
       <div className="flex min-w-0 items-center justify-end">{children}</div>
     </div>
   );

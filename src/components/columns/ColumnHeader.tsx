@@ -1,17 +1,23 @@
 import { useState } from "react";
 import { ArrowRight, Check, Plus, X } from "lucide-react";
 
+import CategoryPill from "./CategoryPill";
 import ColumnMenu from "./ColumnMenu";
 import LimitWarning from "./LimitWarning";
+import { COLUMN_TITLE, COUNT_CHIP } from "./columnChrome";
+import IconButton from "@/components/ui/IconButton";
+import { POPOVER_PANEL } from "@/components/ui/controlChrome";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { usePermissions } from "@/hooks/usePermissions";
 import { categoryOf } from "@/constants/columns";
 import { limitBreach } from "@/services/columns/limitBreach";
 import { useUpdateColumn } from "@/services/columns/useUpdateColumn";
 import { cn } from "@/utils/cn";
 import type { IColumn } from "@/types/data";
-
-const PILL =
-  "truncate rounded px-1.5 py-0.5 text-xs font-bold tracking-wide uppercase";
 
 export interface TransitionPill {
   title: string;
@@ -59,26 +65,21 @@ export default function ColumnHeader({
       <Shell dragHandleProps={dragHandleProps}>
         <div
           key={transition.to.title}
-          className="animate-in fade-in slide-in-from-top-1 flex min-w-0 items-center gap-2 duration-200"
+          className="animate-in fade-in slide-in-from-top-1 flex min-w-0 items-center gap-1.5 duration-200"
         >
-          <span className={cn(PILL, categoryOf(transition.from.category).pill)}>
-            {transition.from.title}
-          </span>
-
-          <ArrowRight
-            size={14}
-            className="animate-in fade-in slide-in-from-left-1 text-ink-2 shrink-0 duration-300"
+          <CategoryPill
+            title={transition.from.title}
+            category={transition.from.category}
+            className="text-ink-2"
           />
 
-          <span
-            className={cn(
-              PILL,
-              "animate-in zoom-in-95 duration-300",
-              categoryOf(transition.to.category).pill,
-            )}
-          >
-            {transition.to.title}
-          </span>
+          <ArrowRight className="animate-in fade-in slide-in-from-left-1 text-ink-3 size-3.5 shrink-0 duration-300" />
+
+          <CategoryPill
+            title={transition.to.title}
+            category={transition.to.category}
+            className="animate-in zoom-in-95 duration-300"
+          />
         </div>
       </Shell>
     );
@@ -87,7 +88,7 @@ export default function ColumnHeader({
   if (isDragSource) {
     return (
       <Shell dragHandleProps={dragHandleProps}>
-        <div className="animate-in fade-in border-brand bg-elevated text-ink w-full truncate rounded-md border-2 py-1 text-center text-sm duration-200">
+        <div className="animate-in fade-in border-brand/50 bg-brand-soft text-brand rounded-control text-meta w-full truncate border border-dashed py-1 text-center font-medium duration-200">
           Transition to...
         </div>
       </Shell>
@@ -107,63 +108,66 @@ export default function ColumnHeader({
   }
 
   const breach = limitBreach(column, count);
-  const category = categoryOf(column.category);
+
+  const label = (
+    <>
+      <span
+        className={cn(
+          "size-2 shrink-0 rounded-full",
+          categoryOf(column.category).dot,
+        )}
+      />
+
+      <h2 className={COLUMN_TITLE}>{headerTitle}</h2>
+
+      <span className={COUNT_CHIP}>{count}</span>
+    </>
+  );
 
   return (
     <Shell dragHandleProps={dragHandleProps}>
-      <button
-        type="button"
-        onClick={() => canManageColumns && setRenaming(true)}
-        title={canManageColumns ? "Rename column" : headerTitle}
-        className={cn(
-          "flex min-w-0 items-center gap-2 rounded px-1.5 py-1 text-left",
-          canManageColumns && "hover:bg-ink/10",
-        )}
-      >
-        <span className={cn("size-2 shrink-0 rounded-full", category.dot)} />
+      {canManageColumns ? (
+        <Tooltip>
+          <TooltipTrigger
+            type="button"
+            onClick={() => setRenaming(true)}
+            className="hover:bg-wash-strong focus-visible:ring-brand rounded-control flex min-w-0 items-center gap-2 px-1.5 py-1 text-left transition-colors duration-150 outline-none focus-visible:ring-2"
+          >
+            {label}
+          </TooltipTrigger>
 
-        <h2 className="text-ink truncate text-xs font-semibold tracking-[0.06em] uppercase">
-          {headerTitle}
-        </h2>
+          <TooltipContent side="bottom">Rename column</TooltipContent>
+        </Tooltip>
+      ) : (
+        <div
+          title={headerTitle}
+          className="flex min-w-0 items-center gap-2 px-1.5 py-1"
+        >
+          {label}
+        </div>
+      )}
 
-        <span className="bg-ink/[0.08] text-ink-3 text-mini grid h-5 min-w-5 shrink-0 place-items-center rounded-full px-1.5 font-semibold">
-          {count}
-        </span>
-      </button>
-
-      <div className="flex shrink-0 items-center gap-1">
+      <div className="flex shrink-0 items-center gap-0.5">
         {breach && <LimitWarning message={breach} />}
 
         {/* fade instead of display:none, so this cluster doesn't reflow the title/count on hover */}
         <div
           className={cn(
-            "flex items-center gap-1 transition-opacity duration-150",
+            "flex items-center gap-0.5 transition-opacity duration-150",
             menuOpen
               ? "opacity-100"
               : "coarse:pointer-events-auto coarse:opacity-100 pointer-events-none opacity-0 group-focus-within/header:pointer-events-auto group-focus-within/header:opacity-100 group-hover/header:pointer-events-auto group-hover/header:opacity-100",
           )}
         >
           {onAdd && (
-            <button
-              type="button"
-              onClick={onAdd}
-              aria-label={`Add a card to ${headerTitle}`}
-              title="Add a card"
-              className="text-ink-2 hover:bg-ink/10 hover:text-ink coarse:size-8 coarse:p-0 coarse:grid coarse:place-items-center rounded p-1 transition-colors"
-            >
-              <Plus size={15} />
-            </button>
+            <IconButton label={`Add a card to ${headerTitle}`} onClick={onAdd}>
+              <Plus />
+            </IconButton>
           )}
 
-          <button
-            type="button"
-            onClick={onCollapse}
-            aria-label="Collapse column"
-            title="Collapse column"
-            className="text-ink-2 hover:bg-ink/10 hover:text-ink coarse:size-8 coarse:p-0 coarse:grid coarse:place-items-center rounded p-1 transition-colors"
-          >
+          <IconButton label="Collapse column" onClick={onCollapse}>
             <CollapseIcon />
-          </button>
+          </IconButton>
 
           {canManageColumns && (
             <ColumnMenu
@@ -231,6 +235,7 @@ function RenameField({
     <div className="relative w-full">
       <input
         autoFocus
+        aria-label="Column name"
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => {
@@ -241,29 +246,34 @@ function RenameField({
 
           if (e.key === "Escape") onDone();
         }}
-        className="border-brand bg-elevated text-ink rounded-control w-full border-2 px-2 py-1 text-sm font-semibold outline-none"
+        className="border-brand/60 bg-elevated text-ink rounded-control ring-brand/15 text-meta w-full border px-2 py-1 font-semibold ring-2 outline-none"
       />
 
-      <div className="absolute top-full right-0 z-10 mt-1 flex gap-1">
-        <button
-          type="button"
+      <div
+        className={cn(
+          POPOVER_PANEL,
+          "absolute top-full right-0 z-10 mt-1.5 flex gap-0.5",
+        )}
+      >
+        <IconButton
+          label="Save name"
+          size="xs"
+          tooltip={false}
           onMouseDown={(e) => e.preventDefault()}
           onClick={save}
-          aria-label="Save name"
-          className="border-hairline bg-elevated text-ink hover:bg-ink/10 rounded-md border p-1.5 shadow-e1"
         >
-          <Check size={16} />
-        </button>
+          <Check />
+        </IconButton>
 
-        <button
-          type="button"
+        <IconButton
+          label="Cancel rename"
+          size="xs"
+          tooltip={false}
           onMouseDown={(e) => e.preventDefault()}
           onClick={onDone}
-          aria-label="Cancel rename"
-          className="border-hairline bg-elevated text-ink hover:bg-ink/10 rounded-md border p-1.5 shadow-e1"
         >
-          <X size={16} />
-        </button>
+          <X />
+        </IconButton>
       </div>
     </div>
   );
@@ -273,8 +283,6 @@ function RenameField({
 function CollapseIcon() {
   return (
     <svg
-      width="18"
-      height="18"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"

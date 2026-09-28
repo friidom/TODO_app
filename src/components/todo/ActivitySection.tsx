@@ -1,7 +1,11 @@
-import { ClockIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { ClockIcon, HistoryIcon } from "lucide-react";
+import { useId, useMemo, useState } from "react";
 
-import CommentThread, { CommentRow } from "@/components/comments/CommentThread";
+import SectionHeader, { EmptyLine } from "./SectionHeader";
+import CommentThread, {
+  CommentRow,
+  Composer,
+} from "@/components/comments/CommentThread";
 import TodoHistoryList, {
   HistoryRow,
 } from "@/components/activity/TodoHistoryList";
@@ -13,6 +17,7 @@ import { mergeActivityFeed } from "@/services/activities/mergeActivityFeed";
 import { useTodoActivities } from "@/services/activities/useTodoActivities";
 import { useComments } from "@/services/comments/useComments";
 import { useBoardMembers } from "@/services/members/useBoardMembers";
+import { cn } from "@/utils/cn";
 
 const TABS = [
   { key: "all", label: "All" },
@@ -23,7 +28,7 @@ const TABS = [
 
 type ActivityTab = (typeof TABS)[number]["key"];
 
-// tabbed shell over CommentThread + TodoHistoryList — "All" merges both read-only, "Work log" has no backing table yet
+// tabbed shell over CommentThread + TodoHistoryList — "All" merges both, "Work log" has no backing table yet
 export default function ActivitySection({
   todoId,
   boardId,
@@ -33,50 +38,68 @@ export default function ActivitySection({
 }) {
   const [tab, setTab] = useState<ActivityTab>("all");
   const { user } = useAuth();
+  const id = useId();
 
   return (
-    <section className="mt-8">
-      <h3 className="text-ink-3 text-mini mb-3 font-semibold tracking-[0.08em] uppercase">
-        Activity
-      </h3>
+    <section>
+      <SectionHeader title="Activity" />
 
-      <div className="border-hairline mb-4 flex items-center gap-4 border-b text-sm">
-        {TABS.map(({ key, label }) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setTab(key)}
-            aria-current={tab === key ? "true" : undefined}
-            className={
-              tab === key
-                ? "border-brand text-brand -mb-px border-b-2 pb-2 font-medium"
-                : "text-ink-3 hover:text-ink -mb-px border-b-2 border-transparent pb-2"
-            }
-          >
-            {label}
-          </button>
-        ))}
+      <div
+        role="tablist"
+        aria-label="Activity"
+        className="border-hairline mb-5 flex items-stretch gap-4 border-b"
+      >
+        {TABS.map(({ key, label }) => {
+          const selected = tab === key;
+
+          return (
+            <button
+              key={key}
+              id={`${id}-${key}`}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              aria-controls={`${id}-panel`}
+              onClick={() => setTab(key)}
+              className={cn(
+                "text-meta focus-visible:ring-brand -mb-px flex h-9 items-center rounded-t-[6px] border-b-2 px-0.5 transition-colors duration-150 outline-none focus-visible:ring-2",
+                selected
+                  ? "border-brand text-ink font-medium"
+                  : "text-ink-3 hover:text-ink hover:border-hairline border-transparent",
+              )}
+            >
+              {label}
+            </button>
+          );
+        })}
       </div>
 
-      {tab === "all" && (
-        <AllFeed todoId={todoId} boardId={boardId} currentUserId={user?.id} />
-      )}
+      <div id={`${id}-panel`} role="tabpanel" aria-labelledby={`${id}-${tab}`}>
+        {tab === "all" && (
+          <AllFeed todoId={todoId} boardId={boardId} currentUserId={user?.id} />
+        )}
 
-      {tab === "comments" && <CommentThread todoId={todoId} hideHeading />}
+        {tab === "comments" && <CommentThread todoId={todoId} hideHeading />}
 
-      {tab === "history" && (
-        <TodoHistoryList
-          todoId={todoId}
-          boardId={boardId}
-          currentUserId={user?.id}
-        />
-      )}
+        {tab === "history" && (
+          <TodoHistoryList
+            todoId={todoId}
+            boardId={boardId}
+            currentUserId={user?.id}
+          />
+        )}
 
-      {tab === "worklog" && <WorkLogPlaceholder />}
+        {tab === "worklog" && (
+          <EmptyLine icon={ClockIcon}>
+            <span>Work log isn't available yet.</span>
+          </EmptyLine>
+        )}
+      </div>
     </section>
   );
 }
 
+// newest first, so the composer sits on top, where a posted comment lands
 function AllFeed({
   todoId,
   boardId,
@@ -103,66 +126,61 @@ function AllFeed({
     [comments, activities],
   );
 
-  if (commentsPending || activitiesPending) {
-    return (
-      <div className="space-y-4" aria-busy>
-        {[0, 1, 2].map((i) => (
-          <div key={i} className="flex gap-2.5">
-            <Skeleton className="size-6 shrink-0 rounded-full" />
-            <div className="min-w-0 flex-1 space-y-1.5">
-              <Skeleton className="h-3 w-40" />
-              <Skeleton className="h-2.5 w-16" />
+  return (
+    <>
+      <Composer todoId={todoId} className="mb-6" />
+
+      {commentsPending || activitiesPending ? (
+        <div className="space-y-4" aria-busy>
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="flex gap-2.5">
+              <Skeleton className="size-6 shrink-0 rounded-full" />
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <Skeleton className="h-3 w-40" />
+                <Skeleton className="h-2.5 w-16" />
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
+          ))}
+        </div>
+      ) : entries.length === 0 ? (
+        <EmptyLine icon={HistoryIcon}>
+          <span>Nothing here yet.</span>
+        </EmptyLine>
+      ) : (
+        <ol className="space-y-4">
+          {entries.map((entry) => {
+            if (entry.kind === "comment") {
+              return (
+                <li key={`comment-${entry.comment.id}`}>
+                  <CommentRow
+                    comment={entry.comment}
+                    author={members.find(
+                      (m) => m.id === entry.comment.author_id,
+                    )}
+                    todoId={todoId}
+                  />
+                </li>
+              );
+            }
 
-  if (entries.length === 0) {
-    return <p className="text-ink-3 py-1 text-sm">Nothing here yet.</p>;
-  }
+            // unrenderable actions drop out rather than showing a blank row
+            const change = describeHistoryChange(entry.activity, names);
 
-  return (
-    <ol className="space-y-4">
-      {entries.map((entry) => {
-        if (entry.kind === "comment") {
-          return (
-            <li key={`comment-${entry.comment.id}`}>
-              <CommentRow
-                comment={entry.comment}
-                author={members.find((m) => m.id === entry.comment.author_id)}
-                todoId={todoId}
-              />
-            </li>
-          );
-        }
+            if (!change) return null;
 
-        // unrenderable actions drop out rather than showing a blank row
-        const change = describeHistoryChange(entry.activity, names);
-
-        if (!change) return null;
-
-        return (
-          <li key={`history-${entry.activity.id}`}>
-            <HistoryRow
-              activity={entry.activity}
-              change={change}
-              members={members}
-              currentUserId={currentUserId}
-            />
-          </li>
-        );
-      })}
-    </ol>
-  );
-}
-
-function WorkLogPlaceholder() {
-  return (
-    <div className="text-ink-3 flex items-center gap-2 py-1 text-sm">
-      <ClockIcon className="size-4 shrink-0" />
-      <span>Work log isn't available yet.</span>
-    </div>
+            return (
+              <li key={`history-${entry.activity.id}`}>
+                <HistoryRow
+                  activity={entry.activity}
+                  change={change}
+                  members={members}
+                  currentUserId={currentUserId}
+                />
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </>
   );
 }

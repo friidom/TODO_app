@@ -19,7 +19,7 @@ export default function ViewShell({
         {identity}
         {toolbar}
 
-        <div className="min-h-0 min-w-0 flex-1 px-5 pt-4 md:px-6">
+        <div className="min-h-0 min-w-0 flex-1 px-5 pt-3 md:px-6">
           {children}
         </div>
       </div>

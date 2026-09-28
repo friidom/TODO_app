@@ -6,14 +6,18 @@ import {
   FolderPlusIcon,
   KanbanIcon,
   MoreHorizontalIcon,
-  Settings2Icon,
+  PencilIcon,
   PlusIcon,
+  Settings2Icon,
+  SettingsIcon,
+  Trash2Icon,
 } from "lucide-react";
 
 import BoardFormModal from "@/components/boards/BoardFormModal";
 import DeleteBoardModal from "@/components/boards/DeleteBoardModal";
 import DeleteSpaceModal from "@/components/spaces/DeleteSpaceModal";
 import SpaceFormModal from "@/components/spaces/SpaceFormModal";
+import IconButton from "@/components/ui/IconButton";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,9 +27,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   SidebarGroup,
-  SidebarGroupLabel,
   SidebarMenu,
-  SidebarMenuAction,
+  SidebarMenuActions,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/SideBarUI/sidebar";
@@ -36,6 +39,7 @@ import { useSpaces } from "@/services/spaces/useSpaces";
 import { boardSettingsPath } from "@/services/boardSettings/registry";
 import type { IBoard, ISpace } from "@/types/data";
 import { cn } from "@/utils/cn";
+import SectionLabel from "./SectionLabel";
 
 // gated on board.owner_id, not a roster fetch — filing/deleting is owner-only in the db anyway, and the row already has this field
 type Dialog =
@@ -69,24 +73,11 @@ export default function BoardsSection() {
   return (
     <>
       <SidebarGroup>
-        <SidebarGroupLabel
-          render={
-            <button
-              type="button"
-              onClick={() => setSectionOpen((open) => !open)}
-              aria-expanded={sectionOpen}
-            />
-          }
-          className="text-ink-3 hover:text-ink-2 group/label text-micro flex w-full items-center gap-1 font-semibold tracking-[0.12em] uppercase transition-colors"
-        >
-          <ChevronRightIcon
-            className={cn(
-              "size-3 shrink-0 transition-transform duration-150",
-              sectionOpen && "rotate-90",
-            )}
-          />
-          Spaces
-        </SidebarGroupLabel>
+        <SectionLabel
+          label="Spaces"
+          open={sectionOpen}
+          onToggle={() => setSectionOpen((open) => !open)}
+        />
 
         <SidebarMenu
           className={cn(
@@ -96,13 +87,15 @@ export default function BoardsSection() {
         >
           {isPending && (
             <SidebarMenuItem>
-              <span className="text-ink-3 text-meta px-2 py-1.5">Loading…</span>
+              <span className="text-ink-3 text-meta flex h-8 items-center px-2">
+                Loading…
+              </span>
             </SidebarMenuItem>
           )}
 
           {!isPending && boards.length === 0 && spaces.length === 0 && (
             <SidebarMenuItem>
-              <span className="text-ink-3 px-2 py-1.5 text-sm">
+              <span className="text-ink-3 text-meta flex h-8 items-center px-2">
                 No boards yet
               </span>
             </SidebarMenuItem>
@@ -125,13 +118,13 @@ export default function BoardsSection() {
           })}
         </SidebarMenu>
 
-        <SidebarMenu className={cn("mt-3", !sectionOpen && "hidden")}>
+        <SidebarMenu className={cn("mt-2", !sectionOpen && "hidden")}>
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={() => setDialog({ kind: "create-board", spaceId: null })}
-              className="text-ink-3 hover:text-ink text-meta h-8"
+              className="text-ink-3"
             >
-              <PlusIcon className="size-4 shrink-0" />
+              <PlusIcon />
               <span>New board</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -139,9 +132,9 @@ export default function BoardsSection() {
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={() => setDialog({ kind: "create-space" })}
-              className="text-ink-3 hover:text-ink text-meta h-8"
+              className="text-ink-3"
             >
-              <FolderPlusIcon className="size-4 shrink-0" />
+              <FolderPlusIcon />
               <span>Create space</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -149,9 +142,9 @@ export default function BoardsSection() {
           <SidebarMenuItem>
             <SidebarMenuButton
               render={<Link to="/boards" />}
-              className="text-ink-3 hover:text-ink text-meta h-8"
+              className="text-ink-3"
             >
-              <Settings2Icon className="size-4 shrink-0" />
+              <Settings2Icon />
               <span>Manage boards</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -199,111 +192,112 @@ function SpaceRow({
   onToggle: () => void;
   onDialog: (dialog: Dialog) => void;
 }) {
+  const title = space?.title ?? "Unfiled";
+  const newBoardLabel = space
+    ? `New board in ${space.title}`
+    : "New board, unfiled";
+
   return (
     <>
-      <SidebarMenuItem className="mt-3 first:mt-0">
-        <div className="text-ink-2 group/space flex items-center gap-1.5 px-1 py-1">
-          <button
-            type="button"
-            onClick={onToggle}
-            aria-expanded={!collapsed}
-            aria-label={`${collapsed ? "Expand" : "Collapse"} ${space?.title ?? "Unfiled"}`}
-            className="hover:text-ink coarse:size-8 coarse:p-0 coarse:grid coarse:place-items-center shrink-0 rounded p-0.5 transition-colors duration-150"
-          >
-            <ChevronRightIcon
-              className={cn(
-                "size-3.5 transition-transform",
-                !collapsed && "rotate-90",
-              )}
-            />
-          </button>
-
+      <SidebarMenuItem className="mt-2 first:mt-0">
+        <SidebarMenuButton
+          onClick={onToggle}
+          aria-expanded={!collapsed}
+          aria-label={`${collapsed ? "Expand" : "Collapse"} ${title}`}
+          className={cn(
+            "font-semibold",
+            space ? "coarse:pr-18 pr-14" : "coarse:pr-10 pr-8",
+          )}
+        >
           {space ? (
-            <span className="bg-brand-soft text-brand text-micro grid size-4.5 shrink-0 place-items-center rounded font-bold">
+            <span className="bg-brand-soft text-brand text-micro grid size-4 shrink-0 place-items-center rounded font-bold">
               {space.title.trim().charAt(0).toUpperCase()}
             </span>
           ) : (
-            <FolderIcon className="text-ink-3 size-3.5 shrink-0" />
+            <FolderIcon className="text-ink-3" />
           )}
 
-          <span className="text-meta min-w-0 flex-1 truncate font-semibold">
-            {space ? space.title : "Unfiled"}
-          </span>
+          <span className="min-w-0 truncate">{title}</span>
 
-          <button
-            type="button"
-            title={space ? `New board in ${space.title}` : "New board, unfiled"}
+          <ChevronRightIcon
+            className={cn(
+              "text-ink-3 coarse:opacity-100 size-3.5 opacity-0 transition-[opacity,transform] duration-150 group-hover/menu-item:opacity-100 group-focus-visible/menu-button:opacity-100",
+              collapsed ? "opacity-100" : "rotate-90",
+            )}
+          />
+        </SidebarMenuButton>
+
+        <SidebarMenuActions>
+          <IconButton
+            size="xs"
+            label={newBoardLabel}
             onClick={() =>
               onDialog({ kind: "create-board", spaceId: space?.id ?? null })
             }
-            // always visible below md — hover-only would be unreachable on touch
-            className="hover:text-ink coarse:size-8 coarse:p-0 coarse:grid coarse:place-items-center rounded p-0.5 transition-opacity duration-150 max-md:opacity-100 md:opacity-0 md:group-focus-within/space:opacity-100 md:group-hover/space:opacity-100"
           >
-            <PlusIcon className="size-3.5" />
-            <span className="sr-only">
-              {space ? `New board in ${space.title}` : "New board, unfiled"}
-            </span>
-          </button>
+            <PlusIcon />
+          </IconButton>
 
           {space && (
-            <>
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  aria-label={`${space.title} options`}
-                  // same hover rule as the + beside it, and always visible
-                  // below md where hover does not exist
-                  className="hover:text-ink hover:bg-ink/[0.06] coarse:size-8 coarse:p-0 coarse:grid coarse:place-items-center rounded p-0.5 transition-all duration-150 max-md:opacity-100 md:opacity-0 md:group-focus-within/space:opacity-100 md:group-hover/space:opacity-100"
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <IconButton size="xs" label={`${space.title} options`} />
+                }
+              >
+                <MoreHorizontalIcon />
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent align="start" className="w-44">
+                <DropdownMenuItem
+                  onClick={() => onDialog({ kind: "rename-space", space })}
                 >
-                  <MoreHorizontalIcon className="size-3.5" />
-                </DropdownMenuTrigger>
+                  <PencilIcon />
+                  Rename space
+                </DropdownMenuItem>
 
-                <DropdownMenuContent align="start" className="w-44">
-                  <DropdownMenuItem
-                    onClick={() => onDialog({ kind: "rename-space", space })}
-                  >
-                    Rename space
-                  </DropdownMenuItem>
+                <DropdownMenuSeparator />
 
-                  <DropdownMenuSeparator />
-
-                  <DropdownMenuItem
-                    onClick={() =>
-                      onDialog({
-                        kind: "delete-space",
-                        space,
-                        boardCount: boards.length,
-                      })
-                    }
-                    className="text-status-red"
-                  >
-                    Delete space
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </>
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() =>
+                    onDialog({
+                      kind: "delete-space",
+                      space,
+                      boardCount: boards.length,
+                    })
+                  }
+                >
+                  <Trash2Icon />
+                  Delete space
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
-        </div>
+        </SidebarMenuActions>
       </SidebarMenuItem>
 
       {!collapsed && (
-        <div className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-1 motion-safe:duration-150">
-          {boards.length === 0 ? (
-            <SidebarMenuItem>
-              <span className="text-ink-3 text-meta block py-1 pl-7">
-                {space ? "No boards" : "Nothing here"}
-              </span>
-            </SidebarMenuItem>
-          ) : (
-            boards.map((board) => (
-              <BoardRow
-                key={board.id}
-                board={board}
-                owned={board.owner_id === userId}
-                onDialog={onDialog}
-              />
-            ))
-          )}
-        </div>
+        <li className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-1 motion-safe:duration-150">
+          <SidebarMenu>
+            {boards.length === 0 ? (
+              <SidebarMenuItem>
+                <span className="text-ink-3 text-meta flex h-8 items-center pl-8">
+                  {space ? "No boards" : "Nothing here"}
+                </span>
+              </SidebarMenuItem>
+            ) : (
+              boards.map((board) => (
+                <BoardRow
+                  key={board.id}
+                  board={board}
+                  owned={board.owner_id === userId}
+                  onDialog={onDialog}
+                />
+              ))
+            )}
+          </SidebarMenu>
+        </li>
       )}
     </>
   );
@@ -332,50 +326,46 @@ function BoardRow({
       <SidebarMenuButton
         render={<NavLink to={to} />}
         isActive={isActive}
-        className={cn(
-          "relative pl-7",
-          // pseudo-element rail so the active mark costs no layout and the row can't shift
-          isActive
-            ? "bg-brand-soft text-ink before:bg-brand font-medium before:absolute before:top-1/2 before:left-0 before:h-4 before:w-0.5 before:-translate-y-1/2 before:rounded-r-full"
-            : "text-ink-2",
-        )}
+        className={cn("pl-8", owned && "coarse:pr-10 pr-8")}
       >
-        <KanbanIcon
-          className={cn("size-4 shrink-0", isActive && "text-brand")}
-        />
-        <span className="truncate">{board.title || "Untitled board"}</span>
+        <KanbanIcon />
+        <span>{board.title || "Untitled board"}</span>
       </SidebarMenuButton>
 
       {owned && (
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <SidebarMenuAction
-                showOnHover
-                aria-label={`${board.title ?? "Board"} options`}
+        <SidebarMenuActions>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <IconButton
+                  size="xs"
+                  label={`${board.title ?? "Board"} options`}
+                />
+              }
+            >
+              <MoreHorizontalIcon />
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent align="start" className="w-44">
+              <DropdownMenuItem
+                render={<Link to={boardSettingsPath(board.id, "details")} />}
               >
-                <MoreHorizontalIcon className="size-4" />
-              </SidebarMenuAction>
-            }
-          />
+                <SettingsIcon />
+                Board settings
+              </DropdownMenuItem>
 
-          <DropdownMenuContent align="start" className="w-44">
-            <DropdownMenuItem
-              render={<Link to={boardSettingsPath(board.id, "details")} />}
-            >
-              Board settings
-            </DropdownMenuItem>
+              <DropdownMenuSeparator />
 
-            <DropdownMenuSeparator />
-
-            <DropdownMenuItem
-              onClick={() => onDialog({ kind: "delete-board", board })}
-              className="text-status-red"
-            >
-              Delete board
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={() => onDialog({ kind: "delete-board", board })}
+              >
+                <Trash2Icon />
+                Delete board
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </SidebarMenuActions>
       )}
     </SidebarMenuItem>
   );

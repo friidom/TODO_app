@@ -1,8 +1,9 @@
 import { CheckIcon, XIcon } from "lucide-react";
-import { FloatingPortal } from "@floating-ui/react";
+import { FloatingPortal, type Placement } from "@floating-ui/react";
 import { useState } from "react";
 
-import { useCardPopover } from "./useCardPopover";
+import IconButton from "@/components/ui/IconButton";
+import { POPOVER_PANEL } from "@/components/ui/controlChrome";
 import {
   estimateAlwaysVisible,
   estimateToDraft,
@@ -10,18 +11,27 @@ import {
   parseEstimateDraft,
 } from "@/services/todos/estimateInput";
 import { cn } from "@/utils/cn";
+import { FIELD_CHIP, FIELD_EMPTY, HOVER_REVEAL } from "./fieldChrome";
+import { useCardPopover } from "./useCardPopover";
 
 export default function EstimateControl({
   value,
   onChange,
   alwaysVisible = false,
+  showLabel = false,
+  placement,
 }: {
   value: number | null;
   onChange: (value: number | null) => void;
   // For a surface with no card row to hover, like the Details rail.
   alwaysVisible?: boolean;
+  // "3 points" / "None" as text, for a labelled field row rather than a dense card footer
+  showLabel?: boolean;
+  placement?: Placement;
 }) {
-  const { close, triggerProps, panelProps, mounted } = useCardPopover();
+  const { close, triggerProps, panelProps, mounted } = useCardPopover({
+    placement,
+  });
   const [draft, setDraft] = useState(() => estimateToDraft(value));
 
   const parsed = parseEstimateDraft(draft);
@@ -57,19 +67,26 @@ export default function EstimateControl({
         title={label}
         aria-label={label}
         className={cn(
-          "text-micro grid size-6 shrink-0 place-items-center rounded-sm font-semibold transition-[opacity,background-color]",
-          estimateAlwaysVisible(value, alwaysVisible)
-            ? "bg-ink/10 text-ink-2 hover:bg-ink/15"
+          showLabel
+            ? cn(
+                "text-meta hover:bg-wash-strong focus-visible:ring-brand rounded-control -mx-1.5 flex h-7 shrink-0 items-center px-1.5 transition-colors outline-none focus-visible:ring-2",
+                value === null ? "text-ink-3" : "text-ink",
+              )
             : cn(
-                "border-hairline text-ink-3 hover:text-ink-2 border",
-                "pointer-events-none opacity-0",
-                "group-hover:pointer-events-auto group-hover:opacity-100",
-                "focus-visible:pointer-events-auto focus-visible:opacity-100",
-                "coarse:pointer-events-auto coarse:opacity-100",
+                FIELD_CHIP,
+                "min-w-5 shrink-0 justify-center px-1 font-semibold tabular-nums",
+                value === null
+                  ? FIELD_EMPTY
+                  : "bg-wash-strong text-ink-2 hover:bg-ink/15 hover:text-ink",
+                !estimateAlwaysVisible(value, alwaysVisible) && HOVER_REVEAL,
               ),
         )}
       >
-        {formatEstimate(value)}
+        {showLabel
+          ? value === null
+            ? "None"
+            : `${formatEstimate(value)} ${value === 1 ? "point" : "points"}`
+          : formatEstimate(value)}
       </button>
 
       {mounted && (
@@ -78,7 +95,7 @@ export default function EstimateControl({
             {...panelProps}
             role="dialog"
             aria-label="Story point estimate"
-            className="border-hairline bg-elevated rounded-card z-50 flex items-center gap-1 border p-1.5 shadow-e2"
+            className={cn(POPOVER_PANEL, "z-50 flex items-center gap-1 p-1.5")}
           >
             <input
               type="number"
@@ -100,31 +117,31 @@ export default function EstimateControl({
               aria-invalid={invalid}
               className={cn(
                 "text-meta rounded-control border-hairline bg-surface text-ink h-7 w-14 border px-1.5 text-center outline-none",
-                "focus-visible:border-brand",
-                invalid && "border-status-red",
+                "focus-visible:border-brand focus-visible:ring-brand/30 focus-visible:ring-2",
+                invalid && "border-status-red focus-visible:border-status-red",
               )}
             />
 
-            <button
-              type="button"
+            <IconButton
+              size="xs"
+              tooltip={false}
+              label="Save estimate"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={commit}
               disabled={invalid}
-              aria-label="Save estimate"
-              className="text-ink-2 hover:bg-ink/10 hover:text-ink rounded-control grid size-6 shrink-0 place-items-center transition-colors disabled:pointer-events-none disabled:opacity-40"
             >
-              <CheckIcon size={13} />
-            </button>
+              <CheckIcon />
+            </IconButton>
 
-            <button
-              type="button"
+            <IconButton
+              size="xs"
+              tooltip={false}
+              label="Cancel"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={cancel}
-              aria-label="Cancel"
-              className="text-ink-2 hover:bg-ink/10 hover:text-ink rounded-control grid size-6 shrink-0 place-items-center transition-colors"
             >
-              <XIcon size={13} />
-            </button>
+              <XIcon />
+            </IconButton>
           </div>
         </FloatingPortal>
       )}

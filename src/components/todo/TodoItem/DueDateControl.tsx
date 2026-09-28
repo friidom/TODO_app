@@ -1,9 +1,8 @@
 import { useTranslation } from "react-i18next";
 import { CalendarIcon } from "lucide-react";
-import { FloatingPortal } from "@floating-ui/react";
+import { FloatingPortal, type Placement } from "@floating-ui/react";
 
-import DatePanel from "./DatePanel";
-import { useCardPopover } from "./useCardPopover";
+import { POPOVER_PANEL } from "@/components/ui/controlChrome";
 import {
   dueStatus,
   formatDue,
@@ -12,29 +11,40 @@ import {
   todayISO,
 } from "@/utils/dueDate";
 import { cn } from "@/utils/cn";
+import DatePanel from "./DatePanel";
+import {
+  FIELD_CHIP,
+  FIELD_EMPTY,
+  FIELD_ICON,
+  FIELD_ROW,
+  HOVER_REVEAL,
+} from "./fieldChrome";
+import { useCardPopover } from "./useCardPopover";
+
+// upcoming never gets a fill — in a column or list of 30, 30 tinted chips make the one that matters invisible
+const CHIP_TONE = {
+  overdue: "bg-status-red/15 text-status-red hover:bg-status-red/25",
+  today: "bg-status-orange/15 text-status-orange hover:bg-status-orange/25",
+  upcoming: "text-ink-2 hover:bg-wash-strong hover:text-ink",
+} as const;
+
+const BARE_TONE = {
+  overdue: "text-status-red hover:bg-wash-strong",
+  today: "text-status-orange hover:bg-wash-strong",
+  upcoming: "text-ink-3 hover:bg-wash-strong hover:text-ink-2",
+} as const;
 
 // hand-built month grid, not a date picker lib — no calendar in ui/, and the only real difficulty is calendar
 // arithmetic (utils/calendarGrid.ts). fully controlled, doesn't know how the value gets saved, so card and
 // create-form can share it.
-const CHIP_TONE = {
-  overdue: "bg-status-red/15 text-status-red hover:bg-status-red/25",
-  today: "bg-status-orange/15 text-status-orange hover:bg-status-orange/25",
-  upcoming: "bg-ink/10 text-ink-2 hover:bg-ink/15",
-} as const;
-
-// upcoming drops to plain ink — in a list of 30 rows, 30 tinted chips make the one that matters invisible
-const BARE_TONE = {
-  overdue: "text-status-red",
-  today: "text-status-orange",
-  upcoming: "text-ink-3",
-} as const;
-
 export default function DueDateControl({
   value: dueDate,
   onChange,
   notBefore,
   alwaysVisible = false,
   bare = false,
+  showLabel = false,
+  placement,
 }: {
   value: string | null;
   onChange: (value: string | null) => void;
@@ -43,8 +53,12 @@ export default function DueDateControl({
   // the create form has no card to hover, so its controls stay shown
   alwaysVisible?: boolean;
   bare?: boolean;
+  showLabel?: boolean;
+  placement?: Placement;
 }) {
-  const { mounted, close, triggerProps, panelProps } = useCardPopover();
+  const { mounted, close, triggerProps, panelProps } = useCardPopover({
+    placement,
+  });
   const { i18n } = useTranslation();
 
   const selected = dueDate ? toCalendarDay(dueDate) : null;
@@ -65,25 +79,29 @@ export default function DueDateControl({
         {...triggerProps}
         title={label}
         aria-label={label}
-        className={cn(
-          "text-mini flex shrink-0 items-center gap-1 rounded font-medium transition-colors duration-150",
-          bare ? "hover:bg-ink/10 px-1 py-0.5" : "px-1.5 py-0.5",
-          dueDate
-            ? bare
-              ? BARE_TONE[status!]
-              : CHIP_TONE[status!]
-            : cn(
-                "hover:bg-ink/10 hover:text-ink-2",
-                bare ? "text-ink-3/40" : "text-ink-3",
-              ),
-          !dueDate &&
-            !alwaysVisible &&
-            "coarse:opacity-100 opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
-        )}
+        className={
+          showLabel
+            ? cn(FIELD_ROW, dueDate ? BARE_TONE[status!] : "text-ink-3")
+            : dueDate
+              ? cn(
+                  FIELD_CHIP,
+                  "shrink-0 whitespace-nowrap",
+                  bare
+                    ? cn("px-1", BARE_TONE[status!])
+                    : cn("px-1.5", CHIP_TONE[status!]),
+                )
+              : cn(FIELD_ICON, FIELD_EMPTY, !alwaysVisible && HOVER_REVEAL)
+        }
       >
         {/* icon takes the chip's own colour — a fixed red on a muted "upcoming" chip said "urgent" wrongly */}
-        {(!dueDate || !bare) && <CalendarIcon className="size-3" />}
-        {dueDate && formatDue(dueDate, todayISO(), i18n.language)}
+        {(!dueDate || !bare || showLabel) && (
+          <CalendarIcon
+            className={dueDate && !showLabel ? "size-3" : "size-3.5"}
+          />
+        )}
+        {dueDate
+          ? formatDue(dueDate, todayISO(), i18n.language)
+          : showLabel && "None"}
       </button>
 
       {mounted && (
@@ -92,7 +110,7 @@ export default function DueDateControl({
             {...panelProps}
             role="dialog"
             aria-label="Due date"
-            className="border-hairline bg-elevated rounded-surface z-50 w-[268px] border p-3 shadow-e2"
+            className={cn(POPOVER_PANEL, "z-50 w-[268px] p-3")}
           >
             <DatePanel
               title="Due date"

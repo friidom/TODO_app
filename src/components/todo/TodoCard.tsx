@@ -1,13 +1,13 @@
-import type { ReactNode } from "react";
-import { ListTree, Pencil, SignalIcon, User } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { Fragment, useEffect, useRef, type ReactNode } from "react";
+import { ListTree, Pencil } from "lucide-react";
 
 import DueDateControl from "./TodoItem/DueDateControl";
 import EstimateControl from "./TodoItem/EstimateControl";
 import PriorityControl from "./TodoItem/PriorityControl";
 import WorkTypeControl from "./TodoItem/WorkTypeControl";
-import { priorityOf, type Priority } from "@/constants/priorities";
-import { workTypeOf, type WorkType } from "@/constants/workTypes";
+import IconButton from "@/components/ui/IconButton";
+import { toPriority, type Priority } from "@/constants/priorities";
+import type { WorkType } from "@/constants/workTypes";
 import { cn } from "@/utils/cn";
 import type { TodoCardContent, TodoViewState } from "@/types/data";
 
@@ -17,6 +17,8 @@ export interface TodoCardProps extends TodoCardContent, TodoViewState {
   canEdit: boolean;
   // just landed in a done column — play the ring once
   celebrate?: boolean;
+  // the card whose task panel is open
+  selected?: boolean;
 
   onDraftChange: (value: string) => void;
   onSave: () => void;
@@ -53,8 +55,10 @@ export default function TodoCard({
   editing,
   canEdit,
   celebrate = false,
+  selected = false,
   overlay = false,
   dragging = false,
+  dragDisabled = false,
   onDraftChange,
   onSave,
   onCancel,
@@ -80,10 +84,53 @@ export default function TodoCard({
     }
   }, [editing]);
 
+  // Set fields lead and empty ones trail, each in its own box: an invisible placeholder in front would indent
+  // everything after it, and one that wrapped would leave a blank line under the card at rest.
+  const fields = [
+    {
+      key: "priority",
+      set: toPriority(priority) !== null,
+      node: (
+        <PriorityControl
+          bare
+          value={priority}
+          onChange={onPriorityChange}
+          placement="bottom-start"
+        />
+      ),
+    },
+    {
+      key: "estimate",
+      set: estimate !== null,
+      node: (
+        <EstimateControl
+          value={estimate}
+          onChange={onEstimateChange}
+          placement="bottom-start"
+        />
+      ),
+    },
+    {
+      key: "due",
+      set: Boolean(dueDate),
+      node: (
+        <DueDateControl
+          value={dueDate}
+          onChange={onDueDateChange}
+          placement="bottom-start"
+        />
+      ),
+    },
+  ];
+
+  const filled = fields.filter((field) => field.set);
+  const empty = fields.filter((field) => !field.set);
+
   return (
     <div
       ref={setNodeRef}
       {...handleProps}
+      inert={overlay || undefined}
       // safe to put on the drag handle: dnd-kit's pointer sensor needs an 8px move to start a drag,
       // and swallows the click for 50ms after a drop, so a stationary click never gets eaten
       onClick={(event) => {
@@ -100,70 +147,60 @@ export default function TodoCard({
         onOpen?.();
       }}
       className={cn(
-        "group border-ink/[0.06] bg-elevated hover:border-ink/15 hover:bg-ink/[0.02] rounded-card shadow-e1 hover:shadow-e2 relative flex touch-none flex-col gap-1.5 border p-2.5 transition-[background-color,border-color,box-shadow,opacity] duration-150 select-none",
+        "group border-hairline bg-elevated rounded-card shadow-e1 focus-visible:ring-brand relative flex flex-col gap-1 border p-2.5 transition-[border-color,box-shadow,opacity] duration-150 outline-none focus-visible:ring-2",
+        !dragDisabled && "touch-none select-none",
         overlay
-          ? "cursor-grabbing opacity-70 shadow-e3"
-          : onOpen && "cursor-pointer",
-        // dragged-from placeholder keeps the border but drops the shadow, so it doesn't look like two cards stacked
-        dragging && "hover:border-ink/[0.06] shadow-none opacity-40",
+          ? "shadow-e3 pointer-events-none rotate-[1.5deg]"
+          : cn(
+              "hover:border-ink/15 hover:shadow-e2",
+              onOpen && "cursor-pointer",
+            ),
+        selected &&
+          "border-brand/40 hover:border-brand/40 ring-brand/50 ring-2",
+        // dragged-from placeholder: a dimmed dashed slot, no shadow, so it doesn't read as two cards stacked
+        dragging &&
+          "border-ink/20 hover:border-ink/20 border-dashed opacity-40 shadow-none hover:shadow-none",
         celebrate && "done-flash",
       )}
     >
-      <div className="flex items-center gap-1">
-        {overlay ? (
-          <>
-            <PriorityBadge value={priority} />
-            <WorkTypeBadge type={workType} />
-          </>
+      <div className="coarse:min-h-7 flex min-h-5 items-center gap-1.5">
+        <WorkTypeControl
+          bare
+          value={workType}
+          onChange={onWorkTypeChange}
+          placement="bottom-start"
+        />
+
+        {taskKey === null ? (
+          <span aria-hidden className="bg-wash-strong h-2 w-9 rounded-full" />
+        ) : onOpen ? (
+          <button
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={onOpen}
+            title={`Open ${taskKey}`}
+            className="text-ink-3 hover:text-brand focus-visible:ring-brand rounded-control text-mini font-medium tabular-nums transition-colors duration-150 outline-none focus-visible:ring-2"
+          >
+            {taskKey}
+          </button>
         ) : (
-          <>
-            <PriorityControl
-              bare
-              value={priority}
-              onChange={onPriorityChange}
-              alwaysVisible
-            />
-            <WorkTypeControl
-              bare
-              value={workType}
-              onChange={onWorkTypeChange}
-            />
-          </>
+          <span className="text-ink-3 text-mini font-medium tabular-nums">
+            {taskKey}
+          </span>
         )}
 
-        {/* slot always renders (ml-auto lives here) so the action cluster doesn't jump right once the key arrives */}
-        <span className="ml-auto shrink-0">
-          {taskKey !== null &&
-            (onOpen ? (
-              <button
-                type="button"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={onOpen}
-                title={`Open ${taskKey}`}
-                className="text-ink-3 hover:text-brand text-mini cursor-pointer font-semibold tracking-wide tabular-nums transition-colors duration-150"
-              >
-                {taskKey}
-              </button>
-            ) : (
-              <span className="text-ink-3 text-mini font-semibold tracking-wide tabular-nums">
-                {taskKey}
-              </span>
-            ))}
-        </span>
-
         {!editing && canEdit && (
-          <div className="coarse:opacity-100 -mr-1 flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-            <button
-              type="button"
+          <div className="coarse:opacity-100 -my-0.5 -mr-1 ml-auto flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100">
+            <IconButton
+              size="xs"
+              label="Rename"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={onStartEdit}
-              aria-label="Rename"
-              className="text-ink-3 hover:bg-ink/10 hover:text-ink coarse:size-8 coarse:p-0 coarse:grid coarse:place-items-center rounded p-1 transition-colors"
             >
-              <Pencil size={13} />
-            </button>
+              <Pencil />
+            </IconButton>
 
-            {!overlay && menu}
+            {menu}
           </div>
         )}
       </div>
@@ -182,82 +219,59 @@ export default function TodoCard({
             if (e.key === "Escape") onCancel();
           }}
           onPointerDown={(e) => e.stopPropagation()}
-          className="border-brand bg-surface text-ink rounded-control w-full border-2 px-2 py-1 text-sm outline-none"
+          className="bg-elevated text-ink rounded-control ring-brand -mx-1 w-[calc(100%+0.5rem)] px-1 text-sm leading-snug font-medium ring-2 outline-none"
         />
       ) : (
-        <p className="text-ink line-clamp-3 text-sm leading-[1.35] font-medium break-words">
+        <p className="text-ink line-clamp-3 text-sm leading-snug font-medium break-words">
           {title}
         </p>
       )}
 
       {/* always in flow, never toggled — hiding it on hover would shove every card below it up and down the column */}
-      <div className="flex min-h-6 items-center justify-between gap-1.5">
-        {overlay ? (
-          <span className="border-hairline text-ink-3 grid size-6 shrink-0 place-items-center rounded-full border border-dashed">
-            <User size={12} />
-          </span>
-        ) : (
-          assignee
-        )}
+      <div className="mt-1 flex min-h-6 items-center gap-1">
+        {(filled.length > 0 || subtaskTotal > 0) && (
+          <div className="flex min-w-0 flex-wrap items-center gap-1">
+            {filled.map((field) => (
+              <Fragment key={field.key}>{field.node}</Fragment>
+            ))}
 
-        {!overlay && (
-          <div className="flex shrink-0 items-center gap-1.5">
-            <EstimateControl value={estimate} onChange={onEstimateChange} />
-            <DueDateControl value={dueDate} onChange={onDueDateChange} />
+            {subtaskTotal > 0 && (
+              <SubtaskProgress done={subtaskDone} total={subtaskTotal} />
+            )}
           </div>
         )}
+
+        {empty.length > 0 && (
+          <div className="-mx-0.5 flex h-6 min-w-0 flex-1 items-center gap-1 overflow-hidden px-0.5">
+            {empty.map((field) => (
+              <Fragment key={field.key}>{field.node}</Fragment>
+            ))}
+          </div>
+        )}
+
+        <div className="ml-auto flex shrink-0">{assignee}</div>
       </div>
-
-      {subtaskTotal > 0 && (
-        <div
-          className="flex items-center gap-1.5"
-          title={`${subtaskDone} of ${subtaskTotal} subtasks done`}
-        >
-          <ListTree className="text-ink-3 size-3 shrink-0" />
-
-          <span className="text-ink-3 text-micro shrink-0 font-medium tabular-nums">
-            {subtaskDone}/{subtaskTotal}
-          </span>
-
-          <div className="bg-ink/[0.06] h-1 min-w-0 flex-1 overflow-hidden rounded-full">
-            <div
-              style={{
-                width: `${Math.round((subtaskDone / subtaskTotal) * 100)}%`,
-              }}
-              className="bg-status-green h-full rounded-full transition-[width] duration-300"
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
-// mirrors PriorityControl's bare look pixel for pixel so lifting a card doesn't redraw its top row
-function PriorityBadge({ value }: { value: string | null }) {
-  const meta = priorityOf(value);
-
-  const Icon = meta?.icon ?? SignalIcon;
-
+function SubtaskProgress({ done, total }: { done: number; total: number }) {
   return (
     <span
-      className={cn(
-        "flex shrink-0 items-center rounded p-0.5",
-        meta ? meta.tone : "text-ink-3/40",
-      )}
+      title={`${done} of ${total} subtasks done`}
+      className="text-ink-3 flex h-5 shrink-0 flex-col justify-center gap-0.5"
     >
-      <Icon className="size-3.5" />
-    </span>
-  );
-}
+      <span className="text-mini flex items-center gap-1 leading-none font-medium tabular-nums">
+        <ListTree className="size-3 shrink-0" />
+        {done}/{total}
+      </span>
 
-function WorkTypeBadge({ type }: { type: string | null }) {
-  const meta = workTypeOf(type);
-  const Icon = meta.icon;
-
-  return (
-    <span className={cn("flex shrink-0 items-center rounded p-0.5", meta.tone)}>
-      <Icon className="size-3.5" />
+      <span className="bg-wash-strong h-0.5 overflow-hidden rounded-full">
+        <span
+          style={{ width: `${Math.round((done / total) * 100)}%` }}
+          className="bg-status-green block h-full rounded-full transition-[width] duration-300"
+        />
+      </span>
     </span>
   );
 }

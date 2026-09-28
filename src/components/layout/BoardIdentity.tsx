@@ -1,36 +1,22 @@
-import { useState, type ReactNode } from "react";
-import { useNavigate } from "react-router";
-import {
-  ChevronRightIcon,
-  ClockIcon,
-  Columns3Icon,
-  HistoryIcon,
-  LayoutListIcon,
-  type LucideIcon,
-  MoreHorizontalIcon,
-  UsersIcon,
-} from "lucide-react";
-
-import DeleteBoardModal from "@/components/boards/DeleteBoardModal";
 import MemberStack from "@/components/board/MemberStack";
 import PresenceStack from "@/components/board/PresenceStack";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { ICON_BUTTON } from "@/components/ui/controlChrome";
 import { SidebarTrigger } from "@/components/ui/SideBarUI/sidebar";
-import { useBoardId } from "@/hooks/useBoardId";
-import { usePermissions } from "@/hooks/usePermissions";
-import { boardSettingsPath } from "@/services/boardSettings/registry";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { usePanel } from "@/hooks/usePanel";
-import { useAuth } from "@/services/auth/useAuth";
-import { useBoardMembers } from "@/services/members/useBoardMembers";
 import { useSpaces } from "@/services/spaces/useSpaces";
 import type { IBoard } from "@/types/data";
 import { cn } from "@/utils/cn";
+
+// SidebarTrigger is shadcn's Button, whose ghost/focus recipe these overrides replace with ICON_BUTTON.md's
+const SIDEBAR_TRIGGER = cn(
+  ICON_BUTTON.md,
+  "-ml-2 focus-visible:border-transparent active:not-aria-[haspopup]:translate-y-0 dark:hover:bg-wash-strong",
+);
 
 export default function BoardIdentity({
   board,
@@ -48,144 +34,61 @@ export default function BoardIdentity({
   // derived from the work items, not boards.updated_at — that column only moves on a rename/re-file
   lastActivity: string | null;
 }) {
-  const { user } = useAuth();
   const { data: spaces = [] } = useSpaces();
   const { openPanel } = usePanel();
-  const navigate = useNavigate();
-  const boardId = useBoardId();
-  const { data: members = [] } = useBoardMembers(boardId);
-  const memberCount = members.length;
-
-  const [deleting, setDeleting] = useState(false);
 
   const space = spaces.find((it) => it.id === board.space_id);
-  const owned = board.owner_id === user?.id;
-  // Settings is admin+, matching PATCH /boards/:boardId; deleting stays
-  // owner-only, which is what `owned` still gates.
-  const { canEditBoard } = usePermissions(boardId);
   const narrowed = visibleCount !== todoCount;
 
   return (
-    <header className="border-hairline flex flex-wrap items-start gap-x-3 gap-y-2 border-b px-5 pt-3 pb-4 md:flex-nowrap md:gap-y-0 md:px-6">
-      <SidebarTrigger className="coarse:size-9 text-ink-3 hover:text-ink order-1 mt-0.5 shrink-0" />
+    <header className="@container flex h-14 shrink-0 items-center gap-2 px-5 md:px-6">
+      {/* the only way back to an offcanvas sidebar collapsed on this page, so it stays at every width */}
+      <Tooltip>
+        <TooltipTrigger
+          render={<SidebarTrigger className={SIDEBAR_TRIGGER} />}
+        />
+        <TooltipContent side="bottom">Toggle sidebar</TooltipContent>
+      </Tooltip>
 
-      <div className="order-3 w-full min-w-0 md:order-2 md:w-auto md:flex-1">
-        <p className="text-ink-3 flex min-w-0 items-center gap-1 text-xs">
+      <div className="flex min-w-0 flex-1 items-baseline gap-2">
+        <span className="text-meta text-ink-3 hidden max-w-48 min-w-0 shrink-[2] items-baseline gap-2 @md:flex">
           <span className="truncate">{space ? space.title : "Unfiled"}</span>
-          <ChevronRightIcon className="size-3 shrink-0" />
-          <span className="text-ink-2 truncate font-medium">
-            {board.title || "Untitled board"}
+          <span aria-hidden className="text-ink-3/60">
+            /
           </span>
-        </p>
+        </span>
 
-        <h1 className="text-ink mt-0.5 truncate text-xl leading-tight font-bold tracking-[-0.02em] sm:text-2xl md:text-[28px]">
+        <h1 className="text-ink min-w-0 truncate text-lg font-semibold tracking-tight md:text-xl">
           {board.title || "Untitled board"}
         </h1>
 
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <Chip icon={Columns3Icon}>
+        <p className="text-mini text-ink-3 ml-1 hidden shrink-0 items-baseline gap-1.5 whitespace-nowrap @3xl:flex">
+          <span>
             {columnCount} {columnCount === 1 ? "column" : "columns"}
-          </Chip>
+          </span>
+
+          <span aria-hidden>·</span>
 
           {/* both numbers while filtered, so it doesn't quietly look like a small board */}
-          <Chip icon={LayoutListIcon} tone={narrowed ? "brand" : "muted"}>
+          <span className={cn(narrowed && "text-brand font-medium")}>
             {narrowed
               ? `${visibleCount} of ${todoCount} tasks`
               : `${todoCount} ${todoCount === 1 ? "task" : "tasks"}`}
-          </Chip>
+          </span>
 
           {lastActivity && (
-            <Chip icon={ClockIcon}>Last updated {lastActivity}</Chip>
+            <>
+              <span aria-hidden>·</span>
+              <span>Updated {lastActivity}</span>
+            </>
           )}
-
-          {memberCount > 0 && (
-            <Chip icon={UsersIcon} className="max-md:hidden">
-              Viewers: {memberCount}
-            </Chip>
-          )}
-        </div>
+        </p>
       </div>
 
-      <div className="order-2 ml-auto flex shrink-0 items-center gap-1 md:order-3 md:mt-0.5">
-        <PresenceStack viewers={viewers} />
-
+      <div className="flex shrink-0 items-center gap-2">
+        <PresenceStack viewers={viewers} className="hidden @md:flex" />
         <MemberStack onOpen={() => openPanel("members")} />
-
-        <button
-          type="button"
-          onClick={() => openPanel("activity")}
-          aria-label="Board activity"
-          title="Board activity"
-          className="text-ink-3 hover:bg-elevated hover:text-ink focus-visible:ring-brand rounded-control grid size-8 place-items-center transition-colors outline-none focus-visible:ring-2"
-        >
-          <HistoryIcon className="size-4" />
-        </button>
-
-        {(canEditBoard || owned) && (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              aria-label="Board actions"
-              className="text-ink-3 hover:bg-elevated hover:text-ink focus-visible:ring-brand rounded-control grid size-8 place-items-center transition-colors outline-none focus-visible:ring-2"
-            >
-              <MoreHorizontalIcon className="size-4" />
-            </DropdownMenuTrigger>
-
-            <DropdownMenuContent align="end" className="w-44">
-              {canEditBoard && (
-                <DropdownMenuItem
-                  onClick={() =>
-                    void navigate(boardSettingsPath(board.id, "details"))
-                  }
-                >
-                  Board settings
-                </DropdownMenuItem>
-              )}
-
-              {canEditBoard && owned && <DropdownMenuSeparator />}
-
-              {owned && (
-                <DropdownMenuItem
-                  onClick={() => setDeleting(true)}
-                  className="text-status-red"
-                >
-                  Delete board
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
       </div>
-
-      {deleting && (
-        <DeleteBoardModal board={board} onClose={() => setDeleting(false)} />
-      )}
     </header>
-  );
-}
-
-function Chip({
-  icon: Icon,
-  tone = "muted",
-  className,
-  children,
-}: {
-  icon: LucideIcon;
-  tone?: "muted" | "brand";
-  className?: string;
-  children: ReactNode;
-}) {
-  return (
-    <span
-      className={cn(
-        "rounded-control flex h-8 items-center gap-1.5 border px-2.5 text-xs whitespace-nowrap",
-        tone === "brand"
-          ? "border-brand/25 text-brand font-medium"
-          : "border-ink/[0.07] text-ink-3",
-        className,
-      )}
-    >
-      <Icon className="size-3.5 shrink-0" />
-      {children}
-    </span>
   );
 }
