@@ -15,7 +15,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { memberInitial, memberName } from "@/components/members/memberLabels";
 import { useBoardId } from "@/hooks/useBoardId";
 import type { TodoFields } from "@/hooks/useTodoPatch";
-import { useColumns } from "@/services/columns/useColumnsApi";
+import { useWorkflow } from "@/services/workflow/useWorkflow";
+import { EMPTY_WORKFLOW } from "@/services/workflow/statuses";
 import type { BoardMember } from "@/services/members/membersApi";
 import { queryKeys } from "@/services/queryClient/queryKeys";
 import { activeSprintIdOf } from "@/services/sprints/activeSprint";
@@ -83,7 +84,7 @@ export default function ListCell(props: ListCellProps) {
         <StatusControl
           variant="lozenge"
           todoId={todo.id}
-          columnId={todo.column_id}
+          statusId={todo.status_id}
         />
       );
 
@@ -260,7 +261,7 @@ function WorkCell({
           title={`Open ${key}`}
           className={cn(
             "text-brand focus-visible:ring-brand mr-2 shrink-0 rounded text-sm font-medium whitespace-nowrap underline-offset-[3px] outline-none focus-visible:ring-2",
-            // Jira's cue for resolved work, read straight off the column category
+            // Jira's cue for resolved work, read straight off the status category
             done
               ? "decoration-brand/70 line-through"
               : "decoration-brand/50 hover:decoration-brand underline",
@@ -345,8 +346,8 @@ function MemberCell({
 }
 
 // Goes through sprintAssignmentPatch rather than patching sprint_id directly:
-// column_id and sprint_id answer different questions, and that function is the
-// one place allowed to decide what moving between sprints does to the column.
+// status_id and sprint_id answer different questions, and that function is the
+// one place allowed to decide what moving between sprints does to the status.
 function SprintCell({
   todo,
   patch,
@@ -357,7 +358,7 @@ function SprintCell({
   const boardId = useBoardId();
   const queryClient = useQueryClient();
   const { data: sprints = [] } = useSprints();
-  const { data: columns = [] } = useColumns();
+  const { data: workflow = EMPTY_WORKFLOW } = useWorkflow();
 
   return (
     <SprintControl
@@ -375,7 +376,7 @@ function SprintCell({
             todo,
             sprintId,
             activeSprintIdOf(sprints),
-            columns,
+            workflow,
             todos,
           ),
         );

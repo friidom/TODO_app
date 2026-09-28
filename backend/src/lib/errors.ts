@@ -41,6 +41,10 @@ export class AppError extends Error {
 const BY_SQLSTATE: Record<string, { code: ErrorCode; message: string }> = {
   "23505": { code: "conflict", message: "That already exists." },
   "23503": { code: "conflict", message: "A referenced record is missing or still in use." },
+  // ON DELETE RESTRICT refuses with this, not 23503: a status that gained a
+  // card, or a column that still shows a status, between a publish's check and
+  // its delete.
+  "23001": { code: "conflict", message: "That is still in use." },
   "23514": { code: "bad_request", message: "That value is not allowed." },
   "23502": { code: "bad_request", message: "A required field is missing." },
   "22P02": { code: "bad_request", message: "Malformed value." },

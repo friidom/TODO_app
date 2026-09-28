@@ -9,10 +9,14 @@ import { isGenuineSubtask } from "./subtasks";
 import { rankForAppend, rankForDrop } from "@/utils/rank";
 import { useSprints } from "@/services/sprints/useSprints";
 import { activeSprintIdOf } from "@/services/sprints/activeSprint";
+import { useWorkflow } from "@/services/workflow/useWorkflow";
+import { EMPTY_WORKFLOW, columnIdOf } from "@/services/workflow/statuses";
 
 interface AddTodoVars {
   title: string;
-  column_id: string;
+  // A visible status — hidden ones are refused for new work (the API says so
+  // too). The card is ranked among the cards of that status's column.
+  status_id: string;
   /** Gap index to insert at. Appends to the column when omitted. */
   index?: number;
   assignee_id?: string | null;
@@ -34,11 +38,15 @@ export function useAddTodo() {
   const { data: sprints = [] } = useSprints();
   const activeSprintId = activeSprintIdOf(sprints);
 
+  const { data: workflow = EMPTY_WORKFLOW } = useWorkflow();
+  const columnOf = (todo: Pick<Todo, "status_id">) =>
+    columnIdOf(todo, workflow.statusById);
+
   const mutation = useMutation({
     mutationFn: ({
       id,
       title,
-      column_id,
+      status_id,
       assignee_id = null,
       start_date = null,
       due_date = null,
@@ -51,7 +59,7 @@ export function useAddTodo() {
       return addTodo({
         id,
         title,
-        column_id,
+        status_id,
         board_id: boardId,
         assignee_id,
         start_date,
@@ -65,7 +73,7 @@ export function useAddTodo() {
     onMutate: async ({
       id,
       title,
-      column_id,
+      status_id,
       index,
       assignee_id = null,
       start_date = null,
@@ -84,10 +92,10 @@ export function useAddTodo() {
         queryClient.getQueryData<Todo[]>(queryKeys.todos(boardId)) ?? [];
 
       // isGenuineSubtask, not a plain parent_id check — a Task under an Epic is a real card in this column, unlike a Subtask.
+      const column = columnOf({ status_id });
       const destination = previousTodos.filter(
         (todo) =>
-          todo.column_id === column_id &&
-          !isGenuineSubtask(previousTodos, todo),
+          columnOf(todo) === column && !isGenuineSubtask(previousTodos, todo),
       );
 
       const optimisticRank =
@@ -100,7 +108,7 @@ export function useAddTodo() {
         created_at: new Date().toISOString(),
         position: 0,
         rank: optimisticRank,
-        column_id,
+        status_id,
         board_id: boardId,
         board_key: null,
         assignee_id,
@@ -119,7 +127,7 @@ export function useAddTodo() {
 
       queryClient.setQueryData<Todo[]>(
         queryKeys.todos(boardId),
-        applyTodoInserted(previousTodos, optimisticTodo, index),
+        applyTodoInserted(previousTodos, optimisticTodo, index, columnOf),
       );
 
       return { previousTodos };
@@ -144,7 +152,7 @@ export function useAddTodo() {
       const rank = kept?.rank ?? serverTodo.rank;
 
       if (rank === serverTodo.rank || rank === null || !boardId) return;
-      if (!serverTodo.column_id) return;
+      if (!serverTodo.status_id) return;
 
       // The dense position mirror is deliberately left stale: nothing orders
       // by it while a rank is present, and the array-of-positions write it
@@ -152,7 +160,7 @@ export function useAddTodo() {
       moveTodo({
         id: serverTodo.id,
         boardId,
-        columnId: serverTodo.column_id,
+        statusId: serverTodo.status_id,
         rank,
       }).catch(() =>
         queryClient.invalidateQueries({ queryKey: queryKeys.todos(boardId) }),

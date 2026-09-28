@@ -7,10 +7,10 @@ import { canTransition, stagesBetween } from "../../lib/workflow.js";
 import type { Actor } from "../../types/actor.js";
 import { emitChange, emitDeleted, emitInvalidate } from "../../realtime/emit.js";
 import * as boardsRepo from "../boards/boards.repo.js";
-import * as columnsRepo from "../columns/columns.repo.js";
 import * as membersRepo from "../members/members.repo.js";
 import type { BoardContext } from "../members/members.service.js";
 import * as todosRepo from "./todos.repo.js";
+import * as workflowRepo from "../workflow/workflow.repo.js";
 import type { TodoDetailRow, TodoRow, TodoWrite } from "./todos.repo.js";
 import type { CreateTodoInput, MoveTodoInput, UpsertTodoInput } from "./todos.schema.js";
 
@@ -43,56 +43,79 @@ async function requireBoardMember(
   }
 }
 
-// THE one place the workflow is enforced. Both user-driven writes of column_id
+// Every write that places a card in a status runs this first. The status must
+// be on this board — the composite foreign key would refuse it too, but as a
+// 409 that says nothing — and it must not be hidden, unless it is the status
+// the card already has: a hidden status is retired from new placement, and the
+// cards already in it stay valid.
+//
+// Returns the placements it read, so the workflow check that follows does not
+// read them again.
+async function requirePlaceableStatus(
+  board: BoardContext,
+  currentStatusId: string | null,
+  nextStatusId: string | null | undefined,
+): Promise<Map<string, workflowRepo.StatusPlacement>> {
+  if (nextStatusId === undefined || nextStatusId === null) return new Map();
+
+  const ids = currentStatusId === null ? [nextStatusId] : [currentStatusId, nextStatusId];
+  const placements = await workflowRepo.placementsOf(board.id, ids);
+  const next = placements.get(nextStatusId);
+
+  if (next === undefined) {
+    throw new AppError("bad_request", "That status is not on this board.");
+  }
+
+  if (next.is_hidden && nextStatusId !== currentStatusId) {
+    throw new AppError("bad_request", "That status is hidden and cannot receive work items.");
+  }
+
+  return placements;
+}
+
+// THE one place the workflow is enforced. Both user-driven writes of status_id
 // call it -- move (drag and drop) and upsert (PATCH) -- so a rule added to
 // lib/workflow.ts cannot be missed by one of them, and neither controller
 // knows the rule exists.
 //
 // Deliberately NOT called from create (a first placement has no "from"), from
-// columnsRepo.rehomeColumn (deleting a column has to move its cards somewhere
-// whatever their category, or the column could not be deleted) or from the
-// sprint start bulk-assign (it only fills column_id where it is null).
+// a workflow publish moving cards off a deleted status (the status is going
+// away whatever its category), or from the sprint start bulk-assign (it only
+// fills status_id where it is null).
 //
 // Whether it runs at all is boards.workflow_enabled (migration 0020), one
 // field on the board this request already resolved. The rule in lib/workflow.ts
 // stays pure -- the setting is read here, never in there.
 async function requireAllowedTransition(
   board: BoardContext,
-  todoId: string,
-  nextColumnId: string | null | undefined,
+  currentStatusId: string | null,
+  nextStatusId: string | null | undefined,
+  placements: Map<string, workflowRepo.StatusPlacement>,
 ): Promise<void> {
-  // undefined: the patch does not touch the column. null: the card is being
+  // undefined: the patch does not touch the status. null: the card is being
   // taken off the board entirely, which is a Backlog move, not a transition.
-  if (nextColumnId === undefined || nextColumnId === null) return;
+  if (nextStatusId === undefined || nextStatusId === null) return;
+
+  // No status yet (a backlog card arriving on the board, or a row the upsert is
+  // about to create): a first placement is not a transition.
+  if (currentStatusId === null) return;
+
+  // Same status: a reorder, which changes rank and never status.
+  if (currentStatusId === nextStatusId) return;
 
   if (!(await boardsRepo.workflowEnabledFor(board.id))) return;
 
-  const current = await todosRepo.columnOf(board.id, todoId);
-
-  // No row yet (the upsert is about to create it) or no column yet (a backlog
-  // card arriving on the board): a first placement is not a transition.
-  if (current === null || current.column_id === null) return;
-
-  // Same column: a reorder, which changes rank and never status.
-  if (current.column_id === nextColumnId) return;
-
-  const categories = await columnsRepo.categoriesOf(board.id, [
-    current.column_id,
-    nextColumnId,
-  ]);
-
-  const from = categories.get(current.column_id) ?? null;
-  const to = categories.get(nextColumnId) ?? null;
+  const from = placements.get(currentStatusId)?.category ?? null;
+  const to = placements.get(nextStatusId)?.category ?? null;
 
   if (canTransition(from, to)) return;
 
-  // The move skips a stage in the sequence — but only stages this board
-  // actually has are ones it can be asked to pass through. A board whose
-  // columns are To Do / In Progress / Done has no In Review to stop at, and
-  // refusing in_progress -> done there would leave work unable to reach Done
-  // at all.
+  // The move skips a stage in the sequence — but only stages this board can
+  // actually receive work in are ones it can be asked to pass through. A board
+  // with no visible In Review status has nowhere to stop, and refusing
+  // in_progress -> done there would leave work unable to reach Done at all.
   const skipped = stagesBetween(from, to);
-  const present = new Set(await columnsRepo.categoriesOnBoard(board.id));
+  const present = new Set(await workflowRepo.visibleCategoriesOnBoard(board.id));
   const reachable = skipped.filter((stage) => present.has(stage));
 
   if (reachable.length === 0) return;
@@ -102,6 +125,19 @@ async function requireAllowedTransition(
     `A card cannot move straight from ${from} to ${to}; it has to pass through ` +
       `${reachable.join(", ")} first.`,
   );
+}
+
+async function requireStatusChange(
+  board: BoardContext,
+  todoId: string,
+  nextStatusId: string | null | undefined,
+): Promise<void> {
+  if (nextStatusId === undefined || nextStatusId === null) return;
+
+  const currentStatusId = (await todosRepo.statusOf(board.id, todoId))?.status_id ?? null;
+  const placements = await requirePlaceableStatus(board, currentStatusId, nextStatusId);
+
+  await requireAllowedTransition(board, currentStatusId, nextStatusId, placements);
 }
 
 export function list(board: BoardContext): Promise<TodoRow[]> {
@@ -120,7 +156,7 @@ function writeFrom(input: UpsertTodoInput | CreateTodoInput): TodoWrite {
   return {
     ...(input.title !== undefined && { title: input.title }),
     ...(input.description !== undefined && { description: input.description }),
-    ...(input.column_id !== undefined && { column_id: input.column_id }),
+    ...(input.status_id !== undefined && { status_id: input.status_id }),
     ...(input.type !== undefined && { type: input.type }),
     ...(input.priority !== undefined && { priority: input.priority }),
     ...(input.start_date !== undefined && { start_date: input.start_date }),
@@ -141,13 +177,16 @@ export async function create(
 ): Promise<TodoDetailRow> {
   await requireBoardMember(board, input.assignee_id);
 
+  const placements = await requirePlaceableStatus(board, null, input.status_id);
   const write = writeFrom(input);
 
   // The append rank the client used to read for itself before sending. Only
-  // computed when the card lands in a column and the client did not choose a
-  // rank of its own.
-  if (input.column_id != null && input.rank === undefined) {
-    const last = await todosRepo.lastInColumn(board.id, input.column_id);
+  // computed when the card lands in a status and the client did not choose a
+  // rank of its own; the card goes after the last card of the status's column.
+  const placement = input.status_id == null ? undefined : placements.get(input.status_id);
+
+  if (placement !== undefined && input.rank === undefined) {
+    const last = await todosRepo.lastInColumn(board.id, placement.column_id);
 
     write.rank = rankForAppend(last === null ? [] : [last]);
     write.position = (last?.position ?? -1) + 1;
@@ -178,7 +217,7 @@ export async function upsert(
   input: UpsertTodoInput,
 ): Promise<TodoDetailRow> {
   await requireBoardMember(board, input.assignee_id);
-  await requireAllowedTransition(board, todoId, input.column_id);
+  await requireStatusChange(board, todoId, input.status_id);
 
   try {
     const saved = await withActor(actor.id, (tx) =>
@@ -213,10 +252,10 @@ export async function move(
   todoId: string,
   input: MoveTodoInput,
 ): Promise<TodoDetailRow> {
-  await requireAllowedTransition(board, todoId, input.column_id);
+  await requireStatusChange(board, todoId, input.status_id);
 
   const moved = await withActor(actor.id, (tx) =>
-    todosRepo.update(tx, board.id, todoId, { column_id: input.column_id, rank: input.rank }),
+    todosRepo.update(tx, board.id, todoId, { status_id: input.status_id, rank: input.rank }),
   );
 
   if (moved === 0) throw notFound();

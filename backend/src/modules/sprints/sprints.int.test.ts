@@ -4,7 +4,13 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { prisma } from "../../db/prisma.js";
 import { disconnect, resetDatabase } from "../../testing/db.js";
-import { addMember, makeUser, type TestUser } from "../../testing/fixtures.js";
+import {
+  addMember,
+  makeUser,
+  stageStatuses,
+  workflowDraft,
+  type TestUser,
+} from "../../testing/fixtures.js";
 import { startTestServer, type TestClient } from "../../testing/httpClient.js";
 
 let client: TestClient;
@@ -35,17 +41,13 @@ function sprintsUrl(boardId: string): string {
 
 async function setup(role?: "editor" | "viewer") {
   const owner = await makeUser("owner");
-  const columns = await prisma.columns.findMany({
-    where: { board_id: owner.boardId },
-    orderBy: { rank: "asc" },
-    select: { id: true, category: true },
-  });
+  const status = await stageStatuses(owner.boardId);
 
   const base = {
     owner,
     boardId: owner.boardId,
-    todoColumn: columns.find((c) => c.category === "todo")!.id,
-    doneColumn: columns.find((c) => c.category === "done")!.id,
+    todoStatus: status.todo,
+    doneStatus: status.done,
   };
 
   if (role === undefined) return { ...base, actor: owner };
@@ -175,11 +177,11 @@ describe("sprint CRUD", () => {
   });
 
   it("returns the work to the backlog when a sprint is deleted, not deleting it", async () => {
-    const { actor, boardId, todoColumn } = await setup();
+    const { actor, boardId, todoStatus } = await setup();
     const sprint = await makeSprint(actor, boardId);
     const todo = await makeTodo(actor, boardId, {
       title: "Planned",
-      column_id: todoColumn,
+      status_id: todoStatus,
       sprint_id: sprint.id,
     });
 
@@ -197,14 +199,14 @@ describe("sprint CRUD", () => {
 });
 
 describe("POST /sprints/:sprintId/start", () => {
-  it("assigns exactly the items lacking a column", async () => {
-    const { actor, boardId, todoColumn, doneColumn } = await setup();
+  it("assigns exactly the items lacking a status", async () => {
+    const { actor, boardId, todoStatus, doneStatus } = await setup();
     const sprint = await makeSprint(actor, boardId);
 
-    const uncolumned = await makeTodo(actor, boardId, { title: "backlog", sprint_id: sprint.id });
+    const unplaced = await makeTodo(actor, boardId, { title: "backlog", sprint_id: sprint.id });
     const placed = await makeTodo(actor, boardId, {
       title: "already placed",
-      column_id: doneColumn,
+      status_id: doneStatus,
       sprint_id: sprint.id,
     });
 
@@ -218,13 +220,43 @@ describe("POST /sprints/:sprintId/start", () => {
     expect(response.body.state).toBe("active");
 
     const rows = await prisma.todos.findMany({
-      where: { id: { in: [uncolumned.id, placed.id] } },
-      select: { id: true, column_id: true },
+      where: { id: { in: [unplaced.id, placed.id] } },
+      select: { id: true, status_id: true },
     });
 
-    expect(rows.find((r) => r.id === uncolumned.id)!.column_id).toBe(todoColumn);
+    expect(rows.find((r) => r.id === unplaced.id)!.status_id).toBe(todoStatus);
     // Starting a sprint must not move a card sideways.
-    expect(rows.find((r) => r.id === placed.id)!.column_id).toBe(doneColumn);
+    expect(rows.find((r) => r.id === placed.id)!.status_id).toBe(doneStatus);
+  });
+
+  // Hidden statuses cannot receive work, so the first VISIBLE todo status is
+  // where the sprint's items land.
+  it("skips a hidden todo status", async () => {
+    const { actor, boardId, todoStatus } = await setup();
+    const draft = await workflowDraft(boardId);
+    const todoColumn = draft.statuses.find((it) => it.id === todoStatus)!.column_id;
+    const ready = randomUUID();
+
+    const published = await client.put(
+      `/api/v1/boards/${boardId}/workflow`,
+      {
+        ...draft,
+        statuses: [
+          ...draft.statuses.map((it) => (it.id === todoStatus ? { ...it, is_hidden: true } : it)),
+          { id: ready, column_id: todoColumn, name: "Ready", category: "todo", is_hidden: false },
+        ],
+      },
+      { token: actor.token },
+    );
+
+    expect(published.status).toBe(200);
+
+    const sprint = await makeSprint(actor, boardId);
+    const todo = await makeTodo(actor, boardId, { title: "backlog", sprint_id: sprint.id });
+
+    await client.post(`/api/v1/sprints/${sprint.id}/start`, undefined, { token: actor.token });
+
+    expect((await prisma.todos.findUniqueOrThrow({ where: { id: todo.id } })).status_id).toBe(ready);
   });
 
   it("refuses starting a sprint that is not future", async () => {
@@ -276,17 +308,17 @@ describe("POST /sprints/:sprintId/start", () => {
 
     const row = await prisma.todos.findUniqueOrThrow({
       where: { id: todo.id },
-      select: { column_id: true },
+      select: { status_id: true },
     });
 
-    expect(row.column_id).toBeNull();
+    expect(row.status_id).toBeNull();
   });
 
-  it("refuses when the board has no todo-category column", async () => {
+  it("refuses when the board has no todo-category status", async () => {
     const { actor, boardId } = await setup();
     const sprint = await makeSprint(actor, boardId);
 
-    await prisma.columns.updateMany({
+    await prisma.statuses.updateMany({
       where: { board_id: boardId, category: "todo" },
       data: { category: "in_progress" },
     });
@@ -323,12 +355,12 @@ describe("POST /sprints/:sprintId/complete", () => {
 
     const unfinished = await makeTodo(context.actor, context.boardId, {
       title: "unfinished",
-      column_id: context.todoColumn,
+      status_id: context.todoStatus,
       sprint_id: sprint.id,
     });
     const finished = await makeTodo(context.actor, context.boardId, {
       title: "finished",
-      column_id: context.doneColumn,
+      status_id: context.doneStatus,
       sprint_id: sprint.id,
     });
 
@@ -353,7 +385,7 @@ describe("POST /sprints/:sprintId/complete", () => {
 
     const rows = await prisma.todos.findMany({
       where: { id: { in: [unfinished.id, finished.id] } },
-      select: { id: true, sprint_id: true, column_id: true },
+      select: { id: true, sprint_id: true, status_id: true },
     });
 
     expect(rows.find((r) => r.id === unfinished.id)!.sprint_id).toBeNull();
@@ -404,8 +436,8 @@ describe("POST /sprints/:sprintId/complete", () => {
   });
 
   // A backlog item in the sprint is unfinished work. SQL NOT IN would have
-  // excluded it, because a null column_id makes the predicate NULL.
-  it("rehomes a sprint item that has no column at all", async () => {
+  // excluded it, because a null status_id makes the predicate NULL.
+  it("rehomes a sprint item that has no status at all", async () => {
     const context = await setup();
     const sprint = await makeSprint(context.actor, context.boardId);
 
@@ -413,9 +445,9 @@ describe("POST /sprints/:sprintId/complete", () => {
       token: context.actor.token,
     });
 
-    // Added after the start, so it never got a column.
+    // Added after the start, so it never got a status.
     const stray = await makeTodo(context.actor, context.boardId, {
-      title: "no column",
+      title: "no status",
       sprint_id: sprint.id,
     });
 

@@ -859,22 +859,25 @@ export interface WipRow {
 
 export async function wipBreakdown(scope: FlowScope = {}): Promise<WipRow[]> {
   if (scope.boardId !== undefined) {
+    // One slice per status, in board order: a column may show statuses of
+    // different categories, so a column-level slice would have no one colour.
     const { rows } = await query<WipRow>(
-      `select c.id as key,
-              coalesce(nullif(btrim(c.title), ''), 'Untitled') as label,
-              coalesce(c.category, 'todo') as category,
+      `select st.id as key,
+              st.name::text as label,
+              st.category,
               (count(t.id) filter (where t.completed_at is null))::int as count
-         from columns c
+         from statuses st
+         join columns c on c.id = st.column_id
          left join todos t
-           on t.column_id = c.id
+           on t.status_id = st.id
           and t.completed_at is null
           and t.type <> 'Epic'
           and not exists (
             select 1 from todos parent where parent.id = t.parent_id and parent.type <> 'Epic'
           )
-        where c.board_id = $1
-        group by c.id, c.title, c.category, c.rank, c.position
-        order by c.rank asc nulls last, c.position asc nulls last`,
+        where st.board_id = $1
+        group by st.id, st.name, st.category, st.rank, c.id, c.rank, c.position
+        order by c.rank asc nulls last, c.position asc nulls last, c.id, st.rank, st.id`,
       [scope.boardId],
     );
 
@@ -885,12 +888,12 @@ export async function wipBreakdown(scope: FlowScope = {}): Promise<WipRow[]> {
   const where = scopeOf(scope, params);
 
   const { rows } = await query<WipRow>(
-    `select case when t.column_id is null then 'backlog' else coalesce(c.category, 'todo') end as key,
+    `select case when t.status_id is null then 'backlog' else st.category end as key,
             '' as label,
-            case when t.column_id is null then 'none' else coalesce(c.category, 'todo') end as category,
+            case when t.status_id is null then 'none' else st.category end as category,
             count(*)::int as count
        from todos t
-       left join columns c on c.id = t.column_id
+       left join statuses st on st.id = t.status_id
       where t.completed_at is null and ${COUNTABLE}${where}
       group by 1, 3`,
     params,
@@ -1174,6 +1177,8 @@ export interface TodoDetail {
   type: string;
   priority: string | null;
   estimate: number | null;
+  status_id: string | null;
+  status_name: string | null;
   column_id: string | null;
   column_title: string | null;
   category: string | null;
@@ -1203,9 +1208,11 @@ export async function todoDetail(todoId: string): Promise<TodoDetail | null> {
             t.type,
             t.priority,
             t.estimate::float8 as estimate,
-            t.column_id,
+            t.status_id,
+            st.name::text as status_name,
+            st.column_id,
             c.title as column_title,
-            c.category,
+            st.category,
             t.assignee_id,
             ap.username as assignee_username,
             t.completed_by,
@@ -1224,7 +1231,8 @@ export async function todoDetail(todoId: string): Promise<TodoDetail | null> {
        from todos t
        join boards b on b.id = t.board_id
        left join spaces s on s.id = b.space_id
-       left join columns c on c.id = t.column_id
+       left join statuses st on st.id = t.status_id
+       left join columns c on c.id = st.column_id
        left join profiles ap on ap.id = t.assignee_id
        left join profiles cp on cp.id = t.completed_by
        left join profiles rp on rp.id = t.creator_id

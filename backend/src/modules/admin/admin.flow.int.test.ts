@@ -10,9 +10,9 @@ import { startTestServer, type TestClient } from "../../testing/httpClient.js";
 
 let client: TestClient;
 let admin: TestUser;
-let todoColumn: string;
-let doingColumn: string;
-let doneColumn: string;
+let todoStatus: string;
+let doingStatus: string;
+let doneStatus: string;
 
 const DAY = 86_400_000;
 
@@ -27,8 +27,8 @@ async function makeSuperadmin(name: string): Promise<TestUser> {
   return user;
 }
 
-async function columnOf(boardId: string, category: string): Promise<string> {
-  const row = await prisma.columns.findFirstOrThrow({
+async function statusOf(boardId: string, category: string): Promise<string> {
+  const row = await prisma.statuses.findFirstOrThrow({
     where: { board_id: boardId, category },
     select: { id: true },
   });
@@ -38,7 +38,7 @@ async function columnOf(boardId: string, category: string): Promise<string> {
 
 async function card(
   board: string,
-  columnId: string | null,
+  statusId: string | null,
   extra: Record<string, unknown> = {},
 ): Promise<string> {
   const id = randomUUID();
@@ -47,7 +47,7 @@ async function card(
     `/api/v1/boards/${board}/todos/${id}`,
     {
       title: "card",
-      column_id: columnId,
+      status_id: statusId,
       rank: Math.random() * 1000,
       ...extra,
     },
@@ -123,9 +123,9 @@ beforeAll(async () => {
 beforeEach(async () => {
   await resetDatabase();
   admin = await makeSuperadmin("root");
-  todoColumn = await columnOf(admin.boardId, "todo");
-  doingColumn = await columnOf(admin.boardId, "in_progress");
-  doneColumn = await columnOf(admin.boardId, "done");
+  todoStatus = await statusOf(admin.boardId, "todo");
+  doingStatus = await statusOf(admin.boardId, "in_progress");
+  doneStatus = await statusOf(admin.boardId, "done");
 });
 
 afterAll(async () => {
@@ -149,7 +149,7 @@ describe("GET /admin/flow — the gate and the contract", () => {
   });
 
   it("returns numbers, not strings", async () => {
-    const id = await card(admin.boardId, doneColumn);
+    const id = await card(admin.boardId, doneStatus);
     await backdate(id, { created: 6, started: 4, completed: 2 });
 
     const { body } = await flow();
@@ -163,9 +163,9 @@ describe("GET /admin/flow — the gate and the contract", () => {
 
 describe("cycle and lead time", () => {
   it("measures the two durations over the same completed population", async () => {
-    const a = await card(admin.boardId, doneColumn);
-    const b = await card(admin.boardId, doneColumn);
-    const c = await card(admin.boardId, doneColumn);
+    const a = await card(admin.boardId, doneStatus);
+    const b = await card(admin.boardId, doneStatus);
+    const c = await card(admin.boardId, doneStatus);
 
     await backdate(a, { created: 10, started: 9, completed: 8 }); // cycle 1, lead 2
     await backdate(b, { created: 10, started: 8, completed: 6 }); // cycle 2, lead 4
@@ -181,8 +181,8 @@ describe("cycle and lead time", () => {
   });
 
   it("excludes a completion with no start date from cycle time and counts it", async () => {
-    const measured = await card(admin.boardId, doneColumn);
-    const historic = await card(admin.boardId, doneColumn);
+    const measured = await card(admin.boardId, doneStatus);
+    const historic = await card(admin.boardId, doneStatus);
 
     await backdate(measured, { created: 10, started: 8, completed: 6 });
     await backdate(historic, { created: 10, started: null, completed: 5 });
@@ -199,7 +199,7 @@ describe("cycle and lead time", () => {
   });
 
   it("says nothing rather than zero when nothing finished", async () => {
-    await card(admin.boardId, todoColumn);
+    await card(admin.boardId, todoStatus);
 
     const { body } = await flow();
 
@@ -209,7 +209,7 @@ describe("cycle and lead time", () => {
   });
 
   it("fills every histogram bin, including the empty ones", async () => {
-    const id = await card(admin.boardId, doneColumn);
+    const id = await card(admin.boardId, doneStatus);
     await backdate(id, { created: 10, started: 8, completed: 6 }); // 2 days -> [2,3)
 
     const { body } = await flow();
@@ -224,7 +224,7 @@ describe("cycle and lead time", () => {
 describe("the cumulative flow diagram", () => {
   it("is cumulative — no band ever falls as the window advances", async () => {
     for (const days of [20, 15, 10, 5]) {
-      const id = await card(admin.boardId, doneColumn);
+      const id = await card(admin.boardId, doneStatus);
       await backdate(id, {
         created: days + 4,
         started: days + 2,
@@ -247,7 +247,7 @@ describe("the cumulative flow diagram", () => {
   });
 
   it("counts work that existed before the window in the first bucket", async () => {
-    const old = await card(admin.boardId, doneColumn);
+    const old = await card(admin.boardId, doneStatus);
     await backdate(old, { created: 300, started: 299, completed: 298 });
 
     const { body } = await flow("?period=7d");
@@ -257,9 +257,9 @@ describe("the cumulative flow diagram", () => {
   });
 
   it("bands never exceed the one beneath them", async () => {
-    const a = await card(admin.boardId, doneColumn);
-    const b = await card(admin.boardId, doingColumn);
-    await card(admin.boardId, todoColumn);
+    const a = await card(admin.boardId, doneStatus);
+    const b = await card(admin.boardId, doingStatus);
+    await card(admin.boardId, todoStatus);
 
     await backdate(a, { created: 8, started: 6, completed: 4 });
     await backdate(b, { created: 8, started: 3 });
@@ -275,8 +275,8 @@ describe("the cumulative flow diagram", () => {
 
 describe("work in progress", () => {
   it("groups by category across the system, in pipeline order", async () => {
-    await card(admin.boardId, todoColumn);
-    await card(admin.boardId, doingColumn);
+    await card(admin.boardId, todoStatus);
+    await card(admin.boardId, doingStatus);
     await card(admin.boardId, null);
 
     const { body } = await flow();
@@ -291,7 +291,7 @@ describe("work in progress", () => {
   });
 
   it("omits done work, which is finished rather than in progress", async () => {
-    const done = await card(admin.boardId, doneColumn);
+    const done = await card(admin.boardId, doneStatus);
     await backdate(done, { created: 5, started: 4, completed: 3 });
 
     const { body } = await flow();
@@ -300,8 +300,8 @@ describe("work in progress", () => {
     expect(body.wip.reduce((sum, slice) => sum + slice.count, 0)).toBe(0);
   });
 
-  it("groups by column when scoped to one board, keeping empty columns", async () => {
-    await card(admin.boardId, todoColumn);
+  it("groups by status when scoped to one board, keeping empty statuses", async () => {
+    await card(admin.boardId, todoStatus);
 
     const { body } = await flow(`?period=30d&board=${admin.boardId}`);
 
@@ -328,9 +328,9 @@ describe("WIP aging", () => {
   });
 
   it("buckets open work by how long it has been started", async () => {
-    const fresh = await card(admin.boardId, doingColumn);
-    const stale = await card(admin.boardId, doingColumn);
-    const ancient = await card(admin.boardId, doingColumn);
+    const fresh = await card(admin.boardId, doingStatus);
+    const stale = await card(admin.boardId, doingStatus);
+    const ancient = await card(admin.boardId, doingStatus);
 
     await backdate(fresh, { started: 1 });
     await backdate(stale, { started: 5 });
@@ -346,7 +346,7 @@ describe("WIP aging", () => {
   });
 
   it("ignores finished work, however old", async () => {
-    const done = await card(admin.boardId, doneColumn);
+    const done = await card(admin.boardId, doneStatus);
     await backdate(done, { created: 200, started: 199, completed: 100 });
 
     const { body } = await flow();
@@ -358,15 +358,15 @@ describe("WIP aging", () => {
 describe("the scope filter", () => {
   it("narrows every figure to one board", async () => {
     const other = await makeUser("other");
-    const otherDone = await columnOf(other.boardId, "done");
+    const otherDone = await statusOf(other.boardId, "done");
 
-    const mine = await card(admin.boardId, doneColumn);
+    const mine = await card(admin.boardId, doneStatus);
     await backdate(mine, { created: 8, started: 6, completed: 4 });
 
     const theirs = randomUUID();
     await client.patch(
       `/api/v1/boards/${other.boardId}/todos/${theirs}`,
-      { title: "card", column_id: otherDone, rank: 1 },
+      { title: "card", status_id: otherDone, rank: 1 },
       { token: other.token },
     );
     await backdate(theirs, { created: 8, started: 7, completed: 4 });
@@ -386,7 +386,7 @@ describe("the scope filter", () => {
       data: { space_id: space.id },
     });
 
-    const id = await card(admin.boardId, doneColumn);
+    const id = await card(admin.boardId, doneStatus);
     await backdate(id, { created: 8, started: 6, completed: 4 });
 
     expect((await flow(`?period=30d&space=${space.id}`)).body.cycle_time.n).toBe(1);
@@ -396,8 +396,8 @@ describe("the scope filter", () => {
 
 describe("the slice", () => {
   it("cuts the durations by estimate, and names the unestimated bucket", async () => {
-    const sized = await card(admin.boardId, doneColumn, { estimate: 8 });
-    const unsized = await card(admin.boardId, doneColumn);
+    const sized = await card(admin.boardId, doneStatus, { estimate: 8 });
+    const unsized = await card(admin.boardId, doneStatus);
 
     await backdate(sized, { created: 10, started: 8, completed: 3 });
     await backdate(unsized, { created: 10, started: 9, completed: 8 });
@@ -410,7 +410,7 @@ describe("the slice", () => {
   });
 
   it("cuts by type when asked", async () => {
-    const bug = await card(admin.boardId, doneColumn, { type: "Bug" });
+    const bug = await card(admin.boardId, doneStatus, { type: "Bug" });
     await backdate(bug, { created: 10, started: 8, completed: 6 });
 
     const { body } = await flow("?period=30d&slice=type");
@@ -423,7 +423,7 @@ describe("the slice", () => {
 describe("the query budget", () => {
   it("issues a bounded number of queries however much data there is", async () => {
     for (let i = 0; i < 6; i += 1) {
-      const id = await card(admin.boardId, doneColumn, { estimate: i });
+      const id = await card(admin.boardId, doneStatus, { estimate: i });
       await backdate(id, { created: 10 + i, started: 8 + i, completed: 2 + i });
     }
 

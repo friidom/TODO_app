@@ -49,7 +49,7 @@ function todo(over: Partial<Todo> = {}): Todo {
   return {
     id: `t-${seq}`,
     board_id: "b-1",
-    column_id: "c-1",
+    status_id: "s-1",
     board_key: seq,
     title: `Item ${seq}`,
     type: "Task",

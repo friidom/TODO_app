@@ -16,6 +16,7 @@ import {
 import { membersRoutes } from "../modules/members/members.routes.js";
 import { boardSprintsRoutes, sprintsRoutes } from "../modules/sprints/sprints.routes.js";
 import { boardTodosRoutes, todosRoutes } from "../modules/todos/todos.routes.js";
+import { boardWorkflowRoutes } from "../modules/workflow/workflow.routes.js";
 import { spacesRoutes } from "../modules/spaces/spaces.routes.js";
 import { usersRoutes } from "../modules/users/users.routes.js";
 
@@ -55,6 +56,7 @@ boardScoped.use("/members", membersRoutes);
 boardScoped.use("/invites", boardInvitesRoutes);
 boardScoped.use("/invitees", boardInviteesRoutes);
 boardScoped.use("/columns", boardColumnsRoutes);
+boardScoped.use("/workflow", boardWorkflowRoutes);
 boardScoped.use("/todos", boardTodosRoutes);
 boardScoped.use("/sprints", boardSprintsRoutes);
 boardScoped.use("/activities", boardActivitiesRoutes);

@@ -6,7 +6,8 @@ import type { SubtaskProgress } from "@/services/todos/subtasks";
 import type { PlacedEpicGroup } from "@/services/views/timelineHierarchy";
 import type { DayRange } from "@/services/views/timelineDrag";
 import type { TimelineScale } from "@/services/views/timeline";
-import type { IColumn, Todo } from "@/types/data";
+import type { StatusIndex } from "@/services/workflow/statuses";
+import type { Todo } from "@/types/data";
 import { cn } from "@/utils/cn";
 import { taskKey } from "@/utils/taskKey";
 import TimelineRow, { Row, RowRail } from "./TimelineRow";
@@ -17,7 +18,7 @@ export default function TimelineEpicGroup({
   placed,
   ticks,
   scale,
-  columnById,
+  statusById,
   keyPrefix,
   locale,
   today,
@@ -33,7 +34,7 @@ export default function TimelineEpicGroup({
   placed: PlacedEpicGroup;
   ticks: string[];
   scale: TimelineScale;
-  columnById: Map<string, IColumn>;
+  statusById: StatusIndex;
   keyPrefix: string;
   locale?: string;
   today: string;
@@ -74,7 +75,7 @@ export default function TimelineEpicGroup({
           draft={epicDraft}
           ticks={ticks}
           scale={scale}
-          column={epic.column_id ? columnById.get(epic.column_id) : undefined}
+          status={epic.status_id ? statusById.get(epic.status_id) : undefined}
           keyPrefix={keyPrefix}
           locale={locale}
           today={today}
@@ -103,9 +104,9 @@ export default function TimelineEpicGroup({
               draft={active ? draft!.range : null}
               ticks={ticks}
               scale={scale}
-              column={
-                item.todo.column_id
-                  ? columnById.get(item.todo.column_id)
+              status={
+                item.todo.status_id
+                  ? statusById.get(item.todo.status_id)
                   : undefined
               }
               keyPrefix={keyPrefix}

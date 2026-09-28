@@ -8,9 +8,10 @@ export default function AddColumnButton({
 }: {
   setCreateColumnOpen: (open: boolean) => void;
 }) {
-  const { canManageColumns } = usePermissions();
+  // A new column is a workflow publish, which only an admin or the owner may make.
+  const { canManageWorkflow } = usePermissions();
 
-  if (!canManageColumns) return null;
+  if (!canManageWorkflow) return null;
 
   return (
     <IconButton

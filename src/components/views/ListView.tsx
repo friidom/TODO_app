@@ -11,9 +11,14 @@ import { useOpenTask } from "@/hooks/useOpenTask";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useSprintsEnabled } from "@/hooks/useSprintsEnabled";
 import { useVisibleTodos } from "@/hooks/useVisibleTodos";
-import { useColumns } from "@/services/columns/useColumnsApi";
 import { useBoardMembers } from "@/services/members/useBoardMembers";
-import { doneColumnIds, subtasksByParent } from "@/services/todos/subtasks";
+import { subtasksByParent } from "@/services/todos/subtasks";
+import {
+  defaultStatus,
+  doneStatusIds,
+  isDoneIn,
+} from "@/services/workflow/statuses";
+import { useStatuses } from "@/services/workflow/useWorkflow";
 import { useTodos } from "@/services/todos/useTodos";
 import { groupTodos } from "@/services/todos/view";
 import {
@@ -23,9 +28,8 @@ import {
   tableMinWidth,
 } from "@/services/views/listColumns";
 import { useListColumns } from "@/stores/listColumns";
-import type { Todo } from "@/types/data";
+import type { IStatus, Todo } from "@/types/data";
 import { cn } from "@/utils/cn";
-import { byRank } from "@/utils/rank";
 import ListCreateRow from "./ListCreateRow";
 import ListHeader from "./ListHeader";
 import ListRow from "./ListRow";
@@ -33,6 +37,7 @@ import { FRAME, GROUP_ROW_TOP, TABLE } from "./listTable";
 
 const NO_TODOS: Todo[] = [];
 const NO_CHILDREN: Todo[] = [];
+const NO_STATUSES: IStatus[] = [];
 
 export default function ListView() {
   const boardId = useBoardId();
@@ -40,7 +45,7 @@ export default function ListView() {
 
   const { todos, total, isLoading, error } = useVisibleTodos();
   const { data: rows = NO_TODOS } = useTodos();
-  const { data: columns = [] } = useColumns();
+  const { data: statuses = NO_STATUSES } = useStatuses();
   const { data: members = [] } = useBoardMembers(boardId);
 
   const { canEditTodos } = usePermissions();
@@ -67,14 +72,14 @@ export default function ListView() {
   // back under their parent rather than listing them among the rows.
   const subtasks = useMemo(() => subtasksByParent(rows), [rows]);
 
-  const doneColumns = useMemo(() => doneColumnIds(columns), [columns]);
+  const doneStatuses = useMemo(() => doneStatusIds(statuses), [statuses]);
 
   const groups = useMemo(() => {
-    const all = groupTodos(todos, view.group, { columns, members });
+    const all = groupTodos(todos, view.group, { statuses, members });
 
-    // groupTodos keeps empty status groups (they're real board columns) — the list drops them, since an empty section here is just a bare header.
+    // groupTodos keeps empty status groups (a visible status can still receive work) — the list drops them, since an empty section here is just a bare header.
     return view.group === "none" ? all : all.filter((g) => g.todos.length > 0);
-  }, [todos, view.group, columns, members]);
+  }, [todos, view.group, statuses, members]);
 
   // Client-only, like KanbanBoard's collapsed columns: which sections you have
   // folded away, which parents you opened and which rows you ticked are not
@@ -128,12 +133,8 @@ export default function ListView() {
   const allSelected =
     todos.length > 0 && todos.every((todo) => selected.has(todo.id));
 
-  // Same target HeaderTodoForm picks, and for the same reason: sorted by rank
-  // rather than array order, since the cache is not guaranteed to stay sorted.
-  const createColumnId = useMemo(
-    () => [...columns].sort(byRank)[0]?.id,
-    [columns],
-  );
+  // Same target HeaderTodoForm picks.
+  const createStatusId = useMemo(() => defaultStatus(statuses)?.id, [statuses]);
 
   if (isLoading) return <Loading />;
 
@@ -152,7 +153,7 @@ export default function ListView() {
         keyPrefix={keyPrefix}
         membersById={membersById}
         openTask={openTask}
-        done={todo.column_id !== null && doneColumns.has(todo.column_id)}
+        done={isDoneIn(todo, doneStatuses)}
         depth={depth}
         childCount={childCount}
         expanded={open}
@@ -230,7 +231,7 @@ export default function ListView() {
                       lozenge={
                         view.group === "status"
                           ? categoryOf(
-                              columns.find((column) => column.id === group.key)
+                              statuses.find((status) => status.id === group.key)
                                 ?.category,
                             ).lozenge
                           : null
@@ -252,7 +253,7 @@ export default function ListView() {
             fields are scrolled sideways. */}
         <div className="grid h-10 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 border-t border-(--list-line) px-2">
           <div className="min-w-0">
-            <ListCreateRow columnId={createColumnId} disabled={!canEditTodos} />
+            <ListCreateRow statusId={createStatusId} disabled={!canEditTodos} />
           </div>
 
           <span className="text-ink-2 text-sm tabular-nums">

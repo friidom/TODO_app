@@ -10,18 +10,18 @@ import {
   typeDistribution,
   workload,
 } from "./summary";
-import type { IColumn, Todo } from "@/types/data";
+import type { IStatus, Todo } from "@/types/data";
 
 const TODAY = "2026-08-15";
 
-const COLUMNS = [
-  { id: "c-todo", category: "todo" },
-  { id: "c-doing", category: "in_progress" },
-  { id: "c-done", category: "done" },
-  { id: "c-null", category: null },
-] as unknown as IColumn[];
+const STATUSES = [
+  { id: "s-todo", category: "todo", is_hidden: false },
+  { id: "s-doing", category: "in_progress", is_hidden: false },
+  { id: "s-review", category: "in_review", is_hidden: false },
+  { id: "s-done", category: "done", is_hidden: false },
+] as unknown as IStatus[];
 
-const INDEX = categoryIndex(COLUMNS);
+const INDEX = categoryIndex(STATUSES);
 
 let seq = 0;
 
@@ -31,7 +31,7 @@ function todo(over: Partial<Todo> = {}): Todo {
   return {
     id: `t-${seq}`,
     board_id: "b-1",
-    column_id: "c-todo",
+    status_id: "s-todo",
     position: 0,
     rank: "a0",
     board_key: seq,
@@ -47,8 +47,10 @@ function todo(over: Partial<Todo> = {}): Todo {
 }
 
 describe("categoryIndex", () => {
-  it("defaults a null category to todo, matching categoryOf()", () => {
-    expect(INDEX.get("c-null")).toBe("todo");
+  it("maps every status to its own category", () => {
+    expect(INDEX.get("s-doing")).toBe("in_progress");
+    expect(INDEX.get("s-review")).toBe("in_review");
+    expect(INDEX.get("s-done")).toBe("done");
   });
 });
 
@@ -56,10 +58,10 @@ describe("summaryStats", () => {
   it("splits the total across exactly three buckets", () => {
     const stats = summaryStats(
       [
-        todo({ column_id: "c-todo" }),
-        todo({ column_id: "c-doing" }),
-        todo({ column_id: "c-done" }),
-        todo({ column_id: "c-done" }),
+        todo({ status_id: "s-todo" }),
+        todo({ status_id: "s-doing" }),
+        todo({ status_id: "s-done" }),
+        todo({ status_id: "s-done" }),
       ],
       INDEX,
       TODAY,
@@ -69,16 +71,16 @@ describe("summaryStats", () => {
     expect(stats.todo + stats.inProgress + stats.done).toBe(stats.total);
   });
 
-  it("counts an item in no column as todo rather than dropping it", () => {
-    const stats = summaryStats([todo({ column_id: null })], INDEX, TODAY);
+  it("counts an item in no status as todo rather than dropping it", () => {
+    const stats = summaryStats([todo({ status_id: null })], INDEX, TODAY);
 
     expect(stats.total).toBe(1);
     expect(stats.todo).toBe(1);
   });
 
-  it("counts an item whose column has not loaded as todo", () => {
+  it("counts an item whose status has not loaded as todo", () => {
     const stats = summaryStats(
-      [todo({ column_id: "c-unknown" })],
+      [todo({ status_id: "s-unknown" })],
       INDEX,
       TODAY,
     );
@@ -89,9 +91,9 @@ describe("summaryStats", () => {
   it("agrees with dueStatus about what is overdue", () => {
     const stats = summaryStats(
       [
-        todo({ due_date: "2026-08-14", column_id: "c-todo" }),
-        todo({ due_date: "2026-08-15", column_id: "c-todo" }),
-        todo({ due_date: "2026-08-16", column_id: "c-todo" }),
+        todo({ due_date: "2026-08-14", status_id: "s-todo" }),
+        todo({ due_date: "2026-08-15", status_id: "s-todo" }),
+        todo({ due_date: "2026-08-16", status_id: "s-todo" }),
       ],
       INDEX,
       TODAY,
@@ -103,7 +105,7 @@ describe("summaryStats", () => {
 
   it("never counts a finished task as overdue", () => {
     const stats = summaryStats(
-      [todo({ due_date: "2026-01-01", column_id: "c-done" })],
+      [todo({ due_date: "2026-01-01", status_id: "s-done" })],
       INDEX,
       TODAY,
     );
@@ -115,9 +117,9 @@ describe("summaryStats", () => {
   it("counts only open items as unassigned", () => {
     const stats = summaryStats(
       [
-        todo({ column_id: "c-todo", assignee_id: null }),
-        todo({ column_id: "c-done", assignee_id: null }),
-        todo({ column_id: "c-todo", assignee_id: "user-a" }),
+        todo({ status_id: "s-todo", assignee_id: null }),
+        todo({ status_id: "s-done", assignee_id: null }),
+        todo({ status_id: "s-todo", assignee_id: "user-a" }),
       ],
       INDEX,
       TODAY,
@@ -160,8 +162,8 @@ describe("workload", () => {
   it("ignores done work, so load is what is left rather than tenure", () => {
     const entries = workload(
       [
-        todo({ assignee_id: "user-a", column_id: "c-done" }),
-        todo({ assignee_id: "user-b", column_id: "c-todo" }),
+        todo({ assignee_id: "user-a", status_id: "s-done" }),
+        todo({ assignee_id: "user-b", status_id: "s-todo" }),
       ],
       INDEX,
       TODAY,
@@ -280,7 +282,7 @@ describe("recentCounts", () => {
 
   it("does not call finished work due soon", () => {
     const counts = recentCounts(
-      [todo({ due_date: "2026-08-16", column_id: "c-done" })],
+      [todo({ due_date: "2026-08-16", status_id: "s-done" })],
       INDEX,
       NOW,
       7,
@@ -356,7 +358,7 @@ describe("dueSoonItems", () => {
   it("ignores finished work and undated work", () => {
     const items = dueSoonItems(
       [
-        todo({ column_id: "c-done", due_date: "2026-07-01T00:00:00Z" }),
+        todo({ status_id: "s-done", due_date: "2026-07-01T00:00:00Z" }),
         todo({ due_date: null }),
       ],
       INDEX,
@@ -389,35 +391,51 @@ describe("dueSoonItems", () => {
 });
 
 describe("statusDistribution", () => {
-  it("counts per column, in the board's own column order", () => {
+  it("counts per status, in the board's own order", () => {
     const slices = statusDistribution(
       [
-        todo({ column_id: "c-todo" }),
-        todo({ column_id: "c-todo" }),
-        todo({ column_id: "c-done" }),
+        todo({ status_id: "s-todo" }),
+        todo({ status_id: "s-todo" }),
+        todo({ status_id: "s-done" }),
       ],
-      COLUMNS,
+      STATUSES,
     );
 
     expect(slices).toEqual([
-      { key: "c-todo", count: 2 },
-      { key: "c-doing", count: 0 },
-      { key: "c-done", count: 1 },
-      { key: "c-null", count: 0 },
+      { key: "s-todo", count: 2 },
+      { key: "s-doing", count: 0 },
+      { key: "s-review", count: 0 },
+      { key: "s-done", count: 1 },
     ]);
   });
 
-  it("keeps empty columns, because they are part of the board's shape", () => {
-    const slices = statusDistribution([], COLUMNS);
+  it("keeps empty visible statuses, because they are part of the board's shape", () => {
+    const slices = statusDistribution([], STATUSES);
 
-    expect(slices).toHaveLength(COLUMNS.length);
+    expect(slices).toHaveLength(STATUSES.length);
     expect(slices.every((slice) => slice.count === 0)).toBe(true);
   });
 
-  it("collects items in no column so the slices still sum to the total", () => {
+  it("keeps a hidden status only while it still holds work", () => {
+    const withHidden = [
+      ...STATUSES,
+      { id: "s-parked", category: "todo", is_hidden: true },
+    ] as IStatus[];
+
+    expect(
+      statusDistribution([], withHidden).map((slice) => slice.key),
+    ).not.toContain("s-parked");
+    expect(
+      statusDistribution([todo({ status_id: "s-parked" })], withHidden).find(
+        (slice) => slice.key === "s-parked",
+      )?.count,
+    ).toBe(1);
+  });
+
+  it("collects items in no status so the slices still sum to the total", () => {
     const slices = statusDistribution(
-      [todo({ column_id: null }), todo({ column_id: "c-gone" })],
-      COLUMNS,
+      [todo({ status_id: null }), todo({ status_id: "s-gone" })],
+      STATUSES,
     );
 
     const orphans = slices.find((slice) => slice.key === null);

@@ -231,9 +231,13 @@ async function main() {
       where: { board_id: alice.boardId },
       select: { id: true },
     });
+    const statusA = await prisma.statuses.findFirstOrThrow({
+      where: { board_id: alice.boardId, column_id: columnA.id },
+      select: { id: true },
+    });
     const todoA = await withActor(alice.id, (tx) =>
       tx.todos.create({
-        data: { board_id: alice.boardId, column_id: columnA.id, title: "A" },
+        data: { board_id: alice.boardId, status_id: statusA.id, title: "A" },
         select: { id: true },
       }),
     );
@@ -276,13 +280,13 @@ async function main() {
       }),
     );
 
-    const columnB = await prisma.columns.findFirstOrThrow({
+    const statusB = await prisma.statuses.findFirstOrThrow({
       where: { board_id: mallory.boardId },
       select: { id: true },
     });
     const todoB = await withActor(mallory.id, (tx) =>
       tx.todos.create({
-        data: { board_id: mallory.boardId, column_id: columnB.id, title: "B" },
+        data: { board_id: mallory.boardId, status_id: statusB.id, title: "B" },
         select: { id: true },
       }),
     );

@@ -17,12 +17,13 @@ import { useBoardView } from "@/hooks/useBoardView";
 import { useKeyPrefix } from "@/hooks/useKeyPrefix";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useVisibleTodos } from "@/hooks/useVisibleTodos";
-import { useColumns } from "@/services/columns/useColumnsApi";
+import { useWorkflow } from "@/services/workflow/useWorkflow";
+import { EMPTY_WORKFLOW, type WorkflowModel } from "@/services/workflow/statuses";
 import { buildBacklogBoard } from "@/services/todos/backlog";
 import { useAddBacklogItem } from "@/services/todos/useAddBacklogItem";
 import { useSprints } from "@/services/sprints/useSprints";
 import { activeSprintIdOf } from "@/services/sprints/activeSprint";
-import type { IColumn, Sprint, Todo } from "@/types/data";
+import type { Sprint, Todo } from "@/types/data";
 import { cn } from "@/utils/cn";
 import { taskKey } from "@/utils/taskKey";
 import BacklogDropZone from "./BacklogDropZone";
@@ -38,7 +39,7 @@ export default function BacklogView() {
   const view = useBoardView();
   const { todos, isLoading, error } = useVisibleTodos();
   const { data: sprints = [], isLoading: sprintsLoading } = useSprints();
-  const { data: columns = [] } = useColumns();
+  const { data: workflow = EMPTY_WORKFLOW } = useWorkflow();
   const { canEditTodos } = usePermissions();
   const keyPrefix = useKeyPrefix();
 
@@ -70,7 +71,7 @@ export default function BacklogView() {
 
   const { onDragEnd } = useBacklogDragEnd({
     board,
-    columns,
+    workflow,
     activeSprintId,
     indicator,
     resetDrag: () => {
@@ -155,7 +156,7 @@ export default function BacklogView() {
               key={section.sprint.id}
               section={section}
               sprints={openSprints}
-              columns={columns}
+              workflow={workflow}
               indicator={indicator}
               onEdit={setEditingSprint}
               onComplete={setCompletingSprint}
@@ -166,7 +167,7 @@ export default function BacklogView() {
           <BacklogUnplannedSection
             items={board.unplanned}
             sprints={openSprints}
-            columns={columns}
+            workflow={workflow}
             indicator={indicator}
             canEditTodos={canEditTodos}
             adding={addingToBacklog}
@@ -235,7 +236,7 @@ export default function BacklogView() {
 function BacklogUnplannedSection({
   items,
   sprints,
-  columns,
+  workflow,
   indicator,
   canEditTodos,
   adding,
@@ -247,7 +248,7 @@ function BacklogUnplannedSection({
 }: {
   items: Todo[];
   sprints: Sprint[];
-  columns: IColumn[];
+  workflow: WorkflowModel;
   indicator: BacklogIndicator | null;
   canEditTodos: boolean;
   adding: boolean;
@@ -294,7 +295,7 @@ function BacklogUnplannedSection({
 
         {items.map((item, i) => (
           <Fragment key={item.id}>
-            <BacklogRow todo={item} sprints={sprints} columns={columns} />
+            <BacklogRow todo={item} sprints={sprints} workflow={workflow} />
 
             <BacklogDropZone
               sectionKey={null}

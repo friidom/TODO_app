@@ -16,7 +16,7 @@ function todo(over: Partial<Todo> = {}): Todo {
   return {
     id: `t-${seq}`,
     board_id: "b-1",
-    column_id: "c-1",
+    status_id: "c-1",
     position: seq,
     rank: seq * 1000,
     board_key: seq,
@@ -41,7 +41,6 @@ function column(over: Partial<IColumn> = {}): IColumn {
     title: `Column ${seq}`,
     position: seq,
     rank: seq * 1000,
-    category: "todo",
     min_limit: null,
     max_limit: null,
     ...over,
@@ -102,18 +101,18 @@ describe("applyTodoEvent — INSERT", () => {
 
 describe("applyTodoEvent — UPDATE", () => {
   it("replaces the whole row, so a move is just an update", () => {
-    const board = [todo({ id: "a", column_id: "c-1", rank: 100 })];
+    const board = [todo({ id: "a", status_id: "c-1", rank: 100 })];
 
     const moved = todo({
       id: "a",
-      column_id: "c-2",
+      status_id: "c-2",
       rank: 250,
       title: "Renamed on the way",
     });
 
     const result = applyTodoEvent(board, change("UPDATE", { new: moved }));
 
-    expect(result[0].column_id).toBe("c-2");
+    expect(result[0].status_id).toBe("c-2");
     expect(result[0].rank).toBe(250);
     expect(result[0].title).toBe("Renamed on the way");
   });
@@ -207,48 +206,48 @@ describe("applyColumnEvent", () => {
 
 describe("applyTodoEvent — concurrency", () => {
   it("keeps a local optimistic card when a remote insert lands beside it", () => {
-    const board = [todo({ id: "mine", column_id: "c-1", rank: 100 })];
+    const board = [todo({ id: "mine", status_id: "c-1", rank: 100 })];
 
     const result = applyTodoEvent(
       board,
-      change("INSERT", { new: todo({ id: "theirs", column_id: "c-1" }) }),
+      change("INSERT", { new: todo({ id: "theirs", status_id: "c-1" }) }),
     );
 
     expect(result.map((it) => it.id).sort()).toEqual(["mine", "theirs"]);
   });
 
   it("gives one winner and no orphan when two clients move the same card", () => {
-    const board = [todo({ id: "a", column_id: "c-1", rank: 100 })];
+    const board = [todo({ id: "a", status_id: "c-1", rank: 100 })];
 
     const viaFirst = applyTodoEvent(
       board,
-      change("UPDATE", { new: todo({ id: "a", column_id: "c-2", rank: 250 }) }),
+      change("UPDATE", { new: todo({ id: "a", status_id: "c-2", rank: 250 }) }),
     );
 
     const viaSecond = applyTodoEvent(
       viaFirst,
-      change("UPDATE", { new: todo({ id: "a", column_id: "c-3", rank: 400 }) }),
+      change("UPDATE", { new: todo({ id: "a", status_id: "c-3", rank: 400 }) }),
     );
 
     expect(viaSecond.filter((it) => it.id === "a")).toHaveLength(1);
-    expect(viaSecond.find((it) => it.id === "a")?.column_id).toBe("c-3");
-    expect(viaSecond.some((it) => it.column_id === "c-2")).toBe(false);
+    expect(viaSecond.find((it) => it.id === "a")?.status_id).toBe("c-3");
+    expect(viaSecond.some((it) => it.status_id === "c-2")).toBe(false);
   });
 
   it("keeps both cards when two clients drag different cards in one column", () => {
     const board = [
-      todo({ id: "a", column_id: "c-1", rank: 100 }),
-      todo({ id: "b", column_id: "c-1", rank: 200 }),
+      todo({ id: "a", status_id: "c-1", rank: 100 }),
+      todo({ id: "b", status_id: "c-1", rank: 200 }),
     ];
 
     const afterA = applyTodoEvent(
       board,
-      change("UPDATE", { new: todo({ id: "a", column_id: "c-1", rank: 300 }) }),
+      change("UPDATE", { new: todo({ id: "a", status_id: "c-1", rank: 300 }) }),
     );
 
     const afterB = applyTodoEvent(
       afterA,
-      change("UPDATE", { new: todo({ id: "b", column_id: "c-1", rank: 150 }) }),
+      change("UPDATE", { new: todo({ id: "b", status_id: "c-1", rank: 150 }) }),
     );
 
     expect(afterB.find((it) => it.id === "a")?.rank).toBe(300);
@@ -302,12 +301,12 @@ describe("applyTodoEvent — concurrency", () => {
   });
 
   it("does not mutate the array it is given", () => {
-    const board = [todo({ id: "a", column_id: "c-1" })];
+    const board = [todo({ id: "a", status_id: "c-1" })];
     const before = [...board];
 
     applyTodoEvent(
       board,
-      change("INSERT", { new: todo({ column_id: "c-1" }) }),
+      change("INSERT", { new: todo({ status_id: "c-1" }) }),
     );
     applyTodoEvent(
       board,

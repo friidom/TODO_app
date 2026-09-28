@@ -13,7 +13,7 @@ const estimate = z.coerce.number().min(0).nullable().optional();
 const writable = {
   title: z.string().trim().max(500).nullable().optional(),
   description: z.string().trim().max(20_000).nullable().optional(),
-  column_id: z.uuid().nullable().optional(),
+  status_id: z.uuid().nullable().optional(),
   type: z.enum(WORK_TYPES).optional(),
   priority: z.enum(PRIORITIES).nullable().optional(),
   start_date: isoDate,
@@ -44,7 +44,7 @@ export const upsertTodoSchema = z
 // The client computed this rank from the neighbours it dropped between;
 // recomputing it here would put the card somewhere else on every other client.
 export const moveTodoSchema = z.object({
-  column_id: z.uuid(),
+  status_id: z.uuid(),
   rank: z.number().finite(),
 });
 

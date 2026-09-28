@@ -4,7 +4,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 
 import { prisma } from "../db/prisma.js";
 import { disconnect, resetDatabase } from "../testing/db.js";
-import { firstColumnOf, makeUser, type TestUser } from "../testing/fixtures.js";
+import { firstStatusOf, makeUser, type TestUser } from "../testing/fixtures.js";
 import { startRealtimeHarness, settle, type RealtimeHarness } from "../testing/realtimeHarness.js";
 import { startTestServer, type TestClient } from "../testing/httpClient.js";
 import { ADMIN_ROOM } from "./io.js";
@@ -31,7 +31,7 @@ async function touch(user: TestUser, boardId: string): Promise<string> {
 
   await rest.patch(
     `/api/v1/boards/${boardId}/todos/${id}`,
-    { title: "card", column_id: (await firstColumnOf(boardId)).id, rank: 1 },
+    { title: "card", status_id: (await firstStatusOf(boardId)).id, rank: 1 },
     { token: user.token },
   );
 

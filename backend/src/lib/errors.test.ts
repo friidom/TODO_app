@@ -55,6 +55,10 @@ describe("toAppError", () => {
     expect(toAppError(prismaError("42501")).status).toBe(403);
   });
 
+  it("maps a RESTRICT refusal (a status or column still in use) to 409", () => {
+    expect(toAppError(prismaError("23001")).status).toBe(409);
+  });
+
   it("leaves anything unrecognised as a 500 with no detail", () => {
     const error = toAppError(new Error("connection reset by peer"));
 

@@ -12,11 +12,12 @@ import {
   applyTodoUpdated,
 } from "./cache";
 
-// ids are uuids in the schema — these just stringify a number for readable fixtures
-const todo = (id: number, column_id: string, position: number): Todo =>
+// ids are uuids in the schema — these just stringify a number for readable fixtures.
+// Each status here is alone in its column, so a status id doubles as the column.
+const todo = (id: number, status_id: string, position: number): Todo =>
   ({
     id: String(id),
-    column_id,
+    status_id,
     position,
     rank: (position + 1) * RANK_GAP,
     title: `todo ${id}`,
@@ -24,13 +25,13 @@ const todo = (id: number, column_id: string, position: number): Todo =>
 
 const column = (todos: Todo[], columnId: string) =>
   todos
-    .filter((it) => it.column_id === columnId)
+    .filter((it) => it.status_id === columnId)
     .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
     .map((it) => Number(it.id));
 
 const positions = (todos: Todo[], columnId: string) =>
   todos
-    .filter((it) => it.column_id === columnId)
+    .filter((it) => it.status_id === columnId)
     .map((it) => it.position)
     .sort((a, b) => (a ?? 0) - (b ?? 0));
 
@@ -71,8 +72,23 @@ describe("applyTodoInserted", () => {
     expect(result.length).toBe(todos.length + 1);
   });
 
+  it("renumbers every status of the column together when told the column", () => {
+    const todos = [todo(1, "a", 0), todo(2, "a2", 1), todo(3, "b", 0)];
+    const columnOf = (it: Todo) => (it.status_id === "b" ? "col-b" : "col-a");
+
+    const result = applyTodoInserted(todos, todo(99, "a", 0), 1, columnOf);
+
+    expect(
+      result
+        .filter((it) => columnOf(it) === "col-a")
+        .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+        .map((it) => it.id),
+    ).toEqual(["1", "99", "2"]);
+    expect(result.find((it) => it.id === "3")?.position).toBe(0);
+  });
+
   it("opens an empty column", () => {
-    const todos = board().filter((it) => it.column_id !== "c");
+    const todos = board().filter((it) => it.status_id !== "c");
     const result = applyTodoInserted(todos, { ...todo(99, "c", 0) }, 0);
 
     expect(column(result, "c")).toEqual([99]);
@@ -193,7 +209,7 @@ describe("applyTodoDeleted", () => {
 describe("applyTodoMoved", () => {
   const ranked = (todos: Todo[], columnId: string) =>
     todos
-      .filter((it) => it.column_id === columnId)
+      .filter((it) => it.status_id === columnId)
       .sort(byRank)
       .map((it) => Number(it.id));
 
@@ -203,7 +219,7 @@ describe("applyTodoMoved", () => {
 
     const moved = result.find((it) => it.id === "1");
 
-    expect(moved?.column_id).toBe("b");
+    expect(moved?.status_id).toBe("b");
     expect(moved?.rank).toBe(1536);
   });
 
@@ -225,7 +241,7 @@ describe("applyTodoMoved", () => {
   });
 
   it("handles an empty destination column", () => {
-    const todos = board().filter((it) => it.column_id !== "c");
+    const todos = board().filter((it) => it.status_id !== "c");
     const result = applyTodoMoved(todos, todos[0], "c", RANK_GAP);
 
     expect(ranked(result, "c")).toEqual([1]);
@@ -291,15 +307,15 @@ describe("applyBacklogMoved", () => {
 
     expect(moved?.backlog_rank).toBe(1536);
     expect(moved?.sprint_id).toBe(todos[0].sprint_id);
-    expect(moved?.column_id).toBe(todos[0].column_id);
+    expect(moved?.status_id).toBe(todos[0].status_id);
   });
 
-  it("carries a cross-Sprint move's full patch — sprint_id, column_id and rank together", () => {
+  it("carries a cross-Sprint move's full patch — sprint_id, status_id and rank together", () => {
     const todos = board();
     const result = applyBacklogMoved(todos, "1", {
       sprint_id: "sprint-a",
       backlog_rank: 1536,
-      column_id: "a",
+      status_id: "a",
       rank: 512,
     });
 
@@ -308,7 +324,7 @@ describe("applyBacklogMoved", () => {
     expect(moved).toMatchObject({
       sprint_id: "sprint-a",
       backlog_rank: 1536,
-      column_id: "a",
+      status_id: "a",
       rank: 512,
     });
   });
@@ -341,7 +357,7 @@ describe("applySubtaskInserted", () => {
     ({
       id: String(id),
       parent_id: parent,
-      column_id: "a",
+      status_id: "a",
       title: `subtask ${id}`,
       position: null,
       rank: null,
@@ -403,7 +419,7 @@ describe("applyTodoDeleted — with subtasks in the array", () => {
     ({
       id: String(id),
       parent_id: parent,
-      column_id: "a",
+      status_id: "a",
       title: `subtask ${id}`,
       position: null,
       rank: null,

@@ -1,19 +1,21 @@
-import { useColumns } from "@/services/columns/useColumnsApi";
 import React from "react";
-import type { IColumn, Todo } from "@/types/data";
+import type { Todo } from "@/types/data";
 import { isOnBoard } from "@/services/todos/backlog";
+import { useWorkflow } from "@/services/workflow/useWorkflow";
+import { EMPTY_WORKFLOW, columnIdOf } from "@/services/workflow/statuses";
 import { useBoard } from "@/services/boards/useBoard";
 import { useSprints } from "@/services/sprints/useSprints";
 import { activeSprintIdOf } from "@/services/sprints/activeSprint";
 import { useBoardId } from "./useBoardId";
 
-// stable reference — a fresh `[]` default would re-run the memo below on every render while the query has no data
-const EMPTY_COLUMNS: IColumn[] = [];
-
-// buckets, doesn't sort — useVisibleTodos already put the array in display order
+// buckets, doesn't sort — useVisibleTodos already put the array in display order.
+// A card's column is its status's column, so a column holds the cards of every
+// status it shows, hidden ones included.
 export default function useTodosByColumns(todos: Todo[]) {
   const boardId = useBoardId();
-  const { data: columns = EMPTY_COLUMNS } = useColumns();
+  // EMPTY_WORKFLOW is a stable reference — a fresh default would re-run the memo below on every render while the query has no data
+  const { data: workflow = EMPTY_WORKFLOW } = useWorkflow();
+  const { columns, statusById } = workflow;
   const { data: sprints = [], isPending: sprintsPending } = useSprints();
   const { data: board, isPending: boardPending } = useBoard(boardId);
 
@@ -32,19 +34,20 @@ export default function useTodosByColumns(todos: Todo[]) {
     });
 
     todos.forEach((todo) => {
-      // isOnBoard implies this, but TS can't narrow column_id through a function call
-      if (todo.column_id === null) return;
       if (!isOnBoard(todo, activeSprintId, sprintsEnabled)) return;
 
-      grouped[todo.column_id]?.push(todo);
+      const columnId = columnIdOf(todo, statusById);
+
+      if (columnId !== null) grouped[columnId]?.push(todo);
     });
 
     return grouped;
-  }, [todos, columns, activeSprintId, sprintsEnabled]);
+  }, [todos, columns, statusById, activeSprintId, sprintsEnabled]);
 
   return {
     todosByColumn,
     columns,
+    workflow,
     activeSprintId,
     sprintsEnabled,
     // Both gate the board's loading state for the same reason: a card in the

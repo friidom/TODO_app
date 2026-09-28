@@ -11,8 +11,8 @@ import { startTestServer, type TestClient } from "../../testing/httpClient.js";
 let client: TestClient;
 let admin: TestUser;
 let dev: TestUser;
-let doneColumn: string;
-let todoColumn: string;
+let doneStatus: string;
+let todoStatus: string;
 
 async function makeSuperadmin(name: string): Promise<TestUser> {
   const user = await makeUser(name);
@@ -22,8 +22,8 @@ async function makeSuperadmin(name: string): Promise<TestUser> {
   return user;
 }
 
-async function columnOf(boardId: string, category: string): Promise<string> {
-  const row = await prisma.columns.findFirstOrThrow({
+async function statusOf(boardId: string, category: string): Promise<string> {
+  const row = await prisma.statuses.findFirstOrThrow({
     where: { board_id: boardId, category },
     select: { id: true },
   });
@@ -32,7 +32,7 @@ async function columnOf(boardId: string, category: string): Promise<string> {
 }
 
 interface CardInput {
-  columnId?: string | null;
+  statusId?: string | null;
   estimate?: number | null;
   assignee?: string | null;
   type?: string;
@@ -44,7 +44,7 @@ async function card(board: string, token: string, input: CardInput = {}): Promis
 
   const body: Record<string, unknown> = {
     title: "card",
-    column_id: input.columnId === undefined ? todoColumn : input.columnId,
+    status_id: input.statusId === undefined ? todoStatus : input.statusId,
     rank: Math.random() * 1000,
   };
 
@@ -97,8 +97,8 @@ beforeEach(async () => {
   admin = await makeSuperadmin("root");
   dev = await makeUser("dev");
   await addMember(admin.boardId, dev, "editor", admin.id);
-  doneColumn = await columnOf(admin.boardId, "done");
-  todoColumn = await columnOf(admin.boardId, "todo");
+  doneStatus = await statusOf(admin.boardId, "done");
+  todoStatus = await statusOf(admin.boardId, "todo");
 });
 
 afterAll(async () => {
@@ -173,9 +173,9 @@ describe("GET /admin/overview", () => {
   });
 
   it("counts completed work and leaves open work out of it", async () => {
-    await card(admin.boardId, admin.token, { columnId: doneColumn, estimate: 3 });
-    await card(admin.boardId, admin.token, { columnId: doneColumn, estimate: 5 });
-    await card(admin.boardId, admin.token, { columnId: todoColumn, estimate: 100 });
+    await card(admin.boardId, admin.token, { statusId: doneStatus, estimate: 3 });
+    await card(admin.boardId, admin.token, { statusId: doneStatus, estimate: 5 });
+    await card(admin.boardId, admin.token, { statusId: todoStatus, estimate: 100 });
 
     const { body } = await get<OverviewBody>("/api/v1/admin/overview");
 
@@ -189,7 +189,7 @@ describe("GET /admin/overview", () => {
   // hands both back as strings. A string renders fine and sorts "9" above
   // "10", so the assertion is on the type, not only the value.
   it("returns numbers, not strings", async () => {
-    await card(admin.boardId, admin.token, { columnId: doneColumn, estimate: 3 });
+    await card(admin.boardId, admin.token, { statusId: doneStatus, estimate: 3 });
 
     const { body } = await get<OverviewBody>("/api/v1/admin/overview");
 
@@ -212,7 +212,7 @@ describe("GET /admin/overview", () => {
   // guards against is one query per user or per board.
   it("issues a bounded number of queries however many users there are", async () => {
     for (let i = 0; i < 4; i += 1) {
-      await card(admin.boardId, admin.token, { columnId: doneColumn, estimate: i });
+      await card(admin.boardId, admin.token, { statusId: doneStatus, estimate: i });
     }
 
     const original = pool.query.bind(pool);
@@ -237,22 +237,22 @@ describe("GET /admin/overview", () => {
 describe("the points population, stated once (D-7)", () => {
   it("does not double-count an Epic alongside its children", async () => {
     const epic = await card(admin.boardId, admin.token, {
-      columnId: todoColumn,
+      statusId: todoStatus,
       estimate: 100,
       type: "Epic",
     });
 
     const first = await card(admin.boardId, admin.token, {
-      columnId: doneColumn,
+      statusId: doneStatus,
       estimate: 3,
       parentId: epic,
     });
 
-    await card(admin.boardId, admin.token, { columnId: doneColumn, estimate: 5, parentId: epic });
+    await card(admin.boardId, admin.token, { statusId: doneStatus, estimate: 5, parentId: epic });
 
     await client.patch(
       `/api/v1/boards/${admin.boardId}/todos/${epic}`,
-      { column_id: doneColumn },
+      { status_id: doneStatus },
       { token: admin.token },
     );
 
@@ -264,7 +264,7 @@ describe("the points population, stated once (D-7)", () => {
 
     // And a subtask under one of those tasks is not a third completion.
     await card(admin.boardId, admin.token, {
-      columnId: doneColumn,
+      statusId: doneStatus,
       estimate: 2,
       parentId: first,
     });
@@ -276,8 +276,8 @@ describe("the points population, stated once (D-7)", () => {
   });
 
   it("counts an unestimated card as a completion and never as zero points", async () => {
-    await card(admin.boardId, admin.token, { columnId: doneColumn, estimate: 5 });
-    await card(admin.boardId, admin.token, { columnId: doneColumn });
+    await card(admin.boardId, admin.token, { statusId: doneStatus, estimate: 5 });
+    await card(admin.boardId, admin.token, { statusId: doneStatus });
 
     const { body } = await get<OverviewBody>("/api/v1/admin/overview");
 
@@ -290,7 +290,7 @@ describe("the points population, stated once (D-7)", () => {
 describe("GET /admin/users", () => {
   it("credits the person who held the card when it completed", async () => {
     await card(admin.boardId, admin.token, {
-      columnId: doneColumn,
+      statusId: doneStatus,
       estimate: 5,
       assignee: dev.id,
     });
@@ -306,7 +306,7 @@ describe("GET /admin/users", () => {
   // factual metric and simply has no performance figure.
   it("gives an unclassified user facts but no performance", async () => {
     await card(admin.boardId, admin.token, {
-      columnId: doneColumn,
+      statusId: doneStatus,
       estimate: 5,
       assignee: dev.id,
     });
@@ -328,7 +328,7 @@ describe("GET /admin/users", () => {
     );
 
     await card(admin.boardId, admin.token, {
-      columnId: doneColumn,
+      statusId: doneStatus,
       estimate: 20,
       assignee: dev.id,
     });
@@ -353,7 +353,7 @@ describe("GET /admin/users", () => {
     );
 
     await card(admin.boardId, admin.token, {
-      columnId: doneColumn,
+      statusId: doneStatus,
       estimate: 7,
       assignee: dev.id,
     });
@@ -369,7 +369,7 @@ describe("GET /admin/users", () => {
 
   it("does not move credit when finished work is reassigned", async () => {
     const done = await card(admin.boardId, admin.token, {
-      columnId: doneColumn,
+      statusId: doneStatus,
       estimate: 5,
       assignee: admin.id,
     });
@@ -390,7 +390,7 @@ describe("GET /admin/users", () => {
 describe("GET /admin/users/:id", () => {
   it("carries a year-long heatmap of completed tasks, whatever the period", async () => {
     await card(admin.boardId, admin.token, {
-      columnId: doneColumn,
+      statusId: doneStatus,
       estimate: 3,
       assignee: dev.id,
     });
@@ -417,7 +417,7 @@ describe("GET /admin/users/:id", () => {
 
 describe("GET /admin/boards", () => {
   it("aggregates each board and names its owner", async () => {
-    await card(admin.boardId, admin.token, { columnId: doneColumn, estimate: 4 });
+    await card(admin.boardId, admin.token, { statusId: doneStatus, estimate: 4 });
 
     const { body } = await get<{
       boards: { id: string; owner_username: string; members: number; completed_points: number }[];

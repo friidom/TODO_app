@@ -7,5 +7,26 @@
     "in_review": "In review",
     "done": "Done"
   },
+  "status": {
+    "label": "Status",
+    "labelled": "Status: {{name}}",
+    "none": "No status",
+    "hidden": "Hidden status"
+  },
+  "workflow": {
+    "passThroughFirst": "Move it to {{stages}} first.",
+    "skipsStep": "That move skips a step. {{reason}}",
+    "noStatusToReceive": "This column has no status that can receive work items.",
+    "statusNameTaken": "A status named “{{name}}” already exists on this board.",
+    "editStale": "The workflow changed before this could be saved. Try again."
+  },
+  "activity": {
+    "statusCreated": "created the status {{name}}",
+    "statusCreatedUnnamed": "created a status",
+    "statusDeleted": "deleted the status {{name}}",
+    "statusDeletedUnnamed": "deleted a status",
+    "statusRenamed": "renamed the status {{from}} to {{to}}",
+    "statusRenamedUnnamed": "renamed a status"
+  },
   "loading": "Loading..."
 }

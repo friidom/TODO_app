@@ -18,6 +18,8 @@ import type {
   UserQuery,
 } from "./admin.schema.js";
 import type { FlowSliceBy } from "./admin.repo.js";
+import type { PublishWorkflowInput } from "../workflow/workflow.schema.js";
+import * as workflowService from "../workflow/workflow.service.js";
 
 function rangeOf(period: AdminPeriod): PeriodRange {
   return periodRange(period, new Date(), env.APP_TIMEZONE);
@@ -223,6 +225,31 @@ export async function board(boardId: string, period: AdminPeriod) {
     board: row,
     series,
   };
+}
+
+export function boardWorkflow(boardId: string) {
+  return workflowService.snapshot(boardId);
+}
+
+// The superadmin's publish is the members' publish, run as the superadmin so
+// the activity feed names who changed the board. The audit row is written after
+// the publish commits, as setKpiTarget's is: a refused publish is not an event.
+export async function publishBoardWorkflow(
+  boardId: string,
+  input: PublishWorkflowInput,
+  actorId: string,
+) {
+  const workflow = await workflowService.publish({ id: actorId }, boardId, input);
+
+  await adminRepo.recordAudit({
+    actorId,
+    action: "board.workflow_published",
+    targetType: "board",
+    targetId: boardId,
+    payload: { from_version: input.version, to_version: input.version + 1 },
+  });
+
+  return workflow;
 }
 
 export async function activity(input: ActivityQuery) {

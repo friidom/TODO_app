@@ -8,7 +8,7 @@ const BOARD = "board-1";
 describe("keysForScopes", () => {
   it("maps a scope to the key the hooks already use, not to a second spelling", () => {
     expect(keysForScopes(["todos"], BOARD)).toEqual([[...queryKeys.todos(BOARD)]]);
-    expect(keysForScopes(["columns"], BOARD)).toEqual([[...queryKeys.columns(BOARD)]]);
+    expect(keysForScopes(["workflow"], BOARD)).toEqual([[...queryKeys.workflow(BOARD)]]);
     expect(keysForScopes(["sprints"], BOARD)).toEqual([[...queryKeys.sprints(BOARD)]]);
     expect(keysForScopes(["members"], BOARD)).toEqual([[...queryKeys.members(BOARD)]]);
   });
@@ -33,8 +33,8 @@ describe("keysForScopes", () => {
   });
 
   it("combines scopes in order", () => {
-    expect(keysForScopes(["columns", "todos"], BOARD)).toEqual([
-      [...queryKeys.columns(BOARD)],
+    expect(keysForScopes(["workflow", "todos"], BOARD)).toEqual([
+      [...queryKeys.workflow(BOARD)],
       [...queryKeys.todos(BOARD)],
     ]);
   });

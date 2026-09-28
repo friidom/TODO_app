@@ -4,7 +4,6 @@ import {
   canHaveSubtasks,
   canPickEpicParent,
   childrenOf,
-  doneColumnIds,
   epicsOf,
   epicTaskProgress,
   isEpic,
@@ -16,12 +15,13 @@ import {
   subtasksByParent,
   topLevelTodos,
 } from "./subtasks";
-import type { IColumn, Todo } from "@/types/data";
+import { doneStatusIds } from "@/services/workflow/statuses";
+import type { IStatus, Todo } from "@/types/data";
 
 const todo = (over: Partial<Todo> & { id: string }): Todo =>
   ({
     board_id: "board-1",
-    column_id: "col-todo",
+    status_id: "st-todo",
     parent_id: null,
     type: "Task",
     created_at: "2026-08-28T10:00:00.000Z",
@@ -32,13 +32,21 @@ const todo = (over: Partial<Todo> & { id: string }): Todo =>
 const epic = (over: Partial<Todo> & { id: string }): Todo =>
   todo({ parent_id: null, ...over, type: "Epic" });
 
-const column = (id: string, category: string): IColumn =>
-  ({ id, category, board_id: "board-1", title: id }) as IColumn;
+const status = (id: string, category: IStatus["category"]): IStatus =>
+  ({
+    id,
+    category,
+    board_id: "board-1",
+    column_id: `column-of-${id}`,
+    name: id,
+    rank: 1024,
+    is_hidden: false,
+  }) as IStatus;
 
-const COLUMNS = [
-  column("col-todo", "todo"),
-  column("col-doing", "in_progress"),
-  column("col-done", "done"),
+const STATUSES = [
+  status("st-todo", "todo"),
+  status("st-doing", "in_progress"),
+  status("st-done", "done"),
 ];
 
 describe("isEpic", () => {
@@ -306,25 +314,25 @@ describe("subtasksByParent", () => {
   });
 });
 
-describe("doneColumnIds", () => {
-  it("collects only the columns categorised done", () => {
-    expect([...doneColumnIds(COLUMNS)]).toEqual(["col-done"]);
+describe("doneStatusIds", () => {
+  it("collects only the statuses categorised done", () => {
+    expect([...doneStatusIds(STATUSES)]).toEqual(["st-done"]);
   });
 
-  it("is empty for a board with no done column", () => {
-    expect(doneColumnIds([column("only", "todo")]).size).toBe(0);
+  it("is empty for a board with no done status", () => {
+    expect(doneStatusIds([status("only", "todo")]).size).toBe(0);
   });
 });
 
 describe("subtaskProgress", () => {
-  const done = doneColumnIds(COLUMNS);
+  const done = doneStatusIds(STATUSES);
 
   it("reports nothing for a task with no subtasks", () => {
     expect(subtaskProgress([], done)).toEqual(NO_SUBTASKS);
   });
 
   it("counts 0 of 1 for a single unfinished subtask", () => {
-    const subtasks = [todo({ id: "b", parent_id: "a", column_id: "col-todo" })];
+    const subtasks = [todo({ id: "b", parent_id: "a", status_id: "st-todo" })];
 
     expect(subtaskProgress(subtasks, done)).toEqual({
       done: 0,
@@ -335,9 +343,9 @@ describe("subtaskProgress", () => {
 
   it("counts 1 of 3, matching the Jira reference's progress label", () => {
     const subtasks = [
-      todo({ id: "b", parent_id: "a", column_id: "col-done" }),
-      todo({ id: "c", parent_id: "a", column_id: "col-doing" }),
-      todo({ id: "d", parent_id: "a", column_id: "col-todo" }),
+      todo({ id: "b", parent_id: "a", status_id: "st-done" }),
+      todo({ id: "c", parent_id: "a", status_id: "st-doing" }),
+      todo({ id: "d", parent_id: "a", status_id: "st-todo" }),
     ];
 
     expect(subtaskProgress(subtasks, done)).toEqual({
@@ -349,8 +357,8 @@ describe("subtaskProgress", () => {
 
   it("counts every subtask done as 100%", () => {
     const subtasks = [
-      todo({ id: "b", parent_id: "a", column_id: "col-done" }),
-      todo({ id: "c", parent_id: "a", column_id: "col-done" }),
+      todo({ id: "b", parent_id: "a", status_id: "st-done" }),
+      todo({ id: "c", parent_id: "a", status_id: "st-done" }),
     ];
 
     expect(subtaskProgress(subtasks, done)).toEqual({
@@ -360,22 +368,22 @@ describe("subtaskProgress", () => {
     });
   });
 
-  it("derives doneness from the column's category, never a field", () => {
+  it("derives doneness from the status's category, never a field", () => {
     const inProgress = todo({
       id: "b",
       parent_id: "a",
-      column_id: "col-doing",
+      status_id: "st-doing",
     });
 
     expect(subtaskProgress([inProgress], done).done).toBe(0);
 
     expect(
-      subtaskProgress([{ ...inProgress, column_id: "col-done" }], done).done,
+      subtaskProgress([{ ...inProgress, status_id: "st-done" }], done).done,
     ).toBe(1);
   });
 
-  it("does not count a subtask with no column as done", () => {
-    const subtasks = [todo({ id: "b", parent_id: "a", column_id: null })];
+  it("does not count a subtask with no status as done", () => {
+    const subtasks = [todo({ id: "b", parent_id: "a", status_id: null })];
 
     expect(subtaskProgress(subtasks, done).done).toBe(0);
   });
@@ -385,19 +393,19 @@ describe("subtaskProgressByParent", () => {
   it("omits parents that have no children, so no indicator is drawn", () => {
     const todos = [todo({ id: "a" }), todo({ id: "b" })];
 
-    expect(subtaskProgressByParent(todos, COLUMNS).size).toBe(0);
+    expect(subtaskProgressByParent(todos, STATUSES).size).toBe(0);
   });
 
   it("counts each parent's own children separately", () => {
     const todos = [
       todo({ id: "a" }),
       todo({ id: "b" }),
-      todo({ id: "a1", parent_id: "a", column_id: "col-done" }),
-      todo({ id: "a2", parent_id: "a", column_id: "col-todo" }),
-      todo({ id: "b1", parent_id: "b", column_id: "col-todo" }),
+      todo({ id: "a1", parent_id: "a", status_id: "st-done" }),
+      todo({ id: "a2", parent_id: "a", status_id: "st-todo" }),
+      todo({ id: "b1", parent_id: "b", status_id: "st-todo" }),
     ];
 
-    const progress = subtaskProgressByParent(todos, COLUMNS);
+    const progress = subtaskProgressByParent(todos, STATUSES);
 
     expect(progress.get("a")).toEqual({ done: 1, total: 2, percent: 50 });
     expect(progress.get("b")).toEqual({ done: 0, total: 1, percent: 0 });
@@ -406,46 +414,46 @@ describe("subtaskProgressByParent", () => {
   it("agrees with subtaskProgress computed one parent at a time", () => {
     const todos = [
       todo({ id: "a" }),
-      todo({ id: "a1", parent_id: "a", column_id: "col-done" }),
-      todo({ id: "a2", parent_id: "a", column_id: "col-doing" }),
-      todo({ id: "a3", parent_id: "a", column_id: "col-todo" }),
+      todo({ id: "a1", parent_id: "a", status_id: "st-done" }),
+      todo({ id: "a2", parent_id: "a", status_id: "st-doing" }),
+      todo({ id: "a3", parent_id: "a", status_id: "st-todo" }),
     ];
 
-    expect(subtaskProgressByParent(todos, COLUMNS).get("a")).toEqual(
-      subtaskProgress(childrenOf(todos, "a"), doneColumnIds(COLUMNS)),
+    expect(subtaskProgressByParent(todos, STATUSES).get("a")).toEqual(
+      subtaskProgress(childrenOf(todos, "a"), doneStatusIds(STATUSES)),
     );
   });
 
-  it("survives a board with no done column", () => {
+  it("survives a board with no done status", () => {
     const todos = [
       todo({ id: "a" }),
-      todo({ id: "a1", parent_id: "a", column_id: "col-todo" }),
+      todo({ id: "a1", parent_id: "a", status_id: "st-todo" }),
     ];
 
     expect(
-      subtaskProgressByParent(todos, [column("col-todo", "todo")]),
+      subtaskProgressByParent(todos, [status("st-todo", "todo")]),
     ).toEqual(new Map([["a", { done: 0, total: 1, percent: 0 }]]));
   });
 
   it("does not create an entry for an Epic from its own Tasks", () => {
     const todos = [
       epic({ id: "e" }),
-      todo({ id: "t1", parent_id: "e", column_id: "col-done" }),
-      todo({ id: "t2", parent_id: "e", column_id: "col-todo" }),
+      todo({ id: "t1", parent_id: "e", status_id: "st-done" }),
+      todo({ id: "t2", parent_id: "e", status_id: "st-todo" }),
     ];
 
-    expect(subtaskProgressByParent(todos, COLUMNS).size).toBe(0);
+    expect(subtaskProgressByParent(todos, STATUSES).size).toBe(0);
   });
 
   it("still counts a Task-under-Epic's own genuine subtasks", () => {
     const todos = [
       epic({ id: "e" }),
       todo({ id: "t", parent_id: "e" }),
-      todo({ id: "s1", parent_id: "t", column_id: "col-done" }),
-      todo({ id: "s2", parent_id: "t", column_id: "col-todo" }),
+      todo({ id: "s1", parent_id: "t", status_id: "st-done" }),
+      todo({ id: "s2", parent_id: "t", status_id: "st-todo" }),
     ];
 
-    const progress = subtaskProgressByParent(todos, COLUMNS);
+    const progress = subtaskProgressByParent(todos, STATUSES);
 
     expect(progress.get("t")).toEqual({ done: 1, total: 2, percent: 50 });
     expect(progress.has("e")).toBe(false);
@@ -456,19 +464,19 @@ describe("epicTaskProgress", () => {
   it("omits an Epic with no Tasks", () => {
     const todos = [epic({ id: "e" })];
 
-    expect(epicTaskProgress(todos, COLUMNS).size).toBe(0);
+    expect(epicTaskProgress(todos, STATUSES).size).toBe(0);
   });
 
   it("counts 2 of 4, matching the milestone's own example", () => {
     const todos = [
       epic({ id: "e" }),
-      todo({ id: "t1", parent_id: "e", column_id: "col-done" }),
-      todo({ id: "t2", parent_id: "e", column_id: "col-done" }),
-      todo({ id: "t3", parent_id: "e", column_id: "col-doing" }),
-      todo({ id: "t4", parent_id: "e", column_id: "col-todo" }),
+      todo({ id: "t1", parent_id: "e", status_id: "st-done" }),
+      todo({ id: "t2", parent_id: "e", status_id: "st-done" }),
+      todo({ id: "t3", parent_id: "e", status_id: "st-doing" }),
+      todo({ id: "t4", parent_id: "e", status_id: "st-todo" }),
     ];
 
-    expect(epicTaskProgress(todos, COLUMNS).get("e")).toEqual({
+    expect(epicTaskProgress(todos, STATUSES).get("e")).toEqual({
       done: 2,
       total: 4,
       percent: 50,
@@ -478,11 +486,11 @@ describe("epicTaskProgress", () => {
   it("does not count a Task's own genuine subtasks toward its Epic", () => {
     const todos = [
       epic({ id: "e" }),
-      todo({ id: "t", parent_id: "e", column_id: "col-todo" }),
-      todo({ id: "s", parent_id: "t", column_id: "col-done" }),
+      todo({ id: "t", parent_id: "e", status_id: "st-todo" }),
+      todo({ id: "s", parent_id: "t", status_id: "st-done" }),
     ];
 
-    expect(epicTaskProgress(todos, COLUMNS).get("e")).toEqual({
+    expect(epicTaskProgress(todos, STATUSES).get("e")).toEqual({
       done: 0,
       total: 1,
       percent: 0,
@@ -493,12 +501,12 @@ describe("epicTaskProgress", () => {
     const todos = [
       epic({ id: "e1" }),
       epic({ id: "e2" }),
-      todo({ id: "a1", parent_id: "e1", column_id: "col-done" }),
-      todo({ id: "a2", parent_id: "e1", column_id: "col-todo" }),
-      todo({ id: "b1", parent_id: "e2", column_id: "col-todo" }),
+      todo({ id: "a1", parent_id: "e1", status_id: "st-done" }),
+      todo({ id: "a2", parent_id: "e1", status_id: "st-todo" }),
+      todo({ id: "b1", parent_id: "e2", status_id: "st-todo" }),
     ];
 
-    const progress = epicTaskProgress(todos, COLUMNS);
+    const progress = epicTaskProgress(todos, STATUSES);
 
     expect(progress.get("e1")).toEqual({ done: 1, total: 2, percent: 50 });
     expect(progress.get("e2")).toEqual({ done: 0, total: 1, percent: 0 });
@@ -507,6 +515,6 @@ describe("epicTaskProgress", () => {
   it("does not count a top-level Task toward any Epic", () => {
     const todos = [epic({ id: "e" }), todo({ id: "solo" })];
 
-    expect(epicTaskProgress(todos, COLUMNS).size).toBe(0);
+    expect(epicTaskProgress(todos, STATUSES).size).toBe(0);
   });
 });

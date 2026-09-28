@@ -8,7 +8,7 @@ import { byRank, rankForDrop } from "../../utils/rank";
 const todo = (id: string, position: number): Todo =>
   ({
     id,
-    column_id: "a",
+    status_id: "a",
     position,
     rank: (position + 1) * 1024,
     title: `todo ${id}`,
@@ -18,7 +18,7 @@ const column = () => [todo("A", 0), todo("B", 1), todo("C", 2), todo("D", 3)];
 
 const order = (todos: Todo[], columnId: string) =>
   todos
-    .filter((it) => it.column_id === columnId)
+    .filter((it) => it.status_id === columnId)
     .sort(byRank)
     .map((it) => it.id);
 

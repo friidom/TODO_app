@@ -1,4 +1,5 @@
-import type { IColumn, Todo } from "@/types/data";
+import { doneStatusIds, isDoneIn } from "@/services/workflow/statuses";
+import type { IStatus, Todo } from "@/types/data";
 
 export function isEpic(todo: Pick<Todo, "type">): boolean {
   return todo.type === "Epic";
@@ -91,23 +92,15 @@ export interface SubtaskProgress {
 
 export const NO_SUBTASKS: SubtaskProgress = { done: 0, total: 0, percent: 0 };
 
-export function doneColumnIds(columns: IColumn[]): Set<string> {
-  return new Set(
-    columns.filter((column) => column.category === "done").map((c) => c.id),
-  );
-}
-
 export function subtaskProgress(
   subtasks: Todo[],
-  doneColumns: Set<string>,
+  doneStatuses: ReadonlySet<string>,
 ): SubtaskProgress {
   const total = subtasks.length;
 
   if (total === 0) return NO_SUBTASKS;
 
-  const done = subtasks.filter(
-    (todo) => todo.column_id !== null && doneColumns.has(todo.column_id),
-  ).length;
+  const done = subtasks.filter((todo) => isDoneIn(todo, doneStatuses)).length;
 
   return { done, total, percent: Math.round((done / total) * 100) };
 }
@@ -115,9 +108,9 @@ export function subtaskProgress(
 // Built once and looked up by id — one card filtering the whole board per render would be O(cards × rows).
 export function subtaskProgressByParent(
   todos: Todo[],
-  columns: IColumn[],
+  statuses: IStatus[],
 ): Map<string, SubtaskProgress> {
-  const doneColumns = doneColumnIds(columns);
+  const doneStatuses = doneStatusIds(statuses);
   const byId = new Map(todos.map((todo) => [todo.id, todo]));
   const counts = new Map<string, { done: number; total: number }>();
 
@@ -133,9 +126,7 @@ export function subtaskProgressByParent(
 
     entry.total += 1;
 
-    if (todo.column_id !== null && doneColumns.has(todo.column_id)) {
-      entry.done += 1;
-    }
+    if (isDoneIn(todo, doneStatuses)) entry.done += 1;
 
     counts.set(todo.parent_id, entry);
   }
@@ -156,9 +147,9 @@ export function subtaskProgressByParent(
 // Mirror of subtaskProgressByParent, for Epics counting their own Tasks instead.
 export function epicTaskProgress(
   todos: Todo[],
-  columns: IColumn[],
+  statuses: IStatus[],
 ): Map<string, SubtaskProgress> {
-  const doneColumns = doneColumnIds(columns);
+  const doneStatuses = doneStatusIds(statuses);
   const byId = new Map(todos.map((todo) => [todo.id, todo]));
   const counts = new Map<string, { done: number; total: number }>();
 
@@ -173,9 +164,7 @@ export function epicTaskProgress(
 
     entry.total += 1;
 
-    if (todo.column_id !== null && doneColumns.has(todo.column_id)) {
-      entry.done += 1;
-    }
+    if (isDoneIn(todo, doneStatuses)) entry.done += 1;
 
     counts.set(todo.parent_id, entry);
   }

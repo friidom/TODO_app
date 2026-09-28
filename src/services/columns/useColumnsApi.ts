@@ -1,19 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
-import { getColumns } from "./columnsApi";
-import { queryKeys } from "@/services/queryClient/queryKeys";
-import { useBoardId } from "@/hooks/useBoardId";
 
+import { useBoardId } from "@/hooks/useBoardId";
+import { workflowQuery } from "@/services/workflow/useWorkflow";
+import type { IWorkflow } from "@/types/data";
+
+// Module-level, so the select runs once per snapshot rather than once per render.
+function selectColumns(workflow: IWorkflow) {
+  return workflow.columns;
+}
+
+// The columns half of the workflow snapshot — the same cache entry the
+// statuses live in, so the two can never describe different versions.
 export function useColumns() {
   const boardId = useBoardId();
 
-  return useQuery({
-    queryKey: queryKeys.columns(boardId),
-    // `enabled` already stops this running without a board; the guard is what
-    // proves it to the compiler, rather than asserting non-null.
-    queryFn: () => {
-      if (!boardId) throw new Error("useColumns ran without a board");
-      return getColumns(boardId);
-    },
-    enabled: Boolean(boardId),
-  });
+  return useQuery({ ...workflowQuery(boardId), select: selectColumns });
 }

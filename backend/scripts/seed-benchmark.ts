@@ -42,12 +42,12 @@ async function main(): Promise<void> {
   // board_key allocation, owner membership, activity logging and the two
   // completion triggers each fire per row; 100k inserts through them is an
   // hour rather than seconds.
-  for (const table of ["users", "boards", "board_members", "columns", "todos", "comments"]) {
+  for (const table of ["users", "boards", "board_members", "columns", "statuses", "todos", "comments"]) {
     await client.query(`alter table ${table} disable trigger user`);
   }
 
   await run("truncate", `
-    truncate table activities, comments, todos, columns, board_members, boards, profiles, users
+    truncate table activities, comments, todos, statuses, columns, board_members, boards, profiles, users
       restart identity cascade
   `);
 
@@ -66,21 +66,29 @@ async function main(): Promise<void> {
       from users u;
   `);
 
-  await run("boards + columns + members", `
+  await run("boards + columns + statuses + members", `
     insert into boards (id, owner_id, title, next_key, key_prefix)
     select gen_random_uuid(), pool.ids[1 + (i % array_length(pool.ids, 1))], 'Bench board ' || i, 1, 'KAN'
       from generate_series(1, ${BOARDS}) i
       cross join (select array_agg(id order by id) as ids from users) pool;
 
-    insert into columns (id, board_id, title, category, position, rank)
+    insert into columns (id, board_id, title, position, rank)
     select gen_random_uuid(),
            b.id,
            (array['Backlog', 'In progress', 'Review', 'Done'])[c],
-           (array['todo', 'in_progress', 'in_review', 'done'])[c],
            c,
            c * 1024
       from boards b
       cross join generate_series(1, ${COLUMNS_PER_BOARD}) c;
+
+    insert into statuses (id, board_id, column_id, name, category, rank)
+    select gen_random_uuid(),
+           c.board_id,
+           c.id,
+           c.title,
+           (array['todo', 'in_progress', 'in_review', 'done'])[c.position::int],
+           1024
+      from columns c;
 
     insert into board_members (board_id, user_id, role)
     select b.id, u.id, case when b.owner_id = u.id then 'owner' else 'editor' end
@@ -91,24 +99,24 @@ async function main(): Promise<void> {
 
   // With the triggers off nothing maintains this, so the fixture has to
   // satisfy Phase C's invariant by construction: completed_at is set if and
-  // only if the row landed in the done column.
+  // only if the row landed in the done status.
   await run("todos", `
     insert into todos (
-      id, board_id, column_id, board_key, title, type, estimate,
+      id, board_id, status_id, board_key, title, type, estimate,
       creator_id, assignee_id, completed_at, completed_by, position, rank, created_at
     )
     with pool as (
-      select array_agg(c.id order by c.id) as column_ids,
-             array_agg(c.board_id order by c.id) as board_ids,
-             array_agg(c.category order by c.id) as categories
-        from columns c
+      select array_agg(s.id order by s.id) as status_ids,
+             array_agg(s.board_id order by s.id) as board_ids,
+             array_agg(s.category order by s.id) as categories
+        from statuses s
     ),
     people as (select array_agg(id order by id) as ids from users),
     picked as (
       select i,
-             pool.board_ids[1 + (i % array_length(pool.column_ids, 1))] as board_id,
-             pool.column_ids[1 + (i % array_length(pool.column_ids, 1))] as column_id,
-             pool.categories[1 + (i % array_length(pool.column_ids, 1))] as category,
+             pool.board_ids[1 + (i % array_length(pool.status_ids, 1))] as board_id,
+             pool.status_ids[1 + (i % array_length(pool.status_ids, 1))] as status_id,
+             pool.categories[1 + (i % array_length(pool.status_ids, 1))] as category,
              people.ids[1 + (i % array_length(people.ids, 1))] as actor
         from generate_series(1, ${TODOS}) i
         cross join pool
@@ -116,7 +124,7 @@ async function main(): Promise<void> {
     )
     select gen_random_uuid(),
            p.board_id,
-           p.column_id,
+           p.status_id,
            p.i,
            'Bench card ' || p.i,
            (array['Task', 'Bug', 'Story', 'Feature', 'Epic'])[1 + (p.i % 5)],
@@ -170,7 +178,7 @@ async function main(): Promise<void> {
       cross join pool;
   `);
 
-  for (const table of ["users", "boards", "board_members", "columns", "todos", "comments"]) {
+  for (const table of ["users", "boards", "board_members", "columns", "statuses", "todos", "comments"]) {
     await client.query(`alter table ${table} enable trigger user`);
   }
 

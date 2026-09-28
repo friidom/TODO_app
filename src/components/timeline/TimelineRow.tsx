@@ -10,7 +10,7 @@ import {
 } from "@/services/views/timeline";
 import type { DragTarget } from "@/hooks/useTimelineDrag";
 import type { DayRange, DragMode } from "@/services/views/timelineDrag";
-import type { IColumn, Todo } from "@/types/data";
+import type { IStatus, Todo } from "@/types/data";
 import { cn } from "@/utils/cn";
 import { formatDayFull, formatDue } from "@/utils/dueDate";
 import { taskKey } from "@/utils/taskKey";
@@ -27,7 +27,7 @@ const TimelineRow = memo(function TimelineRow({
   draft,
   ticks,
   scale,
-  column,
+  status,
   keyPrefix,
   locale,
   today,
@@ -42,7 +42,7 @@ const TimelineRow = memo(function TimelineRow({
   draft: DayRange | null;
   ticks: string[];
   scale: TimelineScale;
-  column?: IColumn;
+  status?: IStatus;
   keyPrefix: string;
   locale?: string;
   today: string;
@@ -112,14 +112,14 @@ const TimelineRow = memo(function TimelineRow({
             <span
               className={cn(
                 "size-2.5 rotate-45 rounded-[2px] ring-1 ring-white/15 transition-shadow duration-150 ring-inset group-hover:ring-white/35",
-                categoryOf(column?.category).dot,
+                categoryOf(status?.category).dot,
                 dragging && "ring-white/50",
               )}
             />
           </button>
         ) : (
           <TimelineBar
-            category={column?.category}
+            category={status?.category}
             place={shown}
             range={range}
             today={today}

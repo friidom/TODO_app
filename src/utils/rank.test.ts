@@ -16,7 +16,7 @@ const row = (rank: number | null, position: number | null = null) => ({
 });
 
 const card = (id: string, rank: number | null): Todo =>
-  ({ id, rank, position: null, column_id: "c" }) as Todo;
+  ({ id, rank, position: null, status_id: "c" }) as Todo;
 
 describe("byRank", () => {
   it("orders by rank ascending", () => {

@@ -13,14 +13,14 @@ import {
 
 const ME = "11111111-1111-4111-8111-111111111111";
 const DONE = "22222222-2222-4222-8222-222222222222";
-const TODO_COL = "33333333-3333-4333-8333-333333333333";
+const TODO_STATUS = "33333333-3333-4333-8333-333333333333";
 
-const context: FilterContext = { userId: ME, doneColumnIds: new Set([DONE]) };
+const context: FilterContext = { userId: ME, doneStatusIds: new Set([DONE]) };
 
 function todo(over: Partial<Todo> & { id: string }): Todo {
   return {
     board_id: "b-1",
-    column_id: TODO_COL,
+    status_id: TODO_STATUS,
     assignee_id: null,
     creator_id: null,
     completed_at: null,
@@ -65,10 +65,10 @@ describe("filter registry", () => {
 });
 
 describe("filter predicates", () => {
-  it("my open work: mine and not in a done column", () => {
+  it("my open work: mine and not in a done status", () => {
     expect(keep("my-open", todo({ id: "a", assignee_id: ME }))).toBe(true);
     expect(
-      keep("my-open", todo({ id: "b", assignee_id: ME, column_id: DONE })),
+      keep("my-open", todo({ id: "b", assignee_id: ME, status_id: DONE })),
     ).toBe(false);
     expect(keep("my-open", todo({ id: "c", assignee_id: "someone" }))).toBe(false);
   });
@@ -79,13 +79,13 @@ describe("filter predicates", () => {
   });
 
   it("all work keeps everything, having no condition", () => {
-    expect(keep("all-work", todo({ id: "a", column_id: DONE }))).toBe(true);
+    expect(keep("all-work", todo({ id: "a", status_id: DONE }))).toBe(true);
     expect(FILTER_DEFINITIONS["all-work"].match).toBeUndefined();
   });
 
-  it("open and done work are complements over the done columns", () => {
+  it("open and done work are complements over the done statuses", () => {
     const open = todo({ id: "a" });
-    const done = todo({ id: "b", column_id: DONE });
+    const done = todo({ id: "b", status_id: DONE });
 
     expect(keep("open-work", open)).toBe(true);
     expect(keep("done-work", open)).toBe(false);
@@ -93,25 +93,25 @@ describe("filter predicates", () => {
     expect(keep("done-work", done)).toBe(true);
   });
 
-  // A backlog card has no column, so it is open rather than done.
-  it("treats a card with no column as open", () => {
-    const backlog = todo({ id: "a", column_id: null });
+  // A backlog card has no status, so it is open rather than done.
+  it("treats a card with no status as open", () => {
+    const backlog = todo({ id: "a", status_id: null });
 
     expect(keep("open-work", backlog)).toBe(true);
     expect(keep("done-work", backlog)).toBe(false);
   });
 
-  // The stamp, not the column: 0013 clears completed_at when a card leaves Done,
+  // The stamp, not the status: 0013 clears completed_at when a card leaves Done,
   // so a reopened card stops being "resolved recently".
   it("resolved recently reads completed_at", () => {
     expect(
       keep("resolved-recently", todo({ id: "a", completed_at: "2026-09-02T00:00:00.000Z" })),
     ).toBe(true);
-    expect(keep("resolved-recently", todo({ id: "b", column_id: DONE }))).toBe(false);
+    expect(keep("resolved-recently", todo({ id: "b", status_id: DONE }))).toBe(false);
   });
 
   it("keeps nothing personal when there is no signed-in user", () => {
-    const anonymous: FilterContext = { userId: undefined, doneColumnIds: new Set() };
+    const anonymous: FilterContext = { userId: undefined, doneStatusIds: new Set() };
 
     expect(
       FILTER_DEFINITIONS["my-open"].match?.(todo({ id: "a", assignee_id: null }), anonymous),

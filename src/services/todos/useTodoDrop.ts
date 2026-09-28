@@ -2,6 +2,12 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { moveTodo, rebalanceColumnRanks } from "@/services/todos/todoApi";
 import { queryKeys } from "@/services/queryClient/queryKeys";
+import { useWorkflow } from "@/services/workflow/useWorkflow";
+import {
+  EMPTY_WORKFLOW,
+  columnIdOf,
+  type StatusIndex,
+} from "@/services/workflow/statuses";
 import type { Todo } from "@/types/data";
 import { rankForDrop } from "@/utils/rank";
 import { applyTodoMoved } from "./cache";
@@ -11,31 +17,51 @@ import { useBoardId } from "@/hooks/useBoardId";
 export interface TodoDropVars {
   todos: Todo[];
   activeTodo: Todo;
+  // The column the card lands in, and the status it takes there. The rank is
+  // a place among the COLUMN's cards, whichever of its statuses they are in.
   columnId: string;
+  statusId: string;
   index: number;
+  // Keeps the card exactly where it is — a status change inside its own column.
+  rank?: number;
+}
+
+// A column's cards other than the one moving, and never a genuine subtask (it
+// carries a status but is not a board neighbour).
+function neighboursIn(
+  todos: Todo[],
+  columnId: string,
+  activeTodo: Todo,
+  statusById: StatusIndex,
+): Todo[] {
+  return todos.filter(
+    (todo) =>
+      columnIdOf(todo, statusById) === columnId &&
+      todo.id !== activeTodo.id &&
+      !isGenuineSubtask(todos, todo),
+  );
 }
 
 export function useTodoDrop() {
   const queryClient = useQueryClient();
   const boardId = useBoardId();
+  const { data: workflow = EMPTY_WORKFLOW } = useWorkflow();
 
   const resolveRank = async ({
     todos,
     activeTodo,
     columnId,
     index,
+    rank,
   }: TodoDropVars) => {
-    // exclude itself (can't be its own neighbour) and genuine subtasks (carry a column but aren't a board neighbour)
-    const destination = todos.filter(
-      (todo) =>
-        todo.column_id === columnId &&
-        todo.id !== activeTodo.id &&
-        !isGenuineSubtask(todos, todo),
+    if (rank !== undefined) return rank;
+
+    const direct = rankForDrop(
+      neighboursIn(todos, columnId, activeTodo, workflow.statusById),
+      index,
     );
 
-    const rank = rankForDrop(destination, index);
-
-    if (rank !== null) return rank;
+    if (direct !== null) return direct;
 
     // A drag cannot start without a board in the route, so this is a type
     // narrowing rather than a reachable state.
@@ -49,14 +75,10 @@ export function useTodoDrop() {
         queryKey: queryKeys.todos(boardId),
       })) ?? [];
 
-    const respaced = fresh.filter(
-      (todo) =>
-        todo.column_id === columnId &&
-        todo.id !== activeTodo.id &&
-        !isGenuineSubtask(fresh, todo),
+    const retried = rankForDrop(
+      neighboursIn(fresh, columnId, activeTodo, workflow.statusById),
+      index,
     );
-
-    const retried = rankForDrop(respaced, index);
 
     if (retried === null) {
       throw new Error("Could not find room for the card after rebalancing");
@@ -74,14 +96,21 @@ export function useTodoDrop() {
       await moveTodo({
         id: vars.activeTodo.id,
         boardId,
-        columnId: vars.columnId,
+        statusId: vars.statusId,
         rank,
       });
 
       return rank;
     },
 
-    onMutate: async ({ todos, activeTodo, columnId, index }) => {
+    onMutate: async ({
+      todos,
+      activeTodo,
+      columnId,
+      statusId,
+      index,
+      rank: kept,
+    }) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.todos(boardId) });
 
       const previousTodos = queryClient.getQueryData<Todo[]>(
@@ -91,29 +120,26 @@ export function useTodoDrop() {
       // recomputed sync (not shared with mutationFn, which can go async on rebalance) — null means no room,
       // card stays put until onSuccess lands it, rare enough to be invisible
       const all = todos ?? [];
-      const rank = rankForDrop(
-        all.filter(
-          (todo) =>
-            todo.column_id === columnId &&
-            todo.id !== activeTodo.id &&
-            !isGenuineSubtask(all, todo),
-        ),
-        index,
-      );
+      const rank =
+        kept ??
+        rankForDrop(
+          neighboursIn(all, columnId, activeTodo, workflow.statusById),
+          index,
+        );
 
       if (rank !== null) {
         queryClient.setQueryData<Todo[]>(
           queryKeys.todos(boardId),
-          applyTodoMoved(todos, activeTodo, columnId, rank),
+          applyTodoMoved(todos, activeTodo, statusId, rank),
         );
       }
 
       return { previousTodos };
     },
 
-    onSuccess: (rank, { activeTodo, columnId }) => {
+    onSuccess: (rank, { activeTodo, statusId }) => {
       queryClient.setQueryData<Todo[]>(queryKeys.todos(boardId), (old) =>
-        old ? applyTodoMoved(old, activeTodo, columnId, rank) : old,
+        old ? applyTodoMoved(old, activeTodo, statusId, rank) : old,
       );
 
       // no-op unless this item's history tab is open and observing the query

@@ -63,7 +63,7 @@ export async function provisionUser(
     spaceId,
   });
 
-  await usersRepo.insertDefaultColumns(tx, board.id);
+  await usersRepo.insertDefaultWorkflow(tx, board.id);
 
   return board.id;
 }

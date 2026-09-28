@@ -3,55 +3,40 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { prisma } from "../../db/prisma.js";
+import type { WorkflowStage } from "../../lib/workflow.js";
 import { disconnect, resetDatabase } from "../../testing/db.js";
-import { addMember, makeUser, type TestUser } from "../../testing/fixtures.js";
+import {
+  addMember,
+  makeUser,
+  stageStatuses,
+  workflowDraft,
+  type TestUser,
+} from "../../testing/fixtures.js";
 import { startTestServer, type TestClient } from "../../testing/httpClient.js";
+import type { PublishWorkflowInput } from "../workflow/workflow.schema.js";
 
 let client: TestClient;
 let owner: TestUser;
 let boardId: string;
 
-interface Cols {
+interface Statuses {
   todo: string;
   doing: string;
   review: string;
   done: string;
 }
 
-let cols: Cols;
-
-async function columnsOf(board: string): Promise<Cols> {
-  const rows = await prisma.columns.findMany({
-    where: { board_id: board },
-    select: { id: true, category: true },
-    orderBy: [{ rank: { sort: "asc", nulls: "last" } }, { position: "asc" }],
-  });
-
-  const first = (category: string): string => {
-    const row = rows.find((candidate) => candidate.category === category);
-
-    if (row === undefined) throw new Error(`no ${category} column on the provisioned board`);
-
-    return row.id;
-  };
-
-  return {
-    todo: first("todo"),
-    doing: first("in_progress"),
-    review: first("in_review"),
-    done: first("done"),
-  };
-}
+let statuses: Statuses;
 
 async function addTodo(
-  columnId: string | null,
+  statusId: string | null,
   extra: Record<string, unknown> = {},
 ): Promise<string> {
   const id = randomUUID();
 
   const response = await client.patch(
     `/api/v1/boards/${boardId}/todos/${id}`,
-    { title: "card", column_id: columnId, rank: 1024, ...extra },
+    { title: "card", status_id: statusId, rank: 1024, ...extra },
     { token: owner.token },
   );
 
@@ -60,38 +45,72 @@ async function addTodo(
   return id;
 }
 
-function move(todoId: string, columnId: string | null): Promise<{ status: number }> {
+function move(todoId: string, statusId: string | null): Promise<{ status: number }> {
   return client.patch(
     `/api/v1/boards/${boardId}/todos/${todoId}`,
-    { column_id: columnId },
+    { status_id: statusId },
     { token: owner.token },
   );
 }
 
-function setCategory(columnId: string, category: string): Promise<{ status: number }> {
-  return client.patch(`/api/v1/columns/${columnId}`, { category }, { token: owner.token });
+async function publish(change: (draft: PublishWorkflowInput) => PublishWorkflowInput) {
+  const response = await client.put(
+    `/api/v1/boards/${boardId}/workflow`,
+    change(await workflowDraft(boardId)),
+    { token: owner.token },
+  );
+
+  expect(response.status).toBe(200);
+}
+
+function setCategory(statusId: string, category: WorkflowStage) {
+  return publish((draft) => ({
+    ...draft,
+    statuses: draft.statuses.map((it) => (it.id === statusId ? { ...it, category } : it)),
+  }));
+}
+
+function rename(statusId: string, name: string) {
+  return publish((draft) => ({
+    ...draft,
+    statuses: draft.statuses.map((it) => (it.id === statusId ? { ...it, name } : it)),
+  }));
+}
+
+// Deletes the status and the column it is alone in, moving its cards to `to`.
+function remove(statusId: string, to: string) {
+  return publish((draft) => {
+    const column = draft.statuses.find((it) => it.id === statusId)!.column_id;
+
+    return {
+      ...draft,
+      columns: draft.columns.filter((it) => it.id !== column),
+      statuses: draft.statuses.filter((it) => it.id !== statusId),
+      migrations: [{ from: statusId, to }],
+    };
+  });
 }
 
 function readTodo(id: string) {
   return prisma.todos.findUniqueOrThrow({
     where: { id },
-    select: { completed_at: true, completed_by: true, column_id: true, updated_at: true },
+    select: { completed_at: true, completed_by: true, status_id: true, updated_at: true },
   });
 }
 
 // The milestone's central invariant, asserted over every row rather than the
 // one the test happened to touch: completed_at is set exactly when the card's
-// column is a done column. Every figure in the admin dashboards is derived
+// status is a done status. Every figure in the admin dashboards is derived
 // from this holding.
 async function assertInvariant(): Promise<void> {
   const rows = await prisma.todos.findMany({
-    select: { id: true, completed_at: true, columns: { select: { category: true } } },
+    select: { id: true, completed_at: true, statuses: { select: { category: true } } },
   });
 
   expect(rows.length).toBeGreaterThan(0);
 
   for (const row of rows) {
-    const shouldBeDone = row.columns?.category === "done";
+    const shouldBeDone = row.statuses?.category === "done";
 
     expect({ id: row.id, done: row.completed_at !== null }).toEqual({
       id: row.id,
@@ -108,7 +127,15 @@ beforeEach(async () => {
   await resetDatabase();
   owner = await makeUser("owner");
   boardId = owner.boardId;
-  cols = await columnsOf(boardId);
+
+  const stages = await stageStatuses(boardId);
+
+  statuses = {
+    todo: stages.todo,
+    doing: stages.inProgress,
+    review: stages.inReview,
+    done: stages.done,
+  };
 });
 
 afterAll(async () => {
@@ -119,12 +146,12 @@ afterAll(async () => {
 describe("the todos-side trigger", () => {
   // From review, not todo: the workflow refuses anything but a single step into
   // done, and what this is about is the trigger firing on entry to done.
-  it("stamps on entering a done column, and credits the assignee", async () => {
-    const todo = await addTodo(cols.review, { assignee_id: owner.id });
+  it("stamps on entering a done status, and credits the assignee", async () => {
+    const todo = await addTodo(statuses.review, { assignee_id: owner.id });
 
     expect((await readTodo(todo)).completed_at).toBeNull();
 
-    await move(todo, cols.done);
+    await move(todo, statuses.done);
 
     const after = await readTodo(todo);
 
@@ -133,12 +160,12 @@ describe("the todos-side trigger", () => {
     await assertInvariant();
   });
 
-  it("clears on leaving a done column", async () => {
-    const todo = await addTodo(cols.done, { assignee_id: owner.id });
+  it("clears on leaving a done status", async () => {
+    const todo = await addTodo(statuses.done, { assignee_id: owner.id });
 
     expect((await readTodo(todo)).completed_at).not.toBeNull();
 
-    await move(todo, cols.doing);
+    await move(todo, statuses.doing);
 
     const after = await readTodo(todo);
 
@@ -148,7 +175,7 @@ describe("the todos-side trigger", () => {
   });
 
   it("clears when a card goes to the backlog", async () => {
-    const todo = await addTodo(cols.done);
+    const todo = await addTodo(statuses.done);
 
     await move(todo, null);
 
@@ -156,8 +183,8 @@ describe("the todos-side trigger", () => {
     await assertInvariant();
   });
 
-  it("stamps a card created straight into a done column", async () => {
-    const todo = await addTodo(cols.done, { assignee_id: owner.id });
+  it("stamps a card created straight into a done status", async () => {
+    const todo = await addTodo(statuses.done, { assignee_id: owner.id });
 
     const after = await readTodo(todo);
 
@@ -165,29 +192,37 @@ describe("the todos-side trigger", () => {
     expect(after.completed_by).toBe(owner.id);
   });
 
-  // A reshuffle inside the done column must not re-date the work: otherwise
-  // dragging yesterday's cards around inflates today's figure.
+  // A move between two done statuses must not re-date the work: otherwise
+  // tidying yesterday's cards inflates today's figure.
   it("does not re-date done to done", async () => {
-    const second = await client.post(
-      `/api/v1/boards/${boardId}/columns`,
-      { title: "Shipped", category: "done" },
-      { token: owner.token },
-    );
+    const shipped = randomUUID();
 
-    const shipped = (second.body as { id: string }).id;
-    const todo = await addTodo(cols.done);
+    await publish((draft) => {
+      const doneColumn = draft.statuses.find((it) => it.id === statuses.done)!.column_id;
+
+      return {
+        ...draft,
+        statuses: [
+          ...draft.statuses,
+          { id: shipped, column_id: doneColumn, name: "Shipped", category: "done", is_hidden: false },
+        ],
+      };
+    });
+
+    const todo = await addTodo(statuses.done);
     const first = (await readTodo(todo)).completed_at;
 
     await move(todo, shipped);
 
+    expect((await readTodo(todo)).status_id).toBe(shipped);
     expect((await readTodo(todo)).completed_at).toEqual(first);
     await assertInvariant();
   });
 
   it("leaves completed_by null when nobody was assigned", async () => {
-    const todo = await addTodo(cols.review);
+    const todo = await addTodo(statuses.review);
 
-    await move(todo, cols.done);
+    await move(todo, statuses.done);
 
     const after = await readTodo(todo);
 
@@ -202,9 +237,9 @@ describe("the todos-side trigger", () => {
 
     await addMember(boardId, other, "editor", owner.id);
 
-    const todo = await addTodo(cols.review, { assignee_id: owner.id });
+    const todo = await addTodo(statuses.review, { assignee_id: owner.id });
 
-    await move(todo, cols.done);
+    await move(todo, statuses.done);
 
     await client.patch(
       `/api/v1/boards/${boardId}/todos/${todo}`,
@@ -219,12 +254,12 @@ describe("the todos-side trigger", () => {
   });
 });
 
-describe("the columns-side trigger", () => {
-  it("completes every card in a column when its category flips to done", async () => {
-    const a = await addTodo(cols.doing, { assignee_id: owner.id });
-    const b = await addTodo(cols.doing);
+describe("the statuses-side trigger", () => {
+  it("completes every card in a status when its category flips to done", async () => {
+    const a = await addTodo(statuses.doing, { assignee_id: owner.id });
+    const b = await addTodo(statuses.doing);
 
-    await setCategory(cols.doing, "done");
+    await setCategory(statuses.doing, "done");
 
     expect((await readTodo(a)).completed_at).not.toBeNull();
     expect((await readTodo(a)).completed_by).toBe(owner.id);
@@ -234,10 +269,10 @@ describe("the columns-side trigger", () => {
   });
 
   it("clears them again when the category flips back", async () => {
-    const a = await addTodo(cols.doing);
+    const a = await addTodo(statuses.doing);
 
-    await setCategory(cols.doing, "done");
-    await setCategory(cols.doing, "in_progress");
+    await setCategory(statuses.doing, "done");
+    await setCategory(statuses.doing, "in_progress");
 
     const after = await readTodo(a);
 
@@ -246,50 +281,62 @@ describe("the columns-side trigger", () => {
     await assertInvariant();
   });
 
-  it("leaves other columns alone", async () => {
-    const elsewhere = await addTodo(cols.todo);
+  it("leaves other statuses alone", async () => {
+    const elsewhere = await addTodo(statuses.todo);
 
-    await setCategory(cols.doing, "done");
+    await setCategory(statuses.doing, "done");
 
     expect((await readTodo(elsewhere)).completed_at).toBeNull();
   });
 
   // A rename is not a category change, and must not touch a single stamp.
-  it("does not re-date anything when only the title changes", async () => {
-    const todo = await addTodo(cols.done);
+  it("does not re-date anything when only the name changes", async () => {
+    const todo = await addTodo(statuses.done);
     const before = (await readTodo(todo)).completed_at;
 
-    await client.patch(`/api/v1/columns/${cols.done}`, { title: "Shipped" }, { token: owner.token });
+    await rename(statuses.done, "Shipped");
+
+    expect((await readTodo(todo)).completed_at).toEqual(before);
+    await assertInvariant();
+  });
+
+  // Moving a status to another column changes no card's status.
+  it("does not re-date anything when a status moves column", async () => {
+    const todo = await addTodo(statuses.done);
+    const before = (await readTodo(todo)).completed_at;
+
+    await publish((draft) => {
+      const reviewColumn = draft.statuses.find((it) => it.id === statuses.review)!.column_id;
+
+      return {
+        ...draft,
+        statuses: draft.statuses.map((it) =>
+          it.id === statuses.done ? { ...it, column_id: reviewColumn } : it,
+        ),
+      };
+    });
 
     expect((await readTodo(todo)).completed_at).toEqual(before);
     await assertInvariant();
   });
 });
 
-describe("deleting a column", () => {
-  it("leaves the rehomed cards consistent with where they landed", async () => {
-    const fromDone = await addTodo(cols.done);
-    const fromDoing = await addTodo(cols.doing);
+describe("deleting a status", () => {
+  it("leaves the migrated cards consistent with where they landed", async () => {
+    const fromDone = await addTodo(statuses.done);
+    const fromDoing = await addTodo(statuses.doing);
 
-    await client.del(
-      `/api/v1/columns/${cols.done}`,
-      { moveToColumnId: cols.doing },
-      { token: owner.token },
-    );
+    await remove(statuses.done, statuses.doing);
 
     expect((await readTodo(fromDone)).completed_at).toBeNull();
     expect((await readTodo(fromDoing)).completed_at).toBeNull();
     await assertInvariant();
   });
 
-  it("stamps cards rehomed into a done column", async () => {
-    const card = await addTodo(cols.doing, { assignee_id: owner.id });
+  it("stamps cards migrated into a done status", async () => {
+    const card = await addTodo(statuses.doing, { assignee_id: owner.id });
 
-    await client.del(
-      `/api/v1/columns/${cols.doing}`,
-      { moveToColumnId: cols.done },
-      { token: owner.token },
-    );
+    await remove(statuses.doing, statuses.done);
 
     const after = await readTodo(card);
 
@@ -302,21 +349,23 @@ describe("deleting a column", () => {
 describe("the invariant survives an arbitrary sequence", () => {
   it("agrees for every row after moves, renames, category flips and a deletion", async () => {
     const cards = [
-      await addTodo(cols.todo, { assignee_id: owner.id }),
-      await addTodo(cols.doing),
-      await addTodo(cols.done, { assignee_id: owner.id }),
+      await addTodo(statuses.todo, { assignee_id: owner.id }),
+      await addTodo(statuses.doing),
+      await addTodo(statuses.done, { assignee_id: owner.id }),
+      await addTodo(statuses.review),
       await addTodo(null),
     ];
 
-    await move(cards[0]!, cols.done);
-    await setCategory(cols.doing, "done");
-    await client.patch(`/api/v1/columns/${cols.todo}`, { title: "Inbox" }, { token: owner.token });
-    await move(cards[2]!, cols.todo);
-    await setCategory(cols.doing, "todo");
-    await move(cards[3]!, cols.done);
-    await setCategory(cols.done, "in_progress");
-    await setCategory(cols.done, "done");
-    await move(cards[1]!, cols.done);
+    await move(cards[0]!, statuses.done);
+    await setCategory(statuses.doing, "done");
+    await rename(statuses.todo, "Inbox");
+    await move(cards[2]!, statuses.todo);
+    await setCategory(statuses.doing, "todo");
+    await move(cards[4]!, statuses.done);
+    await setCategory(statuses.done, "in_progress");
+    await setCategory(statuses.done, "done");
+    await move(cards[1]!, statuses.done);
+    await remove(statuses.review, statuses.done);
 
     await assertInvariant();
   });

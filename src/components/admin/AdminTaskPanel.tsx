@@ -94,7 +94,7 @@ export default function AdminTaskPanel({
                   ]?.pill
                 }
               >
-                {todo.column_title ?? "Backlog"}
+                {todo.status_name ?? "Backlog"}
               </Chip>
             </Field>
 

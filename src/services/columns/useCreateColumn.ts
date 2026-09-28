@@ -1,28 +1,25 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createColumn } from "./columnsApi";
-import { applyColumnInserted } from "./cache";
-import type { IColumn } from "@/types/data";
 import type { ColumnCategory } from "@/constants/columns";
-import { queryKeys } from "@/services/queryClient/queryKeys";
-import { useBoardId } from "@/hooks/useBoardId";
+import { withColumnAdded } from "@/services/workflow/draft";
+import { usePublishWorkflow } from "@/services/workflow/usePublishWorkflow";
 
+// A workflow publish, not a column insert: the column arrives with one status
+// of its name and category, so cards can be put in it the moment it exists.
 export function useCreateColumn() {
-  const queryClient = useQueryClient();
-  const boardId = useBoardId();
+  const publish = usePublishWorkflow();
 
-  return useMutation({
-    // board_id is supplied here rather than by the caller, so no component
-    // has to know which board it is on to create a column.
-    mutationFn: (vars: { title: string; category: ColumnCategory }) => {
-      if (!boardId) throw new Error("useCreateColumn ran without a board");
-      return createColumn({ ...vars, board_id: boardId });
-    },
+  const mutate = (
+    vars: { title: string; category: ColumnCategory },
+    options?: Parameters<typeof publish.mutate>[1],
+  ) =>
+    publish.mutate(
+      (draft) =>
+        withColumnAdded(draft, {
+          ...vars,
+          columnId: crypto.randomUUID(),
+          statusId: crypto.randomUUID(),
+        }),
+      options,
+    );
 
-    onSuccess: (newColumn) => {
-      queryClient.setQueryData<IColumn[]>(
-        queryKeys.columns(boardId),
-        (old = []) => applyColumnInserted(old, newColumn),
-      );
-    },
-  });
+  return { ...publish, mutate };
 }

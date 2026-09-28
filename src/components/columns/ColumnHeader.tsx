@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ArrowRight, Check, Plus, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import CategoryPill from "./CategoryPill";
 import ColumnMenu from "./ColumnMenu";
@@ -13,9 +14,17 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { usePermissions } from "@/hooks/usePermissions";
-import { categoryOf } from "@/constants/columns";
+import { categoryOf, type ColumnCategory } from "@/constants/columns";
 import { limitBreach } from "@/services/columns/limitBreach";
-import { useUpdateColumn } from "@/services/columns/useUpdateColumn";
+import { useRenameColumn } from "@/services/columns/useRenameColumn";
+import {
+  draftOf,
+  renamedWithColumn,
+  statusNameTaken,
+} from "@/services/workflow/draft";
+import { EMPTY_WORKFLOW } from "@/services/workflow/statuses";
+import { useWorkflow } from "@/services/workflow/useWorkflow";
+import { toast } from "@/stores/toasts";
 import { cn } from "@/utils/cn";
 import type { IColumn } from "@/types/data";
 
@@ -26,13 +35,15 @@ export interface TransitionPill {
 
 interface Props {
   column: IColumn;
+  // Its first visible status's — a column has no category of its own.
+  category: ColumnCategory;
   headerTitle: string;
   count: number;
   isDragSource: boolean;
   transition: { from: TransitionPill; to: TransitionPill } | null;
   onCollapse: () => void;
   onAdd?: () => void;
-  onSetLimit: () => void;
+  onSetLimit?: () => void;
   onDelete: () => void;
   onMoveLeft?: () => void;
   onMoveRight?: () => void;
@@ -42,6 +53,7 @@ interface Props {
 
 export default function ColumnHeader({
   column,
+  category,
   headerTitle,
   count,
   isDragSource,
@@ -58,7 +70,9 @@ export default function ColumnHeader({
   const [renaming, setRenaming] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const { canManageColumns } = usePermissions();
+  const { canManageWorkflow } = usePermissions();
+
+  const hasMenu = Boolean(onSetLimit || onMoveLeft || onMoveRight || canDelete);
 
   if (transition) {
     return (
@@ -112,10 +126,7 @@ export default function ColumnHeader({
   const label = (
     <>
       <span
-        className={cn(
-          "size-2 shrink-0 rounded-full",
-          categoryOf(column.category).dot,
-        )}
+        className={cn("size-2 shrink-0 rounded-full", categoryOf(category).dot)}
       />
 
       <h2 className={COLUMN_TITLE}>{headerTitle}</h2>
@@ -126,7 +137,7 @@ export default function ColumnHeader({
 
   return (
     <Shell dragHandleProps={dragHandleProps}>
-      {canManageColumns ? (
+      {canManageWorkflow ? (
         <Tooltip>
           <TooltipTrigger
             type="button"
@@ -169,7 +180,7 @@ export default function ColumnHeader({
             <CollapseIcon />
           </IconButton>
 
-          {canManageColumns && (
+          {hasMenu && (
             <ColumnMenu
               open={menuOpen}
               onOpenChange={setMenuOpen}
@@ -218,14 +229,27 @@ function RenameField({
 }) {
   const [value, setValue] = useState(headerTitle);
 
-  const updateColumn = useUpdateColumn();
+  const renameColumn = useRenameColumn();
+  const { data: workflow = EMPTY_WORKFLOW } = useWorkflow();
+  const { t } = useTranslation();
 
   function save() {
     const trimmed = value.trim();
 
     if (!trimmed || trimmed === headerTitle) return onDone();
 
-    updateColumn.mutate(
+    // A one-status column renames its status too, and status names are unique
+    // on a board: say so here rather than as the API's refusal.
+    const draft = draftOf(workflow);
+    const carried = renamedWithColumn(draft, column.id);
+
+    if (carried && statusNameTaken(draft, trimmed, carried.id)) {
+      toast.error(t("workflow.statusNameTaken", { name: trimmed }));
+
+      return;
+    }
+
+    renameColumn.mutate(
       { id: column.id, title: trimmed },
       { onSuccess: onDone },
     );

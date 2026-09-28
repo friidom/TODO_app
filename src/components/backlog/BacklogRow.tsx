@@ -10,7 +10,8 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useTodoPatch } from "@/hooks/useTodoPatch";
 import { queryKeys } from "@/services/queryClient/queryKeys";
 import { sprintAssignmentPatch } from "@/services/todos/backlog";
-import type { IColumn, Sprint, Todo } from "@/types/data";
+import type { WorkflowModel } from "@/services/workflow/statuses";
+import type { Sprint, Todo } from "@/types/data";
 import { cn } from "@/utils/cn";
 import { taskKey } from "@/utils/taskKey";
 import { activeSprintIdOf } from "@/services/sprints/activeSprint";
@@ -27,11 +28,11 @@ const BACKLOG_GRID =
 export default function BacklogRow({
   todo,
   sprints,
-  columns,
+  workflow,
 }: {
   todo: Todo;
   sprints: Sprint[];
-  columns: IColumn[];
+  workflow: WorkflowModel;
 }) {
   const { canEditTodos } = usePermissions();
 
@@ -73,7 +74,7 @@ export default function BacklogRow({
     <BacklogRowContent
       todo={todo}
       sprints={sprints}
-      columns={columns}
+      workflow={workflow}
       isDragging={isDragging}
       setNodeRef={setNodeRef}
       handleProps={handleProps}
@@ -84,14 +85,14 @@ export default function BacklogRow({
 const BacklogRowContent = memo(function BacklogRowContent({
   todo,
   sprints,
-  columns,
+  workflow,
   isDragging,
   setNodeRef,
   handleProps,
 }: {
   todo: Todo;
   sprints: Sprint[];
-  columns: IColumn[];
+  workflow: WorkflowModel;
   isDragging: boolean;
   setNodeRef: (element: HTMLElement | null) => void;
   handleProps: Record<string, unknown>;
@@ -114,7 +115,7 @@ const BacklogRowContent = memo(function BacklogRowContent({
       queryClient.getQueryData<Todo[]>(queryKeys.todos(boardId)) ?? [];
 
     patch(
-      sprintAssignmentPatch(todo, sprintId, activeSprintId, columns, todos),
+      sprintAssignmentPatch(todo, sprintId, activeSprintId, workflow, todos),
     );
   }
 
@@ -159,7 +160,7 @@ const BacklogRowContent = memo(function BacklogRowContent({
       </div>
 
       <div role="cell" className={cn("flex min-w-0", inert)}>
-        <StatusControl todoId={todo.id} columnId={todo.column_id} />
+        <StatusControl todoId={todo.id} statusId={todo.status_id} />
       </div>
 
       <div role="cell" className={cn("flex justify-center", inert)}>

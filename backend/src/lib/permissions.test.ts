@@ -19,22 +19,25 @@ describe("permissionsFor", () => {
     expect(p.canReadBoard).toBe(true);
     expect(p.canEditTodos).toBe(false);
     expect(p.canManageColumns).toBe(false);
+    expect(p.canManageWorkflow).toBe(false);
     expect(p.canManageMembers).toBe(false);
     expect(p.canManageAdmins).toBe(false);
     expect(p.canDeleteBoard).toBe(false);
   });
 
-  it("gives an editor content but no member management", () => {
+  it("gives an editor content but no member or workflow management", () => {
     const p = permissionsFor("editor");
 
     expect(p.canEditTodos).toBe(true);
     expect(p.canManageColumns).toBe(true);
+    expect(p.canManageWorkflow).toBe(false);
     expect(p.canManageMembers).toBe(false);
   });
 
-  it("gives an admin members but not admins, and not the board itself", () => {
+  it("gives an admin members and the workflow but not admins, and not the board itself", () => {
     const p = permissionsFor("admin");
 
+    expect(p.canManageWorkflow).toBe(true);
     expect(p.canManageMembers).toBe(true);
     expect(p.canManageAdmins).toBe(false);
     expect(p.canDeleteBoard).toBe(false);

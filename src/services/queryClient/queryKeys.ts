@@ -14,7 +14,10 @@ export const queryKeys = {
   // boardId stays required even though it may be undefined — a route param not yet resolved keys a disabled query.
   todos: (boardId: string | undefined) => ["todos", boardId] as const,
 
-  columns: (boardId: string | undefined) => ["columns", boardId] as const,
+  // Columns, statuses and workflow_version as one entry: GET /workflow returns
+  // them as one snapshot, and splitting them would let a publish pair a fresh
+  // version with stale statuses.
+  workflow: (boardId: string | undefined) => ["workflow", boardId] as const,
 
   sprints: (boardId: string | undefined) => ["sprints", boardId] as const,
 

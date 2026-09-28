@@ -330,7 +330,7 @@ async function main(): Promise<void> {
 
     console.log(`  removed ${removed.rowCount ?? 0} previous demo account(s)`);
 
-    for (const table of ["users", "boards", "board_members", "columns", "todos", "comments", "sprints", "spaces"]) {
+    for (const table of ["users", "boards", "board_members", "columns", "statuses", "todos", "comments", "sprints", "spaces"]) {
       await client.query(`alter table ${table} disable trigger user`);
     }
 
@@ -411,18 +411,28 @@ async function main(): Promise<void> {
       }
 
       const columnSet = COLUMN_SETS[BOARDS.indexOf(board) % COLUMN_SETS.length]!;
-      const columns: { id: string; category: string }[] = [];
+      // One status per column, carrying its title and category, as 0025's
+      // backfill and account provisioning both do. The titles in each set are
+      // distinct, which statuses_board_id_name_key requires of status names.
+      const columns: { id: string; statusId: string; category: string }[] = [];
 
       for (const [index, [title, category]] of columnSet.entries()) {
         const id = randomUUID();
+        const statusId = randomUUID();
 
         await client.query(
-          `insert into columns (id, board_id, title, category, position, rank, created_at, updated_at)
-           values ($1, $2, $3, $4, $5, $6, $7, $7)`,
-          [id, boardId, title, category, index, (index + 1) * 1024, created],
+          `insert into columns (id, board_id, title, position, rank, created_at, updated_at)
+           values ($1, $2, $3, $4, $5, $6, $6)`,
+          [id, boardId, title, index, (index + 1) * 1024, created],
         );
 
-        columns.push({ id, category });
+        await client.query(
+          `insert into statuses (id, board_id, column_id, name, category, rank, created_at, updated_at)
+           values ($1, $2, $3, $4, $5, 1024, $6, $6)`,
+          [statusId, boardId, id, title, category, created],
+        );
+
+        columns.push({ id, statusId, category });
       }
 
       const doneColumn = columns.find((column) => column.category === "done")!;
@@ -493,12 +503,12 @@ async function main(): Promise<void> {
 
         await client.query(
           `insert into todos (
-             id, board_id, column_id, board_key, title, description, type, priority,
+             id, board_id, status_id, board_key, title, description, type, priority,
              estimate, creator_id, assignee_id, parent_id, sprint_id,
              started_at, completed_at, completed_by, position, rank, created_at, updated_at
            ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
           [
-            id, boardId, column.id, boardKey, input.title,
+            id, boardId, column.statusId, boardKey, input.title,
             chance(0.55) ? `${input.title}. Raised during ${board.title} planning.` : null,
             input.type, chance(0.8) ? pick(PRIORITIES) : null, estimate,
             pick(members).id, assignee?.id ?? null, input.parentId, input.sprintId,
@@ -654,7 +664,7 @@ async function main(): Promise<void> {
       console.log(`  ${repaired.rowCount} start dates re-seated after the completion moves`);
     }
 
-    for (const table of ["users", "boards", "board_members", "columns", "todos", "comments", "sprints", "spaces"]) {
+    for (const table of ["users", "boards", "board_members", "columns", "statuses", "todos", "comments", "sprints", "spaces"]) {
       await client.query(`alter table ${table} enable trigger user`);
     }
 
@@ -673,6 +683,7 @@ async function main(): Promise<void> {
     union all select 'spaces', count(*)::int from spaces
     union all select 'boards', count(*)::int from boards
     union all select 'columns', count(*)::int from columns
+    union all select 'statuses', count(*)::int from statuses
     union all select 'sprints', count(*)::int from sprints
     union all select 'todos', count(*)::int from todos
     union all select 'comments', count(*)::int from comments

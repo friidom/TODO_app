@@ -1,5 +1,4 @@
-import type { IColumn, Todo } from "@/types/data";
-import { doneColumnIds } from "./subtasks";
+import type { IStatus, Todo } from "@/types/data";
 
 // null estimate stays out of `total` entirely rather than counting as 0 — see `unestimated` for how many were skipped
 export interface PointsSummary {
@@ -24,17 +23,9 @@ export const EMPTY_POINTS: PointsSummary = {
 
 export function sprintPoints(
   items: Todo[],
-  columns: IColumn[],
+  statuses: IStatus[],
 ): PointsSummary {
-  const doneColumns = doneColumnIds(columns);
-  const inProgressColumns = new Set(
-    columns
-      .filter(
-        (column) =>
-          column.category === "in_progress" || column.category === "in_review",
-      )
-      .map((column) => column.id),
-  );
+  const categoryOf = new Map(statuses.map((status) => [status.id, status.category]));
 
   let total = 0;
   let completed = 0;
@@ -50,9 +41,11 @@ export function sprintPoints(
 
     total += item.estimate;
 
-    if (item.column_id !== null && doneColumns.has(item.column_id)) {
+    const category = item.status_id === null ? undefined : categoryOf.get(item.status_id);
+
+    if (category === "done") {
       completed += item.estimate;
-    } else if (item.column_id !== null && inProgressColumns.has(item.column_id)) {
+    } else if (category === "in_progress" || category === "in_review") {
       inProgress += item.estimate;
     } else {
       todo += item.estimate;

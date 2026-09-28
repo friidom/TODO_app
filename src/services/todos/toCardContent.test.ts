@@ -7,7 +7,7 @@ import type { Todo } from "@/types/data";
 const row: Todo = {
   id: "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
   board_id: "11111111-1111-4111-8111-111111111111",
-  column_id: "22222222-2222-4222-8222-222222222222",
+  status_id: "22222222-2222-4222-8222-222222222222",
   title: "Ship the thing",
   board_key: 7,
   type: "task",
@@ -53,7 +53,7 @@ describe("toCardContent", () => {
     for (const column of [
       "id",
       "board_id",
-      "column_id",
+      "status_id",
       "position",
       "rank",
       "assignee_id",

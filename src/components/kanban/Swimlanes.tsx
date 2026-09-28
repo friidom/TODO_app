@@ -10,6 +10,8 @@ import { workTypeOf } from "@/constants/workTypes";
 import type { BoardMember } from "@/services/members/membersApi";
 import type { GroupKey, TodoGroup } from "@/services/todos/view";
 import { UNSET } from "@/services/todos/view";
+import { useWorkflow } from "@/services/workflow/useWorkflow";
+import { EMPTY_WORKFLOW, columnIdOf } from "@/services/workflow/statuses";
 import type { IColumn } from "@/types/data";
 import { cn } from "@/utils/cn";
 import KanbanColumn from "./KanbanColumn";
@@ -27,6 +29,7 @@ export default function Swimlanes({
   members: BoardMember[];
 }) {
   const [collapsed, setCollapsed] = useState<string[]>([]);
+  const { data: workflow = EMPTY_WORKFLOW } = useWorkflow();
 
   if (!groups.length) {
     return (
@@ -79,7 +82,8 @@ export default function Swimlanes({
                 <div className="flex min-w-max items-start">
                   {orderedColumns.map((column) => {
                     const cards = lane.todos.filter(
-                      (todo) => todo.column_id === column.id,
+                      (todo) =>
+                        columnIdOf(todo, workflow.statusById) === column.id,
                     );
 
                     return (
@@ -94,7 +98,6 @@ export default function Swimlanes({
                           lane
                           dragDisabled
                           onCollapse={noop}
-                          onSetLimit={noop}
                           onDelete={noop}
                           canDelete={false}
                         />

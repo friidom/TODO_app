@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import type { IColumn, Sprint, Todo } from "@/types/data";
+import {
+  toWorkflowModel,
+  type WorkflowModel,
+} from "@/services/workflow/statuses";
+import type { IStatus, Sprint, Todo } from "@/types/data";
 import { byBacklogRank } from "@/utils/backlogRank";
 import {
   boardEntryOnActiveSprint,
   buildBacklogBoard,
-  firstTodoColumn,
   isOnBoard,
   sprintAssignmentPatch,
 } from "./backlog";
@@ -18,7 +21,7 @@ function todo(over: Partial<Todo> & { id: string }): Todo {
 
   return {
     board_id: "b-1",
-    column_id: "col-1",
+    status_id: "st-1",
     parent_id: null,
     sprint_id: null,
     backlog_rank: null,
@@ -45,53 +48,75 @@ function sprint(over: Partial<Sprint> & { id: string }): Sprint {
   } as Sprint;
 }
 
-function column(over: Partial<IColumn> & { id: string }): IColumn {
+function status(over: Partial<IStatus> & { id: string }): IStatus {
   return {
     board_id: "b-1",
-    title: over.id,
+    column_id: `col-${over.id}`,
+    name: over.id,
     category: "todo",
     rank: 1024,
-    position: 0,
-    min_limit: null,
-    max_limit: null,
+    is_hidden: false,
+    created_at: "2026-08-01T00:00:00.000Z",
+    updated_at: "2026-08-01T00:00:00.000Z",
     ...over,
-  } as IColumn;
+  };
+}
+
+// One column per distinct column_id, in the order the statuses name them.
+function workflow(statuses: IStatus[]): WorkflowModel {
+  const columnIds = [...new Set(statuses.map((it) => it.column_id))];
+
+  return toWorkflowModel({
+    workflow_version: 1,
+    columns: columnIds.map((id, index) => ({
+      id,
+      board_id: "b-1",
+      title: id,
+      rank: (index + 1) * 1024,
+      position: index,
+      min_limit: null,
+      max_limit: null,
+      created_at: "2026-08-01T00:00:00.000Z",
+      updated_at: "2026-08-01T00:00:00.000Z",
+    })),
+    statuses,
+  });
 }
 
 describe("isOnBoard — Sprints ON", () => {
   const ON = true;
 
-  it("no active Sprint: unplanned work in a column is off the board", () => {
+  it("no active Sprint: unplanned work in a status is off the board", () => {
     expect(
-      isOnBoard(todo({ id: "a", column_id: "col-1", sprint_id: null }), null, ON),
+      isOnBoard(todo({ id: "a", status_id: "st-1", sprint_id: null }), null, ON),
     ).toBe(false);
   });
 
   it("no active Sprint: a card committed to a Sprint stays off", () => {
     expect(
-      isOnBoard(todo({ id: "b", column_id: "col-1", sprint_id: "s-1" }), null, ON),
+      isOnBoard(todo({ id: "b", status_id: "st-1", sprint_id: "s-1" }), null, ON),
     ).toBe(false);
   });
 
-  it("no active Sprint: a card with no column doesn't qualify either", () => {
-    expect(isOnBoard(todo({ id: "a", column_id: null }), null, ON)).toBe(false);
+  it("no active Sprint: a card with no status doesn't qualify either", () => {
+    expect(isOnBoard(todo({ id: "a", status_id: null }), null, ON)).toBe(false);
   });
 
-  it("active Sprint: its own item, with a column, qualifies", () => {
+  it("active Sprint: its own item, with a status, qualifies", () => {
     expect(
-      isOnBoard(todo({ id: "a", column_id: "col-1", sprint_id: "s-1" }), "s-1", ON),
+      isOnBoard(todo({ id: "a", status_id: "st-1", sprint_id: "s-1" }), "s-1", ON),
     ).toBe(true);
   });
 
-  it("active Sprint: an item with no column at all does not qualify", () => {
+  it("active Sprint: an item with no status at all does not qualify", () => {
     expect(
-      isOnBoard(todo({ id: "a", column_id: null, sprint_id: "s-1" }), "s-1", ON),
+      isOnBoard(todo({ id: "a", status_id: null, sprint_id: "s-1" }), "s-1", ON),
     ).toBe(false);
   });
 
-  it("active Sprint: a Future Sprint's item stays off, even with a column", () => {
+  it("active Sprint: a Future Sprint's item stays off, even with a status", () => {
     expect(
-      isOnBoard(todo({ id: "b", column_id: "col-1", sprint_id: "s-2" }), "s-1", ON),
+      isOnBoard(todo({ id: "b", status_id: "st-1", sprint_id: "s-2" }), "s-1", ON),
     ).toBe(false);
   });
 
@@ -99,24 +124,24 @@ describe("isOnBoard — Sprints ON", () => {
   // being in the running sprint, however many columns the card has passed through.
   it("active Sprint: an unplanned item is NOT on the board alongside it", () => {
     expect(
-      isOnBoard(todo({ id: "c", column_id: "col-1", sprint_id: null }), "s-1", ON),
+      isOnBoard(todo({ id: "c", status_id: "st-1", sprint_id: null }), "s-1", ON),
     ).toBe(false);
   });
 
-  it("starting a Sprint makes its planned items eligible: column_id is what start_sprint writes", () => {
-    const planned = todo({ id: "a", column_id: null, sprint_id: "s-1" });
+  it("starting a Sprint makes its planned items eligible: status_id is what start_sprint writes", () => {
+    const planned = todo({ id: "a", status_id: null, sprint_id: "s-1" });
 
     expect(isOnBoard(planned, "s-1", ON)).toBe(false);
 
-    const startedOntoBoard = { ...planned, column_id: "todo-1" };
+    const startedOntoBoard = { ...planned, status_id: "todo-1" };
 
     expect(isOnBoard(startedOntoBoard, "s-1", ON)).toBe(true);
   });
 
-  // rehomeUnfinished clears sprint_id and keeps column_id, so the only thing
+  // rehomeUnfinished clears sprint_id and keeps status_id, so the only thing
   // that takes carried work off the board is this rule.
   it("completing a Sprint takes its unfinished work off the board", () => {
-    const inSprint = todo({ id: "a", column_id: "col-1", sprint_id: "s-1" });
+    const inSprint = todo({ id: "a", status_id: "st-1", sprint_id: "s-1" });
 
     expect(isOnBoard(inSprint, "s-1", ON)).toBe(true);
 
@@ -126,29 +151,29 @@ describe("isOnBoard — Sprints ON", () => {
   });
 });
 
-// boards.sprints_enabled = false (migration 0020). A column is the whole rule
+// boards.sprints_enabled = false (migration 0020). A status is the whole rule
 // again — the board a team gets when it does not plan in sprints. Without this,
 // turning the feature off would empty the board rather than simplify it.
 describe("isOnBoard — Sprints OFF", () => {
   const OFF = false;
 
-  it("a card with a column is on the board whatever its sprint", () => {
+  it("a card with a status is on the board whatever its sprint", () => {
     for (const sprintId of [null, "s-1", "s-2"]) {
       expect(
-        isOnBoard(todo({ id: "a", column_id: "col-1", sprint_id: sprintId }), null, OFF),
+        isOnBoard(todo({ id: "a", status_id: "st-1", sprint_id: sprintId }), null, OFF),
         String(sprintId),
       ).toBe(true);
     }
   });
 
-  it("still refuses a card with no column — the backlog stays the backlog", () => {
+  it("still refuses a card with no status — the backlog stays the backlog", () => {
     expect(
-      isOnBoard(todo({ id: "a", column_id: null, sprint_id: "s-1" }), "s-1", OFF),
+      isOnBoard(todo({ id: "a", status_id: null, sprint_id: "s-1" }), "s-1", OFF),
     ).toBe(false);
   });
 
   it("ignores the active sprint entirely", () => {
-    const card = todo({ id: "a", column_id: "col-1", sprint_id: "s-2" });
+    const card = todo({ id: "a", status_id: "st-1", sprint_id: "s-2" });
 
     expect(isOnBoard(card, "s-1", OFF)).toBe(true);
     expect(isOnBoard(card, null, OFF)).toBe(true);
@@ -176,10 +201,10 @@ describe("buildBacklogBoard — sprint sections", () => {
     expect(board.sprintSections).toHaveLength(0);
   });
 
-  it("lists a sprint's items regardless of whether they have a column yet", () => {
+  it("lists a sprint's items regardless of whether they have a status yet", () => {
     const s = sprint({ id: "s-1" });
-    const notStarted = todo({ id: "t-1", sprint_id: "s-1", column_id: null });
-    const onBoard = todo({ id: "t-2", sprint_id: "s-1", column_id: "col-1" });
+    const notStarted = todo({ id: "t-1", sprint_id: "s-1", status_id: null });
+    const onBoard = todo({ id: "t-2", sprint_id: "s-1", status_id: "st-1" });
 
     const board = buildBacklogBoard([notStarted, onBoard], [s]);
 
@@ -216,8 +241,8 @@ describe("buildBacklogBoard — sprint sections", () => {
 });
 
 describe("buildBacklogBoard — unplanned", () => {
-  it("lists a work item with neither a sprint nor a column", () => {
-    const orphan = todo({ id: "t-1", sprint_id: null, column_id: null });
+  it("lists a work item with neither a sprint nor a status", () => {
+    const orphan = todo({ id: "t-1", sprint_id: null, status_id: null });
 
     const board = buildBacklogBoard([orphan], []);
 
@@ -225,15 +250,15 @@ describe("buildBacklogBoard — unplanned", () => {
   });
 
   it("lists a work item already on the Board, as long as it has no sprint", () => {
-    const onBoard = todo({ id: "t-1", sprint_id: null, column_id: "col-1" });
+    const onBoard = todo({ id: "t-1", sprint_id: null, status_id: "st-1" });
 
     const board = buildBacklogBoard([onBoard], []);
 
     expect(board.unplanned.map((t) => t.id)).toEqual(["t-1"]);
   });
 
-  it("excludes a work item planned into a sprint, even with no column yet", () => {
-    const planned = todo({ id: "t-1", sprint_id: "s-1", column_id: null });
+  it("excludes a work item planned into a sprint, even with no status yet", () => {
+    const planned = todo({ id: "t-1", sprint_id: "s-1", status_id: null });
 
     const board = buildBacklogBoard([planned], [sprint({ id: "s-1" })]);
 
@@ -241,8 +266,8 @@ describe("buildBacklogBoard — unplanned", () => {
   });
 
   it("orders unplanned items by backlog_rank", () => {
-    const second = todo({ id: "t-1", column_id: null, backlog_rank: 2000 });
-    const first = todo({ id: "t-2", column_id: null, backlog_rank: 1000 });
+    const second = todo({ id: "t-1", status_id: null, backlog_rank: 2000 });
+    const first = todo({ id: "t-2", status_id: null, backlog_rank: 1000 });
 
     const board = buildBacklogBoard([second, first], []);
 
@@ -250,91 +275,106 @@ describe("buildBacklogBoard — unplanned", () => {
   });
 });
 
-describe("firstTodoColumn", () => {
-  it("picks the lowest-rank 'todo'-category column", () => {
-    const columns = [
-      column({ id: "in-review", category: "in_progress", rank: 1 }),
-      column({ id: "todo-2", category: "todo", rank: 3 }),
-      column({ id: "todo-1", category: "todo", rank: 2 }),
+describe("boardEntryOnActiveSprint", () => {
+  it("appends to the first todo status's column when it has room", () => {
+    const board = workflow([status({ id: "todo-1", category: "todo" })]);
+    const todos = [todo({ id: "t-1", status_id: "todo-1", rank: 500 })];
+
+    const entry = boardEntryOnActiveSprint(board, todos);
+
+    expect(entry).toEqual({ status_id: "todo-1", rank: 500 + 1024 });
+  });
+
+  // A column's cards are every status's cards in it, so the append goes after
+  // the last of them, not after the last card of the one status.
+  it("appends after the last card of any status in that column", () => {
+    const board = workflow([
+      status({ id: "todo-1", category: "todo", column_id: "col-a", rank: 1024 }),
+      status({ id: "queued", category: "todo", column_id: "col-a", rank: 2048 }),
+    ]);
+    const todos = [
+      todo({ id: "t-1", status_id: "todo-1", rank: 500 }),
+      todo({ id: "t-2", status_id: "queued", rank: 900 }),
     ];
 
-    expect(firstTodoColumn(columns)?.id).toBe("todo-1");
+    expect(boardEntryOnActiveSprint(board, todos)).toEqual({
+      status_id: "todo-1",
+      rank: 900 + 1024,
+    });
   });
 
-  it("is null when the board has no 'todo' column", () => {
-    const columns = [column({ id: "done-1", category: "done" })];
+  it("skips a hidden todo status", () => {
+    const board = workflow([
+      status({ id: "retired", category: "todo", column_id: "col-a", is_hidden: true }),
+      status({ id: "todo-2", category: "todo", column_id: "col-b" }),
+    ]);
 
-    expect(firstTodoColumn(columns)).toBeNull();
-  });
-});
-
-describe("boardEntryOnActiveSprint", () => {
-  it("appends to the first todo column when it has room", () => {
-    const columns = [column({ id: "todo-1", category: "todo" })];
-    const todos = [todo({ id: "t-1", column_id: "todo-1", rank: 500 })];
-
-    const entry = boardEntryOnActiveSprint(columns, todos);
-
-    expect(entry).toEqual({ column_id: "todo-1", rank: 500 + 1024 });
+    expect(boardEntryOnActiveSprint(board, [])?.status_id).toBe("todo-2");
   });
 
-  it("is null when the board has no 'todo' column", () => {
-    expect(boardEntryOnActiveSprint([], [])).toBeNull();
+  it("is null when the board has no visible 'todo' status", () => {
+    expect(boardEntryOnActiveSprint(workflow([]), [])).toBeNull();
+    expect(
+      boardEntryOnActiveSprint(
+        workflow([status({ id: "done-1", category: "done" })]),
+        [],
+      ),
+    ).toBeNull();
   });
 });
 
 describe("sprintAssignmentPatch", () => {
-  const activeColumns = [column({ id: "todo-1", category: "todo" })];
+  const activeWorkflow = workflow([status({ id: "todo-1", category: "todo" })]);
 
-  it("Task A -> Sprint 1 (active): assigns a column, since it has none", () => {
-    const taskA = todo({ id: "a", column_id: null, sprint_id: null });
+  it("Task A -> Sprint 1 (active): assigns a status, since it has none", () => {
+    const taskA = todo({ id: "a", status_id: null, sprint_id: null });
 
     const patch = sprintAssignmentPatch(
       taskA,
       "sprint-1",
       "sprint-1",
-      activeColumns,
+      activeWorkflow,
       [taskA],
     );
 
     expect(patch.sprint_id).toBe("sprint-1");
-    expect(patch.column_id).toBe("todo-1");
+    expect(patch.status_id).toBe("todo-1");
     expect(patch.rank).toBe(1024);
   });
 
-  it("Task B -> Sprint 2 (future, not the active one): no column", () => {
-    const taskB = todo({ id: "b", column_id: null, sprint_id: null });
+  it("Task B -> Sprint 2 (future, not the active one): no status", () => {
+    const taskB = todo({ id: "b", status_id: null, sprint_id: null });
 
     const patch = sprintAssignmentPatch(
       taskB,
       "sprint-2",
       "sprint-1",
-      activeColumns,
+      activeWorkflow,
       [taskB],
     );
 
     expect(patch.sprint_id).toBe("sprint-2");
-    expect(patch.column_id).toBeUndefined();
+    expect(patch.status_id).toBeUndefined();
   });
 
-  it("removing from every Sprint clears the column too", () => {
-    const item = todo({ id: "c", column_id: "todo-1", sprint_id: "sprint-1" });
+  it("removing from every Sprint clears the status too", () => {
+    const item = todo({ id: "c", status_id: "todo-1", sprint_id: "sprint-1" });
 
-    const patch = sprintAssignmentPatch(item, null, "sprint-1", activeColumns, [
+    const patch = sprintAssignmentPatch(item, null, "sprint-1", activeWorkflow, [
       item,
     ]);
 
     expect(patch).toEqual({
       sprint_id: null,
-      column_id: null,
+      status_id: null,
       backlog_rank: 1024,
     });
   });
 
-  it("never touches a column the item already has", () => {
+  it("never touches a status the item already has", () => {
     const item = todo({
       id: "d",
-      column_id: "already-on-board",
+      status_id: "already-on-board",
       sprint_id: null,
     });
 
@@ -342,11 +382,11 @@ describe("sprintAssignmentPatch", () => {
       item,
       "sprint-1",
       "sprint-1",
-      activeColumns,
+      activeWorkflow,
       [item],
     );
 
-    expect(patch.column_id).toBeUndefined();
+    expect(patch.status_id).toBeUndefined();
   });
 
   it("backlog_rank appends to the destination section, excluding the item itself", () => {
@@ -361,7 +401,7 @@ describe("sprintAssignmentPatch", () => {
       moving,
       "sprint-2",
       null,
-      activeColumns,
+      activeWorkflow,
       [moving, sibling],
     );
 
@@ -378,7 +418,7 @@ describe("sprintAssignmentPatch", () => {
       moving,
       "sprint-1",
       null,
-      activeColumns,
+      activeWorkflow,
       [moving, first, second],
       1,
     );
@@ -403,7 +443,7 @@ describe("sprintAssignmentPatch", () => {
       moving,
       null,
       null,
-      activeColumns,
+      activeWorkflow,
       [moving, parent, subtask, first, second],
       1,
     );
@@ -421,7 +461,7 @@ describe("sprintAssignmentPatch", () => {
       moving,
       "sprint-1",
       null,
-      activeColumns,
+      activeWorkflow,
       [moving, tied1, tied2],
       1,
     );
@@ -429,12 +469,12 @@ describe("sprintAssignmentPatch", () => {
     expect(patch.backlog_rank).toBe(1000 + 1024);
   });
 
-  it("a reorder within the same section only changes backlog_rank — column/sprint untouched", () => {
-    // regression: the old "leaving every sprint" branch cleared column_id on in-place reorders too
+  it("a reorder within the same section only changes backlog_rank — status/sprint untouched", () => {
+    // regression: the old "leaving every sprint" branch cleared the column on in-place reorders too
     const moving = todo({
       id: "e",
       sprint_id: null,
-      column_id: "already-on-board",
+      status_id: "already-on-board",
       backlog_rank: 3000,
     });
     const sibling = todo({ id: "f", sprint_id: null, backlog_rank: 1000 });
@@ -443,7 +483,7 @@ describe("sprintAssignmentPatch", () => {
       moving,
       null,
       null,
-      activeColumns,
+      activeWorkflow,
       [moving, sibling],
       1,
     );
@@ -455,9 +495,7 @@ describe("sprintAssignmentPatch", () => {
 // the property that matters: wherever the drop indicator showed is where the card actually lands.
 // runs the real pipeline end to end since past bugs lived in the seam between its pieces, not inside one of them.
 describe("drop position — one source of truth", () => {
-  const columns = [
-    { id: "todo-1", board_id: "b-1", title: "To do", category: "todo" },
-  ] as IColumn[];
+  const board = workflow([status({ id: "todo-1", category: "todo" })]);
 
   const at = (day: number) =>
     `2026-09-${String(day).padStart(2, "0")}T00:00:00.000Z`;
@@ -467,7 +505,7 @@ describe("drop position — one source of truth", () => {
       todo({
         id,
         sprint_id: null,
-        column_id: null,
+        status_id: null,
         backlog_rank: null,
         created_at: at(i + 1),
       }),
@@ -496,7 +534,7 @@ describe("drop position — one source of truth", () => {
       dragged,
       null,
       null,
-      columns,
+      board,
       rows,
       dropIndex,
     );

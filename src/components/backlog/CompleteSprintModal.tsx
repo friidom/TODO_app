@@ -12,8 +12,8 @@ import {
   DIALOG_TITLE,
 } from "@/components/ui/dialogChrome";
 import { FIELD_INPUT } from "@/components/ui/fieldInput";
-import { useColumns } from "@/services/columns/useColumnsApi";
-import { doneColumnIds } from "@/services/todos/subtasks";
+import { useStatuses } from "@/services/workflow/useWorkflow";
+import { doneStatusIds, isDoneIn } from "@/services/workflow/statuses";
 import { useCompleteSprint } from "@/services/sprints/useSprints";
 import { useTodos } from "@/services/todos/useTodos";
 import type { Sprint } from "@/types/data";
@@ -31,13 +31,13 @@ export default function CompleteSprintModal({
   const [destination, setDestination] = useState<string>("backlog");
 
   const { data: todos = [] } = useTodos();
-  const { data: columns = [] } = useColumns();
+  const { data: statuses = [] } = useStatuses();
   const completeSprint = useCompleteSprint();
 
   const items = todos.filter((todo) => todo.sprint_id === sprint.id);
-  const doneColumns = doneColumnIds(columns);
+  const doneStatuses = doneStatusIds(statuses);
   const unfinished = items.filter(
-    (todo) => todo.column_id === null || !doneColumns.has(todo.column_id),
+    (todo) => !isDoneIn(todo, doneStatuses),
   );
   const finished = items.length - unfinished.length;
 

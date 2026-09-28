@@ -1,5 +1,9 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useCreateColumn } from "@/services/columns/useCreateColumn";
+import { draftOf, statusNameTaken } from "@/services/workflow/draft";
+import { EMPTY_WORKFLOW } from "@/services/workflow/statuses";
+import { useWorkflow } from "@/services/workflow/useWorkflow";
 import { DEFAULT_CATEGORY, type ColumnCategory } from "@/constants/columns";
 import CategorySelect from "./CategorySelect";
 import {
@@ -33,6 +37,13 @@ function CreateColumnDialog({ onClose }: { onClose: () => void }) {
   const [category, setCategory] = useState<ColumnCategory>(DEFAULT_CATEGORY);
 
   const createColumnMutation = useCreateColumn();
+  const { data: workflow = EMPTY_WORKFLOW } = useWorkflow();
+  const { t } = useTranslation();
+
+  // The column arrives with a status of the same name, and status names are
+  // unique on a board — say so before the API has to.
+  const nameTaken =
+    title.trim() !== "" && statusNameTaken(draftOf(workflow), title.trim());
 
   useEffect(() => {
     function handleEscape(e: KeyboardEvent) {
@@ -50,7 +61,7 @@ function CreateColumnDialog({ onClose }: { onClose: () => void }) {
 
     const trimmed = title.trim();
 
-    if (!trimmed) return;
+    if (!trimmed || nameTaken) return;
 
     createColumnMutation.mutate(
       { title: trimmed, category },
@@ -94,10 +105,16 @@ function CreateColumnDialog({ onClose }: { onClose: () => void }) {
           <CategorySelect value={category} onChange={setCategory} />
         </div>
 
-        {createColumnMutation.error && (
+        {nameTaken ? (
           <p className={`${DIALOG_ERROR} mt-0 mb-4`}>
-            {createColumnMutation.error.message}
+            {t("workflow.statusNameTaken", { name: title.trim() })}
           </p>
+        ) : (
+          createColumnMutation.error && (
+            <p className={`${DIALOG_ERROR} mt-0 mb-4`}>
+              {createColumnMutation.error.message}
+            </p>
+          )
         )}
 
         <div className={DIALOG_ACTIONS}>
@@ -107,7 +124,9 @@ function CreateColumnDialog({ onClose }: { onClose: () => void }) {
 
           <button
             type="submit"
-            disabled={!title.trim() || createColumnMutation.isPending}
+            disabled={
+              !title.trim() || nameTaken || createColumnMutation.isPending
+            }
             className={DIALOG_CONFIRM}
           >
             {createColumnMutation.isPending ? "Creating..." : "Create"}

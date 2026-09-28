@@ -99,16 +99,16 @@ export async function start(
 
   try {
     await withActor(actor.id, async (tx) => {
-      const column = await sprintsRepo.firstTodoColumn(tx, board.id);
+      const status = await sprintsRepo.firstTodoStatus(tx, board.id);
 
-      if (column === null) {
+      if (status === null) {
         throw new AppError(
           "bad_request",
-          "This board has no 'todo' column to receive the sprint's items.",
+          "This board has no visible 'todo' status to receive the sprint's items.",
         );
       }
 
-      await sprintsRepo.placeUncolumnedItems(tx, board.id, sprintId, column.id);
+      await sprintsRepo.placeUnstatusedItems(tx, board.id, sprintId, status.id);
 
       if ((await sprintsRepo.setState(tx, board.id, sprintId, "active")) === 0) throw notFound();
     });
@@ -120,7 +120,7 @@ export async function start(
     throw error;
   }
 
-  // Starting bulk-assigns the board's first todo-category column to whatever
+  // Starting bulk-assigns the board's first todo-category status to whatever
   // the sprint holds without one — N rows, so one coarse event, not N.
   emitInvalidate(board.id, ["sprints", "todos"]);
 

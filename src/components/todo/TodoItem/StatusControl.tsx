@@ -1,43 +1,49 @@
-import { CheckIcon, ChevronDownIcon } from "lucide-react";
+import { CheckIcon, ChevronDownIcon, EyeOffIcon } from "lucide-react";
 import { FloatingPortal } from "@floating-ui/react";
+import { useTranslation } from "react-i18next";
 
 import { MENU_LABEL, POPOVER_PANEL } from "@/components/ui/controlChrome";
-import { categoryOf, columnTitle } from "@/constants/columns";
-import { useColumns } from "@/services/columns/useColumnsApi";
+import { categoryOf } from "@/constants/columns";
 import { useMoveTodo } from "@/services/todos/useMoveTodo";
 import { useWorkflowGate } from "@/services/todos/useWorkflowGate";
-import { byRank } from "@/utils/rank";
+import { selectableStatuses } from "@/services/workflow/statuses";
+import { useStatuses } from "@/services/workflow/useWorkflow";
 import { cn } from "@/utils/cn";
 import { FIELD_CHIP, OPTION_ITEM } from "./fieldChrome";
 import { useCardPopover } from "./useCardPopover";
 
-// Status isn't a field — it's which column the card is in, so this just calls useMoveTodo, same as the menu and a drag.
+// A card's status is its own row (todo.status_id); moving it to another status
+// goes through useMoveTodo, same as the menu and a drag. Status names are user
+// data and render as typed.
 export default function StatusControl({
   todoId,
-  columnId,
+  statusId,
   variant = "chip",
 }: {
   todoId: string;
-  columnId: string | null;
+  statusId: string | null;
   // "field" is the task detail's primary control, "lozenge" the List's cell; the chip stays the dense default for cards and menus
   variant?: "chip" | "field" | "lozenge";
 }) {
   const { mounted, close, triggerProps, panelProps } = useCardPopover();
-  const { data: columns = [] } = useColumns();
+  const { data: statuses = [] } = useStatuses();
   const moveTo = useMoveTodo(todoId);
   const workflow = useWorkflowGate();
+  const { t } = useTranslation();
 
-  const ordered = columns.slice().sort(byRank);
-  const current = ordered.find((column) => column.id === columnId) ?? null;
-  const label = current ? columnTitle(current.title) : "No status";
+  const current = statuses.find((status) => status.id === statusId) ?? null;
+  const label = current ? current.name : t("status.none");
+  // Hidden statuses are not offered, except the one the card is already in —
+  // it stays valid for the cards in it.
+  const options = selectableStatuses(statuses, statusId);
 
   return (
     <>
       <button
         type="button"
         {...triggerProps}
-        title={`Status: ${label}`}
-        aria-label={`Status: ${label}`}
+        title={t("status.labelled", { name: label })}
+        aria-label={t("status.labelled", { name: label })}
         className={
           variant === "lozenge"
             ? cn(
@@ -82,29 +88,29 @@ export default function StatusControl({
           <div
             {...panelProps}
             role="menu"
-            aria-label="Status"
+            aria-label={t("status.label")}
             className={cn(POPOVER_PANEL, "z-50 max-h-64 w-48 overflow-y-auto")}
           >
-            <p className={MENU_LABEL}>Status</p>
+            <p className={MENU_LABEL}>{t("status.label")}</p>
 
-            {ordered.map((column) => {
-              const selected = column.id === columnId;
+            {options.map((status) => {
+              const selected = status.id === statusId;
               // Offered only if the workflow would accept it. The API refuses it
               // too — this is so the option is not there to click in the first place.
               const refusal = selected
                 ? null
-                : workflow.refusal(current?.category, column.category);
+                : workflow.refusal(current?.category, status.category);
 
               return (
                 <button
-                  key={column.id}
+                  key={status.id}
                   type="button"
                   role="menuitemradio"
                   aria-checked={selected}
                   disabled={refusal !== null}
                   title={refusal ?? undefined}
                   onClick={() => {
-                    if (!selected) moveTo(column);
+                    if (!selected) moveTo(status);
                     close();
                   }}
                   className={OPTION_ITEM}
@@ -112,12 +118,16 @@ export default function StatusControl({
                   <span
                     className={cn(
                       "size-2 shrink-0 rounded-full",
-                      categoryOf(column.category).dot,
+                      categoryOf(status.category).dot,
                     )}
                   />
-                  <span className="min-w-0 flex-1 truncate">
-                    {columnTitle(column.title)}
-                  </span>
+                  <span className="min-w-0 flex-1 truncate">{status.name}</span>
+                  {status.is_hidden && (
+                    <EyeOffIcon
+                      className="text-ink-3 size-3.5 shrink-0"
+                      aria-label={t("status.hidden")}
+                    />
+                  )}
                   {selected && <CheckIcon className="text-brand size-4" />}
                 </button>
               );

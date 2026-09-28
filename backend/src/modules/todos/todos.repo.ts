@@ -15,7 +15,7 @@ import { RANK_GAP } from "../../lib/rank.js";
 export const LIST_FIELDS = {
   id: true,
   board_id: true,
-  column_id: true,
+  status_id: true,
   position: true,
   rank: true,
   board_key: true,
@@ -87,24 +87,25 @@ export async function findOne(boardId: string, todoId: string): Promise<TodoDeta
   return row === null ? null : toRow(row);
 }
 
-// The column the card is in now, for the workflow check. findOne would read the
+// The status the card is in now, for the workflow check. findOne would read the
 // whole detail projection, relations included, to answer one field.
-export function columnOf(
+export function statusOf(
   boardId: string,
   todoId: string,
-): Promise<{ column_id: string | null } | null> {
+): Promise<{ status_id: string | null } | null> {
   return prisma.todos.findFirst({
     where: { id: todoId, board_id: boardId },
-    select: { column_id: true },
+    select: { status_id: true },
   });
 }
 
+// A column's cards are the cards of every status it shows.
 export async function lastInColumn(
   boardId: string,
   columnId: string,
 ): Promise<{ rank: number | null; position: number | null } | null> {
   const row = await prisma.todos.findFirst({
-    where: { board_id: boardId, column_id: columnId },
+    where: { board_id: boardId, statuses: { is: { column_id: columnId } } },
     orderBy: [
       { rank: { sort: "desc", nulls: "last" } },
       { position: { sort: "desc", nulls: "last" } },
@@ -117,7 +118,7 @@ export async function lastInColumn(
 
 export interface TodoWrite {
   title?: string | null;
-  column_id?: string | null;
+  status_id?: string | null;
   position?: number | null;
   rank?: number | null;
   backlog_rank?: number | null;
@@ -137,7 +138,7 @@ export interface TodoWrite {
 function toData(write: TodoWrite): Prisma.todosUncheckedUpdateInput {
   return {
     ...(write.title !== undefined && { title: write.title }),
-    ...(write.column_id !== undefined && { column_id: write.column_id }),
+    ...(write.status_id !== undefined && { status_id: write.status_id }),
     ...(write.position !== undefined && {
       position: write.position === null ? null : BigInt(write.position),
     }),
@@ -213,17 +214,27 @@ export function exists(boardId: string, todoId: string): Promise<boolean> {
     .then((count) => count > 0);
 }
 
-// Appends the source column's cards after the destination's last card, in
-// their existing order, writing BOTH keys — rank is the one that actually
-// orders them on every client surface.
-export async function rehomeColumn(
+// Moves every card off one status onto another. When the destination sits in a
+// different column the cards are appended after its last card, in their
+// existing order, writing BOTH keys — rank is the one that actually orders
+// them on every client surface. When it sits in the same column they keep
+// their places.
+export async function moveStatusCards(
   tx: Prisma.TransactionClient,
   boardId: string,
-  fromColumnId: string,
-  toColumnId: string,
+  move: { from: string; to: string; appendTo: string | null },
 ): Promise<number> {
+  if (move.appendTo === null) {
+    const { count } = await tx.todos.updateMany({
+      where: { board_id: boardId, status_id: move.from },
+      data: { status_id: move.to },
+    });
+
+    return count;
+  }
+
   const last = await tx.todos.findFirst({
-    where: { board_id: boardId, column_id: toColumnId },
+    where: { board_id: boardId, statuses: { is: { column_id: move.appendTo } } },
     orderBy: [
       { rank: { sort: "desc", nulls: "last" } },
       { position: { sort: "desc", nulls: "last" } },
@@ -241,10 +252,10 @@ export async function rehomeColumn(
                as rn
         from todos
        where board_id = ${boardId}::uuid
-         and column_id = ${fromColumnId}::uuid
+         and status_id = ${move.from}::uuid
     )
     update todos t
-       set column_id = ${toColumnId}::uuid,
+       set status_id = ${move.to}::uuid,
            position  = ${startPosition}::bigint + ordered.rn,
            rank      = ${startRank}::double precision + ordered.rn * ${RANK_GAP}::double precision
       from ordered
@@ -258,13 +269,14 @@ export async function rebalanceColumn(
 ): Promise<number> {
   return tx.$executeRaw`
     with ordered as (
-      select id,
+      select t.id,
              row_number() over (
-               order by rank nulls last, position nulls last, created_at, id
+               order by t.rank nulls last, t.position nulls last, t.created_at, t.id
              ) * ${RANK_GAP}::double precision as new_rank
-        from todos
-       where board_id = ${boardId}::uuid
-         and column_id = ${columnId}::uuid
+        from todos t
+        join statuses s on s.id = t.status_id
+       where t.board_id = ${boardId}::uuid
+         and s.column_id = ${columnId}::uuid
     )
     update todos t
        set rank = ordered.new_rank

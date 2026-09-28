@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { prisma } from "../../db/prisma.js";
 import { disconnect, resetDatabase } from "../../testing/db.js";
-import { addMember, firstColumnOf, makeUser, type TestUser } from "../../testing/fixtures.js";
+import { addMember, firstStatusOf, makeUser, type TestUser } from "../../testing/fixtures.js";
 import { startTestServer, type TestClient } from "../../testing/httpClient.js";
 
 let client: TestClient;
@@ -33,10 +33,10 @@ async function addTodo(
   boardId: string,
   body: Record<string, unknown>,
 ): Promise<Todo> {
-  const column = await firstColumnOf(boardId);
+  const status = await firstStatusOf(boardId);
   const response = await client.post<Todo>(
     `/api/v1/boards/${boardId}/todos`,
-    { column_id: column.id, ...body },
+    { status_id: status.id, ...body },
     { token: actor.token },
   );
 

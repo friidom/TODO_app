@@ -124,40 +124,45 @@ export async function remove(
   return count;
 }
 
-// rank nulls last, then position — the ordering §10.6 names. byRank in the
-// frontend reads a null rank as position * RANK_GAP instead, so the two can
-// disagree on a legacy row with no rank; this one is authoritative.
-export function firstTodoColumn(
+// The board's first visible todo-category status: columns in board order (rank
+// nulls last, then position — the ordering §10.6 names), then statuses by rank
+// inside the column. Hidden statuses cannot receive work. byRank in the
+// frontend reads a null column rank as position * RANK_GAP instead, so the two
+// can disagree on a legacy row with no rank; this one is authoritative.
+export async function firstTodoStatus(
   tx: Prisma.TransactionClient,
   boardId: string,
 ): Promise<{ id: string } | null> {
-  return tx.columns.findFirst({
-    where: { board_id: boardId, category: "todo" },
-    orderBy: [
-      { rank: { sort: "asc", nulls: "last" } },
-      { position: { sort: "asc", nulls: "last" } },
-    ],
-    select: { id: true },
-  });
+  const rows = await tx.$queryRaw<{ id: string }[]>`
+    select s.id
+      from statuses s
+      join columns c on c.id = s.column_id
+     where s.board_id = ${boardId}::uuid
+       and s.category = 'todo'
+       and not s.is_hidden
+     order by c.rank asc nulls last, c.position asc nulls last, c.id, s.rank, s.id
+     limit 1`;
+
+  return rows[0] ?? null;
 }
 
-// Only items with no column: starting a sprint must not move a card sideways.
-export async function placeUncolumnedItems(
+// Only items with no status: starting a sprint must not move a card sideways.
+export async function placeUnstatusedItems(
   tx: Prisma.TransactionClient,
   boardId: string,
   sprintId: string,
-  columnId: string,
+  statusId: string,
 ): Promise<number> {
   const { count } = await tx.todos.updateMany({
-    where: { board_id: boardId, sprint_id: sprintId, column_id: null },
-    data: { column_id: columnId },
+    where: { board_id: boardId, sprint_id: sprintId, status_id: null },
+    data: { status_id: statusId },
   });
 
   return count;
 }
 
-// Everything not sitting in a done-category column. column_id is deliberately
-// left alone for both outcomes: a card sent to the backlog keeps its column and
+// Everything not sitting in a done-category status. status_id is deliberately
+// left alone for both outcomes: a card sent to the backlog keeps its status and
 // stays on the board, which is isOnBoard's rule.
 export async function rehomeUnfinished(
   tx: Prisma.TransactionClient,
@@ -165,21 +170,21 @@ export async function rehomeUnfinished(
   sprintId: string,
   destination: string | null,
 ): Promise<number> {
-  const doneColumns = await tx.columns.findMany({
+  const doneStatuses = await tx.statuses.findMany({
     where: { board_id: boardId, category: "done" },
     select: { id: true },
   });
 
-  const doneIds = doneColumns.map((column) => column.id);
+  const doneIds = doneStatuses.map((status) => status.id);
 
   const { count } = await tx.todos.updateMany({
     where: {
       board_id: boardId,
       sprint_id: sprintId,
       // The null branch is not redundant: SQL NOT IN yields NULL for a null
-      // column_id, which excludes the row, while the original NOT EXISTS
+      // status_id, which excludes the row, while the original NOT EXISTS
       // included it. A backlog item in the sprint is unfinished work.
-      OR: [{ column_id: null }, { column_id: { notIn: doneIds } }],
+      OR: [{ status_id: null }, { status_id: { notIn: doneIds } }],
     },
     data: { sprint_id: destination },
   });

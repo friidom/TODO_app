@@ -3,9 +3,13 @@ import { useTranslation } from "react-i18next";
 
 import { useBoardId } from "@/hooks/useBoardId";
 import { useBoard } from "@/services/boards/useBoard";
-import { useColumns } from "@/services/columns/useColumnsApi";
+import { useStatuses } from "@/services/workflow/useWorkflow";
+import { visibleCategories } from "@/services/workflow/statuses";
 import { categoryLabelKey, type ColumnCategory } from "@/constants/columns";
+import type { IStatus } from "@/types/data";
 import { canTransition, stagesBetween } from "./workflow";
+
+const NO_STATUSES: IStatus[] = [];
 
 // The UI's reading of the workflow: the mirrored rule in workflow.ts plus the
 // board's own switch (boards.workflow_enabled, migration 0020).
@@ -20,22 +24,21 @@ import { canTransition, stagesBetween } from "./workflow";
 export function useWorkflowGate() {
   const boardId = useBoardId();
   const { data: board } = useBoard(boardId);
-  const { data: columns = [] } = useColumns();
+  const { data: statuses = NO_STATUSES } = useStatuses();
   const { t } = useTranslation();
 
   const enforced = board?.workflow_enabled ?? true;
 
-  // Only stages this board has are ones a card can be asked to pass through —
-  // the same rule todos.service applies, so the two agree about a board whose
-  // columns skip a stage.
-  const present = useMemo(
-    () => new Set(columns.map((column) => column.category)),
-    [columns],
-  );
+  // Only stages this board can receive work in are ones a card can be asked to
+  // pass through — the same rule todos.service applies, so the two agree about
+  // a board with no visible status in some stage.
+  const present = useMemo(() => visibleCategories(statuses), [statuses]);
 
   const skipped = useCallback(
     (from: string | null | undefined, to: string | null | undefined) =>
-      stagesBetween(from, to).filter((stage) => present.has(stage)),
+      stagesBetween(from, to).filter((stage) =>
+        present.has(stage as ColumnCategory),
+      ),
     [present],
   );
 
@@ -55,7 +58,7 @@ export function useWorkflowGate() {
         .map((stage) => t(categoryLabelKey(stage as ColumnCategory)))
         .join(", ");
 
-      return `Move it to ${names} first.`;
+      return t("workflow.passThroughFirst", { stages: names });
     },
     [allows, skipped, t],
   );

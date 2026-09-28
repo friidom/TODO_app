@@ -69,7 +69,7 @@ function DraggableTodo({
 
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: todo.id,
-    data: { type: "todo", columnId: todo.column_id },
+    data: { type: "todo", statusId: todo.status_id },
     disabled: dragDisabled,
   });
 

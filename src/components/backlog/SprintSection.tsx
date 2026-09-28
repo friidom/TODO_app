@@ -11,10 +11,11 @@ import {
 import type { BacklogIndicator } from "@/hooks/useBacklogDnd";
 import type { SprintSection as SprintSectionData } from "@/services/todos/backlog";
 import { sprintPoints } from "@/services/todos/sprintPoints";
+import type { WorkflowModel } from "@/services/workflow/statuses";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAddBacklogItem } from "@/services/todos/useAddBacklogItem";
 import { useStartSprint } from "@/services/sprints/useSprints";
-import type { IColumn, Sprint } from "@/types/data";
+import type { Sprint } from "@/types/data";
 import { formatDue, todayISO } from "@/utils/dueDate";
 import { cn } from "@/utils/cn";
 import BacklogDropZone from "./BacklogDropZone";
@@ -23,7 +24,7 @@ import BacklogRow from "./BacklogRow";
 export default function SprintSection({
   section,
   sprints,
-  columns,
+  workflow,
   indicator,
   onEdit,
   onComplete,
@@ -31,7 +32,7 @@ export default function SprintSection({
 }: {
   section: SprintSectionData;
   sprints: Sprint[];
-  columns: IColumn[];
+  workflow: WorkflowModel;
   indicator: BacklogIndicator | null;
   onEdit: (sprint: Sprint) => void;
   onComplete: (sprint: Sprint) => void;
@@ -52,7 +53,7 @@ export default function SprintSection({
     data: { type: "backlog-section", sectionKey: sprint.id },
   });
 
-  const points = sprintPoints(items, columns);
+  const points = sprintPoints(items, workflow.statuses);
   const today = todayISO();
 
   function submitNewItem() {
@@ -196,7 +197,7 @@ export default function SprintSection({
 
           {items.map((item, i) => (
             <Fragment key={item.id}>
-              <BacklogRow todo={item} sprints={sprints} columns={columns} />
+              <BacklogRow todo={item} sprints={sprints} workflow={workflow} />
 
               <BacklogDropZone
                 sectionKey={sprint.id}

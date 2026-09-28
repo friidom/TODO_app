@@ -12,7 +12,7 @@ describe("TODO_FIELDS", () => {
     for (const field of [
       "id",
       "board_id",
-      "column_id",
+      "status_id",
       "position",
       "board_key",
       "title",

@@ -10,7 +10,7 @@ import { addTodo } from "./todoApi";
 export interface AddSubtaskVars {
   title: string;
   parentId: string;
-  columnId: string;
+  statusId: string;
 }
 
 // Separate from useAddTodo on purpose — a subtask has no board position, so none of that mutation's rank/reorder machinery applies.
@@ -23,21 +23,21 @@ export function useAddSubtask() {
       id,
       title,
       parentId,
-      columnId,
+      statusId,
     }: AddSubtaskVars & { id: string }) => {
       if (!boardId) throw new Error("useAddSubtask ran without a board");
 
       return addTodo({
         id,
         title,
-        column_id: columnId,
+        status_id: statusId,
         board_id: boardId,
         parent_id: parentId,
         type: DEFAULT_WORK_TYPE,
       });
     },
 
-    onMutate: async ({ id, title, parentId, columnId }) => {
+    onMutate: async ({ id, title, parentId, statusId }) => {
       if (!boardId) throw new Error("useAddSubtask ran without a board");
 
       await queryClient.cancelQueries({ queryKey: queryKeys.todos(boardId) });
@@ -49,7 +49,7 @@ export function useAddSubtask() {
         id,
         title,
         board_id: boardId,
-        column_id: columnId,
+        status_id: statusId,
         parent_id: parentId,
         board_key: null,
         type: DEFAULT_WORK_TYPE,

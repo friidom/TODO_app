@@ -1,3 +1,5 @@
+import type { ColumnCategory } from "@/constants/columns";
+
 import type { Database } from "./database";
 
 type Row<T extends keyof Database["public"]["Tables"]> =
@@ -11,7 +13,7 @@ export type TodoRow = Row<"todos">;
 export const TODO_FIELDS = [
   "id",
   "board_id",
-  "column_id",
+  "status_id",
   "position",
   "rank",
   "board_key",
@@ -55,6 +57,34 @@ export type Attachment = Row<"attachments">;
 export type ISupabaseProfile = Row<"profiles">;
 
 export type IColumn = Row<"columns">;
+
+// Declared by hand for the reason IBoard's flags are below: database.ts is the
+// Supabase-era generator's output, and statuses arrived long after it (0024).
+// A card's status is its own row now; a column only shows statuses, and the
+// category the old column carried lives here.
+export interface IStatus {
+  id: string;
+  board_id: string;
+  column_id: string;
+  // User data: rendered as typed, never through t().
+  name: string;
+  category: ColumnCategory;
+  // Order inside its column; board order is column rank, then this.
+  rank: number;
+  // Retired from new placement. Cards already in it stay valid and keep
+  // rendering in its column.
+  is_hidden: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// GET /boards/:boardId/workflow — one snapshot, so workflow_version always
+// describes exactly the columns and statuses beside it.
+export interface IWorkflow {
+  workflow_version: number;
+  columns: IColumn[];
+  statuses: IStatus[];
+}
 
 // The feature flags are declared here rather than in database.ts for the reason
 // ISpace's note below gives: that file is the Supabase-era generator's output and

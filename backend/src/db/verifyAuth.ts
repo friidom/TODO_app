@@ -253,18 +253,25 @@ async function part2_provisioning(userId: string) {
   const columns = await prisma.columns.findMany({
     where: { board_id: board.id },
     orderBy: { position: "asc" },
-    select: { title: true, category: true, position: true, rank: true },
+    select: {
+      title: true,
+      position: true,
+      rank: true,
+      statuses: { select: { name: true, category: true, is_hidden: true } },
+    },
   });
 
   check("four columns", columns.length === 4, columns.length);
   check(
-    "in provision_user's order, with its categories",
-    JSON.stringify(columns.map((c) => [c.title, c.category])) ===
+    "in provision_user's order, each showing one visible status of its category",
+    JSON.stringify(
+      columns.map((c) => [c.title, c.statuses.map((s) => [s.name, s.category, s.is_hidden])]),
+    ) ===
       JSON.stringify([
-        ["To Do", "todo"],
-        ["In Progress", "in_progress"],
-        ["In Review", "in_review"],
-        ["Done", "done"],
+        ["To Do", [["To Do", "todo", false]]],
+        ["In Progress", [["In Progress", "in_progress", false]]],
+        ["In Review", [["In Review", "in_review", false]]],
+        ["Done", [["Done", "done", false]]],
       ]),
     columns,
   );

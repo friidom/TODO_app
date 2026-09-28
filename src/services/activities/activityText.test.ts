@@ -1,12 +1,33 @@
 import { describe, expect, it } from "vitest";
 
+import en from "@/components/i18n/locales/en.json";
 import { describeActivity, type ActivityContext } from "./activityText";
 import type { Activity } from "@/types/data";
+
+// The English resources themselves, with i18next's {{name}} interpolation, so a
+// sentence routed through i18n is checked against the key that really ships.
+function t(key: string, values: Record<string, string> = {}): string {
+  const template = key
+    .split(".")
+    .reduce<unknown>(
+      (node, part) => (node as Record<string, unknown> | undefined)?.[part],
+      en,
+    );
+
+  if (typeof template !== "string")
+    throw new Error(`no English text for ${key}`);
+
+  return template.replace(
+    /\{\{(\w+)\}\}/g,
+    (_, name: string) => values[name] ?? "",
+  );
+}
 
 const CTX: ActivityContext = {
   keyPrefix: "KAN",
   names: { "user-a": "Alice", "user-b": "Bob" },
   liveTaskIds: new Set(["todo-1"]),
+  t,
 };
 
 function entry(over: Partial<Activity>): Activity {
@@ -332,6 +353,54 @@ describe("describeActivity — columns", () => {
     );
 
     expect(line.text).toBe("renamed the column Backlog to Icebox");
+  });
+});
+
+// Status names are user data: they arrive in the sentence as typed.
+describe("describeActivity — statuses", () => {
+  it("names a created status", () => {
+    const line = describeActivity(
+      entry({
+        entity_type: "status",
+        entity_id: "status-1",
+        action: "created",
+        payload: { title: "Blocked" },
+      }),
+      CTX,
+    );
+
+    expect(line.text).toBe("created the status Blocked");
+    expect(line.taskId).toBeNull();
+  });
+
+  it("reads both names on a rename", () => {
+    const line = describeActivity(
+      entry({
+        entity_type: "status",
+        entity_id: "status-1",
+        action: "renamed",
+        payload: { from: "Blocked", to: "Waiting" },
+      }),
+      CTX,
+    );
+
+    expect(line.text).toBe("renamed the status Blocked to Waiting");
+  });
+
+  it("names a deleted status, and still reads without a payload", () => {
+    const deleted = (payload: Activity["payload"]) =>
+      describeActivity(
+        entry({
+          entity_type: "status",
+          entity_id: "status-1",
+          action: "deleted",
+          payload,
+        }),
+        CTX,
+      ).text;
+
+    expect(deleted({ title: "Blocked" })).toBe("deleted the status Blocked");
+    expect(deleted({})).toBe("deleted a status");
   });
 });
 

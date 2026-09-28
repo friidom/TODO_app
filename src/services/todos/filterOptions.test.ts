@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { filterOptions, matchOptions } from "./filterOptions";
 import type { BoardMember } from "../members/membersApi";
-import type { IColumn } from "../../types/data";
+import type { IStatus } from "../../types/data";
 
 const member = (
   id: string,
@@ -18,14 +18,21 @@ const member = (
     joined_at: "2026-01-01T00:00:00Z",
   }) as BoardMember;
 
-const column = (id: string, title: string, rank: number): IColumn =>
-  ({ id, title, rank, position: null, category: "todo" }) as IColumn;
+const status = (id: string, name: string, is_hidden = false): IStatus =>
+  ({
+    id,
+    name,
+    is_hidden,
+    category: "todo",
+    column_id: `col-${id}`,
+  }) as IStatus;
 
+// Board order, as the workflow model hands statuses out.
 const ctx = {
-  columns: [
-    column("c2", "Doing", 2048),
-    column("c1", "To do", 1024),
-    column("c3", "Done", 3072),
+  statuses: [
+    status("s1", "To do"),
+    status("s2", "Doing"),
+    status("s3", "Done"),
   ],
   members: [
     member("u1", "Ada Lovelace"),
@@ -70,7 +77,8 @@ describe("filterOptions", () => {
   });
 
   describe("status", () => {
-    it("lists columns in board order, not the order they arrived in", () => {
+    it("lists statuses in board order, by id and name", () => {
+      expect(values(filterOptions("status", ctx))).toEqual(["s1", "s2", "s3"]);
       expect(labels(filterOptions("status", ctx))).toEqual([
         "To do",
         "Doing",
@@ -78,13 +86,14 @@ describe("filterOptions", () => {
       ]);
     });
 
-    it("labels an untitled column rather than rendering a blank row", () => {
+    // Retired from new work, but the cards already in it must stay findable.
+    it("still offers a hidden status", () => {
       const options = filterOptions("status", {
         ...ctx,
-        columns: [column("c0", "", 1024)],
+        statuses: [...ctx.statuses, status("s4", "Parked", true)],
       });
 
-      expect(labels(options)).toEqual(["Untitled"]);
+      expect(values(options)).toContain("s4");
     });
   });
 

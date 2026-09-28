@@ -1,26 +1,20 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { deleteColumn } from "./columnsApi";
-import { applyColumnDeleted } from "./cache";
-import type { IColumn } from "@/types/data";
-import { queryKeys } from "@/services/queryClient/queryKeys";
-import { useBoardId } from "@/hooks/useBoardId";
+import { withColumnDeleted } from "@/services/workflow/draft";
+import { usePublishWorkflow } from "@/services/workflow/usePublishWorkflow";
 
+// A workflow publish: the column and its statuses go, and their cards move to
+// the status a card dropped on the destination would land in — in the same
+// transaction, so a failure leaves nothing half-moved.
 export function useDeleteColumn() {
-  const queryClient = useQueryClient();
-  const boardId = useBoardId();
+  const publish = usePublishWorkflow();
 
-  return useMutation({
-    mutationFn: deleteColumn,
+  const mutate = (
+    vars: { id: string; moveToColumnId: string },
+    options?: Parameters<typeof publish.mutate>[1],
+  ) =>
+    publish.mutate(
+      (draft) => withColumnDeleted(draft, vars.id, vars.moveToColumnId),
+      options,
+    );
 
-    onSuccess: ({ id }) => {
-      // Drop the column and close the gap its position left behind.
-      queryClient.setQueryData<IColumn[]>(
-        queryKeys.columns(boardId),
-        (old = []) => applyColumnDeleted(old, id),
-      );
-
-      // The todos moved server-side, so refetch rather than guess their order.
-      queryClient.invalidateQueries({ queryKey: queryKeys.todos(boardId) });
-    },
-  });
+  return { ...publish, mutate };
 }

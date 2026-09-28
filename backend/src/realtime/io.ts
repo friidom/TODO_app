@@ -9,7 +9,7 @@ import { registerRoomHandlers } from "./rooms.js";
 
 export type Scope =
   | "todos"
-  | "columns"
+  | "workflow"
   | "comments"
   | "attachments"
   | "sprints"

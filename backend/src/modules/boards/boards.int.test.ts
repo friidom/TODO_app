@@ -591,19 +591,20 @@ describe("DELETE /boards/:boardId", () => {
     expect(response.status).toBe(204);
     expect(await prisma.boards.count({ where: { id: alice.boardId } })).toBe(0);
     expect(await prisma.columns.count({ where: { board_id: alice.boardId } })).toBe(0);
+    expect(await prisma.statuses.count({ where: { board_id: alice.boardId } })).toBe(0);
     expect(await prisma.board_members.count({ where: { board_id: alice.boardId } })).toBe(0);
     expect(await prisma.activities.count({ where: { board_id: alice.boardId } })).toBe(0);
   });
 
   it("takes the board's todos with it", async () => {
     const alice = await makeUser("alice");
-    const column = await prisma.columns.findFirstOrThrow({
+    const status = await prisma.statuses.findFirstOrThrow({
       where: { board_id: alice.boardId },
       select: { id: true },
     });
 
     await prisma.todos.create({
-      data: { board_id: alice.boardId, column_id: column.id, title: "doomed" },
+      data: { board_id: alice.boardId, status_id: status.id, title: "doomed" },
     });
 
     await client.del(`/api/v1/boards/${alice.boardId}`, undefined, { token: alice.token });

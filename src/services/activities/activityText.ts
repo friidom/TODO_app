@@ -26,6 +26,9 @@ export type ActivityContext = {
   keyPrefix: string;
   names: Record<string, string>;
   liveTaskIds: ReadonlySet<string>;
+  // i18next's t, for the sentences that go through i18n. A status name inside
+  // one is user data and is passed in as a value, never translated.
+  t: (key: string, values?: Record<string, string>) => string;
 };
 
 // Exported so historyText.ts can read the same jsonb payloads with one typed accessor.
@@ -87,7 +90,7 @@ function priorityDetail(value: string | null): ActivityDetail {
 
 export function describeActivity(
   activity: Activity,
-  { keyPrefix, names, liveTaskIds }: ActivityContext,
+  { keyPrefix, names, liveTaskIds, t }: ActivityContext,
 ): ActivityLine {
   const item = itemLabel(activity, keyPrefix);
 
@@ -109,7 +112,7 @@ export function describeActivity(
       const from = str(activity.payload, "from");
       const to = str(activity.payload, "to");
 
-      // Uncoloured — the trigger snapshots the column's title, not its id, so there's no category to look up.
+      // Uncoloured — the trigger snapshots the status's name, not its id, so there's no category to look up.
       const detail: ActivityDetail | null = to
         ? { label: "Status", value: to }
         : null;
@@ -278,6 +281,44 @@ export function describeActivity(
       }
 
       return { text: `renamed a column`, taskId: null, detail: null };
+    }
+
+    case "status.created": {
+      const name = str(activity.payload, "title");
+
+      return {
+        text: name
+          ? t("activity.statusCreated", { name })
+          : t("activity.statusCreatedUnnamed"),
+        taskId: null,
+        detail: null,
+      };
+    }
+
+    case "status.deleted": {
+      const name = str(activity.payload, "title");
+
+      return {
+        text: name
+          ? t("activity.statusDeleted", { name })
+          : t("activity.statusDeletedUnnamed"),
+        taskId: null,
+        detail: null,
+      };
+    }
+
+    case "status.renamed": {
+      const from = str(activity.payload, "from");
+      const to = str(activity.payload, "to");
+
+      return {
+        text:
+          from && to
+            ? t("activity.statusRenamed", { from, to })
+            : t("activity.statusRenamedUnnamed"),
+        taskId: null,
+        detail: null,
+      };
     }
 
     case "member.added": {

@@ -86,7 +86,7 @@ export default function TodoMenu({
             <div className={MENU_SEPARATOR} />
 
             <Field label="Status">
-              <StatusControl todoId={todo.id} columnId={todo.column_id} />
+              <StatusControl todoId={todo.id} statusId={todo.status_id} />
             </Field>
 
             <Field label="Work type">

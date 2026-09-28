@@ -3,10 +3,11 @@ import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { disconnect, resetDatabase } from "../testing/db.js";
-import { addMember, firstColumnOf, makeUser } from "../testing/fixtures.js";
+import { addMember, firstStatusOf, makeUser, workflowDraft } from "../testing/fixtures.js";
 import { startRealtimeHarness, settle, type RealtimeHarness } from "../testing/realtimeHarness.js";
 import * as todosService from "../modules/todos/todos.service.js";
 import * as columnsService from "../modules/columns/columns.service.js";
+import * as workflowService from "../modules/workflow/workflow.service.js";
 import * as commentsService from "../modules/comments/comments.service.js";
 import * as sprintsService from "../modules/sprints/sprints.service.js";
 import * as boardsService from "../modules/boards/boards.service.js";
@@ -51,11 +52,11 @@ describe("todo events", () => {
   it("sends an INSERT carrying the created row", async () => {
     const owner = await makeUser("owner");
     const socket = await watcherOn(owner.boardId, owner.token);
-    const column = await firstColumnOf(owner.boardId);
+    const status = await firstStatusOf(owner.boardId);
 
     await todosService.create({ id: owner.id }, { id: owner.boardId, role: "owner" }, {
       title: "Write it down",
-      column_id: column.id,
+      status_id: status.id,
     });
 
     const event = await socket.waitFor<Change>("todo:change");
@@ -68,10 +69,10 @@ describe("todo events", () => {
   it("sends an UPDATE on a patch", async () => {
     const owner = await makeUser("owner");
     const board = { id: owner.boardId, role: "owner" as const };
-    const column = await firstColumnOf(owner.boardId);
+    const status = await firstStatusOf(owner.boardId);
     const created = await todosService.create({ id: owner.id }, board, {
       title: "Before",
-      column_id: column.id,
+      status_id: status.id,
     });
 
     const socket = await watcherOn(owner.boardId, owner.token);
@@ -87,36 +88,37 @@ describe("todo events", () => {
   it("sends an UPDATE on a move, carrying the committed row rather than the request", async () => {
     const owner = await makeUser("owner");
     const board = { id: owner.boardId, role: "owner" as const };
-    const columns = await prisma.columns.findMany({
-      where: { board_id: owner.boardId },
-      select: { id: true },
-      orderBy: { position: "asc" },
+    const statuses = await prisma.statuses.findMany({
+      where: { board_id: owner.boardId, category: { in: ["todo", "in_progress"] } },
+      select: { id: true, category: true },
     });
+    const from = statuses.find((status) => status.category === "todo")!.id;
+    const to = statuses.find((status) => status.category === "in_progress")!.id;
     const created = await todosService.create({ id: owner.id }, board, {
       title: "Moves",
-      column_id: columns[0].id,
+      status_id: from,
     });
 
     const socket = await watcherOn(owner.boardId, owner.token);
 
     await todosService.move({ id: owner.id }, board, created.id, {
-      column_id: columns[1].id,
+      status_id: to,
       rank: 5000,
     });
 
     const event = await socket.waitFor<Change>("todo:change");
 
     expect(event.eventType).toBe("UPDATE");
-    expect(event.new).toMatchObject({ id: created.id, column_id: columns[1].id, rank: 5000 });
+    expect(event.new).toMatchObject({ id: created.id, status_id: to, rank: 5000 });
   });
 
   it("SENDS ONLY THE ID ON A DELETE", async () => {
     const owner = await makeUser("owner");
     const board = { id: owner.boardId, role: "owner" as const };
-    const column = await firstColumnOf(owner.boardId);
+    const status = await firstStatusOf(owner.boardId);
     const created = await todosService.create({ id: owner.id }, board, {
       title: "Secret title nobody else should receive",
-      column_id: column.id,
+      status_id: status.id,
     });
 
     const socket = await watcherOn(owner.boardId, owner.token);
@@ -133,10 +135,10 @@ describe("todo events", () => {
   it("follows a todo delete with an invalidate for what it cascaded", async () => {
     const owner = await makeUser("owner");
     const board = { id: owner.boardId, role: "owner" as const };
-    const column = await firstColumnOf(owner.boardId);
+    const status = await firstStatusOf(owner.boardId);
     const created = await todosService.create({ id: owner.id }, board, {
       title: "Has comments",
-      column_id: column.id,
+      status_id: status.id,
     });
 
     const socket = await watcherOn(owner.boardId, owner.token);
@@ -149,42 +151,53 @@ describe("todo events", () => {
   });
 });
 
-describe("column events", () => {
-  it("sends INSERT, UPDATE and DELETE", async () => {
+describe("column and workflow events", () => {
+  it("sends an UPDATE when a column's limits change", async () => {
     const owner = await makeUser("owner");
     const board = { id: owner.boardId, role: "owner" as const };
+    const { column_id: columnId } = await firstStatusOf(owner.boardId);
     const socket = await watcherOn(owner.boardId, owner.token);
 
-    const created = await columnsService.create({ id: owner.id }, board, {
-      title: "Review",
-      category: "in_progress",
+    await columnsService.updateLimits({ id: owner.id }, board, columnId, { max_limit: 4 });
+
+    const updated = await socket.waitFor<Change>("column:change");
+
+    expect(updated.eventType).toBe("UPDATE");
+    expect(updated.new).toMatchObject({ id: columnId, max_limit: 4 });
+  });
+
+  // A publish can touch every column, status and card on the board, so it is
+  // described as scopes to refetch rather than row by row.
+  it("invalidates the workflow and the cards once a publish commits", async () => {
+    const owner = await makeUser("owner");
+    const socket = await watcherOn(owner.boardId, owner.token);
+    const draft = await workflowDraft(owner.boardId);
+
+    await workflowService.publish({ id: owner.id }, owner.boardId, {
+      ...draft,
+      columns: draft.columns.map((column, index) =>
+        index === 0 ? { ...column, title: "Open" } : column,
+      ),
     });
-
-    expect((await socket.waitFor<Change>("column:change")).eventType).toBe("INSERT");
-
-    await columnsService.update({ id: owner.id }, board, created.id, { title: "In review" });
-
-    const updated = await socket.waitFor<Change>(
-      "column:change",
-      (e) => e.eventType === "UPDATE" && e.new.title === "In review",
-    );
-
-    expect(updated.new).toMatchObject({ id: created.id, title: "In review" });
-
-    const destination = await firstColumnOf(owner.boardId);
-
-    await columnsService.remove({ id: owner.id }, board, created.id, destination.id);
-
-    const deleted = await socket.waitFor<Change>(
-      "column:change",
-      (e) => e.eventType === "DELETE",
-    );
-
-    expect(deleted.old).toEqual({ id: created.id });
 
     const invalidate = await socket.waitFor<Invalidate>("board:invalidate");
 
-    expect(invalidate.scopes).toEqual(["todos"]);
+    expect(invalidate.scopes).toEqual(["workflow", "todos"]);
+    expect(socket.seen("column:change")).toHaveLength(0);
+  });
+
+  it("broadcasts nothing when a publish is refused", async () => {
+    const owner = await makeUser("owner");
+    const socket = await watcherOn(owner.boardId, owner.token);
+    const draft = await workflowDraft(owner.boardId);
+
+    await expect(
+      workflowService.publish({ id: owner.id }, owner.boardId, { ...draft, version: 99 }),
+    ).rejects.toThrow();
+
+    await settle();
+
+    expect(socket.seen("board:invalidate")).toHaveLength(0);
   });
 });
 
@@ -192,10 +205,10 @@ describe("comment events", () => {
   it("sends INSERT, UPDATE and an id-only DELETE", async () => {
     const owner = await makeUser("owner");
     const board = { id: owner.boardId, role: "owner" as const };
-    const column = await firstColumnOf(owner.boardId);
+    const status = await firstStatusOf(owner.boardId);
     const todo = await todosService.create({ id: owner.id }, board, {
       title: "Discussed",
-      column_id: column.id,
+      status_id: status.id,
     });
 
     const socket = await watcherOn(owner.boardId, owner.token);
@@ -233,11 +246,11 @@ describe("room isolation", () => {
     const two = await makeUser("two");
 
     const listener = await watcherOn(two.boardId, two.token);
-    const column = await firstColumnOf(one.boardId);
+    const status = await firstStatusOf(one.boardId);
 
     await todosService.create({ id: one.id }, { id: one.boardId, role: "owner" }, {
       title: "Not yours",
-      column_id: column.id,
+      status_id: status.id,
     });
 
     await settle();
@@ -252,11 +265,11 @@ describe("room isolation", () => {
     await addMember(owner.boardId, member, "editor", owner.id);
 
     const idle = await harness.connect(member.token);
-    const column = await firstColumnOf(owner.boardId);
+    const status = await firstStatusOf(owner.boardId);
 
     await todosService.create({ id: owner.id }, { id: owner.boardId, role: "owner" }, {
       title: "Unwatched",
-      column_id: column.id,
+      status_id: status.id,
     });
 
     await settle();
@@ -313,17 +326,17 @@ describe("a failed write broadcasts nothing", () => {
     const owner = await makeUser("owner");
     const other = await makeUser("other");
     const socket = await watcherOn(owner.boardId, owner.token);
-    const column = await firstColumnOf(other.boardId);
-    const ownColumn = await firstColumnOf(owner.boardId);
+    const status = await firstStatusOf(other.boardId);
+    const ownStatus = await firstStatusOf(owner.boardId);
 
     const foreign = await todosService.create({ id: other.id }, { id: other.boardId, role: "owner" }, {
       title: "Elsewhere",
-      column_id: column.id,
+      status_id: status.id,
     });
 
     await expect(
       todosService.move({ id: owner.id }, { id: owner.boardId, role: "owner" }, foreign.id, {
-        column_id: ownColumn.id,
+        status_id: ownStatus.id,
         rank: 1,
       }),
     ).rejects.toThrow();
@@ -373,15 +386,15 @@ describe("multi-write operations use one coarse event", () => {
   it("invalidates todos on a rebalance rather than describing every row", async () => {
     const owner = await makeUser("owner");
     const board = { id: owner.boardId, role: "owner" as const };
-    const column = await firstColumnOf(owner.boardId);
+    const status = await firstStatusOf(owner.boardId);
 
     for (const title of ["a", "b", "c"]) {
-      await todosService.create({ id: owner.id }, board, { title, column_id: column.id });
+      await todosService.create({ id: owner.id }, board, { title, status_id: status.id });
     }
 
     const socket = await watcherOn(owner.boardId, owner.token);
 
-    await todosService.rebalanceColumn({ id: owner.id }, board, column.id);
+    await todosService.rebalanceColumn({ id: owner.id }, board, status.column_id);
 
     const event = await socket.waitFor<Invalidate>("board:invalidate");
 

@@ -6,8 +6,9 @@ import { prisma } from "../../db/prisma.js";
 import { disconnect, resetDatabase } from "../../testing/db.js";
 import {
   addMember,
-  firstColumnOf,
+  firstStatusOf,
   makeUser,
+  workflowDraft,
   type TestUser,
 } from "../../testing/fixtures.js";
 import { startTestServer, type TestClient } from "../../testing/httpClient.js";
@@ -57,9 +58,15 @@ function urlFor(path: string): string {
   return `/api/v1/admin${path.replace(":id", id).replace(":seniority", "junior")}`;
 }
 
-function send(method: string, url: string, token: string) {
+// The workflow PUT gets a publish of the board exactly as it is, so a
+// superadmin's request is valid and the matrix measures the gate, not the body.
+async function send(method: string, url: string, token: string) {
   const body =
-    method === "PATCH" ? { seniority: "senior" } : { daily_points: 1, weekly_points: 1 };
+    method === "PATCH"
+      ? { seniority: "senior" }
+      : url.endsWith("/workflow")
+        ? await workflowDraft(superadmin.boardId)
+        : { daily_points: 1, weekly_points: 1 };
 
   switch (method) {
     case "GET":
@@ -92,7 +99,7 @@ beforeEach(async () => {
     `/api/v1/boards/${superadmin.boardId}/todos/${superadminTodo}`,
     {
       title: "matrix fixture",
-      column_id: (await firstColumnOf(superadmin.boardId)).id,
+      status_id: (await firstStatusOf(superadmin.boardId)).id,
       rank: 1,
     },
     { token: superadmin.token },
@@ -154,13 +161,16 @@ describe("the admin role matrix", () => {
 
 describe("elevated read never becomes elevated write (§10.7 rule 1)", () => {
   // The single assertion that keeps this milestone honest. A superadmin sees
-  // every board in /admin/boards and can still touch none of them.
+  // every board in /admin/boards and can still touch none of them through a
+  // board's own routes -- the workflow included. The one deliberate exception,
+  // PUT /admin/boards/:id/workflow, lives on the admin router and is audited.
   it("leaves a superadmin a stranger to a board they are not a member of", async () => {
     const board = boardOwner.boardId;
     const column = await prisma.columns.findFirstOrThrow({
       where: { board_id: board },
       select: { id: true },
     });
+    const status = await firstStatusOf(board);
 
     const attempts = [
       await client.get(`/api/v1/boards/${board}`, { token: superadmin.token }),
@@ -169,12 +179,18 @@ describe("elevated read never becomes elevated write (§10.7 rule 1)", () => {
       await client.get(`/api/v1/boards/${board}/todos`, { token: superadmin.token }),
       await client.patch(
         `/api/v1/boards/${board}/todos/${randomUUID()}`,
-        { title: "Planted", column_id: column.id, rank: 1 },
+        { title: "Planted", status_id: status.id, rank: 1 },
         { token: superadmin.token },
       ),
       await client.get(`/api/v1/boards/${board}/members`, { token: superadmin.token }),
       await client.get(`/api/v1/boards/${board}/activities`, { token: superadmin.token }),
-      await client.patch(`/api/v1/columns/${column.id}`, { title: "Renamed" }, { token: superadmin.token }),
+      await client.patch(`/api/v1/columns/${column.id}`, { max_limit: 1 }, { token: superadmin.token }),
+      await client.get(`/api/v1/boards/${board}/workflow`, { token: superadmin.token }),
+      await client.put(
+        `/api/v1/boards/${board}/workflow`,
+        await workflowDraft(board),
+        { token: superadmin.token },
+      ),
     ];
 
     expect(attempts.map((response) => response.status)).toEqual(attempts.map(() => 404));
@@ -198,8 +214,11 @@ describe("elevated read never becomes elevated write (§10.7 rule 1)", () => {
   });
 });
 
-describe("the admin surface writes two things and nothing else", () => {
-  it("leaves every table but kpi_targets, users and the audit log untouched", async () => {
+// The third write is the workflow publish, sent here as a no-change publish of
+// the superadmin's own board: it may respace column ranks, but it adds and
+// removes no row of anything.
+describe("the admin surface writes three things and nothing else", () => {
+  it("leaves every table but kpi_targets, users, the workflow and the audit log untouched", async () => {
     const before = await snapshot();
 
     for (const { method, path } of ROUTES) {
@@ -211,6 +230,7 @@ describe("the admin surface writes two things and nothing else", () => {
     expect(after.todos).toBe(before.todos);
     expect(after.boards).toBe(before.boards);
     expect(after.columns).toBe(before.columns);
+    expect(after.statuses).toBe(before.statuses);
     expect(after.comments).toBe(before.comments);
     expect(after.members).toBe(before.members);
     expect(after.users).toBe(before.users);
@@ -258,10 +278,11 @@ describe("admin_audit_log", () => {
 });
 
 async function snapshot() {
-  const [todos, boards, columns, comments, members, users, activities, audit] = await Promise.all([
+  const [todos, boards, columns, statuses, comments, members, users, activities, audit] = await Promise.all([
     prisma.todos.count(),
     prisma.boards.count(),
     prisma.columns.count(),
+    prisma.statuses.count(),
     prisma.comments.count(),
     prisma.board_members.count(),
     prisma.users.count(),
@@ -269,5 +290,5 @@ async function snapshot() {
     prisma.admin_audit_log.count(),
   ]);
 
-  return { todos, boards, columns, comments, members, users, activities, audit };
+  return { todos, boards, columns, statuses, comments, members, users, activities, audit };
 }

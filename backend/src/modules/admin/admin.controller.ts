@@ -1,6 +1,7 @@
 import type { RequestHandler } from "express";
 
 import { requireActor } from "../../middleware/requireAuth.js";
+import type { PublishWorkflowInput } from "../workflow/workflow.schema.js";
 import * as adminService from "./admin.service.js";
 import type {
   ActivityQuery,
@@ -82,6 +83,24 @@ export const getBoard: RequestHandler = async (req, res) => {
   const { period } = req.query as unknown as PeriodQuery;
 
   res.json(await adminService.board(id, period));
+};
+
+export const getBoardWorkflow: RequestHandler = async (req, res) => {
+  const { id } = req.params as unknown as BoardParams;
+
+  res.json(await adminService.boardWorkflow(id));
+};
+
+export const publishBoardWorkflow: RequestHandler = async (req, res) => {
+  const { id } = req.params as unknown as BoardParams;
+
+  res.json(
+    await adminService.publishBoardWorkflow(
+      id,
+      req.body as PublishWorkflowInput,
+      requireActor(req),
+    ),
+  );
 };
 
 export const listActivity: RequestHandler = async (req, res) => {

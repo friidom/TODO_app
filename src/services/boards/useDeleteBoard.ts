@@ -29,8 +29,8 @@ export function useDeleteBoard() {
     onSuccess: (_data, id) => {
       queryClient.removeQueries({ queryKey: queryKeys.board(id) });
 
-      // columns/todos are gone server-side by cascade — evict so Back or a stale link doesn't render a dead board from cache
-      queryClient.removeQueries({ queryKey: queryKeys.columns(id) });
+      // the workflow and todos are gone server-side by cascade — evict so Back or a stale link doesn't render a dead board from cache
+      queryClient.removeQueries({ queryKey: queryKeys.workflow(id) });
       queryClient.removeQueries({ queryKey: queryKeys.todos(id) });
     },
   });

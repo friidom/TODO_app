@@ -22,7 +22,7 @@ export async function fetchTodo(todoId: string): Promise<TodoDetail | null> {
 export function addTodo({
   id,
   title,
-  column_id,
+  status_id,
   board_id,
   assignee_id = null,
   start_date = null,
@@ -33,7 +33,7 @@ export function addTodo({
 }: {
   id: string;
   title: string;
-  column_id: string;
+  status_id: string;
   board_id: string;
   assignee_id?: string | null;
   start_date?: string | null;
@@ -45,7 +45,7 @@ export function addTodo({
   return api.post<Todo>(`/boards/${board_id}/todos`, {
     id,
     title,
-    column_id,
+    status_id,
     assignee_id,
     start_date,
     due_date,
@@ -62,7 +62,7 @@ export function addBacklogItem({
   backlog_rank,
   type = DEFAULT_WORK_TYPE,
   sprint_id = null,
-  column_id = null,
+  status_id = null,
   rank = null,
 }: {
   id: string;
@@ -71,13 +71,13 @@ export function addBacklogItem({
   backlog_rank: number;
   type?: string;
   sprint_id?: string | null;
-  column_id?: string | null;
+  status_id?: string | null;
   rank?: number | null;
 }): Promise<Todo> {
   return api.post<Todo>(`/boards/${board_id}/todos`, {
     id,
     title,
-    column_id,
+    status_id,
     rank,
     backlog_rank,
     type,
@@ -93,15 +93,15 @@ export async function deleteTodo(id: string): Promise<string> {
 
 export async function moveTodo({
   id,
-  columnId,
+  statusId,
   rank,
 }: {
   id: string;
   boardId: string;
-  columnId: string;
+  statusId: string;
   rank: number;
 }): Promise<void> {
-  await api.post<void>(`/todos/${id}/move`, { column_id: columnId, rank });
+  await api.post<void>(`/todos/${id}/move`, { status_id: statusId, rank });
 }
 
 export async function rebalanceColumnRanks(
@@ -117,7 +117,7 @@ export type TodoPatch = { id: string; board_id: string } & Partial<
   Pick<
     TodoRow,
     | "title"
-    | "column_id"
+    | "status_id"
     | "start_date"
     | "due_date"
     | "assignee_id"

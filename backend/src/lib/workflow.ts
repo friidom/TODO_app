@@ -2,14 +2,15 @@
 // for the same reason: a rule read off a table rather than reconstructed from
 // ifs spread over the services that enforce it.
 //
-// A card's status is not a column on todos — it is the category of the column
-// the card sits in (columns_category_check, 0019: 'todo' | 'in_progress' |
-// 'in_review' | 'done'). So a "status transition" is a move between columns of
-// different categories, and these are the names the schema already uses.
+// The stages are status CATEGORIES (statuses_category_check, 0024: 'todo' |
+// 'in_progress' | 'in_review' | 'done'), not statuses. A board may have any
+// number of statuses in each category, so a "transition" is a move between two
+// statuses whose categories differ; two statuses of one category are the same
+// stage, and moving between them is sideways.
 //
-// in_review is a stage rather than a second in_progress column because that is
-// the only way "In Progress -> Done is refused" can be expressed at all — 0019's
-// header has the whole story.
+// in_review is a stage rather than a second in_progress category because that
+// is the only way "In Progress -> Done is refused" can be expressed at all —
+// 0019's header has the whole story.
 
 export const WORKFLOW_STAGES = ["todo", "in_progress", "in_review", "done"] as const;
 

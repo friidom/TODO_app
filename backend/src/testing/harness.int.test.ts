@@ -57,6 +57,7 @@ describe("resetDatabase", () => {
 
     await expect(prisma.boards.count({ where: { id: user.boardId } })).resolves.toBe(1);
     await expect(prisma.columns.count({ where: { board_id: user.boardId } })).resolves.toBe(4);
+    await expect(prisma.statuses.count({ where: { board_id: user.boardId } })).resolves.toBe(4);
     await expect(
       prisma.board_members.count({ where: { board_id: user.boardId } }),
     ).resolves.toBe(1);
@@ -68,6 +69,7 @@ describe("resetDatabase", () => {
       prisma.profiles.count(),
       prisma.boards.count(),
       prisma.columns.count(),
+      prisma.statuses.count(),
       prisma.board_members.count(),
       prisma.spaces.count(),
       prisma.activities.count(),

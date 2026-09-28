@@ -26,11 +26,11 @@ export const FILTER_IDS = [
 
 export type FilterId = (typeof FILTER_IDS)[number];
 
-// What a predicate is allowed to know. doneColumnIds rather than a category on
-// the card, because doneness is a property of the column a card sits in.
+// What a predicate is allowed to know. doneStatusIds rather than a category on
+// the card, because doneness is a property of the status a card is in.
 export interface FilterContext {
   userId: string | undefined;
-  doneColumnIds: Set<string>;
+  doneStatusIds: ReadonlySet<string>;
 }
 
 export interface FilterDefinition {
@@ -50,7 +50,7 @@ export interface FilterDefinition {
 const ALL: ViewScope = { kind: "all" };
 
 const isDone = (todo: Todo, context: FilterContext) =>
-  todo.column_id !== null && context.doneColumnIds.has(todo.column_id);
+  todo.status_id !== null && context.doneStatusIds.has(todo.status_id);
 
 export const FILTER_DEFINITIONS: Record<FilterId, FilterDefinition> = {
   "my-open": {
@@ -114,7 +114,7 @@ export const FILTER_DEFINITIONS: Record<FilterId, FilterDefinition> = {
     id: "resolved-recently",
     label: "Resolved recently",
     scope: ALL,
-    // completed_at, not the column: a card moved out of Done is not resolved,
+    // completed_at, not the status: a card moved out of Done is not resolved,
     // and the trigger clears the stamp when that happens.
     match: (todo) => todo.completed_at !== null,
     sort: { key: "completed", dir: "desc" },

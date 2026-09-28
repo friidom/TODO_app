@@ -3,7 +3,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "../db/prisma.js";
 import { withActor } from "../db/withActor.js";
 import { disconnect, resetDatabase } from "./db.js";
-import { addMember, firstColumnOf, makeUser } from "./fixtures.js";
+import { addMember, firstStatusOf, makeUser } from "./fixtures.js";
 
 beforeEach(resetDatabase);
 
@@ -21,13 +21,13 @@ describe("deleting an account or a board is never blocked by its own history", (
 
     await addMember(owner.boardId, assignee, "editor", owner.id);
 
-    const column = await firstColumnOf(owner.boardId);
+    const status = await firstStatusOf(owner.boardId);
 
     await withActor(owner.id, (tx) =>
       tx.todos.create({
         data: {
           board_id: owner.boardId,
-          column_id: column.id,
+          status_id: status.id,
           title: "assigned work",
           assignee_id: assignee.id,
         },
@@ -73,7 +73,7 @@ describe("deleting an account or a board is never blocked by its own history", (
     ).toBeGreaterThan(0);
   });
 
-  it("deletes a board carrying columns, members, comments and activity", async () => {
+  it("deletes a board carrying columns, statuses, members, comments and activity", async () => {
     const { owner } = await boardWithAssignedWork();
     const todo = await prisma.todos.findFirstOrThrow({
       where: { board_id: owner.boardId },
@@ -93,6 +93,7 @@ describe("deleting an account or a board is never blocked by its own history", (
 
     for (const count of await Promise.all([
       prisma.columns.count({ where: { board_id: owner.boardId } }),
+      prisma.statuses.count({ where: { board_id: owner.boardId } }),
       prisma.todos.count({ where: { board_id: owner.boardId } }),
       prisma.comments.count({ where: { board_id: owner.boardId } }),
       prisma.activities.count({ where: { board_id: owner.boardId } }),

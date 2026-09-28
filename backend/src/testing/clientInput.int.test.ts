@@ -122,14 +122,14 @@ describe("oversized and malformed bodies stay 4xx", () => {
 describe("values the database cannot hold are 4xx, not 500", () => {
   it("rejects a due_date PostgreSQL cannot represent", async () => {
     const alice = await makeUser("alice");
-    const column = await prisma.columns.findFirstOrThrow({
+    const status = await prisma.statuses.findFirstOrThrow({
       where: { board_id: alice.boardId },
       select: { id: true },
     });
 
     const response = await client.post(
       `/api/v1/boards/${alice.boardId}/todos`,
-      { title: "x", column_id: column.id, due_date: "-000001-01-01T00:00:00Z" },
+      { title: "x", status_id: status.id, due_date: "-000001-01-01T00:00:00Z" },
       { token: alice.token },
     );
 
@@ -166,16 +166,17 @@ describe("values the database cannot hold are 4xx, not 500", () => {
 
   it("still accepts an ordinary date and an ordinary limit", async () => {
     const alice = await makeUser("alice");
-    const column = await prisma.columns.findFirstOrThrow({
+    const status = await prisma.statuses.findFirstOrThrow({
       where: { board_id: alice.boardId },
-      select: { id: true },
+      select: { id: true, column_id: true },
     });
+    const column = { id: status.column_id };
 
     expect(
       (
         await client.post(
           `/api/v1/boards/${alice.boardId}/todos`,
-          { title: "x", column_id: column.id, due_date: "2026-12-31T00:00:00Z" },
+          { title: "x", status_id: status.id, due_date: "2026-12-31T00:00:00Z" },
           { token: alice.token },
         )
       ).status,

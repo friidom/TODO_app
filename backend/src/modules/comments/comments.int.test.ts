@@ -4,7 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { prisma } from "../../db/prisma.js";
 import { disconnect, resetDatabase } from "../../testing/db.js";
-import { addMember, firstColumnOf, makeUser, type TestUser } from "../../testing/fixtures.js";
+import { addMember, firstStatusOf, makeUser, type TestUser } from "../../testing/fixtures.js";
 import { startTestServer, type TestClient } from "../../testing/httpClient.js";
 
 let client: TestClient;
@@ -32,7 +32,7 @@ interface Comment {
 
 async function board(roles: ("viewer" | "editor" | "admin")[] = []) {
   const owner = await makeUser("owner");
-  const column = await firstColumnOf(owner.boardId);
+  const status = await firstStatusOf(owner.boardId);
   const members: Record<string, TestUser> = {};
 
   for (const role of roles) {
@@ -44,7 +44,7 @@ async function board(roles: ("viewer" | "editor" | "admin")[] = []) {
 
   const todo = await client.post<{ id: string }>(
     `/api/v1/boards/${owner.boardId}/todos`,
-    { title: "Card", column_id: column.id },
+    { title: "Card", status_id: status.id },
     { token: owner.token },
   );
 
@@ -92,10 +92,10 @@ describe("GET /todos/:todoId/comments", () => {
 
   it("does not leak another card's comments", async () => {
     const { owner, boardId, todoId } = await board();
-    const column = await firstColumnOf(boardId);
+    const status = await firstStatusOf(boardId);
     const other = await client.post<{ id: string }>(
       `/api/v1/boards/${boardId}/todos`,
-      { title: "Other", column_id: column.id },
+      { title: "Other", status_id: status.id },
       { token: owner.token },
     );
 

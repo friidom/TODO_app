@@ -7,5 +7,26 @@
     "in_review": "На проверке",
     "done": "Выполнено"
   },
+  "status": {
+    "label": "Статус",
+    "labelled": "Статус: {{name}}",
+    "none": "Без статуса",
+    "hidden": "Скрытый статус"
+  },
+  "workflow": {
+    "passThroughFirst": "Сначала переместите её в {{stages}}.",
+    "skipsStep": "Это перемещение пропускает этап. {{reason}}",
+    "noStatusToReceive": "В этой колонке нет статуса, который может принять задачи.",
+    "statusNameTaken": "Статус «{{name}}» уже есть на этой доске.",
+    "editStale": "Процесс изменился до сохранения. Попробуйте ещё раз."
+  },
+  "activity": {
+    "statusCreated": "создал(а) статус {{name}}",
+    "statusCreatedUnnamed": "создал(а) статус",
+    "statusDeleted": "удалил(а) статус {{name}}",
+    "statusDeletedUnnamed": "удалил(а) статус",
+    "statusRenamed": "переименовал(а) статус {{from}} в {{to}}",
+    "statusRenamedUnnamed": "переименовал(а) статус"
+  },
   "loading": "Загрузка..."
 }

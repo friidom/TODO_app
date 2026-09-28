@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import type { BoardMember } from "../members/membersApi";
-import type { IColumn, Todo } from "../../types/data";
+import { toWorkflowModel } from "../workflow/statuses";
+import type { IColumn, IStatus, Todo } from "../../types/data";
 import {
   EMPTY_FILTERS,
   countFilters,
@@ -19,7 +20,7 @@ const card = (id: string, fields: Partial<Todo> = {}): Todo =>
   ({
     id,
     title: `card ${id}`,
-    column_id: "todo",
+    status_id: "todo",
     position: 0,
     type: "Task",
     priority: null,
@@ -168,11 +169,11 @@ describe("filterTodos", () => {
     ).toEqual(["1"]);
   });
 
-  it("filters by column, which is what status means here", () => {
+  it("filters by status", () => {
     const todos = [
-      card("1", { column_id: "todo" }),
-      card("2", { column_id: "doing" }),
-      card("3", { column_id: null }),
+      card("1", { status_id: "todo" }),
+      card("2", { status_id: "doing" }),
+      card("3", { status_id: null }),
     ];
 
     expect(
@@ -362,7 +363,23 @@ describe("sortTodos", () => {
 });
 
 const column = (id: string, title: string, position: number): IColumn =>
-  ({ id, title, position, category: "todo" }) as IColumn;
+  ({ id, title, position, rank: null }) as IColumn;
+
+const status = (
+  id: string,
+  name: string,
+  columnId: string,
+  fields: Partial<IStatus> = {},
+): IStatus =>
+  ({
+    id,
+    name,
+    column_id: columnId,
+    category: "todo",
+    rank: 1024,
+    is_hidden: false,
+    ...fields,
+  }) as IStatus;
 
 const member = (id: string, full_name: string | null): BoardMember => ({
   id,
@@ -373,56 +390,87 @@ const member = (id: string, full_name: string | null): BoardMember => ({
   joined_at: "2026-01-01T00:00:00Z",
 });
 
-const COLUMNS = [column("doing", "In progress", 1), column("todo", "To do", 0)];
+// Each column shows one status, the shape every board had before statuses were
+// their own rows: "todo" in the To do column, "doing" in In progress.
+const BOARD = toWorkflowModel({
+  workflow_version: 1,
+  columns: [
+    column("col-doing", "In progress", 1),
+    column("col-todo", "To do", 0),
+  ],
+  statuses: [
+    status("doing", "In progress", "col-doing", { category: "in_progress" }),
+    status("todo", "To do", "col-todo"),
+  ],
+});
 
 describe("orderByBoard", () => {
   it("reads columns left to right and position top to bottom", () => {
     const todos = [
-      card("d2", { column_id: "doing", position: 1 }),
-      card("t2", { column_id: "todo", position: 1 }),
-      card("d1", { column_id: "doing", position: 0 }),
-      card("t1", { column_id: "todo", position: 0 }),
+      card("d2", { status_id: "doing", position: 1 }),
+      card("t2", { status_id: "todo", position: 1 }),
+      card("d1", { status_id: "doing", position: 0 }),
+      card("t1", { status_id: "todo", position: 0 }),
     ];
 
-    expect(ids(orderByBoard(todos, COLUMNS))).toEqual(["t1", "t2", "d1", "d2"]);
+    expect(ids(orderByBoard(todos, BOARD))).toEqual(["t1", "t2", "d1", "d2"]);
   });
 
-  it("puts a card with no column at the end, not the front", () => {
+  it("puts a card with no status at the end, not the front", () => {
     const todos = [
-      card("orphan", { column_id: null, position: 0 }),
-      card("t1", { column_id: "todo", position: 0 }),
+      card("orphan", { status_id: null, position: 0 }),
+      card("t1", { status_id: "todo", position: 0 }),
     ];
 
-    expect(ids(orderByBoard(todos, COLUMNS))).toEqual(["t1", "orphan"]);
+    expect(ids(orderByBoard(todos, BOARD))).toEqual(["t1", "orphan"]);
   });
 
   it("does not mutate the cached array it is given", () => {
     const todos = [
-      card("d1", { column_id: "doing", position: 0 }),
-      card("t1", { column_id: "todo", position: 0 }),
+      card("d1", { status_id: "doing", position: 0 }),
+      card("t1", { status_id: "todo", position: 0 }),
     ];
 
-    orderByBoard(todos, COLUMNS);
+    orderByBoard(todos, BOARD);
 
     expect(ids(todos)).toEqual(["d1", "t1"]);
   });
 
   it("agrees with what each column would show on the board", () => {
     const todos = [
-      card("t2", { column_id: "todo", position: 1 }),
-      card("d1", { column_id: "doing", position: 0 }),
-      card("t1", { column_id: "todo", position: 0 }),
+      card("t2", { status_id: "todo", position: 1 }),
+      card("d1", { status_id: "doing", position: 0 }),
+      card("t1", { status_id: "todo", position: 0 }),
     ];
 
-    const ordered = orderByBoard(todos, COLUMNS);
-    const inTodoColumn = ordered.filter((it) => it.column_id === "todo");
+    const ordered = orderByBoard(todos, BOARD);
+    const inTodoColumn = ordered.filter((it) => it.status_id === "todo");
 
     expect(ids(inTodoColumn)).toEqual(["t1", "t2"]);
+  });
+
+  // A column shows every status in it, so their cards share one order.
+  it("interleaves the cards of two statuses in one column by rank", () => {
+    const board = toWorkflowModel({
+      workflow_version: 1,
+      columns: [column("col-todo", "To do", 0)],
+      statuses: [
+        status("todo", "To do", "col-todo"),
+        status("queued", "Queued", "col-todo", { rank: 2048 }),
+      ],
+    });
+    const todos = [
+      card("q1", { status_id: "queued", rank: 1500 }),
+      card("t2", { status_id: "todo", rank: 2000 }),
+      card("t1", { status_id: "todo", rank: 1000 }),
+    ];
+
+    expect(ids(orderByBoard(todos, board))).toEqual(["t1", "q1", "t2"]);
   });
 });
 
 describe("the view pipeline", () => {
-  const ctx = { columns: COLUMNS, members: [member("u1", "Alex")] };
+  const ctx = { statuses: BOARD.statuses, members: [member("u1", "Alex")] };
 
   it("filters, then sorts, then groups", () => {
     const todos = [
@@ -463,21 +511,21 @@ describe("the view pipeline", () => {
 
   it("keeps the board's own order when the sort is manual", () => {
     const todos = [
-      card("d1", { column_id: "doing", position: 0, type: "Bug" }),
-      card("t2", { column_id: "todo", position: 1, type: "Bug" }),
-      card("t1", { column_id: "todo", position: 0, type: "Task" }),
+      card("d1", { status_id: "doing", position: 0, type: "Bug" }),
+      card("t2", { status_id: "todo", position: 1, type: "Bug" }),
+      card("t1", { status_id: "todo", position: 0, type: "Task" }),
     ];
 
     const visible = filterTodos(todos, filters({ type: ["Bug"] }), "u1", TODAY);
 
     expect(sortTodos(visible, "manual")).toBe(visible);
-    expect(ids(orderByBoard(visible, COLUMNS))).toEqual(["t2", "d1"]);
+    expect(ids(orderByBoard(visible, BOARD))).toEqual(["t2", "d1"]);
   });
 });
 
 describe("groupTodos", () => {
   const ctx = {
-    columns: COLUMNS,
+    statuses: BOARD.statuses,
     members: [member("u2", "Zara"), member("u1", "Alex")],
   };
 
@@ -489,9 +537,9 @@ describe("groupTodos", () => {
     expect(result[0].todos).toBe(todos);
   });
 
-  it("groups by column, in board order, keeping empty columns", () => {
+  it("groups by status, in board order, keeping an empty visible status", () => {
     const result = groupTodos(
-      [card("1", { column_id: "todo" })],
+      [card("1", { status_id: "todo" })],
       "status",
       ctx,
     );
@@ -504,15 +552,38 @@ describe("groupTodos", () => {
     expect(result[1].todos).toEqual([]);
   });
 
-  it("surfaces a card whose column is gone rather than losing it", () => {
+  it("surfaces a card with no status, or an unknown one, rather than losing it", () => {
     const result = groupTodos(
-      [card("orphan", { column_id: null })],
+      [
+        card("orphan", { status_id: null }),
+        card("stray", { status_id: "gone" }),
+      ],
       "status",
       ctx,
     );
 
     expect(result.at(-1)?.label).toBe("No status");
-    expect(ids(result.at(-1)?.todos ?? [])).toEqual(["orphan"]);
+    expect(ids(result.at(-1)?.todos ?? [])).toEqual(["orphan", "stray"]);
+  });
+
+  // A hidden status can receive no new work, so an empty one is not a place
+  // anything could be; one still holding cards stays, so they are not lost.
+  it("shows a hidden status only while it still holds work", () => {
+    const statuses = [
+      ...BOARD.statuses,
+      status("parked", "Parked", "col-doing", { is_hidden: true, rank: 2048 }),
+    ];
+    const labels = (todos: Todo[]) =>
+      groupTodos(todos, "status", { statuses, members: [] }).map(
+        (g) => g.label,
+      );
+
+    expect(labels([card("1")])).toEqual(["To do", "In progress"]);
+    expect(labels([card("1", { status_id: "parked" })])).toEqual([
+      "To do",
+      "In progress",
+      "Parked",
+    ]);
   });
 
   describe("by assignee", () => {
@@ -578,7 +649,7 @@ describe("groupTodos", () => {
         assignee_id: "u1",
         type: "Bug",
         priority: "high",
-        column_id: "doing",
+        status_id: "doing",
       }),
       card("2"),
       card("3", { assignee_id: "gone" }),

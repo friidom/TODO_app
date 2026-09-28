@@ -1,10 +1,8 @@
-import { columnTitle } from "@/constants/columns";
 import { PRIORITIES, PRIORITY_OPTIONS } from "@/constants/priorities";
 import { WORK_TYPE_OPTIONS } from "@/constants/workTypes";
 import { memberName } from "@/components/members/memberLabels";
 import type { BoardMember } from "@/services/members/membersApi";
-import type { IColumn } from "@/types/data";
-import { byRank } from "@/utils/rank";
+import type { IStatus } from "@/types/data";
 import {
   DUE_BUCKETS,
   DUE_LABELS,
@@ -19,14 +17,15 @@ export interface FilterOption {
 }
 
 export interface FilterOptionContext {
-  columns: IColumn[];
+  // Board order.
+  statuses: IStatus[];
   members: BoardMember[];
   currentUserId?: string;
 }
 
 export function filterOptions(
   category: FilterCategory,
-  { columns, members, currentUserId }: FilterOptionContext,
+  { statuses, members, currentUserId }: FilterOptionContext,
 ): FilterOption[] {
   switch (category) {
     case "assignee":
@@ -39,14 +38,12 @@ export function filterOptions(
           .map((member) => ({ value: member.id, label: memberName(member) })),
       ];
 
+    // Hidden statuses included: cards already in one are still findable.
     case "status":
-      return columns
-        .slice()
-        .sort(byRank)
-        .map((column) => ({
-          value: column.id,
-          label: columnTitle(column.title) || "Untitled",
-        }));
+      return statuses.map((status) => ({
+        value: status.id,
+        label: status.name,
+      }));
 
     case "type":
       return WORK_TYPE_OPTIONS.map((type) => ({ value: type, label: type }));

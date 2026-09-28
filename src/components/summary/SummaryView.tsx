@@ -15,7 +15,7 @@ import { useBoardId } from "@/hooks/useBoardId";
 import { useBoardView } from "@/hooks/useBoardView";
 import { usePanel } from "@/hooks/usePanel";
 import { useVisibleTodos } from "@/hooks/useVisibleTodos";
-import { useColumns } from "@/services/columns/useColumnsApi";
+import { useStatuses } from "@/services/workflow/useWorkflow";
 import { useBoardMembers } from "@/services/members/useBoardMembers";
 import {
   categoryIndex,
@@ -46,12 +46,12 @@ export default function SummaryView() {
   const { openPanel } = usePanel();
 
   const { todos, isLoading, error } = useVisibleTodos();
-  const { data: columns = [] } = useColumns();
+  const { data: statuses = [] } = useStatuses();
   const { data: members = [] } = useBoardMembers(boardId);
 
   const today = todayISO();
 
-  const index = useMemo(() => categoryIndex(columns), [columns]);
+  const index = useMemo(() => categoryIndex(statuses), [statuses]);
 
   const stats = useMemo(
     () => summaryStats(todos, index, today),
@@ -64,8 +64,8 @@ export default function SummaryView() {
   );
 
   const byStatus = useMemo(
-    () => statusDistribution(todos, columns),
-    [todos, columns],
+    () => statusDistribution(todos, statuses),
+    [todos, statuses],
   );
 
   const byPriority = useMemo(() => priorityDistribution(todos), [todos]);
@@ -137,7 +137,7 @@ export default function SummaryView() {
           <div className="flex min-w-0 flex-col gap-3 lg:col-span-7">
             <StatusOverview
               slices={byStatus}
-              columns={columns}
+              statuses={statuses}
               total={stats.total}
               done={stats.done}
             />

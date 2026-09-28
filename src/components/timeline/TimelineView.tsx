@@ -9,7 +9,8 @@ import { useOpenTask } from "@/hooks/useOpenTask";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useTimelineView } from "@/hooks/useTimelineView";
 import { useVisibleTodos } from "@/hooks/useVisibleTodos";
-import { useColumns } from "@/services/columns/useColumnsApi";
+import { useWorkflow } from "@/services/workflow/useWorkflow";
+import { EMPTY_WORKFLOW, defaultStatus } from "@/services/workflow/statuses";
 import { useSprints } from "@/services/sprints/useSprints";
 import { epicTaskProgress } from "@/services/todos/subtasks";
 import { useAddTodo } from "@/services/todos/useAddTodo";
@@ -37,7 +38,7 @@ export default function TimelineView() {
   const { i18n } = useTranslation();
 
   const { todos, isLoading, error } = useVisibleTodos();
-  const { data: columns = [] } = useColumns();
+  const { data: workflow = EMPTY_WORKFLOW } = useWorkflow();
   const { data: sprints = [] } = useSprints();
   const { openTask } = useOpenTask();
   const { canEditTodos } = usePermissions();
@@ -66,8 +67,8 @@ export default function TimelineView() {
   );
 
   const epicProgress = useMemo(
-    () => epicTaskProgress(todos, columns),
-    [todos, columns],
+    () => epicTaskProgress(todos, workflow.statuses),
+    [todos, workflow.statuses],
   );
 
   const [collapsedEpics, setCollapsedEpics] = useState<Set<string>>(
@@ -95,11 +96,6 @@ export default function TimelineView() {
       return next;
     });
 
-  const columnById = useMemo(
-    () => new Map(columns.map((column) => [column.id, column])),
-    [columns],
-  );
-
   const undated = useMemo(
     () => undatedTimelineTodos(todos, sprints),
     [todos, sprints],
@@ -107,14 +103,14 @@ export default function TimelineView() {
   const totalDated = countHierarchyItems(hierarchy);
   const offWindow = totalDated - countPlacedHierarchyItems(placed);
 
-  const createColumnId = columns[0]?.id ?? null;
+  const createStatusId = defaultStatus(workflow.statuses)?.id ?? null;
 
   function create(title: string, range: DayRange, options?: CreateOptions) {
-    if (!createColumnId) return;
+    if (!createStatusId) return;
 
     addTodo.mutate({
       title,
-      column_id: createColumnId,
+      status_id: createStatusId,
       start_date: fromCalendarDay(range.start),
       due_date: fromCalendarDay(range.end),
       type: options?.type,
@@ -146,11 +142,11 @@ export default function TimelineView() {
         undated={undated}
         ticks={ticks}
         scale={timeline.scale}
-        columnById={columnById}
+        statusById={workflow.statusById}
         keyPrefix={keyPrefix}
         locale={i18n.language}
         today={today}
-        interactive={canEditTodos && Boolean(createColumnId)}
+        interactive={canEditTodos && Boolean(createStatusId)}
         onOpenTask={openTask}
         onOpenSprint={(sprintId) =>
           setEditingSprint(

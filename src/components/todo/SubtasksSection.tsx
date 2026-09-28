@@ -20,6 +20,8 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useTodoPatch } from "@/hooks/useTodoPatch";
 import { useAddSubtask } from "@/services/todos/useAddSubtask";
 import { useSubtasks } from "@/services/todos/useSubtasks";
+import { entryStatus } from "@/services/workflow/statuses";
+import { useStatuses } from "@/services/workflow/useWorkflow";
 import type { Todo } from "@/types/data";
 import { cn } from "@/utils/cn";
 import { taskKey } from "@/utils/taskKey";
@@ -183,7 +185,7 @@ function SubtaskRow({ subtask }: { subtask: Todo }) {
       </div>
 
       <div role="cell" className={cn("flex min-w-0", inert)}>
-        <StatusControl todoId={subtask.id} columnId={subtask.column_id} />
+        <StatusControl todoId={subtask.id} statusId={subtask.status_id} />
       </div>
     </div>
   );
@@ -200,8 +202,21 @@ function AddSubtaskRow({
 }) {
   const [title, setTitle] = useState("");
   const add = useAddSubtask();
+  const { data: statuses = [] } = useStatuses();
 
   const value = title.trim();
+
+  // A subtask starts in its parent's status — unless that status is hidden,
+  // which new work cannot enter; then the first visible one in its column.
+  const parentStatus = statuses.find(
+    (status) => status.id === parent.status_id,
+  );
+  const startIn =
+    parentStatus && !parentStatus.is_hidden
+      ? parentStatus
+      : parentStatus
+        ? entryStatus(statuses, parentStatus.column_id)
+        : null;
 
   function submit() {
     if (value === "") {
@@ -209,13 +224,13 @@ function AddSubtaskRow({
       return;
     }
 
-    // no column on the parent means no status to inherit — shouldn't happen outside a create in flight
-    if (!parent.column_id) return;
+    // no status on the parent means none to inherit — shouldn't happen outside a create in flight
+    if (!startIn) return;
 
     add.mutate({
       title: value,
       parentId: parent.id,
-      columnId: parent.column_id,
+      statusId: startIn.id,
     });
 
     setTitle("");

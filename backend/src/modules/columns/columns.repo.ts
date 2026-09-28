@@ -2,7 +2,6 @@ import type { Prisma } from "@prisma/client";
 
 import { prisma } from "../../db/prisma.js";
 import { toNumber } from "../../lib/numeric.js";
-import { RANK_GAP } from "../../lib/rank.js";
 
 const COLUMN_FIELDS = {
   id: true,
@@ -10,7 +9,6 @@ const COLUMN_FIELDS = {
   title: true,
   position: true,
   rank: true,
-  category: true,
   min_limit: true,
   max_limit: true,
   created_at: true,
@@ -34,8 +32,11 @@ const ORDER = [
   { id: "asc" },
 ] satisfies Prisma.columnsOrderByWithRelationInput[];
 
-export async function findByBoard(boardId: string): Promise<ColumnRow[]> {
-  const rows = await prisma.columns.findMany({
+export async function findByBoard(
+  boardId: string,
+  db: Prisma.TransactionClient = prisma,
+): Promise<ColumnRow[]> {
+  const rows = await db.columns.findMany({
     where: { board_id: boardId },
     orderBy: ORDER,
     select: COLUMN_FIELDS,
@@ -53,135 +54,82 @@ export async function findOne(boardId: string, columnId: string): Promise<Column
   return row === null ? null : toRow(row);
 }
 
-// Categories only, for the workflow check on every move — COLUMN_FIELDS would
-// be a wide read to answer one field, twice.
-export async function categoriesOf(
-  boardId: string,
-  columnIds: string[],
-): Promise<Map<string, string | null>> {
-  const rows = await prisma.columns.findMany({
-    where: { board_id: boardId, id: { in: columnIds } },
-    select: { id: true, category: true },
-  });
-
-  return new Map(rows.map((row) => [row.id, row.category]));
-}
-
-// The distinct categories this board actually uses. A board with no In Review
-// column cannot be asked to pass through one — see todos.service.
-export async function categoriesOnBoard(boardId: string): Promise<string[]> {
-  const rows = await prisma.columns.findMany({
-    where: { board_id: boardId },
-    select: { category: true },
-    distinct: ["category"],
-  });
-
-  return rows.flatMap((row) => (row.category === null ? [] : [row.category]));
-}
-
-export async function lastOf(
-  boardId: string,
-): Promise<{ rank: number | null; position: number | null } | null> {
-  const row = await prisma.columns.findFirst({
-    where: { board_id: boardId },
-    orderBy: [
-      { rank: { sort: "desc", nulls: "last" } },
-      { position: { sort: "desc", nulls: "last" } },
-    ],
-    select: { rank: true, position: true },
-  });
-
-  return row === null ? null : { rank: row.rank, position: toNumber(row.position) };
-}
-
-export interface ColumnInsert {
-  boardId: string;
-  title: string;
-  category: string;
-  position: number;
-  rank: number;
-}
-
-export async function insert(
-  tx: Prisma.TransactionClient,
-  column: ColumnInsert,
-): Promise<ColumnRow> {
-  const row = await tx.columns.create({
-    data: {
-      board_id: column.boardId,
-      title: column.title,
-      category: column.category,
-      position: BigInt(column.position),
-      rank: column.rank,
-    },
-    select: COLUMN_FIELDS,
-  });
-
-  return toRow(row);
-}
-
-export interface ColumnPatch {
-  title?: string | null;
-  category?: string;
+// Limits only. A column's title, order and existence belong to the workflow
+// and change through a publish, never through a general patch.
+export interface ColumnLimitsPatch {
   min_limit?: number | null;
   max_limit?: number | null;
-  rank?: number;
 }
 
-export async function update(
+export async function updateLimits(
   tx: Prisma.TransactionClient,
   boardId: string,
   columnId: string,
-  patch: ColumnPatch,
+  patch: ColumnLimitsPatch,
 ): Promise<number> {
   const { count } = await tx.columns.updateMany({
     where: { id: columnId, board_id: boardId },
     data: {
-      ...(patch.title !== undefined && { title: patch.title }),
-      ...(patch.category !== undefined && { category: patch.category }),
       ...(patch.min_limit !== undefined && { min_limit: patch.min_limit }),
       ...(patch.max_limit !== undefined && { max_limit: patch.max_limit }),
-      ...(patch.rank !== undefined && { rank: patch.rank }),
     },
   });
 
   return count;
 }
 
-export async function remove(
+export interface ColumnStructure {
+  id: string;
+  title: string;
+  rank: number;
+  position: number;
+}
+
+export async function insertMany(
   tx: Prisma.TransactionClient,
   boardId: string,
-  columnId: string,
+  columns: ColumnStructure[],
+): Promise<void> {
+  if (columns.length === 0) return;
+
+  await tx.columns.createMany({
+    data: columns.map((column) => ({
+      id: column.id,
+      board_id: boardId,
+      title: column.title,
+      rank: column.rank,
+      position: BigInt(column.position),
+    })),
+  });
+}
+
+export async function updateStructure(
+  tx: Prisma.TransactionClient,
+  boardId: string,
+  change: Pick<ColumnStructure, "id"> & Partial<Omit<ColumnStructure, "id">>,
 ): Promise<number> {
-  const { count } = await tx.columns.deleteMany({ where: { id: columnId, board_id: boardId } });
+  const { count } = await tx.columns.updateMany({
+    where: { id: change.id, board_id: boardId },
+    data: {
+      ...(change.title !== undefined && { title: change.title }),
+      ...(change.rank !== undefined && { rank: change.rank }),
+      ...(change.position !== undefined && { position: BigInt(change.position) }),
+    },
+  });
 
   return count;
 }
 
-export function countOnBoard(boardId: string): Promise<number> {
-  return prisma.columns.count({ where: { board_id: boardId } });
-}
-
-// Respaces to 1-based multiples of RANK_GAP in the order the current keys
-// already put the rows in, so a rebalance never reorders anything. The four
-// sort keys are the same deterministic refinement the SQL used: a tie is what
-// a rebalance is called to fix, so it must not be left to chance.
-export async function rebalance(
+export async function removeMany(
   tx: Prisma.TransactionClient,
   boardId: string,
+  columnIds: string[],
 ): Promise<number> {
-  return tx.$executeRaw`
-    with ordered as (
-      select id,
-             row_number() over (
-               order by rank nulls last, position nulls last, created_at, id
-             ) * ${RANK_GAP}::double precision as new_rank
-        from columns
-       where board_id = ${boardId}::uuid
-    )
-    update columns c
-       set rank = ordered.new_rank
-      from ordered
-     where ordered.id = c.id
-       and c.rank is distinct from ordered.new_rank`;
+  if (columnIds.length === 0) return 0;
+
+  const { count } = await tx.columns.deleteMany({
+    where: { board_id: boardId, id: { in: columnIds } },
+  });
+
+  return count;
 }

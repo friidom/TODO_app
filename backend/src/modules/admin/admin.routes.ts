@@ -3,6 +3,7 @@ import { Router } from "express";
 import { requireAuth } from "../../middleware/requireAuth.js";
 import { requireSuperadmin } from "../../middleware/requireSuperadmin.js";
 import { validate } from "../../middleware/validate.js";
+import { publishWorkflowSchema } from "../workflow/workflow.schema.js";
 import * as controller from "./admin.controller.js";
 import {
   activityQuerySchema,
@@ -67,6 +68,25 @@ adminRoutes.get(
   ...gate,
   validate({ params: boardParamsSchema, query: periodQuerySchema }),
   controller.getBoard,
+);
+
+adminRoutes.get(
+  "/boards/:id/workflow",
+  ...gate,
+  validate({ params: boardParamsSchema }),
+  controller.getBoardWorkflow,
+);
+
+// The same publish a board's owner and admins make, through the same service,
+// so a superadmin can repair the workflow of a board they are not a member of.
+// This is a deliberate exception to §10.7 rule 1 (an elevated role widens read,
+// never write): it is the one write this module makes on a board, it reaches
+// nothing but the workflow, and every call is written to admin_audit_log.
+adminRoutes.put(
+  "/boards/:id/workflow",
+  ...gate,
+  validate({ params: boardParamsSchema, body: publishWorkflowSchema }),
+  controller.publishBoardWorkflow,
 );
 
 adminRoutes.get("/spaces", ...gate, validate({ query: periodQuerySchema }), controller.listSpaces);

@@ -1,13 +1,13 @@
 import { useMemo } from "react";
 
-import { useColumns } from "@/services/columns/useColumnsApi";
-import type { IColumn, Todo } from "@/types/data";
+import { doneStatusIds } from "@/services/workflow/statuses";
+import { useStatuses } from "@/services/workflow/useWorkflow";
+import type { IStatus, Todo } from "@/types/data";
 import { useTodos } from "./useTodos";
 import {
   canHaveSubtasks,
   canPickEpicParent,
   childrenOf,
-  doneColumnIds,
   epicsOf,
   isEpic,
   isGenuineSubtask,
@@ -17,12 +17,12 @@ import {
   type SubtaskProgress,
 } from "./subtasks";
 
-const EMPTY_COLUMNS: IColumn[] = [];
+const EMPTY_STATUSES: IStatus[] = [];
 
 // no query of its own — folds over the board's already-cached todos, so it's instant and updates for free with every other write
 export function useSubtasks(parentId: string) {
   const { data: todos = [], isPending, error } = useTodos();
-  const { data: columns = EMPTY_COLUMNS } = useColumns();
+  const { data: statuses = EMPTY_STATUSES } = useStatuses();
 
   const subtasks = useMemo(
     () => childrenOf(todos, parentId),
@@ -30,8 +30,8 @@ export function useSubtasks(parentId: string) {
   );
 
   const progress = useMemo(
-    () => subtaskProgress(subtasks, doneColumnIds(columns)),
-    [subtasks, columns],
+    () => subtaskProgress(subtasks, doneStatusIds(statuses)),
+    [subtasks, statuses],
   );
 
   return { subtasks, progress, isPending, error };
@@ -85,10 +85,10 @@ export function useTodoHierarchy(todo: Todo): TodoHierarchy {
 // computed once and looked up by id, not per-card — the board re-renders on every pointer move during a drag
 export function useSubtaskProgressByParent(): Map<string, SubtaskProgress> {
   const { data: todos = [] } = useTodos();
-  const { data: columns = EMPTY_COLUMNS } = useColumns();
+  const { data: statuses = EMPTY_STATUSES } = useStatuses();
 
   return useMemo(
-    () => subtaskProgressByParent(todos, columns),
-    [todos, columns],
+    () => subtaskProgressByParent(todos, statuses),
+    [todos, statuses],
   );
 }

@@ -5,10 +5,10 @@ import {
   priorityRank,
   toPriority,
 } from "@/constants/priorities";
-import { columnTitle } from "@/constants/columns";
 import { WORK_TYPE_OPTIONS, toWorkType } from "@/constants/workTypes";
 import type { BoardMember } from "@/services/members/membersApi";
-import type { IColumn, Todo } from "@/types/data";
+import { columnIdOf, type WorkflowModel } from "@/services/workflow/statuses";
+import type { IStatus, Todo } from "@/types/data";
 import { dueStatus, todayISO } from "@/utils/dueDate";
 import { byRank } from "@/utils/rank";
 
@@ -112,7 +112,7 @@ function matchesDue(todo: Todo, selected: string[], today: string) {
 function matchesStatus(todo: Todo, selected: string[]) {
   if (!selected.length) return true;
 
-  return todo.column_id !== null && selected.includes(todo.column_id);
+  return todo.status_id !== null && selected.includes(todo.status_id);
 }
 
 // AND between categories, OR within one — "Bug or Story, assigned to me", not "Bug and Story"
@@ -246,18 +246,23 @@ export function sortTodos(
   });
 }
 
-// columns left to right, position top to bottom — the cache's own array order doesn't match this once anything's been dragged
-export function orderByBoard(todos: Todo[], columns: IColumn[]): Todo[] {
+// columns left to right, position top to bottom — the cache's own array order doesn't match this once anything's been dragged.
+// A card's column is its status's, and cards of different statuses in one column interleave by rank, as they do on the board.
+export function orderByBoard(
+  todos: Todo[],
+  workflow: Pick<WorkflowModel, "columns" | "statusById">,
+): Todo[] {
   const rank = new Map(
-    columns
+    workflow.columns
       .slice()
       .sort(byRank)
       .map((column, index) => [column.id, index]),
   );
 
-  // a card with a missing column sorts to the end, not the front
+  // a card with no status, or one this board does not know, sorts to the end, not the front
   const of = (todo: Todo) =>
-    rank.get(todo.column_id ?? "") ?? Number.MAX_SAFE_INTEGER;
+    rank.get(columnIdOf(todo, workflow.statusById) ?? "") ??
+    Number.MAX_SAFE_INTEGER;
 
   return todos.slice().sort((a, b) => of(a) - of(b) || byRank(a, b));
 }
@@ -284,7 +289,7 @@ export const GROUP_LABELS: Record<GroupKey, string> = {
   priority: "Priority",
 };
 
-// status and none are excluded — grouping by status is the identity, it's just the board that was already there
+// status and none are excluded — the board already is a grouping by status, through the columns that show them
 export function isSwimlaneGroup(group: GroupKey): boolean {
   return group !== "none" && group !== "status";
 }
@@ -296,7 +301,8 @@ export interface TodoGroup {
 }
 
 export interface GroupContext {
-  columns: IColumn[];
+  // Board order.
+  statuses: IStatus[];
   members: BoardMember[];
 }
 
@@ -319,24 +325,29 @@ function bucketBy(
   return buckets;
 }
 
-// runs on the already-filtered, already-sorted array; empty groups drop, except status (empty columns still exist)
+// runs on the already-filtered, already-sorted array; empty groups drop, except a visible status (it can still receive work).
+// A hidden status appears only while it still holds work.
 export function groupTodos(
   todos: Todo[],
   group: GroupKey,
-  { columns, members }: GroupContext,
+  { statuses, members }: GroupContext,
 ): TodoGroup[] {
   if (group === "none") return [{ key: ALL, label: "", todos }];
 
   if (group === "status") {
-    const buckets = bucketBy(todos, (todo) => todo.column_id ?? UNSET);
+    const known = new Set(statuses.map((status) => status.id));
+    const buckets = bucketBy(todos, (todo) =>
+      todo.status_id !== null && known.has(todo.status_id)
+        ? todo.status_id
+        : UNSET,
+    );
 
-    const groups: TodoGroup[] = columns
-      .slice()
-      .sort(byRank)
-      .map((column) => ({
-        key: column.id,
-        label: columnTitle(column.title),
-        todos: buckets.get(column.id) ?? [],
+    const groups: TodoGroup[] = statuses
+      .filter((status) => !status.is_hidden || buckets.has(status.id))
+      .map((status) => ({
+        key: status.id,
+        label: status.name,
+        todos: buckets.get(status.id) ?? [],
       }));
 
     const orphans = buckets.get(UNSET);

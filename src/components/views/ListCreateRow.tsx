@@ -11,10 +11,10 @@ import { useAddTodo } from "@/services/todos/useAddTodo";
 // stamps the active sprint onto the new card without this component knowing
 // sprints exist.
 export default function ListCreateRow({
-  columnId,
+  statusId,
   disabled,
 }: {
-  columnId: string | undefined;
+  statusId: string | undefined;
   disabled: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -28,9 +28,9 @@ export default function ListCreateRow({
   function submit() {
     const trimmed = title.trim();
 
-    if (!trimmed || !columnId) return;
+    if (!trimmed || !statusId) return;
 
-    addTodo.mutate({ title: trimmed, column_id: columnId });
+    addTodo.mutate({ title: trimmed, status_id: statusId });
 
     // stays open and refocused — creating one item is nearly always creating
     // several, and reopening the form between each is the slow way
@@ -43,7 +43,7 @@ export default function ListCreateRow({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        disabled={!columnId}
+        disabled={!statusId}
         className="text-ink-2 hover:bg-wash-strong hover:text-ink focus-visible:ring-brand flex h-8 items-center gap-1.5 rounded px-2 text-sm font-medium transition-colors outline-none focus-visible:ring-2 disabled:cursor-default disabled:opacity-50"
       >
         <PlusIcon className="size-4" />
@@ -70,7 +70,7 @@ export default function ListCreateRow({
     >
       <button
         type="submit"
-        disabled={!columnId || title.trim() === ""}
+        disabled={!statusId || title.trim() === ""}
         aria-label="Create work item"
         className="bg-brand text-brand-fg hover:bg-brand/90 grid size-5 shrink-0 place-items-center rounded-[5px] transition-colors disabled:opacity-40"
       >

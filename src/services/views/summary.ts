@@ -9,27 +9,25 @@ import {
   toWorkType,
   type WorkType,
 } from "@/constants/workTypes";
-import type { IColumn, Todo } from "@/types/data";
+import type { IStatus, Todo } from "@/types/data";
 import { dueStatus, todayISO, type DueStatus } from "@/utils/dueDate";
 
 // Everything here folds the same array useVisibleTodos returns — no stats table, so the Summary can't drift from the board.
 
-export function categoryIndex(columns: IColumn[]): Map<string, ColumnCategory> {
-  return new Map(
-    columns.map((column) => [
-      column.id,
-      (column.category as ColumnCategory | null) ?? DEFAULT_CATEGORY,
-    ]),
-  );
+// Keyed by status id: a card's category is its status's.
+export function categoryIndex(
+  statuses: IStatus[],
+): Map<string, ColumnCategory> {
+  return new Map(statuses.map((status) => [status.id, status.category]));
 }
 
 function categoryOfTodo(
   todo: Todo,
   index: Map<string, ColumnCategory>,
 ): ColumnCategory {
-  if (todo.column_id === null) return DEFAULT_CATEGORY;
+  if (todo.status_id === null) return DEFAULT_CATEGORY;
 
-  return index.get(todo.column_id) ?? DEFAULT_CATEGORY;
+  return index.get(todo.status_id) ?? DEFAULT_CATEGORY;
 }
 
 export type SummaryStats = {
@@ -206,27 +204,29 @@ export function dueSoonItems(
 
 export type Slice<T> = { key: T; count: number };
 
+// One slice per status, in the order given (board order), keyed by status id.
+// A hidden status is kept only while it still holds work: it cannot receive
+// any, so an empty one is not a place anything could be.
 export function statusDistribution(
   todos: Todo[],
-  columns: IColumn[],
+  statuses: IStatus[],
 ): Slice<string | null>[] {
   const counts = new Map<string | null, number>(
-    columns.map((column) => [column.id, 0]),
+    statuses.map((status) => [status.id, 0]),
   );
 
   for (const todo of todos) {
     const key =
-      todo.column_id !== null && counts.has(todo.column_id)
-        ? todo.column_id
+      todo.status_id !== null && counts.has(todo.status_id)
+        ? todo.status_id
         : null;
 
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
 
-  const slices: Slice<string | null>[] = columns.map((column) => ({
-    key: column.id,
-    count: counts.get(column.id) ?? 0,
-  }));
+  const slices: Slice<string | null>[] = statuses
+    .map((status) => ({ key: status.id, count: counts.get(status.id) ?? 0 }))
+    .filter((slice, index) => !statuses[index]!.is_hidden || slice.count > 0);
 
   const orphans = counts.get(null) ?? 0;
 

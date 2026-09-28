@@ -19,7 +19,8 @@ import {
 import { MENU_ITEM } from "@/components/ui/controlChrome";
 import IconButton from "@/components/ui/IconButton";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useColumns } from "@/services/columns/useColumnsApi";
+import { defaultStatus } from "@/services/workflow/statuses";
+import { useStatuses } from "@/services/workflow/useWorkflow";
 import { useKeyPrefix } from "@/hooks/useKeyPrefix";
 import { useOpenTask } from "@/hooks/useOpenTask";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -30,7 +31,6 @@ import { useEpicTasks } from "@/services/todos/useSubtasks";
 import { useTodos } from "@/services/todos/useTodos";
 import { useUpdateTodo } from "@/services/todos/useUpdateTodo";
 import type { Todo } from "@/types/data";
-import { byRank } from "@/utils/rank";
 import { cn } from "@/utils/cn";
 import { taskKey } from "@/utils/taskKey";
 
@@ -181,7 +181,7 @@ function EpicTaskRow({ task }: { task: Todo }) {
       </div>
 
       <div role="cell" className={cn("flex min-w-0", inert)}>
-        <StatusControl todoId={task.id} columnId={task.column_id} />
+        <StatusControl todoId={task.id} statusId={task.status_id} />
       </div>
     </div>
   );
@@ -238,23 +238,23 @@ function AddEpicTaskPanel({
 // Goes through useAddTodo, not useAddSubtask — a Task under an Epic is a real board card, unlike a Subtask.
 function NewEpicTaskRow({ epic, onDone }: { epic: Todo; onDone: () => void }) {
   const [title, setTitle] = useState("");
-  const { data: columns = [] } = useColumns();
+  const { data: statuses = [] } = useStatuses();
   const add = useAddTodo();
 
   const value = title.trim();
 
-  // board's first column by rank — an Epic has no column of its own to inherit
-  const firstColumn = columns.slice().sort(byRank)[0];
+  // the board's default status — an Epic's own status is not one to inherit
+  const startIn = defaultStatus(statuses);
 
   function submit() {
-    if (value === "" || !firstColumn) {
+    if (value === "" || !startIn) {
       onDone();
       return;
     }
 
     add.mutate({
       title: value,
-      column_id: firstColumn.id,
+      status_id: startIn.id,
       parent_id: epic.id,
     });
 

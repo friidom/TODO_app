@@ -3,8 +3,8 @@ import { PlusIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { useAddTodo } from "@/services/todos/useAddTodo";
-import { useColumns } from "@/services/columns/useColumnsApi";
-import { byRank } from "@/utils/rank";
+import { defaultStatus } from "@/services/workflow/statuses";
+import { useStatuses } from "@/services/workflow/useWorkflow";
 import { usePermissions } from "@/hooks/usePermissions";
 
 export default function HeaderTodoForm() {
@@ -16,19 +16,18 @@ export default function HeaderTodoForm() {
   const { canEditTodos } = usePermissions();
 
   const addTodoMutation = useAddTodo();
-  const { data: columns = [] } = useColumns();
+  const { data: statuses = [] } = useStatuses();
 
-  // sorted by rank, not array order — the cache isn't guaranteed to stay sorted; copy first so this doesn't mutate it
-  const targetColumn = [...columns].sort(byRank)[0];
+  const targetStatus = defaultStatus(statuses);
 
   function handleAddTodo() {
     const title = value.trim();
 
-    if (!title || !targetColumn) return;
+    if (!title || !targetStatus) return;
 
     addTodoMutation.mutate({
       title,
-      column_id: targetColumn.id,
+      status_id: targetStatus.id,
     });
 
     setValue("");
@@ -47,7 +46,7 @@ export default function HeaderTodoForm() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        disabled={!targetColumn}
+        disabled={!targetStatus}
         title={t("createTodo")}
         className="bg-brand text-brand-fg hover:bg-brand/90 active:bg-brand/80 focus-visible:ring-brand shadow-e1 flex h-8 shrink-0 items-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors outline-none focus-visible:ring-2 disabled:cursor-default disabled:opacity-50"
       >
@@ -71,7 +70,7 @@ export default function HeaderTodoForm() {
     >
       <button
         type="submit"
-        disabled={!targetColumn}
+        disabled={!targetStatus}
         aria-label={t("createTodo")}
         className="bg-brand text-brand-fg hover:bg-brand/90 grid size-5 shrink-0 place-items-center rounded-[5px] transition-colors disabled:opacity-50"
       >

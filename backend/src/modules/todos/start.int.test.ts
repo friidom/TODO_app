@@ -3,47 +3,30 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { prisma } from "../../db/prisma.js";
+import type { WorkflowStage } from "../../lib/workflow.js";
 import { disconnect, resetDatabase } from "../../testing/db.js";
-import { makeUser, type TestUser } from "../../testing/fixtures.js";
+import { makeUser, stageStatuses, workflowDraft, type TestUser } from "../../testing/fixtures.js";
 import { startTestServer, type TestClient } from "../../testing/httpClient.js";
 
 let client: TestClient;
 let owner: TestUser;
 let boardId: string;
 
-interface Cols {
+interface Statuses {
   todo: string;
   doing: string;
   review: string;
   done: string;
 }
 
-let cols: Cols;
+let statuses: Statuses;
 
-async function columnsOf(board: string): Promise<Cols> {
-  const rows = await prisma.columns.findMany({
-    where: { board_id: board },
-    select: { id: true, category: true },
-    orderBy: [{ rank: { sort: "asc", nulls: "last" } }, { position: "asc" }],
-  });
-
-  const of = (category: string): string[] =>
-    rows.filter((row) => row.category === category).map((row) => row.id);
-
-  return {
-    todo: of("todo")[0]!,
-    doing: of("in_progress")[0]!,
-    review: of("in_review")[0]!,
-    done: of("done")[0]!,
-  };
-}
-
-async function addTodo(columnId: string | null): Promise<string> {
+async function addTodo(statusId: string | null): Promise<string> {
   const id = randomUUID();
 
   const response = await client.patch(
     `/api/v1/boards/${boardId}/todos/${id}`,
-    { title: "card", column_id: columnId, rank: 1024 },
+    { title: "card", status_id: statusId, rank: 1024 },
     { token: owner.token },
   );
 
@@ -52,22 +35,40 @@ async function addTodo(columnId: string | null): Promise<string> {
   return id;
 }
 
-function move(todoId: string, columnId: string | null): Promise<{ status: number }> {
+function move(todoId: string, statusId: string | null): Promise<{ status: number }> {
   return client.patch(
     `/api/v1/boards/${boardId}/todos/${todoId}`,
-    { column_id: columnId },
+    { status_id: statusId },
     { token: owner.token },
   );
 }
 
-function setCategory(columnId: string, category: string): Promise<{ status: number }> {
-  return client.patch(`/api/v1/columns/${columnId}`, { category }, { token: owner.token });
+async function editStatus(
+  statusId: string,
+  change: { category?: WorkflowStage; name?: string },
+): Promise<void> {
+  const draft = await workflowDraft(boardId);
+
+  const response = await client.put(
+    `/api/v1/boards/${boardId}/workflow`,
+    {
+      ...draft,
+      statuses: draft.statuses.map((it) => (it.id === statusId ? { ...it, ...change } : it)),
+    },
+    { token: owner.token },
+  );
+
+  expect(response.status).toBe(200);
+}
+
+function setCategory(statusId: string, category: WorkflowStage): Promise<void> {
+  return editStatus(statusId, { category });
 }
 
 function readTodo(id: string) {
   return prisma.todos.findUniqueOrThrow({
     where: { id },
-    select: { started_at: true, completed_at: true, column_id: true },
+    select: { started_at: true, completed_at: true, status_id: true },
   });
 }
 
@@ -76,14 +77,14 @@ async function assertInvariant(): Promise<void> {
     select: {
       id: true,
       started_at: true,
-      columns: { select: { category: true } },
+      statuses: { select: { category: true } },
     },
   });
 
   expect(rows.length).toBeGreaterThan(0);
 
   for (const row of rows) {
-    const shouldBeStarted = row.columns !== null && (row.columns.category ?? "todo") !== "todo";
+    const shouldBeStarted = row.statuses !== null && row.statuses.category !== "todo";
 
     expect({ id: row.id, started: row.started_at !== null }).toEqual({
       id: row.id,
@@ -100,7 +101,15 @@ beforeEach(async () => {
   await resetDatabase();
   owner = await makeUser("owner");
   boardId = owner.boardId;
-  cols = await columnsOf(boardId);
+
+  const stages = await stageStatuses(boardId);
+
+  statuses = {
+    todo: stages.todo,
+    doing: stages.inProgress,
+    review: stages.inReview,
+    done: stages.done,
+  };
 });
 
 afterAll(async () => {
@@ -109,40 +118,40 @@ afterAll(async () => {
 });
 
 describe("the todos-side start trigger", () => {
-  it("leaves a card in a todo column unstarted", async () => {
-    expect((await readTodo(await addTodo(cols.todo))).started_at).toBeNull();
+  it("leaves a card in a todo status unstarted", async () => {
+    expect((await readTodo(await addTodo(statuses.todo))).started_at).toBeNull();
   });
 
   it("leaves a card in the backlog unstarted", async () => {
     expect((await readTodo(await addTodo(null))).started_at).toBeNull();
   });
 
-  it("stamps a card created directly into an in_progress column", async () => {
-    expect((await readTodo(await addTodo(cols.doing))).started_at).not.toBeNull();
+  it("stamps a card created directly into an in_progress status", async () => {
+    expect((await readTodo(await addTodo(statuses.doing))).started_at).not.toBeNull();
   });
 
-  it("stamps on entering a started column", async () => {
-    const todo = await addTodo(cols.todo);
+  it("stamps on entering a started status", async () => {
+    const todo = await addTodo(statuses.todo);
 
-    await move(todo, cols.doing);
+    await move(todo, statuses.doing);
 
     expect((await readTodo(todo)).started_at).not.toBeNull();
   });
 
-  it("does not restart the clock between two started columns", async () => {
-    const todo = await addTodo(cols.doing);
+  it("does not restart the clock between two started statuses", async () => {
+    const todo = await addTodo(statuses.doing);
     const first = (await readTodo(todo)).started_at;
 
-    await move(todo, cols.review);
+    await move(todo, statuses.review);
 
     expect((await readTodo(todo)).started_at).toEqual(first);
   });
 
   it("keeps the start date when the card is completed", async () => {
-    const todo = await addTodo(cols.review);
+    const todo = await addTodo(statuses.review);
     const started = (await readTodo(todo)).started_at;
 
-    await move(todo, cols.done);
+    await move(todo, statuses.done);
     const row = await readTodo(todo);
 
     expect(row.started_at).toEqual(started);
@@ -150,22 +159,22 @@ describe("the todos-side start trigger", () => {
   });
 
   it("keeps the start date when a completed card is reopened", async () => {
-    const todo = await addTodo(cols.review);
+    const todo = await addTodo(statuses.review);
     const started = (await readTodo(todo)).started_at;
 
-    await move(todo, cols.done);
-    await move(todo, cols.review);
+    await move(todo, statuses.done);
+    await move(todo, statuses.review);
     const row = await readTodo(todo);
 
     expect(row.started_at).toEqual(started);
     expect(row.completed_at).toBeNull();
   });
 
-  it("clears on returning to a todo column, alongside completed_at", async () => {
-    const todo = await addTodo(cols.review);
+  it("clears on returning to a todo status, alongside completed_at", async () => {
+    const todo = await addTodo(statuses.review);
 
-    await move(todo, cols.done);
-    await move(todo, cols.todo);
+    await move(todo, statuses.done);
+    await move(todo, statuses.todo);
     const row = await readTodo(todo);
 
     expect(row.started_at).toBeNull();
@@ -173,7 +182,7 @@ describe("the todos-side start trigger", () => {
   });
 
   it("clears on returning to the backlog", async () => {
-    const todo = await addTodo(cols.doing);
+    const todo = await addTodo(statuses.doing);
 
     await move(todo, null);
 
@@ -182,10 +191,10 @@ describe("the todos-side start trigger", () => {
 
   // Created straight into Done rather than dragged there: the workflow refuses
   // a todo -> done move, but a FIRST placement is not a transition, so a card
-  // can still reach done having never sat in an in_progress column — which is
+  // can still reach done having never sat in an in_progress status — which is
   // the case this is about.
-  it("stamps both ends for a card that never sat in an in_progress column", async () => {
-    const todo = await addTodo(cols.done);
+  it("stamps both ends for a card that never sat in an in_progress status", async () => {
+    const todo = await addTodo(statuses.done);
 
     const row = await readTodo(todo);
 
@@ -195,56 +204,56 @@ describe("the todos-side start trigger", () => {
   });
 });
 
-describe("the columns-side start trigger — the second door", () => {
-  it("starts every card when a column is flipped out of the todo category", async () => {
-    const cards = [await addTodo(cols.todo), await addTodo(cols.todo)];
+describe("the statuses-side start trigger — the second door", () => {
+  it("starts every card when a status is flipped out of the todo category", async () => {
+    const cards = [await addTodo(statuses.todo), await addTodo(statuses.todo)];
 
-    await setCategory(cols.todo, "in_progress");
+    await setCategory(statuses.todo, "in_progress");
 
     for (const card of cards) expect((await readTodo(card)).started_at).not.toBeNull();
   });
 
-  it("un-starts every card when the column is flipped back", async () => {
-    const card = await addTodo(cols.todo);
+  it("un-starts every card when the status is flipped back", async () => {
+    const card = await addTodo(statuses.todo);
 
-    await setCategory(cols.todo, "in_progress");
-    await setCategory(cols.todo, "todo");
+    await setCategory(statuses.todo, "in_progress");
+    await setCategory(statuses.todo, "todo");
 
     expect((await readTodo(card)).started_at).toBeNull();
   });
 
-  it("leaves the clock alone when a started column is flipped to done", async () => {
-    const card = await addTodo(cols.doing);
+  it("leaves the clock alone when a started status is flipped to done", async () => {
+    const card = await addTodo(statuses.doing);
     const started = (await readTodo(card)).started_at;
 
-    await setCategory(cols.doing, "done");
+    await setCategory(statuses.doing, "done");
     const row = await readTodo(card);
 
     expect(row.started_at).toEqual(started);
     expect(row.completed_at).not.toBeNull();
   });
 
-  it("starts the cards when a done column is flipped to todo and back", async () => {
-    const card = await addTodo(cols.done);
+  it("starts the cards when a done status is flipped to todo and back", async () => {
+    const card = await addTodo(statuses.done);
 
-    await setCategory(cols.done, "todo");
+    await setCategory(statuses.done, "todo");
     expect((await readTodo(card)).started_at).toBeNull();
 
-    await setCategory(cols.done, "in_progress");
+    await setCategory(statuses.done, "in_progress");
     expect((await readTodo(card)).started_at).not.toBeNull();
   });
 });
 
 describe("what the start stamps do NOT do", () => {
   it("writes no activity rows of its own", async () => {
-    const todo = await addTodo(cols.todo);
+    const todo = await addTodo(statuses.todo);
 
     const before = await prisma.activities.count({
       where: { entity_id: todo },
     });
 
-    await move(todo, cols.doing);
-    await move(todo, cols.review);
+    await move(todo, statuses.doing);
+    await move(todo, statuses.review);
 
     const after = await prisma.activities.count({ where: { entity_id: todo } });
 
@@ -252,7 +261,7 @@ describe("what the start stamps do NOT do", () => {
   });
 
   it("is not todos.start_date, which stays whatever the user set", async () => {
-    const todo = await addTodo(cols.todo);
+    const todo = await addTodo(statuses.todo);
 
     await client.patch(
       `/api/v1/boards/${boardId}/todos/${todo}`,
@@ -263,7 +272,7 @@ describe("what the start stamps do NOT do", () => {
       { token: owner.token },
     );
 
-    await move(todo, cols.doing);
+    await move(todo, statuses.doing);
 
     const row = await prisma.todos.findUniqueOrThrow({
       where: { id: todo },
@@ -279,23 +288,23 @@ describe("what the start stamps do NOT do", () => {
 describe("the invariant", () => {
   it("holds over every row after an arbitrary sequence of moves and flips", async () => {
     const cards = [
-      await addTodo(cols.todo),
-      await addTodo(cols.doing),
-      await addTodo(cols.done),
+      await addTodo(statuses.todo),
+      await addTodo(statuses.doing),
+      await addTodo(statuses.done),
       await addTodo(null),
-      await addTodo(cols.review),
+      await addTodo(statuses.review),
     ];
 
-    await move(cards[0]!, cols.doing);
-    await setCategory(cols.doing, "done");
-    await client.patch(`/api/v1/columns/${cols.todo}`, { title: "Inbox" }, { token: owner.token });
-    await move(cards[2]!, cols.todo);
-    await setCategory(cols.doing, "todo");
-    await move(cards[3]!, cols.review);
-    await setCategory(cols.done, "in_progress");
-    await setCategory(cols.done, "done");
+    await move(cards[0]!, statuses.doing);
+    await setCategory(statuses.doing, "done");
+    await editStatus(statuses.todo, { name: "Inbox" });
+    await move(cards[2]!, statuses.todo);
+    await setCategory(statuses.doing, "todo");
+    await move(cards[3]!, statuses.review);
+    await setCategory(statuses.done, "in_progress");
+    await setCategory(statuses.done, "done");
     await move(cards[1]!, null);
-    await move(cards[4]!, cols.todo);
+    await move(cards[4]!, statuses.todo);
 
     await assertInvariant();
   });

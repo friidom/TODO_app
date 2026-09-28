@@ -26,6 +26,7 @@ import { useVisibleTodos } from "@/hooks/useVisibleTodos";
 import { useBoardMembers } from "@/services/members/useBoardMembers";
 import { groupTodos, isSwimlaneGroup } from "@/services/todos/view";
 import { isOnBoard } from "@/services/todos/backlog";
+import { columnCategory, entryStatus } from "@/services/workflow/statuses";
 
 import SortableColumn from "./SortableColumn";
 import ColumnDropZone from "./ColumnDropZone";
@@ -53,7 +54,8 @@ export default function KanbanBoard() {
   const { data: members = [] } = useBoardMembers(boardId);
 
   // Sensors gated too, not just the buttons — a viewer who can pick a card up gets a move that silently reverts.
-  const { canEditTodos } = usePermissions(boardId);
+  const { canEditTodos, canManageColumns, canManageWorkflow } =
+    usePermissions(boardId);
 
   const dragDisabled = view.dndDisabled || !canEditTodos;
 
@@ -62,6 +64,7 @@ export default function KanbanBoard() {
   const {
     todosByColumn,
     columns,
+    workflow,
     activeSprintId,
     sprintsEnabled,
     sprintsPending,
@@ -107,7 +110,7 @@ export default function KanbanBoard() {
               isOnBoard(todo, activeSprintId, sprintsEnabled),
             ),
             view.group,
-            { columns, members },
+            { statuses: workflow.statuses, members },
           )
         : [],
     [
@@ -116,17 +119,27 @@ export default function KanbanBoard() {
       activeSprintId,
       sprintsEnabled,
       view.group,
-      columns,
+      workflow.statuses,
       members,
     ],
   );
 
+  // Where a deleted column's cards can go: another column that can receive
+  // them, i.e. one with a visible status.
+  const deleteDestinations = (columnId: string | undefined) =>
+    orderedColumns.filter(
+      (column) =>
+        column.id !== columnId &&
+        entryStatus(workflow.statuses, column.id) !== null,
+    );
+
   const { moveColumn } = useColumnReorder(orderedColumns);
 
-  const { onDragEnd, sourceId, destinationId, sourceColumn } = useBoardDragEnd({
+  const { onDragEnd, sourceId, destinationId, transition } = useBoardDragEnd({
     todos: all,
     visibleByColumn: todosByColumn,
     orderedColumns,
+    workflow,
     activeTodo,
     activeColumn,
     indicator,
@@ -260,9 +273,11 @@ export default function KanbanBoard() {
                   {collapsed.includes(column.id) ? (
                     <CollapsedColumn
                       column={column}
+                      category={columnCategory(workflow.statuses, column.id)}
                       headerTitle={columnTitle(column.title)}
                       count={todosByColumn[column.id]?.length ?? 0}
                       onExpand={() => toggleCollapsed(column.id)}
+                      reorderDisabled={!canManageWorkflow}
                     />
                   ) : (
                     <SortableColumn
@@ -281,32 +296,29 @@ export default function KanbanBoard() {
                         view.sort === "manual"
                       }
                       onCollapse={() => toggleCollapsed(column.id)}
-                      onSetLimit={() => openLimitModal(column)}
+                      onSetLimit={
+                        canManageColumns
+                          ? () => openLimitModal(column)
+                          : undefined
+                      }
                       onDelete={() => openDeleteModal(column)}
                       onMoveLeft={
-                        index > 0
+                        canManageWorkflow && index > 0
                           ? () => moveColumn(index, index - 1)
                           : undefined
                       }
                       onMoveRight={
-                        index < orderedColumns.length - 1
+                        canManageWorkflow && index < orderedColumns.length - 1
                           ? () => moveColumn(index, index + 1)
                           : undefined
                       }
-                      canDelete={orderedColumns.length > 1}
+                      canDelete={
+                        canManageWorkflow &&
+                        deleteDestinations(column.id).length > 0
+                      }
+                      reorderDisabled={!canManageWorkflow}
                       transition={
-                        sourceColumn && column.id === destinationId
-                          ? {
-                              from: {
-                                title: columnTitle(sourceColumn.title),
-                                category: sourceColumn.category,
-                              },
-                              to: {
-                                title: columnTitle(column.title),
-                                category: column.category,
-                              },
-                            }
-                          : null
+                        column.id === destinationId ? transition : null
                       }
                     />
                   )}
@@ -335,15 +347,18 @@ export default function KanbanBoard() {
 
       <DeleteColumnModal
         column={deleteTarget}
-        destinations={orderedColumns.filter(
-          (column) => column.id !== deleteTarget?.id,
-        )}
+        destinations={deleteDestinations(deleteTarget?.id)}
         onClose={closeDeleteModal}
       />
 
       <TodoDragOverlay
         activeTodo={activeTodo}
         activeColumn={activeColumn}
+        activeColumnCategory={
+          activeColumn
+            ? columnCategory(workflow.statuses, activeColumn.id)
+            : null
+        }
         todosCount={
           activeColumn ? (todosByColumn[activeColumn.id]?.length ?? 0) : 0
         }

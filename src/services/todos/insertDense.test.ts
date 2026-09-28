@@ -5,7 +5,7 @@ import type { Todo } from "../../types/data";
 
 // Ids are uuids (M2-14); stringified here so the expectations stay readable.
 const todo = (id: number, position: number) =>
-  ({ id: String(id), position, column_id: "c" }) as Todo;
+  ({ id: String(id), position, status_id: "c" }) as Todo;
 
 const column = [todo(1, 0), todo(2, 1), todo(3, 2)];
 const fresh = todo(99, 0);

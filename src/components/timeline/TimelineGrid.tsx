@@ -16,7 +16,8 @@ import {
 } from "@/services/views/timeline";
 import type { PlacedTimelineHierarchy } from "@/services/views/timelineHierarchy";
 import type { DayRange, DragMode } from "@/services/views/timelineDrag";
-import type { IColumn, Todo } from "@/types/data";
+import type { StatusIndex } from "@/services/workflow/statuses";
+import type { Todo } from "@/types/data";
 import { cn } from "@/utils/cn";
 import EmptyState from "@/components/ui/EmptyState";
 import TimelineCreateRow from "./TimelineCreateRow";
@@ -44,7 +45,7 @@ export default function TimelineGrid({
   undated,
   ticks,
   scale,
-  columnById,
+  statusById,
   keyPrefix,
   locale,
   today,
@@ -62,7 +63,7 @@ export default function TimelineGrid({
   undated: Todo[];
   ticks: string[];
   scale: TimelineScale;
-  columnById: Map<string, IColumn>;
+  statusById: StatusIndex;
   keyPrefix: string;
   locale?: string;
   today: string;
@@ -242,7 +243,7 @@ export default function TimelineGrid({
                   placed={group}
                   ticks={ticks}
                   scale={scale}
-                  columnById={columnById}
+                  statusById={statusById}
                   keyPrefix={keyPrefix}
                   locale={locale}
                   today={today}

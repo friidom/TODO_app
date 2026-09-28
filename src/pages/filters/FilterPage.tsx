@@ -7,15 +7,15 @@ import FeedRow from "@/components/forYou/FeedRow";
 import EmptyState from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SidebarTrigger } from "@/components/ui/SideBarUI/sidebar";
-import { useScopedColumns } from "@/hooks/useScopedColumns";
+import { useScopedStatuses } from "@/hooks/useScopedStatuses";
 import { useScopedTodos } from "@/hooks/useScopedTodos";
 import { useAuth } from "@/services/auth/useAuth";
 import { useBoards } from "@/services/boards/useBoards";
 import { useProfile } from "@/services/profile/useProfile";
 import { toFeedItems } from "@/services/forYou/feed";
 import { readViewed } from "@/services/forYou/viewed";
-import { doneColumnIds } from "@/services/todos/subtasks";
 import { topLevelTodos } from "@/services/todos/subtasks";
+import { doneStatusIds } from "@/services/workflow/statuses";
 import { sortTodos } from "@/services/todos/view";
 import {
   FILTER_DEFINITIONS,
@@ -41,7 +41,7 @@ function Filter({ id }: { id: FilterId }) {
   const { data: profile } = useProfile();
   const { data: boards = [] } = useBoards();
   const { todos: rows, isLoading } = useScopedTodos(definition.scope);
-  const { columns, isLoading: columnsLoading } = useScopedColumns(
+  const { statuses, isLoading: statusesLoading } = useScopedStatuses(
     definition.scope,
   );
 
@@ -51,8 +51,8 @@ function Filter({ id }: { id: FilterId }) {
   const navigate = useNavigate();
 
   const context: FilterContext = useMemo(
-    () => ({ userId: user?.id, doneColumnIds: doneColumnIds(columns) }),
-    [user?.id, columns],
+    () => ({ userId: user?.id, doneStatusIds: doneStatusIds(statuses) }),
+    [user?.id, statuses],
   );
 
   const items = useMemo(() => {
@@ -87,7 +87,7 @@ function Filter({ id }: { id: FilterId }) {
     );
   }, [rows, boards, context, definition]);
 
-  const busy = isLoading || columnsLoading;
+  const busy = isLoading || statusesLoading;
 
   return (
     <Layout>

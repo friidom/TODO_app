@@ -25,8 +25,8 @@ async function makeSuperadmin(name: string): Promise<TestUser> {
   return user;
 }
 
-async function columnOf(boardId: string, category: string): Promise<string> {
-  const row = await prisma.columns.findFirstOrThrow({
+async function statusOf(boardId: string, category: string): Promise<string> {
+  const row = await prisma.statuses.findFirstOrThrow({
     where: { board_id: boardId, category },
     select: { id: true },
   });
@@ -40,11 +40,11 @@ async function card(
   extra: Record<string, unknown> = {},
 ): Promise<string> {
   const id = randomUUID();
-  const column = await columnOf(board, category);
+  const status = await statusOf(board, category);
 
   const response = await client.patch(
     `/api/v1/boards/${board}/todos/${id}`,
-    { title: "card", column_id: column, rank: Math.random() * 1000, ...extra },
+    { title: "card", status_id: status, rank: Math.random() * 1000, ...extra },
     { token: admin.token },
   );
 

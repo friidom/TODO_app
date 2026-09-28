@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import IconButton from "@/components/ui/IconButton";
 import { useDeleteColumn } from "@/services/columns/useDeleteColumn";
+import { columnCategory } from "@/services/workflow/statuses";
+import { useStatuses } from "@/services/workflow/useWorkflow";
 import { columnTitle } from "@/constants/columns";
 import type { IColumn } from "@/types/data";
 import CategoryPill from "./CategoryPill";
@@ -56,6 +58,7 @@ function DeleteColumnDialog({
   const [target, setTarget] = useState(destinations[0].id);
 
   const deleteColumn = useDeleteColumn();
+  const { data: statuses = [] } = useStatuses();
 
   const selected =
     destinations.find((option) => option.id === target) ?? destinations[0];
@@ -110,7 +113,7 @@ function DeleteColumnDialog({
 
             <CategoryPill
               title={columnTitle(column.title)}
-              category={column.category}
+              category={columnCategory(statuses, column.id)}
               className="max-w-full"
             />
           </div>
@@ -130,7 +133,7 @@ function DeleteColumnDialog({
               <DropdownMenuTrigger className="border-hairline bg-canvas focus-visible:border-brand focus-visible:ring-brand/30 data-[popup-open]:border-brand rounded-control flex w-full items-center gap-2 border px-3 py-2 text-left outline-none focus-visible:ring-2">
                 <CategoryPill
                   title={columnTitle(selected.title)}
-                  category={selected.category}
+                  category={columnCategory(statuses, selected.id)}
                 />
 
                 <ChevronDown
@@ -148,7 +151,7 @@ function DeleteColumnDialog({
                     <DropdownMenuRadioItem key={option.id} value={option.id}>
                       <CategoryPill
                         title={columnTitle(option.title)}
-                        category={option.category}
+                        category={columnCategory(statuses, option.id)}
                       />
                     </DropdownMenuRadioItem>
                   ))}

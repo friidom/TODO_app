@@ -6,7 +6,11 @@ import {
   COLUMN_WIDTH,
   COUNT_CHIP,
 } from "@/components/columns/columnChrome";
-import { categoryOf, columnTitle } from "@/constants/columns";
+import {
+  categoryOf,
+  columnTitle,
+  type ColumnCategory,
+} from "@/constants/columns";
 import { useSubtaskProgressByParent } from "@/services/todos/useSubtasks";
 import type { IColumn, Todo } from "@/types/data";
 import { cn } from "@/utils/cn";
@@ -14,6 +18,7 @@ import { cn } from "@/utils/cn";
 interface Props {
   activeTodo: Todo | null;
   activeColumn?: IColumn | null;
+  activeColumnCategory?: ColumnCategory | null;
   todosCount?: number;
   /** Mirrors the rail the user actually grabbed. */
   columnCollapsed?: boolean;
@@ -22,6 +27,7 @@ interface Props {
 export default function TodoDragOverlay({
   activeTodo,
   activeColumn = null,
+  activeColumnCategory = null,
   todosCount = 0,
   columnCollapsed = false,
 }: Props) {
@@ -56,7 +62,7 @@ export default function TodoDragOverlay({
           <span
             className={cn(
               "size-2 shrink-0 rounded-full",
-              categoryOf(activeColumn.category).dot,
+              categoryOf(activeColumnCategory).dot,
             )}
           />
 

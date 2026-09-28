@@ -6,7 +6,7 @@ import { queryKeys } from "@/services/queryClient/queryKeys";
 // there is a single definition of "what does this board's cache consist of".
 export type Scope =
   | "todos"
-  | "columns"
+  | "workflow"
   | "comments"
   | "attachments"
   | "sprints"
@@ -15,7 +15,7 @@ export type Scope =
 
 export const ALL_SCOPES: Scope[] = [
   "todos",
-  "columns",
+  "workflow",
   "comments",
   "attachments",
   "sprints",
@@ -29,8 +29,8 @@ function keysFor(scope: Scope, boardId: string | undefined): readonly unknown[][
   switch (scope) {
     case "todos":
       return [[...queryKeys.todos(boardId)]];
-    case "columns":
-      return [[...queryKeys.columns(boardId)]];
+    case "workflow":
+      return [[...queryKeys.workflow(boardId)]];
     case "comments":
       return [[...queryKeys.commentThreads()]];
     case "attachments":

@@ -2,7 +2,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { useBoardId } from "@/hooks/useBoardId";
 import { queryKeys } from "@/services/queryClient/queryKeys";
-import type { IColumn, Todo } from "@/types/data";
+import type { WorkflowModel } from "@/services/workflow/statuses";
+import type { Todo } from "@/types/data";
 import { applyBacklogMoved, applyTodoUpdated } from "./cache";
 import { sprintAssignmentPatch } from "./backlog";
 import { updateTodo } from "./todoApi";
@@ -12,7 +13,7 @@ export interface BacklogDropVars {
   dragged: Todo;
   targetSectionId: string | null;
   activeSprintId: string | null;
-  columns: IColumn[];
+  workflow: WorkflowModel;
   dropIndex: number;
 }
 
@@ -27,7 +28,7 @@ export function useBacklogDrop() {
       dragged,
       targetSectionId,
       activeSprintId,
-      columns,
+      workflow,
       dropIndex,
     }: BacklogDropVars) => {
       if (!boardId) throw new Error("useBacklogDrop ran without a board");
@@ -36,7 +37,7 @@ export function useBacklogDrop() {
         dragged,
         targetSectionId,
         activeSprintId,
-        columns,
+        workflow,
         todos,
         dropIndex,
       );
@@ -49,7 +50,7 @@ export function useBacklogDrop() {
       dragged,
       targetSectionId,
       activeSprintId,
-      columns,
+      workflow,
       dropIndex,
     }) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.todos(boardId) });
@@ -62,7 +63,7 @@ export function useBacklogDrop() {
         dragged,
         targetSectionId,
         activeSprintId,
-        columns,
+        workflow,
         todos,
         dropIndex,
       );

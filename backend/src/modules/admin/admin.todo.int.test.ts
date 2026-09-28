@@ -19,8 +19,8 @@ async function makeSuperadmin(name: string): Promise<TestUser> {
   return user;
 }
 
-async function columnOf(category: string): Promise<string> {
-  const row = await prisma.columns.findFirstOrThrow({
+async function statusOf(category: string): Promise<string> {
+  const row = await prisma.statuses.findFirstOrThrow({
     where: { board_id: boardId, category },
     select: { id: true },
   });
@@ -33,7 +33,7 @@ async function card(category: string, extra: Record<string, unknown> = {}): Prom
 
   const response = await client.patch(
     `/api/v1/boards/${boardId}/todos/${id}`,
-    { title: "Cache board membership", column_id: await columnOf(category), rank: 1, ...extra },
+    { title: "Cache board membership", status_id: await statusOf(category), rank: 1, ...extra },
     { token: admin.token },
   );
 
@@ -58,6 +58,7 @@ interface TodoBody {
     type: string;
     priority: string | null;
     estimate: number | null;
+    status_name: string | null;
     column_title: string | null;
     category: string | null;
     assignee_username: string | null;
@@ -129,6 +130,7 @@ describe("the task metadata", () => {
     expect(body.todo.priority).toBe("high");
     expect(body.todo.estimate).toBe(5);
     expect(body.todo.assignee_username).toBe(admin.username);
+    expect(body.todo.status_name).toBe("To Do");
     expect(body.todo.column_title).toBe("To Do");
     expect(body.todo.category).toBe("todo");
   });

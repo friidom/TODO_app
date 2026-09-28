@@ -7,13 +7,14 @@ import type { BacklogBoard } from "@/services/todos/backlog";
 import { resolveDropIndex } from "@/services/todos/dropIndex";
 import { isGenuineSubtask } from "@/services/todos/subtasks";
 import { useBacklogDrop } from "@/services/todos/useBacklogDrop";
-import type { IColumn, Todo } from "@/types/data";
+import type { WorkflowModel } from "@/services/workflow/statuses";
+import type { Todo } from "@/types/data";
 import { byBacklogRank } from "@/utils/backlogRank";
 import type { BacklogIndicator } from "./useBacklogDnd";
 
 interface BacklogDragEndParams {
   board: BacklogBoard;
-  columns: IColumn[];
+  workflow: WorkflowModel;
   activeSprintId: string | null;
   indicator: BacklogIndicator | null;
   resetDrag: () => void;
@@ -21,7 +22,7 @@ interface BacklogDragEndParams {
 
 export function useBacklogDragEnd({
   board,
-  columns,
+  workflow,
   activeSprintId,
   indicator,
   resetDrag,
@@ -78,7 +79,7 @@ export function useBacklogDragEnd({
       dragged,
       targetSectionId,
       activeSprintId,
-      columns,
+      workflow,
       dropIndex,
     });
 

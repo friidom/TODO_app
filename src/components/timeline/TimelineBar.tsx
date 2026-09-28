@@ -18,7 +18,7 @@ import { formatDayFull } from "@/utils/dueDate";
 type Placement = NonNullable<ReturnType<typeof placeItem>>;
 
 // no text in the bar itself — label doesn't fit a 2-day bar and repeats on a 3-month one. the drag readout names it instead.
-// progress fill is derived from the column category, never stored — same rule as everywhere else: the column is the one truth for doneness.
+// progress fill is derived from the status category, never stored — same rule as everywhere else: the status is the one truth for doneness.
 export default function TimelineBar({
   category,
   place,

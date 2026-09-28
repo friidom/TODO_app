@@ -3,9 +3,9 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { prisma } from "../../db/prisma.js";
-import { RANK_GAP, byRank } from "../../lib/rank.js";
+import { RANK_GAP } from "../../lib/rank.js";
 import { disconnect, resetDatabase } from "../../testing/db.js";
-import { addMember, makeUser, type TestUser } from "../../testing/fixtures.js";
+import { addMember, firstStatusOf, makeUser, type TestUser } from "../../testing/fixtures.js";
 import { startTestServer, type TestClient } from "../../testing/httpClient.js";
 
 let client: TestClient;
@@ -27,7 +27,6 @@ interface Column {
   title: string | null;
   position: number | null;
   rank: number | null;
-  category: string | null;
   min_limit: number | null;
   max_limit: number | null;
 }
@@ -48,126 +47,80 @@ async function setup(role?: "editor" | "viewer") {
   return { owner, actor: member, boardId: owner.boardId };
 }
 
-async function addTodo(actor: TestUser, boardId: string, columnId: string, title: string) {
+async function addTodo(actor: TestUser, boardId: string, statusId: string, title: string) {
   const response = await client.post<{ id: string; rank: number }>(
     `/api/v1/boards/${boardId}/todos`,
-    { title, column_id: columnId },
+    { title, status_id: statusId },
     { token: actor.token },
   );
 
   return response.body;
 }
 
-describe("GET /boards/:boardId/columns", () => {
-  it("returns the four columns provisioning created, in rank order", async () => {
-    const { actor, boardId } = await setup();
-    const response = await client.get<Column[]>(columnsUrl(boardId), { token: actor.token });
-
-    expect(response.status).toBe(200);
-    expect(response.body).toHaveLength(4);
-    expect(response.body.map((c) => c.title)).toEqual([
-      "To Do",
-      "In Progress",
-      "In Review",
-      "Done",
-    ]);
-  });
-
-  it("serialises position as a JSON number", async () => {
-    const { actor, boardId } = await setup();
-    const response = await client.get<Column[]>(columnsUrl(boardId), { token: actor.token });
-
-    expect(typeof response.body[0]!.position).toBe("number");
-  });
-
-  it("answers 404 for a non-member", async () => {
-    const { boardId } = await setup();
-    const outsider = await makeUser("outsider");
-
-    expect((await client.get(columnsUrl(boardId), { token: outsider.token })).status).toBe(404);
-  });
-});
-
-describe("POST /boards/:boardId/columns", () => {
-  it("appends after the board's last column", async () => {
-    const { actor, boardId } = await setup();
-    const before = await client.get<Column[]>(columnsUrl(boardId), { token: actor.token });
-    const lastRank = Math.max(...before.body.map((c) => c.rank ?? 0));
-
-    const created = await client.post<Column>(
-      columnsUrl(boardId),
-      { title: "Blocked", category: "in_progress" },
-      { token: actor.token },
-    );
-
-    expect(created.status).toBe(201);
-    expect(created.body.rank!).toBeGreaterThan(lastRank);
-  });
-
-  it("refuses a viewer and allows an editor", async () => {
-    const viewer = await setup("viewer");
-
-    expect(
-      (
-        await client.post(
-          columnsUrl(viewer.boardId),
-          { title: "x", category: "todo" },
-          { token: viewer.actor.token },
-        )
-      ).status,
-    ).toBe(403);
-
-    const editor = await setup("editor");
-
-    expect(
-      (
-        await client.post(
-          columnsUrl(editor.boardId),
-          { title: "x", category: "todo" },
-          { token: editor.actor.token },
-        )
-      ).status,
-    ).toBe(201);
-  });
-
-  it("rejects a category outside the CHECK", async () => {
-    const { actor, boardId } = await setup();
-
-    expect(
-      (
-        await client.post(
-          columnsUrl(boardId),
-          { title: "x", category: "archived" },
-          { token: actor.token },
-        )
-      ).status,
-    ).toBe(400);
-  });
-});
-
 describe("PATCH /columns/:columnId", () => {
-  it("updates the title and the advisory limits", async () => {
+  it("updates the advisory limits", async () => {
     const { actor, boardId } = await setup();
-    const [column] = (await client.get<Column[]>(columnsUrl(boardId), { token: actor.token })).body;
+    const { column_id: columnId } = await firstStatusOf(boardId);
 
     const response = await client.patch<Column>(
-      `/api/v1/columns/${column!.id}`,
-      { title: "Renamed", min_limit: 1, max_limit: 5 },
+      `/api/v1/columns/${columnId}`,
+      { min_limit: 1, max_limit: 5 },
       { token: actor.token },
     );
 
     expect(response.status).toBe(200);
-    expect(response.body.title).toBe("Renamed");
     expect(response.body.min_limit).toBe(1);
     expect(response.body.max_limit).toBe(5);
+    expect(typeof response.body.position).toBe("number");
+  });
+
+  it("allows an editor, and refuses a viewer", async () => {
+    const editor = await setup("editor");
+    const viewer = await setup("viewer");
+
+    const editorColumn = (await firstStatusOf(editor.boardId)).column_id;
+    const viewerColumn = (await firstStatusOf(viewer.boardId)).column_id;
+
+    expect(
+      (
+        await client.patch(`/api/v1/columns/${editorColumn}`, { max_limit: 3 }, {
+          token: editor.actor.token,
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await client.patch(`/api/v1/columns/${viewerColumn}`, { max_limit: 3 }, {
+          token: viewer.actor.token,
+        })
+      ).status,
+    ).toBe(403);
+  });
+
+  // A title is the workflow's, so it is not a field this route knows: the body
+  // is stripped to nothing and refused, and the title is untouched.
+  it("no longer renames a column", async () => {
+    const { actor, boardId } = await setup();
+    const { column_id: columnId } = await firstStatusOf(boardId);
+
+    const response = await client.patch(
+      `/api/v1/columns/${columnId}`,
+      { title: "Renamed" },
+      { token: actor.token },
+    );
+
+    expect(response.status).toBe(400);
+    expect(
+      (await prisma.columns.findUniqueOrThrow({ where: { id: columnId } })).title,
+    ).toBe("To Do");
   });
 
   it("rejects limits the CHECK refuses, as a 400", async () => {
     const { actor, boardId } = await setup();
-    const [column] = (await client.get<Column[]>(columnsUrl(boardId), { token: actor.token })).body;
+    const { column_id: columnId } = await firstStatusOf(boardId);
 
     for (const body of [{ min_limit: -1 }, { min_limit: 9, max_limit: 2 }]) {
-      const response = await client.patch(`/api/v1/columns/${column!.id}`, body, {
+      const response = await client.patch(`/api/v1/columns/${columnId}`, body, {
         token: actor.token,
       });
 
@@ -185,7 +138,7 @@ describe("PATCH /columns/:columnId", () => {
 
     const response = await client.patch(
       `/api/v1/columns/${theirColumn.id}`,
-      { title: "Stolen" },
+      { max_limit: 1 },
       { token: actor.token },
     );
 
@@ -193,191 +146,43 @@ describe("PATCH /columns/:columnId", () => {
   });
 });
 
-describe("POST /columns/:columnId/move", () => {
-  it("writes one row and leaves the others alone", async () => {
+// Creating, renaming, reordering and deleting a column are workflow changes
+// now (PUT /boards/:boardId/workflow), and the routes that did them are gone
+// rather than left beside it as a second way in.
+describe("the retired structural routes", () => {
+  it("answer 404", async () => {
     const { actor, boardId } = await setup();
-    const columns = (await client.get<Column[]>(columnsUrl(boardId), { token: actor.token })).body;
-    const [first, second] = columns;
+    const { column_id: columnId } = await firstStatusOf(boardId);
+    const options = { token: actor.token };
 
-    const response = await client.post(
-      `/api/v1/columns/${first!.id}/move`,
-      { rank: 5000 },
-      { token: actor.token },
-    );
-
-    expect(response.status).toBe(204);
-
-    const after = await prisma.columns.findMany({
-      where: { board_id: boardId },
-      select: { id: true, rank: true },
-    });
-
-    expect(after.find((c) => c.id === first!.id)!.rank).toBe(5000);
-    expect(after.find((c) => c.id === second!.id)!.rank).toBe(second!.rank);
-  });
-});
-
-describe("DELETE /columns/:columnId", () => {
-  it("rehomes the cards and then deletes the column, in one transaction", async () => {
-    const { actor, boardId } = await setup();
-    const columns = (await client.get<Column[]>(columnsUrl(boardId), { token: actor.token })).body;
-    const source = columns[0]!;
-    const destination = columns[1]!;
-
-    await addTodo(actor, boardId, source.id, "a");
-    await addTodo(actor, boardId, source.id, "b");
-    await addTodo(actor, boardId, destination.id, "kept");
-
-    const response = await client.del(
-      `/api/v1/columns/${source.id}`,
-      { moveToColumnId: destination.id },
-      { token: actor.token },
-    );
-
-    expect(response.status).toBe(204);
-    expect(await prisma.columns.count({ where: { id: source.id } })).toBe(0);
-    expect(await prisma.todos.count({ where: { column_id: destination.id } })).toBe(3);
-  });
-
-  // The SQL wrote only position, three days before ranks existed, so its
-  // "append" was invisible: every surface sorts by rank ?? position * RANK_GAP.
-  it("appends the rehomed cards AFTER the destination's own, by rank", async () => {
-    const { actor, boardId } = await setup();
-    const columns = (await client.get<Column[]>(columnsUrl(boardId), { token: actor.token })).body;
-    const source = columns[0]!;
-    const destination = columns[1]!;
-
-    await addTodo(actor, boardId, source.id, "moved-1");
-    await addTodo(actor, boardId, source.id, "moved-2");
-    await addTodo(actor, boardId, destination.id, "stayed");
-
-    await client.del(
-      `/api/v1/columns/${source.id}`,
-      { moveToColumnId: destination.id },
-      { token: actor.token },
-    );
-
-    const rows = await prisma.todos.findMany({
-      where: { column_id: destination.id },
-      select: { title: true, rank: true, position: true },
-    });
-
-    const ordered = rows
-      .map((r) => ({ title: r.title, rank: r.rank, position: Number(r.position) }))
-      .sort(byRank);
-
-    expect(ordered.map((r) => r.title)).toEqual(["stayed", "moved-1", "moved-2"]);
-  });
-
-  it("refuses a destination on a different board", async () => {
-    const { actor, boardId } = await setup();
-    const other = await makeUser("other");
-    const columns = (await client.get<Column[]>(columnsUrl(boardId), { token: actor.token })).body;
-    const theirColumn = await prisma.columns.findFirstOrThrow({
-      where: { board_id: other.boardId },
-      select: { id: true },
-    });
-
-    const response = await client.del(
-      `/api/v1/columns/${columns[0]!.id}`,
-      { moveToColumnId: theirColumn.id },
-      { token: actor.token },
-    );
-
-    expect(response.status).toBe(404);
-    expect(await prisma.columns.count({ where: { id: columns[0]!.id } })).toBe(1);
-  });
-
-  it("refuses a destination equal to the source", async () => {
-    const { actor, boardId } = await setup();
-    const columns = (await client.get<Column[]>(columnsUrl(boardId), { token: actor.token })).body;
-
-    const response = await client.del(
-      `/api/v1/columns/${columns[0]!.id}`,
-      { moveToColumnId: columns[0]!.id },
-      { token: actor.token },
-    );
-
-    expect(response.status).toBe(400);
-    expect(await prisma.columns.count({ where: { id: columns[0]!.id } })).toBe(1);
-  });
-
-  it("requires a destination at all", async () => {
-    const { actor, boardId } = await setup();
-    const columns = (await client.get<Column[]>(columnsUrl(boardId), { token: actor.token })).body;
-
+    expect((await client.get(columnsUrl(boardId), options)).status).toBe(404);
     expect(
-      (await client.del(`/api/v1/columns/${columns[0]!.id}`, {}, { token: actor.token })).status,
-    ).toBe(400);
-  });
-
-  it("refuses a viewer, leaving the column and its cards intact", async () => {
-    const { owner, actor, boardId } = await setup("viewer");
-    const columns = (await client.get<Column[]>(columnsUrl(boardId), { token: owner.token })).body;
-
-    await addTodo(owner, boardId, columns[0]!.id, "a");
-
-    const response = await client.del(
-      `/api/v1/columns/${columns[0]!.id}`,
-      { moveToColumnId: columns[1]!.id },
-      { token: actor.token },
+      (await client.post(columnsUrl(boardId), { title: "x", category: "todo" }, options)).status,
+    ).toBe(404);
+    expect((await client.post(columnsUrl(boardId, "/rebalance"), undefined, options)).status).toBe(
+      404,
     );
-
-    expect(response.status).toBe(403);
-    expect(await prisma.columns.count({ where: { id: columns[0]!.id } })).toBe(1);
-    expect(await prisma.todos.count({ where: { column_id: columns[0]!.id } })).toBe(1);
-  });
-
-  it("writes a moved activity per rehomed card, which is accepted noise", async () => {
-    const { actor, boardId } = await setup();
-    const columns = (await client.get<Column[]>(columnsUrl(boardId), { token: actor.token })).body;
-
-    await addTodo(actor, boardId, columns[0]!.id, "a");
-    await addTodo(actor, boardId, columns[0]!.id, "b");
-
-    await prisma.activities.deleteMany({ where: { board_id: boardId } });
-
-    await client.del(
-      `/api/v1/columns/${columns[0]!.id}`,
-      { moveToColumnId: columns[1]!.id },
-      { token: actor.token },
-    );
-
-    const moved = await prisma.activities.count({ where: { board_id: boardId, action: "moved" } });
-
-    expect(moved).toBe(2);
+    expect(
+      (await client.post(`/api/v1/columns/${columnId}/move`, { rank: 1 }, options)).status,
+    ).toBe(404);
+    expect(
+      (await client.del(`/api/v1/columns/${columnId}`, { moveToColumnId: columnId }, options))
+        .status,
+    ).toBe(404);
+    expect(await prisma.columns.count({ where: { board_id: boardId } })).toBe(4);
   });
 });
 
-describe("rebalancing", () => {
-  it("respaces the board's columns to multiples of RANK_GAP without reordering", async () => {
+describe("rebalancing a column's cards", () => {
+  it("respaces the cards of every status in the column without reordering them", async () => {
     const { actor, boardId } = await setup();
-    const before = (await client.get<Column[]>(columnsUrl(boardId), { token: actor.token })).body;
+    const { id: statusId, column_id: columnId } = await firstStatusOf(boardId);
 
-    const response = await client.post<{ rebalanced: number }>(
-      columnsUrl(boardId, "/rebalance"),
-      undefined,
-      { token: actor.token },
-    );
-
-    expect(response.status).toBe(200);
-
-    const after = (await client.get<Column[]>(columnsUrl(boardId), { token: actor.token })).body;
-
-    expect(after.map((c) => c.title)).toEqual(before.map((c) => c.title));
-    expect(after.map((c) => c.rank)).toEqual([1, 2, 3, 4].map((n) => n * RANK_GAP));
-  });
-
-  it("respaces one column's cards without reordering them", async () => {
-    const { actor, boardId } = await setup();
-    const columns = (await client.get<Column[]>(columnsUrl(boardId), { token: actor.token })).body;
-    const columnId = columns[0]!.id;
-
-    for (const title of ["a", "b", "c"]) await addTodo(actor, boardId, columnId, title);
+    for (const title of ["a", "b", "c"]) await addTodo(actor, boardId, statusId, title);
 
     // Squeeze them into a gap the way repeated midpoint drops would.
     const rows = await prisma.todos.findMany({
-      where: { column_id: columnId },
+      where: { status_id: statusId },
       orderBy: { rank: "asc" },
       select: { id: true },
     });
@@ -394,7 +199,7 @@ describe("rebalancing", () => {
     expect(response.status).toBe(200);
 
     const after = await prisma.todos.findMany({
-      where: { column_id: columnId },
+      where: { status_id: statusId },
       orderBy: { rank: "asc" },
       select: { id: true, rank: true },
     });
@@ -405,10 +210,14 @@ describe("rebalancing", () => {
 
   it("refuses a viewer", async () => {
     const { actor, boardId } = await setup("viewer");
+    const { column_id: columnId } = await firstStatusOf(boardId);
 
     expect(
-      (await client.post(columnsUrl(boardId, "/rebalance"), undefined, { token: actor.token }))
-        .status,
+      (
+        await client.post(columnsUrl(boardId, `/${columnId}/rebalance`), undefined, {
+          token: actor.token,
+        })
+      ).status,
     ).toBe(403);
   });
 

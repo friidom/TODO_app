@@ -295,14 +295,14 @@ describe("the assignment trigger", () => {
 
     await addMember(owner.boardId, assignee, "editor", owner.id);
 
-    const column = await prisma.columns.findFirstOrThrow({
+    const status = await prisma.statuses.findFirstOrThrow({
       where: { board_id: owner.boardId },
       select: { id: true },
     });
 
     await client.post(
       `/api/v1/boards/${owner.boardId}/todos`,
-      { title: "Yours", column_id: column.id, assignee_id: assignee.id },
+      { title: "Yours", status_id: status.id, assignee_id: assignee.id },
       { token: owner.token },
     );
 
@@ -316,14 +316,14 @@ describe("the assignment trigger", () => {
 
   it("does not notify someone assigning work to themselves", async () => {
     const owner = await makeUser("owner");
-    const column = await prisma.columns.findFirstOrThrow({
+    const status = await prisma.statuses.findFirstOrThrow({
       where: { board_id: owner.boardId },
       select: { id: true },
     });
 
     await client.post(
       `/api/v1/boards/${owner.boardId}/todos`,
-      { title: "Mine", column_id: column.id, assignee_id: owner.id },
+      { title: "Mine", status_id: status.id, assignee_id: owner.id },
       { token: owner.token },
     );
 

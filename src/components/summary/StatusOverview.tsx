@@ -1,6 +1,8 @@
-import { categoryOf, columnTitle } from "@/constants/columns";
+import { useTranslation } from "react-i18next";
+
+import { categoryOf } from "@/constants/columns";
 import type { Slice } from "@/services/views/summary";
-import type { IColumn } from "@/types/data";
+import type { IStatus } from "@/types/data";
 import { cn } from "@/utils/cn";
 import SummaryCard, { WidgetEmpty } from "./SummaryCard";
 
@@ -13,26 +15,27 @@ const LEGEND_WRAP_AT = 6;
 
 export default function StatusOverview({
   slices,
-  columns,
+  statuses,
   total,
   done,
   className,
 }: {
   slices: Slice<string | null>[];
-  columns: IColumn[];
+  statuses: IStatus[];
   total: number;
   done: number;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const shadeOf = new Map<string, string>();
   const seen = new Map<string, number>();
 
-  for (const column of columns) {
-    const category = categoryOf(column.category);
+  for (const status of statuses) {
+    const category = categoryOf(status.category);
     const nth = seen.get(category.dot) ?? 0;
 
     seen.set(category.dot, nth + 1);
-    shadeOf.set(column.id, SHADES[Math.min(nth, SHADES.length - 1)]);
+    shadeOf.set(status.id, SHADES[Math.min(nth, SHADES.length - 1)]);
   }
 
   // reduce, not a closure variable accumulated during .map() — a retried/interleaved render can't resume from stale state
@@ -79,7 +82,7 @@ export default function StatusOverview({
                 />
 
                 {arcs.map((arc) => {
-                  const column = columns.find((it) => it.id === arc.key);
+                  const status = statuses.find((it) => it.id === arc.key);
 
                   return (
                     <circle
@@ -93,10 +96,10 @@ export default function StatusOverview({
                       strokeDasharray={`${arc.percent} ${100 - arc.percent}`}
                       strokeDashoffset={arc.start}
                       className={cn(
-                        column
-                          ? categoryOf(column.category).tone
+                        status
+                          ? categoryOf(status.category).tone
                           : "text-ink-3/50",
-                        column ? shadeOf.get(column.id) : undefined,
+                        status ? shadeOf.get(status.id) : undefined,
                       )}
                     />
                   );
@@ -120,7 +123,7 @@ export default function StatusOverview({
               )}
             >
               {slices.map((slice) => {
-                const column = columns.find((it) => it.id === slice.key);
+                const status = statuses.find((it) => it.id === slice.key);
 
                 return (
                   <li
@@ -133,14 +136,14 @@ export default function StatusOverview({
                     <span
                       className={cn(
                         "size-2 shrink-0 rounded-full",
-                        column ? categoryOf(column.category).dot : "bg-ink/25",
-                        column ? shadeOf.get(column.id) : undefined,
+                        status ? categoryOf(status.category).dot : "bg-ink/25",
+                        status ? shadeOf.get(status.id) : undefined,
                       )}
                     />
 
-                    {/* raw, never through t() — a column title is user text, not a translation key */}
+                    {/* raw, never through t() — a status name is user text, not a translation key */}
                     <span className="text-ink-2 min-w-0 flex-1 truncate text-xs">
-                      {column ? columnTitle(column.title) : "No status"}
+                      {status ? status.name : t("status.none")}
                     </span>
 
                     <span className="text-ink shrink-0 text-xs font-medium tabular-nums">
@@ -156,7 +159,7 @@ export default function StatusOverview({
             </ul>
           </div>
 
-          {/* done is the column category, not a column literally named "Done" — counts every finished column */}
+          {/* done is the status category, not a status literally named "Done" — counts every finished status */}
           <div className="border-hairline flex items-center gap-2.5 border-t pt-2.5">
             <span className="text-ink-3 text-mini shrink-0">Completed</span>
 

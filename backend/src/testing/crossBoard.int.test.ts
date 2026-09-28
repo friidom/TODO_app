@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { prisma } from "../db/prisma.js";
 import { disconnect, resetDatabase } from "./db.js";
-import { firstColumnOf, makeUser, type TestUser } from "./fixtures.js";
+import { firstStatusOf, makeUser, workflowDraft, type TestUser } from "./fixtures.js";
 import { startTestServer, type TestClient } from "./httpClient.js";
 
 let client: TestClient;
@@ -28,15 +28,15 @@ async function twoBoards() {
   return {
     alice,
     mallory,
-    aliceColumn: (await firstColumnOf(alice.boardId)).id,
-    malloryColumn: (await firstColumnOf(mallory.boardId)).id,
+    aliceStatus: (await firstStatusOf(alice.boardId)).id,
+    malloryStatus: (await firstStatusOf(mallory.boardId)).id,
   };
 }
 
-async function addTodo(actor: TestUser, boardId: string, columnId: string, title: string) {
+async function addTodo(actor: TestUser, boardId: string, statusId: string, title: string) {
   const response = await client.post<{ id: string }>(
     `/api/v1/boards/${boardId}/todos`,
-    { title, column_id: columnId },
+    { title, status_id: statusId },
     { token: actor.token },
   );
 
@@ -47,14 +47,14 @@ function is4xx(status: number): boolean {
   return status >= 400 && status < 500;
 }
 
-describe("a body cannot name a column on another board", () => {
+describe("a body cannot name a status on another board", () => {
   it("on POST /todos/:todoId/move", async () => {
-    const { alice, aliceColumn, malloryColumn } = await twoBoards();
-    const todo = await addTodo(alice, alice.boardId, aliceColumn, "mine");
+    const { alice, aliceStatus, malloryStatus } = await twoBoards();
+    const todo = await addTodo(alice, alice.boardId, aliceStatus, "mine");
 
     const response = await client.post(
       `/api/v1/todos/${todo.id}/move`,
-      { column_id: malloryColumn, rank: 2048 },
+      { status_id: malloryStatus, rank: 2048 },
       { token: alice.token },
     );
 
@@ -62,19 +62,19 @@ describe("a body cannot name a column on another board", () => {
 
     const row = await prisma.todos.findUniqueOrThrow({
       where: { id: todo.id },
-      select: { column_id: true },
+      select: { status_id: true },
     });
 
-    expect(row.column_id).toBe(aliceColumn);
+    expect(row.status_id).toBe(aliceStatus);
   });
 
   it("on PATCH /boards/:boardId/todos/:todoId", async () => {
-    const { alice, aliceColumn, malloryColumn } = await twoBoards();
-    const todo = await addTodo(alice, alice.boardId, aliceColumn, "mine");
+    const { alice, aliceStatus, malloryStatus } = await twoBoards();
+    const todo = await addTodo(alice, alice.boardId, aliceStatus, "mine");
 
     const response = await client.patch(
       `/api/v1/boards/${alice.boardId}/todos/${todo.id}`,
-      { column_id: malloryColumn },
+      { status_id: malloryStatus },
       { token: alice.token },
     );
 
@@ -82,30 +82,80 @@ describe("a body cannot name a column on another board", () => {
 
     const row = await prisma.todos.findUniqueOrThrow({
       where: { id: todo.id },
-      select: { column_id: true },
+      select: { status_id: true },
     });
 
-    expect(row.column_id).toBe(aliceColumn);
+    expect(row.status_id).toBe(aliceStatus);
   });
 
   it("on a create that invents one", async () => {
-    const { alice, malloryColumn } = await twoBoards();
+    const { alice, malloryStatus } = await twoBoards();
 
     const response = await client.post(
       `/api/v1/boards/${alice.boardId}/todos`,
-      { title: "sneaky", column_id: malloryColumn },
+      { title: "sneaky", status_id: malloryStatus },
       { token: alice.token },
     );
 
     expect(is4xx(response.status), `status ${response.status}`).toBe(true);
-    expect(await prisma.todos.count({ where: { column_id: malloryColumn } })).toBe(0);
+    expect(await prisma.todos.count({ where: { status_id: malloryStatus } })).toBe(0);
+  });
+});
+
+// A publish names every column and status by id, and a new one by an id the
+// client minted, so a foreign id arrives looking like a new row. The primary
+// key refuses it and the whole publish rolls back.
+describe("a workflow publish cannot claim another board's rows", () => {
+  it("refuses a foreign column id as a new column", async () => {
+    const { alice, mallory } = await twoBoards();
+    const theirs = await prisma.columns.findFirstOrThrow({
+      where: { board_id: mallory.boardId },
+      select: { id: true, title: true },
+    });
+    const draft = await workflowDraft(alice.boardId);
+
+    const response = await client.put(
+      `/api/v1/boards/${alice.boardId}/workflow`,
+      { ...draft, columns: [...draft.columns, { id: theirs.id, title: "Mine now" }] },
+      { token: alice.token },
+    );
+
+    expect(response.status).toBe(409);
+    expect(
+      await prisma.columns.findUniqueOrThrow({
+        where: { id: theirs.id },
+        select: { board_id: true, title: true },
+      }),
+    ).toEqual({ board_id: mallory.boardId, title: theirs.title });
+  });
+
+  it("refuses to migrate cards into a status on another board", async () => {
+    const { alice, aliceStatus, malloryStatus } = await twoBoards();
+
+    await addTodo(alice, alice.boardId, aliceStatus, "mine");
+
+    const draft = await workflowDraft(alice.boardId);
+
+    const response = await client.put(
+      `/api/v1/boards/${alice.boardId}/workflow`,
+      {
+        ...draft,
+        statuses: draft.statuses.filter((status) => status.id !== aliceStatus),
+        migrations: [{ from: aliceStatus, to: malloryStatus }],
+      },
+      { token: alice.token },
+    );
+
+    expect(response.status).toBe(400);
+    expect(await prisma.todos.count({ where: { status_id: malloryStatus } })).toBe(0);
+    expect(await prisma.todos.count({ where: { status_id: aliceStatus } })).toBe(1);
   });
 });
 
 describe("a body cannot name a sprint or a parent on another board", () => {
   it("rejects a foreign sprint_id on a patch", async () => {
-    const { alice, mallory, aliceColumn } = await twoBoards();
-    const todo = await addTodo(alice, alice.boardId, aliceColumn, "mine");
+    const { alice, mallory, aliceStatus } = await twoBoards();
+    const todo = await addTodo(alice, alice.boardId, aliceStatus, "mine");
 
     const theirSprint = await client.post<{ id: string }>(
       `/api/v1/boards/${mallory.boardId}/sprints`,
@@ -130,9 +180,9 @@ describe("a body cannot name a sprint or a parent on another board", () => {
   });
 
   it("rejects a foreign parent_id on a patch", async () => {
-    const { alice, mallory, aliceColumn, malloryColumn } = await twoBoards();
-    const mine = await addTodo(alice, alice.boardId, aliceColumn, "mine");
-    const theirs = await addTodo(mallory, mallory.boardId, malloryColumn, "theirs");
+    const { alice, mallory, aliceStatus, malloryStatus } = await twoBoards();
+    const mine = await addTodo(alice, alice.boardId, aliceStatus, "mine");
+    const theirs = await addTodo(mallory, mallory.boardId, malloryStatus, "theirs");
 
     const response = await client.patch(
       `/api/v1/boards/${alice.boardId}/todos/${mine.id}`,
@@ -153,10 +203,10 @@ describe("a body cannot name a sprint or a parent on another board", () => {
 
 describe("no cross-board write leaves the other board changed", () => {
   it("leaves every one of Mallory's rows exactly as they were", async () => {
-    const { alice, mallory, aliceColumn, malloryColumn } = await twoBoards();
-    const theirs = await addTodo(mallory, mallory.boardId, malloryColumn, "theirs");
+    const { alice, mallory, aliceStatus, malloryStatus } = await twoBoards();
+    const theirs = await addTodo(mallory, mallory.boardId, malloryStatus, "theirs");
 
-    await addTodo(alice, alice.boardId, aliceColumn, "mine");
+    await addTodo(alice, alice.boardId, aliceStatus, "mine");
 
     const before = await prisma.todos.findUniqueOrThrow({ where: { id: theirs.id } });
 
@@ -168,7 +218,7 @@ describe("no cross-board write leaves the other board changed", () => {
       ),
       client.post(
         `/api/v1/todos/${theirs.id}/move`,
-        { column_id: aliceColumn, rank: 1 },
+        { status_id: aliceStatus, rank: 1 },
         { token: alice.token },
       ),
       client.del(`/api/v1/todos/${theirs.id}`, undefined, { token: alice.token }),
@@ -197,7 +247,7 @@ describe("no cross-board write leaves the other board changed", () => {
 // and GET /boards/:id/invitees hands an admin the ids to aim at.
 describe("work cannot be assigned to someone who is not on the board", () => {
   it("refuses the assignment and writes nothing to the stranger inbox", async () => {
-    const { alice, aliceColumn } = await twoBoards();
+    const { alice, aliceStatus } = await twoBoards();
     const victim = await makeUser("victim");
 
     await client.patch(
@@ -210,7 +260,7 @@ describe("work cannot be assigned to someone who is not on the board", () => {
       `/api/v1/boards/${alice.boardId}/todos`,
       {
         title: "Reset your password at evil.example",
-        column_id: aliceColumn,
+        status_id: aliceStatus,
         assignee_id: victim.id,
       },
       { token: alice.token },
@@ -222,9 +272,9 @@ describe("work cannot be assigned to someone who is not on the board", () => {
   });
 
   it("refuses it on the upsert path too", async () => {
-    const { alice, aliceColumn } = await twoBoards();
+    const { alice, aliceStatus } = await twoBoards();
     const victim = await makeUser("victim");
-    const todo = await addTodo(alice, alice.boardId, aliceColumn, "mine");
+    const todo = await addTodo(alice, alice.boardId, aliceStatus, "mine");
 
     const response = await client.patch(
       `/api/v1/boards/${alice.boardId}/todos/${todo.id}`,
@@ -237,7 +287,7 @@ describe("work cannot be assigned to someone who is not on the board", () => {
   });
 
   it("still allows assigning a real member", async () => {
-    const { alice, aliceColumn } = await twoBoards();
+    const { alice, aliceStatus } = await twoBoards();
     const colleague = await makeUser("colleague");
 
     const { addMember } = await import("./fixtures.js");
@@ -246,7 +296,7 @@ describe("work cannot be assigned to someone who is not on the board", () => {
 
     const response = await client.post(
       `/api/v1/boards/${alice.boardId}/todos`,
-      { title: "real work", column_id: aliceColumn, assignee_id: colleague.id },
+      { title: "real work", status_id: aliceStatus, assignee_id: colleague.id },
       { token: alice.token },
     );
 

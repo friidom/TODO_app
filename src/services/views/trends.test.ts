@@ -15,7 +15,7 @@ function todo(over: Partial<Todo> = {}): Todo {
   return {
     id: `t-${seq}`,
     board_id: "b-1",
-    column_id: "c-todo",
+    status_id: "s-todo",
     position: 0,
     rank: "a0",
     board_key: seq,

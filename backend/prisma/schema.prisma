@@ -90,6 +90,7 @@ model boards {
   visibility       String          @default("private")
   sprints_enabled  Boolean         @default(true)
   workflow_enabled Boolean         @default(true)
+  workflow_version Int             @default(1)
   created_at       DateTime        @default(now()) @db.Timestamptz(6)
   updated_at       DateTime        @default(now()) @db.Timestamptz(6)
   next_key         Int             @default(1)
@@ -103,6 +104,7 @@ model boards {
   columns          columns[]
   notifications    notifications[]
   sprints          sprints?
+  statuses         statuses[]
   todos            todos[]
 
   @@index([owner_id])
@@ -117,17 +119,37 @@ model columns {
   title      String?
   position   BigInt?
   rank       Float?
-  category   String?
   min_limit  Int?
   max_limit  Int?
-  created_at DateTime @default(now()) @db.Timestamptz(6)
-  updated_at DateTime @default(now()) @db.Timestamptz(6)
-  boards     boards   @relation(fields: [board_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  todos      todos[]
+  created_at DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at DateTime   @default(now()) @db.Timestamptz(6)
+  boards     boards     @relation(fields: [board_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  statuses   statuses[]
 
   @@unique([id, board_id])
   @@index([board_id, position])
   @@index([board_id, rank])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model statuses {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  board_id   String   @db.Uuid
+  column_id  String   @db.Uuid
+  name       String   @db.Citext
+  category   String
+  rank       Float
+  is_hidden  Boolean  @default(false)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+  boards     boards   @relation(fields: [board_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  columns    columns  @relation(fields: [column_id, board_id], references: [id, board_id], onDelete: Restrict, onUpdate: NoAction, map: "statuses_column_id_fkey")
+  todos      todos[]
+
+  @@unique([id, board_id])
+  @@unique([board_id, name])
+  @@index([column_id, rank])
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -297,7 +319,7 @@ model sprints {
 model todos {
   id                                    String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   board_id                              String        @db.Uuid
-  column_id                             String?       @db.Uuid
+  status_id                             String?       @db.Uuid
   position                              BigInt?
   rank                                  Float?
   backlog_rank                          Float?
@@ -322,19 +344,18 @@ model todos {
   comments                              comments[]
   profiles_todos_assignee_idToprofiles  profiles?     @relation("todos_assignee_idToprofiles", fields: [assignee_id], references: [id], onUpdate: NoAction)
   boards                                boards        @relation(fields: [board_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  columns                               columns?      @relation(fields: [column_id, board_id], references: [id, board_id], onUpdate: NoAction, map: "todos_column_id_fkey")
   profiles_todos_completed_byToprofiles profiles?     @relation("todos_completed_byToprofiles", fields: [completed_by], references: [id], onUpdate: NoAction)
   profiles_todos_creator_idToprofiles   profiles?     @relation("todos_creator_idToprofiles", fields: [creator_id], references: [id], onUpdate: NoAction)
   todos                                 todos?        @relation("todosTotodos", fields: [parent_id, board_id], references: [id, board_id], onDelete: Cascade, onUpdate: NoAction, map: "todos_parent_id_fkey")
   other_todos                           todos[]       @relation("todosTotodos")
   sprints                               sprints?      @relation(fields: [sprint_id, board_id], references: [id, board_id], onDelete: SetNull, onUpdate: NoAction, map: "todos_sprint_id_fkey")
+  statuses                              statuses?     @relation(fields: [status_id, board_id], references: [id, board_id], onDelete: Restrict, onUpdate: NoAction, map: "todos_status_id_fkey")
 
   @@unique([board_id, board_key], map: "todos_board_key_unique")
   @@unique([id, board_id])
-  @@index([board_id], map: "todos_backlog_idx", where: raw("(column_id IS NULL)"))
+  @@index([board_id], map: "todos_backlog_idx", where: raw("(status_id IS NULL)"))
   @@index([board_id])
-  @@index([column_id, position])
-  @@index([column_id, rank])
+  @@index([status_id, rank])
   @@index([parent_id], map: "todos_parent_idx", where: raw("(parent_id IS NOT NULL)"))
   @@index([sprint_id], where: raw("(sprint_id IS NOT NULL)"))
   @@index([completed_at(sort: Desc)], map: "todos_completed_idx", where: raw("(completed_at IS NOT NULL)"))

@@ -367,7 +367,7 @@ function Body({
 
             <StatusControl
               todoId={todo.id}
-              columnId={todo.column_id}
+              statusId={todo.status_id}
               variant="field"
             />
           </div>

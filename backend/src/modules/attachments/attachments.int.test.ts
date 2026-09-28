@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 
 import { prisma } from "../../db/prisma.js";
 import { disconnect, resetDatabase } from "../../testing/db.js";
-import { addMember, firstColumnOf, makeUser, type TestUser } from "../../testing/fixtures.js";
+import { addMember, firstStatusOf, makeUser, type TestUser } from "../../testing/fixtures.js";
 import { startTestServer, type TestClient } from "../../testing/httpClient.js";
 import { MAX_ATTACHMENT_BYTES } from "./attachments.upload.js";
 
@@ -72,7 +72,7 @@ interface Attachment {
 
 async function board(roles: ("viewer" | "editor" | "admin")[] = []) {
   const owner = await makeUser("owner");
-  const column = await firstColumnOf(owner.boardId);
+  const status = await firstStatusOf(owner.boardId);
   const members: Record<string, TestUser> = {};
 
   for (const role of roles) {
@@ -84,11 +84,11 @@ async function board(roles: ("viewer" | "editor" | "admin")[] = []) {
 
   const todo = await client.post<{ id: string }>(
     `/api/v1/boards/${owner.boardId}/todos`,
-    { title: "Card", column_id: column.id },
+    { title: "Card", status_id: status.id },
     { token: owner.token },
   );
 
-  return { owner, boardId: owner.boardId, todoId: todo.body.id, members, columnId: column.id };
+  return { owner, boardId: owner.boardId, todoId: todo.body.id, members, statusId: status.id };
 }
 
 function url(todoId: string, suffix = ""): string {
@@ -230,10 +230,10 @@ describe("GET /todos/:todoId/attachments", () => {
   });
 
   it("does not leak another card's files", async () => {
-    const { owner, boardId, todoId, columnId } = await board();
+    const { owner, boardId, todoId, statusId } = await board();
     const other = await client.post<{ id: string }>(
       `/api/v1/boards/${boardId}/todos`,
-      { title: "Other", column_id: columnId },
+      { title: "Other", status_id: statusId },
       { token: owner.token },
     );
 
@@ -314,10 +314,10 @@ describe("GET /todos/:todoId/attachments/:attachmentId/content", () => {
   // boardAccess proves the two ids share a board, not that one hangs off the
   // other — that is the repo's (board, todo, attachment) scope.
   it("answers 404 for a file on a different card of the SAME board", async () => {
-    const { owner, boardId, todoId, columnId } = await board();
+    const { owner, boardId, todoId, statusId } = await board();
     const other = await client.post<{ id: string }>(
       `/api/v1/boards/${boardId}/todos`,
-      { title: "Other", column_id: columnId },
+      { title: "Other", status_id: statusId },
       { token: owner.token },
     );
     const created = await attach(owner, todoId);
@@ -379,10 +379,10 @@ describe("DELETE /todos/:todoId/attachments/:attachmentId", () => {
   });
 
   it("answers 404 for a file on another card, leaving it alone", async () => {
-    const { owner, boardId, todoId, columnId } = await board();
+    const { owner, boardId, todoId, statusId } = await board();
     const other = await client.post<{ id: string }>(
       `/api/v1/boards/${boardId}/todos`,
-      { title: "Other", column_id: columnId },
+      { title: "Other", status_id: statusId },
       { token: owner.token },
     );
     const created = await attach(owner, todoId);

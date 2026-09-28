@@ -38,7 +38,7 @@ export default function ActivityFeed({
   const { data: todos = [] } = useTodos();
   const keyPrefix = useKeyPrefix();
 
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
 
   const context = useMemo<ActivityContext>(
     () => ({
@@ -48,8 +48,9 @@ export default function ActivityFeed({
       ),
       // so a row about a deleted task renders as text instead of a dead link
       liveTaskIds: new Set(todos.map((todo) => todo.id)),
+      t: (key, values) => t(key, values),
     }),
-    [keyPrefix, members, todos],
+    [keyPrefix, members, todos, t],
   );
 
   const shown = limit ? activities?.slice(0, limit) : activities;

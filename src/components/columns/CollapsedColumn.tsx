@@ -3,28 +3,35 @@ import { useDraggable } from "@dnd-kit/core";
 import LimitWarning from "./LimitWarning";
 import { COUNT_CHIP } from "./columnChrome";
 import IconButton from "@/components/ui/IconButton";
-import { categoryOf } from "@/constants/columns";
+import { categoryOf, type ColumnCategory } from "@/constants/columns";
 import { limitBreach } from "@/services/columns/limitBreach";
 import { cn } from "@/utils/cn";
 import type { IColumn } from "@/types/data";
 
 interface Props {
   column: IColumn;
+  // Its first visible status's — a column has no category of its own.
+  category: ColumnCategory;
   headerTitle: string;
   count: number;
   onExpand: () => void;
+  // Column order is the workflow's, so only someone who may publish it can drag one.
+  reorderDisabled?: boolean;
 }
 
 // Same draggable id/type as the expanded column — only one of the two ever renders, so ids never collide.
 export default function CollapsedColumn({
   column,
+  category,
   headerTitle,
   count,
   onExpand,
+  reorderDisabled = false,
 }: Props) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: column.id,
     data: { type: "column", columnId: column.id },
+    disabled: reorderDisabled,
   });
 
   const breach = limitBreach(column, count);
@@ -42,12 +49,15 @@ export default function CollapsedColumn({
         {...listeners}
         aria-label={`Reorder ${headerTitle} column`}
         aria-roledescription="column"
-        className="focus-visible:ring-brand rounded-control flex min-h-0 cursor-grab touch-none flex-col items-center gap-2 px-1 py-1 outline-none select-none focus-visible:ring-2 active:cursor-grabbing"
+        className={cn(
+          "focus-visible:ring-brand rounded-control flex min-h-0 touch-none flex-col items-center gap-2 px-1 py-1 outline-none select-none focus-visible:ring-2",
+          !reorderDisabled && "cursor-grab active:cursor-grabbing",
+        )}
       >
         <span
           className={cn(
             "size-2 shrink-0 rounded-full",
-            categoryOf(column.category).dot,
+            categoryOf(category).dot,
           )}
         />
 

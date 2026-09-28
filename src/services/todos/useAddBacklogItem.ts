@@ -3,11 +3,15 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useBoardId } from "@/hooks/useBoardId";
 import { queryKeys } from "@/services/queryClient/queryKeys";
 import { DEFAULT_WORK_TYPE } from "@/constants/workTypes";
-import { useColumns } from "@/services/columns/useColumnsApi";
 import { useSprints } from "@/services/sprints/useSprints";
+import { useWorkflow } from "@/services/workflow/useWorkflow";
+import {
+  EMPTY_WORKFLOW,
+  type WorkflowModel,
+} from "@/services/workflow/statuses";
 import { activeSprintIdOf } from "@/services/sprints/activeSprint";
 import { backlogRankForAppend } from "@/utils/backlogRank";
-import type { IColumn, Sprint, Todo } from "@/types/data";
+import type { Sprint, Todo } from "@/types/data";
 import { applySubtaskInserted, applyTodoUpdated } from "./cache";
 import { boardEntryOnActiveSprint } from "./backlog";
 import { addBacklogItem } from "./todoApi";
@@ -16,14 +20,14 @@ import { addBacklogItem } from "./todoApi";
 function boardEntryFor(
   sprintId: string | null,
   sprints: Sprint[],
-  columns: IColumn[],
+  workflow: WorkflowModel,
   todos: Todo[],
 ) {
   const activeSprintId = activeSprintIdOf(sprints);
 
   if (sprintId === null || sprintId !== activeSprintId) return null;
 
-  return boardEntryOnActiveSprint(columns, todos);
+  return boardEntryOnActiveSprint(workflow, todos);
 }
 
 export interface AddBacklogItemVars {
@@ -35,7 +39,7 @@ export interface AddBacklogItemVars {
 export function useAddBacklogItem() {
   const queryClient = useQueryClient();
   const boardId = useBoardId();
-  const { data: columns = [] } = useColumns();
+  const { data: workflow = EMPTY_WORKFLOW } = useWorkflow();
   const { data: sprints = [] } = useSprints();
 
   const mutation = useMutation({
@@ -51,7 +55,7 @@ export function useAddBacklogItem() {
         queryClient.getQueryData<Todo[]>(queryKeys.todos(boardId)) ?? [];
 
       const section = todos.filter((todo) => todo.sprint_id === sprintId);
-      const entry = boardEntryFor(sprintId, sprints, columns, todos);
+      const entry = boardEntryFor(sprintId, sprints, workflow, todos);
 
       return addBacklogItem({
         id,
@@ -60,7 +64,7 @@ export function useAddBacklogItem() {
         type,
         sprint_id: sprintId,
         backlog_rank: backlogRankForAppend(section),
-        column_id: entry?.column_id ?? null,
+        status_id: entry?.status_id ?? null,
         rank: entry?.rank ?? null,
       });
     },
@@ -81,13 +85,13 @@ export function useAddBacklogItem() {
       const section = previousTodos.filter(
         (todo) => todo.sprint_id === sprintId,
       );
-      const entry = boardEntryFor(sprintId, sprints, columns, previousTodos);
+      const entry = boardEntryFor(sprintId, sprints, workflow, previousTodos);
 
       const optimisticTodo: Todo = {
         id,
         title,
         board_id: boardId,
-        column_id: entry?.column_id ?? null,
+        status_id: entry?.status_id ?? null,
         position: null,
         rank: entry?.rank ?? null,
         backlog_rank: backlogRankForAppend(section),

@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "@/services/auth/useAuth";
 import { queryKeys } from "@/services/queryClient/queryKeys";
-import type { Comment, IColumn, Todo } from "@/types/data";
+import type { Comment, IColumn, IWorkflow, Todo } from "@/types/data";
 import {
   applyColumnEvent,
   applyCommentEvent,
@@ -29,7 +29,7 @@ export function useBoardRealtime(boardId: string | undefined): string[] {
     if (!boardId || !userId) return;
 
     const todosKey = queryKeys.todos(boardId);
-    const columnsKey = queryKeys.columns(boardId);
+    const workflowKey = queryKeys.workflow(boardId);
 
     // Skip the write if the cache entry doesn't exist yet — a fresh one holding one row would look like a fully loaded board.
     function patchTodos(change: RowChange<Todo>) {
@@ -38,9 +38,11 @@ export function useBoardRealtime(boardId: string | undefined): string[] {
       );
     }
 
+    // Only a column's limits still change row by row; anything structural is a
+    // publish, which arrives as a "workflow" invalidate instead.
     function patchColumns(change: RowChange<IColumn>) {
-      queryClient.setQueryData<IColumn[]>(columnsKey, (old) =>
-        old ? applyColumnEvent(old, change) : old,
+      queryClient.setQueryData<IWorkflow>(workflowKey, (old) =>
+        old ? { ...old, columns: applyColumnEvent(old.columns, change) } : old,
       );
     }
 

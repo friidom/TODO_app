@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 interface Props {
-  onSetLimit: () => void;
+  onSetLimit?: () => void;
   onDelete: () => void;
   onMoveLeft?: () => void;
   onMoveRight?: () => void;
@@ -41,12 +41,14 @@ export default function ColumnMenu({
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" className="min-w-52">
-        <DropdownMenuItem onClick={onSetLimit}>
-          <Gauge />
-          Set column limit
-        </DropdownMenuItem>
+        {onSetLimit && (
+          <DropdownMenuItem onClick={onSetLimit}>
+            <Gauge />
+            Set column limit
+          </DropdownMenuItem>
+        )}
 
-        {(onMoveLeft || onMoveRight) && <DropdownMenuSeparator />}
+        {onSetLimit && (onMoveLeft || onMoveRight) && <DropdownMenuSeparator />}
 
         {onMoveLeft && (
           <DropdownMenuItem onClick={onMoveLeft}>
@@ -64,7 +66,9 @@ export default function ColumnMenu({
 
         {canDelete && (
           <>
-            <DropdownMenuSeparator />
+            {(onSetLimit || onMoveLeft || onMoveRight) && (
+              <DropdownMenuSeparator />
+            )}
 
             <DropdownMenuItem variant="destructive" onClick={onDelete}>
               <Trash2 />

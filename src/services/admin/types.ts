@@ -358,6 +358,9 @@ export interface AdminTodoDetail {
     type: string;
     priority: string | null;
     estimate: number | null;
+    // The card's status, and the column that shows it; all null for backlog work.
+    status_id: string | null;
+    status_name: string | null;
     column_id: string | null;
     column_title: string | null;
     category: string | null;

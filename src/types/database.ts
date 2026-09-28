@@ -288,7 +288,6 @@ export type Database = {
       columns: {
         Row: {
           board_id: string
-          category: string | null
           created_at: string
           id: string
           max_limit: number | null
@@ -300,7 +299,6 @@ export type Database = {
         }
         Insert: {
           board_id: string
-          category?: string | null
           created_at?: string
           id?: string
           max_limit?: number | null
@@ -312,7 +310,6 @@ export type Database = {
         }
         Update: {
           board_id?: string
-          category?: string | null
           created_at?: string
           id?: string
           max_limit?: number | null
@@ -554,7 +551,6 @@ export type Database = {
           backlog_rank: number | null
           board_id: string
           board_key: number | null
-          column_id: string | null
           created_at: string
           creator_id: string | null
           description: string | null
@@ -569,6 +565,7 @@ export type Database = {
           sprint_id: string | null
           start_date: string | null
           status: string | null
+          status_id: string | null
           title: string | null
           type: string
           updated_at: string | null
@@ -579,7 +576,6 @@ export type Database = {
           backlog_rank?: number | null
           board_id: string
           board_key?: number | null
-          column_id?: string | null
           created_at?: string
           creator_id?: string | null
           description?: string | null
@@ -594,6 +590,7 @@ export type Database = {
           sprint_id?: string | null
           start_date?: string | null
           status?: string | null
+          status_id?: string | null
           title?: string | null
           type?: string
           updated_at?: string | null
@@ -604,7 +601,6 @@ export type Database = {
           backlog_rank?: number | null
           board_id?: string
           board_key?: number | null
-          column_id?: string | null
           created_at?: string
           creator_id?: string | null
           description?: string | null
@@ -619,6 +615,7 @@ export type Database = {
           sprint_id?: string | null
           start_date?: string | null
           status?: string | null
+          status_id?: string | null
           title?: string | null
           type?: string
           updated_at?: string | null
@@ -639,10 +636,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "todos_column_id_fkey"
-            columns: ["column_id", "board_id"]
+            foreignKeyName: "todos_status_id_fkey"
+            columns: ["status_id", "board_id"]
             isOneToOne: false
-            referencedRelation: "columns"
+            referencedRelation: "statuses"
             referencedColumns: ["id", "board_id"]
           },
           {

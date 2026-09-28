@@ -6,6 +6,8 @@ import { Plus } from "lucide-react";
 import React, { useCallback, useState, useRef, useEffect } from "react";
 import { useAddTodo } from "@/services/todos/useAddTodo";
 import { useSubtaskProgressByParent } from "@/services/todos/useSubtasks";
+import { useStatuses } from "@/services/workflow/useWorkflow";
+import { columnCategory, entryStatus } from "@/services/workflow/statuses";
 import DropZone from "./DropZone";
 import TodoCreateForm, { type CreateDraft } from "./TodoCreateForm";
 import ColumnHeader, { type TransitionPill } from "../columns/ColumnHeader";
@@ -39,7 +41,9 @@ interface Props {
   // one lane's slice of the column — no menu, no Create button, no height cap (those belong to the column as a whole)
   lane?: boolean;
   onCollapse: () => void;
-  onSetLimit: () => void;
+  // Each absent when the viewer may not do it: limits are canManageColumns,
+  // the rest are the workflow's.
+  onSetLimit?: () => void;
   onDelete: () => void;
   onMoveLeft?: () => void;
   onMoveRight?: () => void;
@@ -76,6 +80,17 @@ export default function KanbanColumn({
   const subtaskProgress = useSubtaskProgressByParent();
 
   const { canEditTodos } = usePermissions();
+
+  const { data: statuses = [] } = useStatuses();
+
+  // column.id, not id: a swimlane passes a lane-scoped id for its droppable.
+  const category = columnCategory(statuses, column.id);
+
+  // A new card is a first placement, not a transition, so it takes the
+  // column's first visible status whatever the workflow says. A column with no
+  // visible status cannot receive work, and offers no way to create any.
+  const newCardStatus = entryStatus(statuses, column.id);
+  const canCreate = canEditTodos && newCardStatus !== null;
 
   const { taskId } = useOpenTask();
 
@@ -135,11 +150,11 @@ export default function KanbanColumn({
   const handleAddTodo = (draft: CreateDraft) => {
     const trimmedTitle = title.trim();
 
-    if (!trimmedTitle || creatingAt === null) return;
+    if (!trimmedTitle || creatingAt === null || newCardStatus === null) return;
 
     addTodoMutation.mutate({
       title: trimmedTitle,
-      column_id: id,
+      status_id: newCardStatus.id,
       // creatingAt counts visible cards; append when the list is filtered so the index can't be wrong
       index: exactOrder ? creatingAt : undefined,
       ...draft,
@@ -153,7 +168,7 @@ export default function KanbanColumn({
   const isIndicatorHere = indicator?.columnId === id;
 
   const canAddAt = (gap: number) =>
-    canEditTodos && exactOrder && gap < todos.length && creatingAt !== gap;
+    canCreate && exactOrder && gap < todos.length && creatingAt !== gap;
 
   const createForm = (
     <TodoCreateForm
@@ -186,25 +201,26 @@ export default function KanbanColumn({
         aria-hidden
         className={cn(
           "pointer-events-none absolute inset-x-0 top-0 h-32 opacity-60",
-          categoryOf(column.category).band,
+          categoryOf(category).band,
         )}
       />
 
       {lane ? (
         <LaneColumnHeader
           headerTitle={headerTitle}
-          category={column.category}
+          category={category}
           count={todos.length}
         />
       ) : (
         <ColumnHeader
           column={column}
+          category={category}
           headerTitle={headerTitle}
           count={todos.length}
           isDragSource={isDragSource}
           transition={transition}
           onCollapse={onCollapse}
-          onAdd={canEditTodos ? () => openAt(todos.length) : undefined}
+          onAdd={canCreate ? () => openAt(todos.length) : undefined}
           onSetLimit={onSetLimit}
           onDelete={onDelete}
           onMoveLeft={onMoveLeft}
@@ -290,7 +306,7 @@ export default function KanbanColumn({
         </ErrorBoundary>
       </div>
 
-      {!lane && canEditTodos && (
+      {!lane && canCreate && (
         <div className="shrink-0 px-2 pb-2">
           <button
             type="button"

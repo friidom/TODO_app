@@ -11,7 +11,7 @@ import { workTypeOf } from "@/constants/workTypes";
 import { useBoardId } from "@/hooks/useBoardId";
 import type { BoardView } from "@/hooks/useBoardView";
 import { useAuth } from "@/services/auth/useAuth";
-import { useColumns } from "@/services/columns/useColumnsApi";
+import { useStatuses } from "@/services/workflow/useWorkflow";
 import { useBoardMembers } from "@/services/members/useBoardMembers";
 import {
   filterOptions,
@@ -24,6 +24,7 @@ import {
   UNSET,
   type FilterCategory,
 } from "@/services/todos/view";
+import type { IStatus } from "@/types/data";
 import { cn } from "@/utils/cn";
 import { HEADER_CONTROL_BADGE } from "./headerControl";
 import ToolbarButton from "./ToolbarButton";
@@ -41,7 +42,7 @@ const FOOTER_BUTTON =
 export default function BoardFilters({ view }: { view: BoardView }) {
   const boardId = useBoardId();
   const { user } = useAuth();
-  const { data: columns = [] } = useColumns();
+  const { data: statuses = [] } = useStatuses();
   const { data: members = [] } = useBoardMembers(boardId);
 
   const { filters, filterCount, toggleFilter, clearFilters, clearCategory } =
@@ -75,7 +76,7 @@ export default function BoardFilters({ view }: { view: BoardView }) {
   const [needle, setNeedle] = useState("");
 
   const options = filterOptions(field, {
-    columns,
+    statuses,
     members,
     currentUserId: user?.id,
   });
@@ -181,7 +182,7 @@ export default function BoardFilters({ view }: { view: BoardView }) {
                         option={option}
                         field={field}
                         members={members}
-                        columns={columns}
+                        statuses={statuses}
                         checked={filters[field].includes(option.value)}
                         onToggle={() => toggleFilter(field, option.value)}
                       />
@@ -239,14 +240,14 @@ function OptionRow({
   option,
   field,
   members,
-  columns,
+  statuses,
   checked,
   onToggle,
 }: {
   option: FilterOption;
   field: FilterCategory;
   members: ReturnType<typeof useBoardMembers>["data"] & object;
-  columns: ReturnType<typeof useColumns>["data"] & object;
+  statuses: IStatus[];
   checked: boolean;
   onToggle: () => void;
 }) {
@@ -255,9 +256,9 @@ function OptionRow({
       ? members.find((it) => it.id === option.value)
       : undefined;
 
-  const column =
+  const status =
     field === "status"
-      ? columns.find((it) => it.id === option.value)
+      ? statuses.find((it) => it.id === option.value)
       : undefined;
 
   const workType = field === "type" ? workTypeOf(option.value) : undefined;
@@ -293,11 +294,11 @@ function OptionRow({
         </span>
       ) : (
         <>
-          {column && (
+          {status && (
             <span
               className={cn(
                 "size-2 shrink-0 rounded-full",
-                categoryOf(column.category).dot,
+                categoryOf(status.category).dot,
               )}
             />
           )}

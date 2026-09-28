@@ -34,7 +34,12 @@ export interface Permissions {
   role: BoardRole | null;
   canReadBoard: boolean;
   canEditTodos: boolean;
+  // A column's advisory WIP limits. Its title, order and existence are the
+  // workflow's, and canManageWorkflow's.
   canManageColumns: boolean;
+  // Publishing the workflow: statuses, their categories, visibility and
+  // columns. admin+, matching PUT /boards/:boardId/workflow's requireRole.
+  canManageWorkflow: boolean;
   canManageMembers: boolean;
   // Board Settings (Details + Features). admin+, matching PATCH /boards/:boardId's
   // own requireRole("admin") — the two entry points used to gate on ownership,
@@ -53,6 +58,7 @@ export const NO_PERMISSIONS: Permissions = {
   canReadBoard: false,
   canEditTodos: false,
   canManageColumns: false,
+  canManageWorkflow: false,
   canManageMembers: false,
   canEditBoard: false,
   canManageAdmins: false,
@@ -72,6 +78,7 @@ export function permissionsFor(role: string | null | undefined): Permissions {
     canReadBoard: true,
     canEditTodos: rank >= RANK.editor,
     canManageColumns: rank >= RANK.editor,
+    canManageWorkflow: rank >= RANK.admin,
     canManageMembers: rank >= RANK.admin,
     canEditBoard: rank >= RANK.admin,
     canManageAdmins: rank >= RANK.owner,
