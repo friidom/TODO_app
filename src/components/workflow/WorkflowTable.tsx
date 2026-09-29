@@ -1,36 +1,31 @@
+import { ChevronRightIcon } from "lucide-react";
 import { useState } from "react";
-import { ChevronRightIcon, PlusIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { categoryLabelKey } from "@/constants/columns";
-import {
-  statusNameTaken,
-  withStatusAdded,
-  type WorkflowDraft,
-} from "@/services/workflow/draft";
+import { categoryLabelKey, categoryOf } from "@/constants/columns";
+import type { WorkflowDraft } from "@/services/workflow/draft";
 import type { WorkflowEdit } from "@/services/workflow/usePublishWorkflow";
 import { cn } from "@/utils/cn";
 
-import NameInput from "./NameInput";
-import StatusInspector from "./StatusInspector";
 import StatusLozenge from "./StatusLozenge";
-import { ADD_BUTTON } from "./workflowChrome";
+import TransitionEditor from "./TransitionEditor";
+import type { Selection } from "./WorkflowDiagram";
 
 const CELL = "px-3 py-2 text-left align-middle";
+const HEAD = "px-3 py-2 text-left text-mini font-semibold tracking-wide";
 
 export default function WorkflowTable({
   draft,
-  counts,
-  storedIds,
+  selection,
+  onSelect,
   edit,
 }: {
   draft: WorkflowDraft;
-  counts: ReadonlyMap<string, number>;
-  storedIds: ReadonlySet<string>;
+  selection: Selection;
+  onSelect: (selection: Selection) => void;
   edit: (change: WorkflowEdit) => boolean;
 }) {
   const [open, setOpen] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
   const { t } = useTranslation();
 
   const columnTitle = new Map(
@@ -40,19 +35,21 @@ export default function WorkflowTable({
   return (
     <div className="border-hairline rounded-surface overflow-hidden border">
       <table className="text-meta w-full border-collapse">
-        <thead className="bg-wash text-ink-2 text-mini tracking-wide uppercase">
+        <thead className="bg-wash text-ink-2 border-hairline border-b">
           <tr>
             <th className="w-8" />
-            <th className={cn(CELL, "font-semibold")}>Status</th>
-            <th className={cn(CELL, "font-semibold")}>Category</th>
-            <th className={cn(CELL, "font-semibold")}>Column</th>
-            <th className={cn(CELL, "text-right font-semibold")}>Out</th>
-            <th className={cn(CELL, "text-right font-semibold")}>In</th>
+            <th className={HEAD}>Status</th>
+            <th className={HEAD}>Category</th>
+            <th className={HEAD}>Column</th>
+            <th className={cn(HEAD, "w-24 text-right")}>Moves to</th>
+            <th className={cn(HEAD, "w-28 text-right")}>Reached from</th>
           </tr>
         </thead>
 
         {draft.statuses.map((status) => {
           const expanded = open === status.id;
+          const selected =
+            selection?.kind === "status" && selection.id === status.id;
           const outgoing = draft.transitions.filter(
             (edge) => edge.from === status.id,
           ).length;
@@ -61,19 +58,31 @@ export default function WorkflowTable({
           ).length;
 
           return (
-            <tbody key={status.id} className="border-hairline border-t">
-              <tr className={cn(expanded && "bg-wash")}>
+            <tbody
+              key={status.id}
+              className="border-hairline border-t first:border-t-0"
+            >
+              <tr
+                onClick={() => onSelect({ kind: "status", id: status.id })}
+                className={cn(
+                  "hover:bg-wash cursor-pointer transition-colors",
+                  selected && "bg-brand-soft hover:bg-brand-soft",
+                )}
+              >
                 <td className="pl-2">
                   <button
                     type="button"
                     aria-expanded={expanded}
-                    aria-label={`${expanded ? "Collapse" : "Expand"} ${status.name}`}
-                    onClick={() => setOpen(expanded ? null : status.id)}
-                    className="text-ink-3 hover:text-ink focus-visible:ring-brand rounded-control grid size-6 place-items-center outline-none focus-visible:ring-2"
+                    aria-label={`${expanded ? "Collapse" : "Expand"} ${status.name} transitions`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setOpen(expanded ? null : status.id);
+                    }}
+                    className="text-ink-3 hover:text-ink hover:bg-wash-strong focus-visible:ring-brand rounded-control grid size-6 place-items-center outline-none focus-visible:ring-2"
                   >
                     <ChevronRightIcon
                       className={cn(
-                        "size-4 transition-transform",
+                        "size-4 transition-transform duration-150",
                         expanded && "rotate-90",
                       )}
                     />
@@ -89,21 +98,40 @@ export default function WorkflowTable({
                 </td>
 
                 <td className={cn(CELL, "text-ink-2")}>
-                  {t(categoryLabelKey(status.category))}
+                  <span className="flex items-center gap-1.5">
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "size-2 shrink-0 rounded-full",
+                        categoryOf(status.category).dot,
+                      )}
+                    />
+                    {t(categoryLabelKey(status.category))}
+                  </span>
                 </td>
 
                 <td className={cn(CELL, "text-ink-2")}>
-                  {status.column_id
-                    ? (columnTitle.get(status.column_id) ?? "")
-                    : "Unmapped"}
+                  {status.column_id ? (
+                    (columnTitle.get(status.column_id) ?? "")
+                  ) : (
+                    <span className="text-ink-3">Unmapped</span>
+                  )}
                 </td>
 
                 <td className={cn(CELL, "text-ink-2 text-right tabular-nums")}>
-                  {outgoing}
+                  {outgoing === 0 ? (
+                    <span className="text-ink-3">—</span>
+                  ) : (
+                    outgoing
+                  )}
                 </td>
 
                 <td className={cn(CELL, "text-ink-2 text-right tabular-nums")}>
-                  {incoming}
+                  {incoming === 0 ? (
+                    <span className="text-ink-3">—</span>
+                  ) : (
+                    incoming
+                  )}
                 </td>
               </tr>
 
@@ -112,13 +140,10 @@ export default function WorkflowTable({
                   <td />
 
                   <td colSpan={5} className="px-3 pt-1 pb-4">
-                    <StatusInspector
+                    <TransitionEditor
                       draft={draft}
                       statusId={status.id}
-                      counts={counts}
-                      storedIds={storedIds}
                       edit={edit}
-                      onDeleted={() => setOpen(null)}
                     />
                   </td>
                 </tr>
@@ -127,48 +152,6 @@ export default function WorkflowTable({
           );
         })}
       </table>
-
-      <div className="border-hairline border-t p-2">
-        {adding ? (
-          <NameInput
-            label="New status name"
-            placeholder="Status name"
-            validate={(name) =>
-              statusNameTaken(draft, name)
-                ? t("workflow.statusNameTaken", { name })
-                : null
-            }
-            onSubmit={(name) => {
-              const id = crypto.randomUUID();
-
-              if (
-                edit((next) =>
-                  withStatusAdded(next, {
-                    id,
-                    columnId: null,
-                    name,
-                    category: "todo",
-                  }),
-                )
-              ) {
-                setOpen(id);
-              }
-
-              setAdding(false);
-            }}
-            onCancel={() => setAdding(false)}
-          />
-        ) : (
-          <button
-            type="button"
-            onClick={() => setAdding(true)}
-            className={ADD_BUTTON}
-          >
-            <PlusIcon />
-            Add status
-          </button>
-        )}
-      </div>
     </div>
   );
 }

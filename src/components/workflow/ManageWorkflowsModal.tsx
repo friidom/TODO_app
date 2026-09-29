@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
-  LayoutGridIcon,
+  ArrowRightIcon,
   NetworkIcon,
   PlusIcon,
+  SplineIcon,
   TableIcon,
   Trash2Icon,
   TriangleAlertIcon,
@@ -28,7 +29,9 @@ import {
   sameWorkflow,
   statusNameTaken,
   withStatusAdded,
+  withTransitionAdded,
   withTransitionRemoved,
+  type WorkflowDraft,
 } from "@/services/workflow/draft";
 import type { WorkflowModel } from "@/services/workflow/statuses";
 import {
@@ -44,9 +47,10 @@ import StatusInspector from "./StatusInspector";
 import StatusLozenge from "./StatusLozenge";
 import WorkflowDiagram, { type Selection } from "./WorkflowDiagram";
 import WorkflowTable from "./WorkflowTable";
+import { SELECT } from "./workflowChrome";
 
 const TITLE = "Manage workflow";
-const WIDTH = "w-[min(1120px,calc(100vw-2rem))]";
+const WIDTH = "w-[min(1400px,calc(100vw-2rem))]";
 
 type Mode = "diagram" | "text";
 
@@ -101,6 +105,7 @@ function ManageWorkflowsDialog({
     defaultLayout(base.statuses),
   );
   const [adding, setAdding] = useState(false);
+  const [connecting, setConnecting] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const { t } = useTranslation();
 
@@ -189,9 +194,9 @@ function ManageWorkflowsDialog({
 
   return (
     <Modal title={TITLE} onClose={requestClose} width={WIDTH}>
-      <div className="flex max-h-[calc(100dvh-4.5rem-2px)] flex-col">
-        <div className="mb-3 flex items-start justify-between gap-4">
-          <div>
+      <div className="flex h-[min(54rem,calc(100dvh-5rem))] flex-col">
+        <header className="flex items-start justify-between gap-4 pb-3">
+          <div className="min-w-0">
             <h2 className={DIALOG_TITLE}>{TITLE}</h2>
 
             <p className="text-ink-3 text-meta mt-0.5">
@@ -206,13 +211,13 @@ function ManageWorkflowsDialog({
             size="md"
             tooltip={false}
             onClick={requestClose}
-            className="-mt-1"
+            className="-mt-1 shrink-0"
           >
             <XIcon />
           </IconButton>
-        </div>
+        </header>
 
-        <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="border-hairline flex flex-wrap items-center gap-2 border-y py-2">
           <div
             role="tablist"
             aria-label="Workflow view"
@@ -233,47 +238,66 @@ function ManageWorkflowsDialog({
             />
           </div>
 
-          {mode === "diagram" && (
-            <button
-              type="button"
-              onClick={() => setPositions(defaultLayout(draft.statuses))}
-              className="text-ink-2 hover:bg-wash-strong rounded-control text-meta flex h-8 items-center gap-1.5 px-2 font-medium [&_svg]:size-4"
+          <span aria-hidden className="bg-hairline mx-1 h-6 w-px" />
+
+          {adding ? (
+            <NameInput
+              label="New status name"
+              placeholder="Status name"
+              validate={(name) =>
+                statusNameTaken(draft, name)
+                  ? t("workflow.statusNameTaken", { name })
+                  : null
+              }
+              onSubmit={addStatus}
+              onCancel={() => setAdding(false)}
+            />
+          ) : (
+            <BarButton
+              onClick={() => {
+                setAdding(true);
+                setConnecting(false);
+              }}
+              icon={<PlusIcon />}
             >
-              <LayoutGridIcon />
-              Auto-arrange
-            </button>
+              Add status
+            </BarButton>
           )}
 
-          <div className="ml-auto">
-            {adding ? (
-              <NameInput
-                label="New status name"
-                placeholder="Status name"
-                validate={(name) =>
-                  statusNameTaken(draft, name)
-                    ? t("workflow.statusNameTaken", { name })
-                    : null
-                }
-                onSubmit={addStatus}
-                onCancel={() => setAdding(false)}
-              />
-            ) : (
-              <button
-                type="button"
-                onClick={() => setAdding(true)}
-                className="text-ink-2 hover:bg-wash-strong rounded-control text-meta flex h-8 items-center gap-1.5 px-2 font-medium [&_svg]:size-4"
-              >
-                <PlusIcon />
-                Add status
-              </button>
-            )}
-          </div>
+          <BarButton
+            active={connecting}
+            disabled={draft.statuses.length < 2}
+            onClick={() => {
+              setConnecting((open) => !open);
+              setAdding(false);
+            }}
+            icon={<SplineIcon />}
+          >
+            Add transition
+          </BarButton>
+
+          <p className="text-ink-3 text-mini ml-auto tabular-nums">
+            {draft.statuses.length} statuses · {draft.transitions.length}{" "}
+            transitions
+          </p>
         </div>
+
+        {connecting && (
+          <TransitionComposer
+            draft={draft}
+            onAdd={(from, to) => {
+              edit((next) => withTransitionAdded(next, from, to));
+              setSelection({ kind: "edge", from, to });
+              setConnecting(false);
+            }}
+            onCancel={() => setConnecting(false)}
+          />
+        )}
 
         {stale && (
           <p
             role="alert"
-            className="border-status-orange/40 bg-status-orange/10 text-ink-2 rounded-control text-meta mb-3 flex gap-2.5 border px-3 py-2.5"
+            className="border-status-orange/40 bg-status-orange/10 text-ink-2 rounded-control text-meta mt-3 flex gap-2.5 border px-3 py-2.5"
           >
             <TriangleAlertIcon className="text-status-orange mt-0.5 size-4 shrink-0" />
 
@@ -291,42 +315,49 @@ function ManageWorkflowsDialog({
           </p>
         )}
 
-        <div className="min-h-0 flex-1 overflow-auto">
-          {mode === "diagram" ? (
-            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="grid min-h-0 flex-1 gap-3 pt-3 lg:grid-cols-[minmax(0,1fr)_22rem]">
+          <div className="flex min-h-0 min-w-0 flex-col">
+            {draft.statuses.length === 0 ? (
+              <EmptyWorkflow onAdd={() => setAdding(true)} />
+            ) : mode === "diagram" ? (
               <WorkflowDiagram
                 draft={draft}
                 layout={layout}
                 onMove={(id, at: Point) =>
                   setPositions((previous) => ({ ...previous, [id]: at }))
                 }
+                onAutoArrange={() =>
+                  setPositions(defaultLayout(draft.statuses))
+                }
                 selection={current}
                 onSelect={setSelection}
                 edit={edit}
               />
-
-              <aside
-                aria-label="Details"
-                className="border-hairline rounded-surface bg-surface min-h-[22rem] border p-3"
-              >
-                <Details
+            ) : (
+              <div className="min-h-0 flex-1 overflow-auto">
+                <WorkflowTable
                   draft={draft}
                   selection={current}
-                  counts={counts}
-                  storedIds={storedIds}
+                  onSelect={setSelection}
                   edit={edit}
-                  onClear={() => setSelection(null)}
                 />
-              </aside>
-            </div>
-          ) : (
-            <WorkflowTable
+              </div>
+            )}
+          </div>
+
+          <aside
+            aria-label="Details"
+            className="border-hairline rounded-surface bg-surface flex min-h-0 flex-col overflow-y-auto border max-lg:max-h-80"
+          >
+            <Details
               draft={draft}
+              selection={current}
               counts={counts}
               storedIds={storedIds}
               edit={edit}
+              onClear={() => setSelection(null)}
             />
-          )}
+          </aside>
         </div>
 
         {publish.error && !confirmDiscard && (
@@ -394,7 +425,7 @@ function ModeTab({
 }: {
   active: boolean;
   onClick: () => void;
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
 }) {
   return (
@@ -414,6 +445,138 @@ function ModeTab({
   );
 }
 
+function BarButton({
+  onClick,
+  icon,
+  children,
+  active = false,
+  disabled = false,
+}: {
+  onClick: () => void;
+  icon: ReactNode;
+  children: ReactNode;
+  active?: boolean;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-pressed={active}
+      className={cn(
+        "rounded-control text-meta focus-visible:ring-brand flex h-8 items-center gap-1.5 px-2 font-medium transition-colors outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4",
+        active ? "bg-brand-soft text-brand" : "text-ink-2 hover:bg-wash-strong",
+      )}
+    >
+      {icon}
+      {children}
+    </button>
+  );
+}
+
+// Jira's "Add Transition": name both ends up front, rather than making the
+// reader find the source on the canvas and drag from it.
+function TransitionComposer({
+  draft,
+  onAdd,
+  onCancel,
+}: {
+  draft: WorkflowDraft;
+  onAdd: (from: string, to: string) => void;
+  onCancel: () => void;
+}) {
+  const [from, setFrom] = useState(draft.statuses[0]?.id ?? "");
+  const [to, setTo] = useState(draft.statuses[1]?.id ?? "");
+
+  const duplicate = from !== "" && hasEdge(draft, from, to);
+  const invalid = from === "" || to === "" || from === to || duplicate;
+
+  return (
+    <div className="border-hairline bg-wash rounded-surface mt-3 flex flex-wrap items-end gap-2 border p-3">
+      <label className="text-ink-2 text-mini grid min-w-40 flex-1 gap-1 font-medium">
+        From
+        <select
+          value={from}
+          onChange={(event) => setFrom(event.target.value)}
+          className={SELECT}
+        >
+          {draft.statuses.map((status) => (
+            <option key={status.id} value={status.id}>
+              {status.name}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <ArrowRightIcon aria-hidden className="text-ink-3 mb-2 size-4 shrink-0" />
+
+      <label className="text-ink-2 text-mini grid min-w-40 flex-1 gap-1 font-medium">
+        To
+        <select
+          value={to}
+          onChange={(event) => setTo(event.target.value)}
+          className={SELECT}
+        >
+          {draft.statuses.map((status) => (
+            <option key={status.id} value={status.id}>
+              {status.name}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <button
+        type="button"
+        disabled={invalid}
+        onClick={() => onAdd(from, to)}
+        className={cn(DIALOG_CONFIRM, "h-8")}
+      >
+        Add
+      </button>
+
+      <button
+        type="button"
+        onClick={onCancel}
+        className={cn(DIALOG_CANCEL, "h-8")}
+      >
+        Cancel
+      </button>
+
+      {from !== "" && (duplicate || from === to) && (
+        <p role="status" className="text-ink-3 text-mini basis-full">
+          {from === to
+            ? "A status cannot transition to itself."
+            : "That transition already exists."}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function EmptyWorkflow({ onAdd }: { onAdd: () => void }) {
+  return (
+    <div className="border-hairline rounded-surface bg-wash grid flex-1 place-items-center border border-dashed p-8 text-center">
+      <div>
+        <p className="text-ink text-meta font-medium">No statuses yet</p>
+
+        <p className="text-ink-3 text-mini mx-auto mt-1 max-w-72">
+          A workflow needs at least one status before work can move through it.
+        </p>
+
+        <button
+          type="button"
+          onClick={onAdd}
+          className={cn(DIALOG_CONFIRM, "mt-4")}
+        >
+          <PlusIcon className="size-4" />
+          Add status
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function Details({
   draft,
   selection,
@@ -422,7 +585,7 @@ function Details({
   edit,
   onClear,
 }: {
-  draft: Parameters<typeof StatusInspector>[0]["draft"];
+  draft: WorkflowDraft;
   selection: Selection;
   counts: ReadonlyMap<string, number>;
   storedIds: ReadonlySet<string>;
@@ -450,37 +613,81 @@ function Details({
     if (!from || !to) return null;
 
     return (
-      <div className="flex flex-col gap-3">
-        <h3 className="text-ink-2 text-mini font-semibold tracking-wide uppercase">
-          Transition
-        </h3>
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="border-hairline border-b px-3 py-2.5">
+          <h3 className="text-ink text-meta font-semibold">Transition</h3>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <StatusLozenge name={from.name} category={from.category} />
-          <span aria-hidden>→</span>
-          <StatusLozenge name={to.name} category={to.category} />
+          <p className="text-ink-3 text-mini mt-0.5">
+            One allowed move. Work can go this way; every other way is refused
+            unless its own transition says otherwise.
+          </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => {
-            edit((next) => withTransitionRemoved(next, from.id, to.id));
-            onClear();
-          }}
-          className="text-status-red hover:bg-status-red/10 rounded-control text-meta flex h-8 w-fit items-center gap-1.5 px-2 font-medium [&_svg]:size-4"
-        >
-          <Trash2Icon />
-          Remove transition
-        </button>
+        <div className="flex flex-col gap-3 p-3">
+          <Field label="From">
+            <StatusLozenge
+              name={from.name}
+              category={from.category}
+              hidden={from.is_hidden}
+            />
+          </Field>
+
+          <div className="text-ink-3 flex items-center gap-1.5">
+            <ArrowRightIcon aria-hidden className="size-4 rotate-90" />
+            <span className="text-mini">moves to</span>
+          </div>
+
+          <Field label="To">
+            <StatusLozenge
+              name={to.name}
+              category={to.category}
+              hidden={to.is_hidden}
+            />
+          </Field>
+        </div>
+
+        <div className="border-hairline mt-auto border-t p-3">
+          <button
+            type="button"
+            onClick={() => {
+              edit((next) => withTransitionRemoved(next, from.id, to.id));
+              onClear();
+            }}
+            className="text-status-red hover:bg-status-red/10 rounded-control text-meta flex h-8 w-full items-center gap-1.5 px-2 font-medium [&_svg]:size-4"
+          >
+            <Trash2Icon />
+            Remove transition
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <p className="text-ink-3 text-meta leading-relaxed">
-      Select a status to rename it or edit its transitions. Hover a status and
-      drag from its right-hand dot onto another status to connect them. Select
-      an arrow to remove it.
-    </p>
+    <div className="flex flex-col">
+      <div className="border-hairline border-b px-3 py-2.5">
+        <h3 className="text-ink text-meta font-semibold">Details</h3>
+
+        <p className="text-ink-3 text-mini mt-0.5">Nothing selected.</p>
+      </div>
+
+      <div className="text-ink-3 text-mini flex flex-col gap-2 p-3 leading-relaxed">
+        <p>
+          Select a status to rename it, change its category or edit the
+          transitions in and out of it.
+        </p>
+
+        <p>Select an arrow to see the move it allows and remove it.</p>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="grid gap-1">
+      <span className="text-ink-2 text-mini font-medium">{label}</span>
+      <span className="flex min-w-0">{children}</span>
+    </div>
   );
 }

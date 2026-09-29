@@ -283,7 +283,13 @@ function Tab({
               : "text-ink-3 hover:text-ink hover:after:bg-hairline",
           )}
         >
-          <Icon className={cn("size-4 shrink-0", selected && "text-brand")} />
+          <Icon
+            className={cn(
+              "size-4 shrink-0 transition-opacity duration-150",
+              "group-focus-within/tab:opacity-0 group-hover/tab:opacity-0 group-has-[[aria-expanded=true]]/tab:opacity-0",
+              selected && "text-brand",
+            )}
+          />
           <span className="max-w-48 truncate">{label}</span>
         </button>
       )}
@@ -307,7 +313,9 @@ function Tab({
 }
 
 // Laid over the tab's icon, as Jira does, so it costs the label no width and
-// the tab does not grow on hover.
+// the tab does not grow on hover. The icon fades out beneath it rather than the
+// button masking it: a mask has to match whatever it sits on, and this strip is
+// canvas while control chrome is surface, so the mask read as a lighter patch.
 function TabMenu({
   label,
   selected,
@@ -348,7 +356,7 @@ function TabMenu({
             size="xs"
             data-no-drag
             tabIndex={selected ? 0 : -1}
-            className="bg-surface absolute top-1/2 left-1 -translate-y-1/2 opacity-0 group-focus-within/tab:opacity-100 group-hover/tab:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100"
+            className="absolute top-1/2 left-1 -translate-y-1/2 opacity-0 transition-opacity duration-150 group-focus-within/tab:opacity-100 group-hover/tab:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100"
           />
         }
       >

@@ -10,6 +10,7 @@ import { useSprints } from "@/services/sprints/useSprints";
 import type { Sprint } from "@/types/data";
 import { cn } from "@/utils/cn";
 import { formatDue, todayISO } from "@/utils/dueDate";
+import SprintDetails from "./SprintDetails";
 import ToolbarButton from "./ToolbarButton";
 
 // No Start sprint here: with nothing running the board shows its "No active sprint" state, which already routes to
@@ -55,6 +56,8 @@ export default function SprintControls() {
           className="text-ink font-medium"
         />
       )}
+
+      <SprintDetails sprint={sprint} />
 
       <span
         aria-hidden

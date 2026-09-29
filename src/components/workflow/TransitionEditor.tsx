@@ -1,4 +1,5 @@
-import { ArrowRightIcon, XIcon } from "lucide-react";
+import { useState } from "react";
+import { ChevronRightIcon, PlusIcon, XIcon } from "lucide-react";
 
 import IconButton from "@/components/ui/IconButton";
 import {
@@ -7,6 +8,7 @@ import {
   type WorkflowDraft,
 } from "@/services/workflow/draft";
 import type { WorkflowEdit } from "@/services/workflow/usePublishWorkflow";
+import { cn } from "@/utils/cn";
 
 import StatusLozenge from "./StatusLozenge";
 import { SELECT } from "./workflowChrome";
@@ -25,9 +27,19 @@ export default function TransitionEditor({
   edit: (change: WorkflowEdit) => boolean;
 }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      <Group direction="out" draft={draft} statusId={statusId} edit={edit} />
-      <Group direction="in" draft={draft} statusId={statusId} edit={edit} />
+    <div className="flex flex-col gap-2">
+      <div>
+        <h4 className="text-ink text-meta font-semibold">Transitions</h4>
+
+        <p className="text-ink-3 text-mini mt-0.5 leading-relaxed">
+          Transitions are the moves work can make out of and into this status.
+        </p>
+      </div>
+
+      <div className="border-hairline rounded-control divide-hairline divide-y border">
+        <Group direction="out" draft={draft} statusId={statusId} edit={edit} />
+        <Group direction="in" draft={draft} statusId={statusId} edit={edit} />
+      </div>
     </div>
   );
 }
@@ -44,6 +56,9 @@ function Group({
   edit: (change: WorkflowEdit) => boolean;
 }) {
   const outgoing = direction === "out";
+  const [open, setOpen] = useState(true);
+  const [adding, setAdding] = useState(false);
+
   const byId = new Map(draft.statuses.map((status) => [status.id, status]));
 
   const others = draft.transitions
@@ -56,84 +71,127 @@ function Group({
     (status) => status.id !== statusId && !connected.has(status.id),
   );
   const self = byId.get(statusId);
+  const label = outgoing ? "Outgoing" : "Incoming";
 
   function pair(otherId: string): [string, string] {
     return outgoing ? [statusId, otherId] : [otherId, statusId];
   }
 
   return (
-    <section aria-label={outgoing ? "Outgoing transitions" : "Incoming transitions"}>
-      <h4 className="text-ink-2 text-mini mb-1.5 font-semibold tracking-wide uppercase">
-        {outgoing ? "Can move to" : "Can be reached from"}
-      </h4>
-
-      {others.length === 0 ? (
-        <p className="text-ink-3 text-mini mb-2">
-          {outgoing
-            ? "Work in this status can't move anywhere."
-            : "No status leads here."}
-        </p>
-      ) : (
-        <ul className="mb-2 flex flex-col gap-1">
-          {others.map((other) => (
-            <li key={other.id} className="flex items-center gap-1.5">
-              <ArrowRightIcon
-                aria-hidden
-                className={
-                  outgoing ? "text-ink-3 size-3.5" : "text-ink-3 size-3.5 rotate-180"
-                }
-              />
-
-              <span className="min-w-0 flex-1">
-                <StatusLozenge
-                  name={other.name}
-                  category={other.category}
-                  hidden={other.is_hidden}
-                />
-              </span>
-
-              <IconButton
-                label={`Remove transition ${
-                  outgoing
-                    ? `${self?.name ?? ""} to ${other.name}`
-                    : `${other.name} to ${self?.name ?? ""}`
-                }`}
-                onClick={() =>
-                  edit((next) => {
-                    const [from, to] = pair(other.id);
-
-                    return withTransitionRemoved(next, from, to);
-                  })
-                }
-              >
-                <XIcon />
-              </IconButton>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {candidates.length > 0 && (
-        <select
-          aria-label={outgoing ? "Add outgoing transition" : "Add incoming transition"}
-          value=""
-          onChange={(e) => {
-            const [from, to] = pair(e.target.value);
-
-            edit((next) => withTransitionAdded(next, from, to));
-          }}
-          className={SELECT}
+    <section aria-label={`${label} transitions`}>
+      <div className="flex items-center gap-1 px-1.5 py-1.5">
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => setOpen((current) => !current)}
+          className="text-ink hover:bg-wash-strong focus-visible:ring-brand rounded-control text-meta flex min-w-0 flex-1 items-center gap-1.5 px-1 py-1 font-medium outline-none focus-visible:ring-2"
         >
-          <option value="" disabled>
-            {outgoing ? "Add transition to..." : "Add transition from..."}
-          </option>
+          <ChevronRightIcon
+            aria-hidden
+            className={cn(
+              "text-ink-3 size-4 shrink-0 transition-transform duration-150",
+              open && "rotate-90",
+            )}
+          />
 
-          {candidates.map((status) => (
-            <option key={status.id} value={status.id}>
-              {status.name}
-            </option>
-          ))}
-        </select>
+          <span>{label}</span>
+
+          <span className="bg-wash-strong text-ink-2 text-micro rounded px-1.5 leading-4 font-semibold tabular-nums">
+            {others.length}
+          </span>
+        </button>
+
+        <IconButton
+          label={
+            outgoing
+              ? `Add a transition out of ${self?.name ?? "this status"}`
+              : `Add a transition into ${self?.name ?? "this status"}`
+          }
+          size="xs"
+          disabled={candidates.length === 0}
+          onClick={() => {
+            setOpen(true);
+            setAdding(true);
+          }}
+        >
+          <PlusIcon />
+        </IconButton>
+      </div>
+
+      {open && (
+        <div className="px-2 pb-2">
+          {others.length === 0 && !adding ? (
+            <p className="text-ink-3 text-mini px-1 pb-1">
+              {outgoing
+                ? "Work here cannot move anywhere."
+                : "No status leads here."}
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-1">
+              {others.map((other) => (
+                <li
+                  key={other.id}
+                  className="hover:bg-wash rounded-control group/edge flex items-center gap-1.5 py-0.5 pl-1"
+                >
+                  <span className="min-w-0 flex-1">
+                    <StatusLozenge
+                      name={other.name}
+                      category={other.category}
+                      hidden={other.is_hidden}
+                    />
+                  </span>
+
+                  <IconButton
+                    label={`Remove transition ${
+                      outgoing
+                        ? `${self?.name ?? ""} to ${other.name}`
+                        : `${other.name} to ${self?.name ?? ""}`
+                    }`}
+                    size="xs"
+                    onClick={() =>
+                      edit((next) => {
+                        const [from, to] = pair(other.id);
+
+                        return withTransitionRemoved(next, from, to);
+                      })
+                    }
+                    className="opacity-0 group-hover/edge:opacity-100 focus-visible:opacity-100"
+                  >
+                    <XIcon />
+                  </IconButton>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {adding && candidates.length > 0 && (
+            <select
+              autoFocus
+              aria-label={
+                outgoing ? "Add outgoing transition" : "Add incoming transition"
+              }
+              value=""
+              onBlur={() => setAdding(false)}
+              onChange={(event) => {
+                const [from, to] = pair(event.target.value);
+
+                edit((next) => withTransitionAdded(next, from, to));
+                setAdding(false);
+              }}
+              className={cn(SELECT, "mt-1.5")}
+            >
+              <option value="" disabled>
+                {outgoing ? "Move to..." : "Reached from..."}
+              </option>
+
+              {candidates.map((status) => (
+                <option key={status.id} value={status.id}>
+                  {status.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
       )}
     </section>
   );

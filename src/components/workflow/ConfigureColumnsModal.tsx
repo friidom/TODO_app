@@ -53,7 +53,7 @@ import { SELECT, workItems } from "./workflowChrome";
 import { columnOfLane, withReorderMove } from "./workflowMove";
 
 const TITLE = "Configure columns";
-const WIDTH = "w-[min(1120px,calc(100vw-2rem))]";
+const WIDTH = "w-[min(1400px,calc(100vw-2rem))]";
 
 export default function ConfigureColumnsModal({
   onClose,
@@ -136,8 +136,7 @@ function ConfigureColumnsDialog({
 
     const stranded = next.statuses.find(
       (status) =>
-        status.column_id === null &&
-        workItemCount(next, status.id, counts) > 0,
+        status.column_id === null && workItemCount(next, status.id, counts) > 0,
     );
 
     if (stranded) {
@@ -261,18 +260,16 @@ function ConfigureColumnsDialog({
           </IconButton>
         </div>
 
-        <div className="border-status-blue/30 bg-status-blue/10 text-ink-2 rounded-control text-meta mb-3 flex gap-2.5 border px-3 py-2.5 leading-relaxed">
-          <InfoIcon className="text-status-blue mt-0.5 size-4 shrink-0" />
+        <p className="text-ink-3 text-meta mb-3 flex items-start gap-2">
+          <InfoIcon className="text-ink-3 mt-0.5 size-4 shrink-0" />
 
-          <p>
-            Statuses are the steps work moves through; columns are how the board
-            shows them, and a column can show several statuses. Drag statuses
-            between columns, or into Unmapped statuses to keep them out of the
-            board. Drag columns to reorder them. A hidden status can&apos;t
-            receive new work, but items already in it stay in its column.
-            Changes apply to everyone once you publish.
-          </p>
-        </div>
+          <span>
+            Unmapped statuses sit outside the board. Drag one into a column to
+            show it there, or back out to take it off. A column can show several
+            statuses, and columns can be dragged to reorder. Changes apply once
+            you publish.
+          </span>
+        </p>
 
         {blocked && <Notice>{blocked}</Notice>}
 
@@ -309,26 +306,33 @@ function ConfigureColumnsDialog({
           >
             <DragWatch draggingRef={draggingRef} />
 
-            <div className="flex w-max items-stretch gap-3">
-              {draft.columns.map((column) => (
-                <WorkflowLane
-                  key={column.id}
-                  column={column}
-                  draft={draft}
-                  counts={counts}
-                  storedIds={storedIds}
-                  edit={edit}
-                />
-              ))}
-
-              <CreateColumnLane draft={draft} edit={edit} />
-
+            <div className="flex w-max items-stretch gap-4">
               <UnmappedLane
                 draft={draft}
                 counts={counts}
                 storedIds={storedIds}
                 edit={edit}
               />
+
+              <span
+                aria-hidden
+                className="bg-hairline w-px shrink-0 self-stretch"
+              />
+
+              <div className="flex items-stretch gap-3">
+                {draft.columns.map((column) => (
+                  <WorkflowLane
+                    key={column.id}
+                    column={column}
+                    draft={draft}
+                    counts={counts}
+                    storedIds={storedIds}
+                    edit={edit}
+                  />
+                ))}
+
+                <CreateColumnLane draft={draft} edit={edit} />
+              </div>
             </div>
           </ReorderContext>
         </div>
