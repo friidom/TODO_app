@@ -65,7 +65,9 @@ export type IColumn = Row<"columns">;
 export interface IStatus {
   id: string;
   board_id: string;
-  column_id: string;
+  // null is an unmapped status: part of the workflow, shown on no column, and
+  // unable to receive work until it is dragged into one.
+  column_id: string | null;
   // User data: rendered as typed, never through t().
   name: string;
   category: ColumnCategory;
@@ -80,10 +82,25 @@ export interface IStatus {
 
 // GET /boards/:boardId/workflow — one snapshot, so workflow_version always
 // describes exactly the columns and statuses beside it.
+export interface ITransition {
+  from: string;
+  to: string;
+}
+
 export interface IWorkflow {
   workflow_version: number;
   columns: IColumn[];
   statuses: IStatus[];
+  // Every allowed move. A pair that is absent is refused by the API.
+  transitions: ITransition[];
+}
+
+// One entry of boards.view_tabs (0027). mode is a string, not a ViewMode: the
+// server does not know the view list, so a stale mode is repaired on read.
+export interface StoredViewTab {
+  mode: string;
+  label: string | null;
+  hidden: boolean;
 }
 
 // The feature flags are declared here rather than in database.ts for the reason
@@ -92,6 +109,9 @@ export interface IWorkflow {
 export type IBoard = Row<"boards"> & {
   sprints_enabled: boolean;
   workflow_enabled: boolean;
+  // Optional because an optimistic board is built before the server answers;
+  // absent reads as null, the default tab set.
+  view_tabs?: StoredViewTab[] | null;
 };
 
 // Owner-only by RLS and not a permission scope — filing a board into a space grants nobody access to it.

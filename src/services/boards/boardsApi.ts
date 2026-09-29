@@ -14,6 +14,8 @@ type BoardPatch = Partial<
     // Board Settings > Features (migration 0020).
     | "sprints_enabled"
     | "workflow_enabled"
+    // The board's tab set, admin-edited (migration 0027).
+    | "view_tabs"
   >
 >;
 

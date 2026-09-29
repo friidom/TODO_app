@@ -1,20 +1,32 @@
-import type { ReactNode } from "react";
+import {
+  useState,
+  type KeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from "react";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
   ChevronRightIcon,
   ChevronsUpDownIcon,
+  LockIcon,
 } from "lucide-react";
 
 import ListColumns from "@/components/board/ListColumns";
+import DropLine from "@/components/dnd/DropLine";
+import { useReorderItem } from "@/components/dnd/reorderDnd";
 import type { BoardView } from "@/hooks/useBoardView";
 import {
+  MAX_COLUMN_WIDTH,
   PINNED_COLUMN,
   SELECT_COLUMN_WIDTH,
+  minListColumnWidth,
   type ListColumnDef,
 } from "@/services/views/listColumns";
+import { useListColumns } from "@/stores/listColumns";
 import { cn } from "@/utils/cn";
 import ListCheckbox from "./ListCheckbox";
+import { LIST_COLUMN_GROUP } from "./listReorder";
 import { HEAD_CELL, STICKY_LEFT_HEAD, STICKY_RIGHT_HEAD } from "./listTable";
 
 export interface ListHeaderProps {
@@ -111,23 +123,52 @@ function HeadCell({
 }) {
   const pinned = column.id === PINNED_COLUMN;
 
+  const { setNodeRef, pointerProps, isDragging, edge } = useReorderItem(
+    column.id,
+    { group: LIST_COLUMN_GROUP, axis: "x", disabled: pinned },
+  );
+
   const className = cn(
     HEAD_CELL,
-    pinned && STICKY_LEFT_HEAD,
+    "group/th",
+    pinned ? STICKY_LEFT_HEAD : "cursor-grab",
     column.align === "center" && "text-center",
+    isDragging && "opacity-40",
   );
 
   const style = pinned ? { left: SELECT_COLUMN_WIDTH } : undefined;
+
+  const chrome = (
+    <>
+      <DropLine edge={edge} axis="x" />
+      <ResizeHandle column={column} />
+    </>
+  );
+
+  const lock = pinned && (
+    <LockIcon
+      aria-label="Locked column"
+      className="text-ink-3 mr-2 size-3 shrink-0 opacity-0 transition-opacity group-hover/th:opacity-60"
+    />
+  );
 
   // No SORT_KEYS entry means the pipeline cannot order by this field, so the
   // header offers nothing rather than an arrow that reorders nothing.
   if (column.sort === null) {
     return (
-      <th scope="col" style={style} className={className}>
+      <th
+        ref={setNodeRef}
+        {...pointerProps}
+        scope="col"
+        style={style}
+        className={className}
+      >
         <span className="flex items-center gap-1">
           {expand}
-          <span className="truncate">{column.label}</span>
+          <span className="min-w-0 flex-1 truncate">{column.label}</span>
+          {lock}
         </span>
+        {chrome}
       </th>
     );
   }
@@ -152,6 +193,8 @@ function HeadCell({
 
   return (
     <th
+      ref={setNodeRef}
+      {...pointerProps}
       scope="col"
       style={style}
       aria-sort={active ? (descending ? "descending" : "ascending") : "none"}
@@ -188,7 +231,96 @@ function HeadCell({
             )}
           />
         </button>
+        {lock}
       </span>
+      {chrome}
     </th>
+  );
+}
+
+const KEY_STEP = 16;
+
+// Drags the column's right edge. The width is previewed live and remembered on
+// release; the elastic work column reads the result as its floor.
+function ResizeHandle({ column }: { column: ListColumnDef }) {
+  const stored = useListColumns((state) => state.widths[column.id]);
+  const previewWidth = useListColumns((state) => state.previewWidth);
+  const setWidth = useListColumns((state) => state.setWidth);
+  const resetWidth = useListColumns((state) => state.resetWidth);
+
+  const [resizing, setResizing] = useState(false);
+
+  // Measured rather than read from the store: the elastic column's rendered
+  // width is its share of the slack, not its stored floor.
+  const measure = (handle: HTMLElement) =>
+    handle.parentElement?.getBoundingClientRect().width ?? column.width;
+
+  function onPointerDown(event: ReactPointerEvent<HTMLSpanElement>) {
+    if (event.button !== 0) return;
+
+    event.preventDefault();
+
+    const handle = event.currentTarget;
+    const start = measure(handle);
+    const origin = event.clientX;
+    let width = start;
+
+    handle.setPointerCapture(event.pointerId);
+    setResizing(true);
+
+    const move = (moved: PointerEvent) => {
+      width = start + moved.clientX - origin;
+      previewWidth(column.id, width);
+    };
+
+    const end = () => {
+      handle.removeEventListener("pointermove", move);
+      handle.removeEventListener("pointerup", end);
+      handle.removeEventListener("pointercancel", end);
+      setResizing(false);
+      setWidth(column.id, width);
+    };
+
+    handle.addEventListener("pointermove", move);
+    handle.addEventListener("pointerup", end);
+    handle.addEventListener("pointercancel", end);
+  }
+
+  function onKeyDown(event: KeyboardEvent<HTMLSpanElement>) {
+    const step =
+      event.key === "ArrowRight"
+        ? KEY_STEP
+        : event.key === "ArrowLeft"
+          ? -KEY_STEP
+          : 0;
+
+    if (!step) return;
+
+    event.preventDefault();
+    setWidth(column.id, measure(event.currentTarget) + step);
+  }
+
+  return (
+    <span
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={`Resize ${column.label}`}
+      aria-valuenow={Math.round(stored ?? column.width)}
+      aria-valuemin={minListColumnWidth(column.id)}
+      aria-valuemax={MAX_COLUMN_WIDTH}
+      tabIndex={0}
+      data-no-drag
+      title="Drag to resize, double-click to reset"
+      onPointerDown={onPointerDown}
+      onKeyDown={onKeyDown}
+      onDoubleClick={() => resetWidth(column.id)}
+      onClick={(event) => event.stopPropagation()}
+      className={cn(
+        "absolute inset-y-0 right-0 z-10 w-2 cursor-col-resize touch-none outline-none",
+        "after:absolute after:inset-y-2 after:right-0 after:w-0.5 after:rounded-full after:transition-colors",
+        "hover:after:bg-brand focus-visible:after:bg-brand",
+        resizing && "after:bg-brand",
+      )}
+    />
   );
 }

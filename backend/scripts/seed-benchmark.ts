@@ -47,7 +47,7 @@ async function main(): Promise<void> {
   }
 
   await run("truncate", `
-    truncate table activities, comments, todos, statuses, columns, board_members, boards, profiles, users
+    truncate table activities, comments, todos, status_transitions, statuses, columns, board_members, boards, profiles, users
       restart identity cascade
   `);
 
@@ -89,6 +89,13 @@ async function main(): Promise<void> {
            (array['todo', 'in_progress', 'in_review', 'done'])[c.position::int],
            1024
       from columns c;
+
+    insert into status_transitions (board_id, from_status_id, to_status_id)
+    select a.board_id, a.id, b.id
+      from statuses a
+      join statuses b on b.board_id = a.board_id and b.id <> a.id
+     where array_position(array['todo','in_progress','in_review','done'], b.category)
+         - array_position(array['todo','in_progress','in_review','done'], a.category) <= 1;
 
     insert into board_members (board_id, user_id, role)
     select b.id, u.id, case when b.owner_id = u.id then 'owner' else 'editor' end

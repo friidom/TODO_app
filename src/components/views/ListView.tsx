@@ -1,6 +1,9 @@
 import { useCallback, useMemo, useState } from "react";
 import { ChevronRightIcon, InboxIcon } from "lucide-react";
 
+import { DragChip } from "@/components/dnd/DropLine";
+import ReorderContext from "@/components/dnd/ReorderContext";
+import type { ReorderMove } from "@/components/dnd/reorderDnd";
 import Loading from "@/components/loading/LoadingPage";
 import EmptyState from "@/components/ui/EmptyState";
 import { categoryOf } from "@/constants/columns";
@@ -14,16 +17,22 @@ import { useVisibleTodos } from "@/hooks/useVisibleTodos";
 import { useBoardMembers } from "@/services/members/useBoardMembers";
 import { subtasksByParent } from "@/services/todos/subtasks";
 import {
+  EMPTY_WORKFLOW,
+  columnIdOf,
   defaultStatus,
   doneStatusIds,
   isDoneIn,
 } from "@/services/workflow/statuses";
-import { useStatuses } from "@/services/workflow/useWorkflow";
+import { useStatuses, useWorkflow } from "@/services/workflow/useWorkflow";
+import { useTodoDrop } from "@/services/todos/useTodoDrop";
 import { useTodos } from "@/services/todos/useTodos";
 import { groupTodos } from "@/services/todos/view";
 import {
   ACTION_COLUMN_WIDTH,
+  LIST_COLUMNS,
   SELECT_COLUMN_WIDTH,
+  isListColumnId,
+  listColumnWidth,
   resolveListColumns,
   tableMinWidth,
 } from "@/services/views/listColumns";
@@ -33,6 +42,12 @@ import { cn } from "@/utils/cn";
 import ListCreateRow from "./ListCreateRow";
 import ListHeader from "./ListHeader";
 import ListRow from "./ListRow";
+import {
+  LIST_COLUMN_GROUP,
+  rowDropIndex,
+  rowLabel,
+  rowReorderContainer,
+} from "./listReorder";
 import { FRAME, GROUP_ROW_TOP, TABLE } from "./listTable";
 
 const NO_TODOS: Todo[] = [];
@@ -46,6 +61,8 @@ export default function ListView() {
   const { todos, total, isLoading, error } = useVisibleTodos();
   const { data: rows = NO_TODOS } = useTodos();
   const { data: statuses = NO_STATUSES } = useStatuses();
+  const { data: workflow = EMPTY_WORKFLOW } = useWorkflow();
+  const todoDrop = useTodoDrop();
   const { data: members = [] } = useBoardMembers(boardId);
 
   const { canEditTodos } = usePermissions();
@@ -57,6 +74,8 @@ export default function ListView() {
   const { openTask } = useOpenTask();
 
   const columnIds = useListColumns((state) => state.columns);
+  const widths = useListColumns((state) => state.widths);
+  const moveColumn = useListColumns((state) => state.move);
 
   const visibleColumns = useMemo(
     () => resolveListColumns(columnIds, { sprintsEnabled }),
@@ -142,6 +161,42 @@ export default function ListView() {
 
   const grouped = view.group !== "none";
   const span = visibleColumns.length + 2;
+  const rowsDraggable = canEditTodos && !view.dndDisabled;
+
+  const todoById = (id: string) => rows.find((todo) => todo.id === id);
+
+  function onReorder({ activeId, overId, side, data }: ReorderMove) {
+    if (!side) return;
+
+    if (data.group === LIST_COLUMN_GROUP) {
+      if (isListColumnId(activeId) && isListColumnId(overId)) {
+        moveColumn(activeId, overId, side);
+      }
+
+      return;
+    }
+
+    const activeTodo = todoById(activeId);
+    const columnId = activeTodo && columnIdOf(activeTodo, workflow.statusById);
+
+    if (!activeTodo?.status_id || !columnId) return;
+
+    todoDrop.mutate({
+      todos: rows,
+      activeTodo,
+      columnId,
+      statusId: activeTodo.status_id,
+      index: rowDropIndex(rows, activeTodo, overId, side, workflow.statusById),
+    });
+  }
+
+  function describe(id: string) {
+    if (isListColumnId(id)) return LIST_COLUMNS[id].label;
+
+    const todo = todoById(id);
+
+    return todo ? rowLabel(todo, keyPrefix) : id;
+  }
 
   function row(todo: Todo, depth: number, childCount: number, open: boolean) {
     return (
@@ -160,6 +215,11 @@ export default function ListView() {
         onToggleExpand={toggleExpand}
         selected={selected.has(todo.id)}
         onToggleSelect={toggleSelect}
+        dragContainer={
+          rowsDraggable && depth === 0
+            ? rowReorderContainer(todo, view.group, workflow.statusById)
+            : null
+        }
       />
     );
   }
@@ -186,66 +246,94 @@ export default function ListView() {
           </div>
         ) : (
           <div className="min-h-0 flex-1 overflow-auto">
-            <table
-              className={TABLE}
-              style={{ minWidth: tableMinWidth(visibleColumns) }}
+            <ReorderContext
+              onReorder={onReorder}
+              describe={describe}
+              renderOverlay={(id) => {
+                if (isListColumnId(id)) {
+                  return <DragChip>{LIST_COLUMNS[id].label}</DragChip>;
+                }
+
+                const todo = todoById(id);
+
+                return (
+                  <DragChip>
+                    {todo && (
+                      <span className="text-ink-3 shrink-0">
+                        {rowLabel(todo, keyPrefix)}
+                      </span>
+                    )}
+                    <span className="truncate">{todo?.title}</span>
+                  </DragChip>
+                );
+              }}
             >
-              {/* table-fixed reads these, which is what keeps a long title from
+              <table
+                className={TABLE}
+                style={{ minWidth: tableMinWidth(visibleColumns, widths) }}
+              >
+                {/* table-fixed reads these, which is what keeps a long title from
                   widening a column and what makes the widths predictable. The
                   elastic column is left auto so it absorbs the slack. */}
-              <colgroup>
-                <col style={{ width: SELECT_COLUMN_WIDTH }} />
-                {visibleColumns.map((column) => (
-                  <col
-                    key={column.id}
-                    style={column.elastic ? undefined : { width: column.width }}
-                  />
-                ))}
-                <col style={{ width: ACTION_COLUMN_WIDTH }} />
-              </colgroup>
-
-              <ListHeader
-                columns={visibleColumns}
-                view={view}
-                allSelected={allSelected}
-                someSelected={selectedCount > 0}
-                onSelectAll={(next) =>
-                  setSelected(
-                    next ? new Set(todos.map((todo) => todo.id)) : new Set(),
-                  )
-                }
-                canExpand={parents.length > 0}
-                allExpanded={allExpanded}
-                onExpandAll={() =>
-                  setExpanded(allExpanded ? new Set() : new Set(parents))
-                }
-              />
-
-              {groups.map((group) => (
-                <tbody key={group.key}>
-                  {grouped && (
-                    <GroupRow
-                      span={span}
-                      label={group.label}
-                      count={group.todos.length}
-                      lozenge={
-                        view.group === "status"
-                          ? categoryOf(
-                              statuses.find((status) => status.id === group.key)
-                                ?.category,
-                            ).lozenge
-                          : null
+                <colgroup>
+                  <col style={{ width: SELECT_COLUMN_WIDTH }} />
+                  {visibleColumns.map((column) => (
+                    <col
+                      key={column.id}
+                      style={
+                        column.elastic
+                          ? undefined
+                          : { width: listColumnWidth(column, widths) }
                       }
-                      collapsed={collapsed.has(group.key)}
-                      onToggle={() => toggleGroup(group.key)}
                     />
-                  )}
+                  ))}
+                  <col style={{ width: ACTION_COLUMN_WIDTH }} />
+                </colgroup>
 
-                  {!collapsed.has(group.key) &&
-                    group.todos.flatMap(withSubtasks)}
-                </tbody>
-              ))}
-            </table>
+                <ListHeader
+                  columns={visibleColumns}
+                  view={view}
+                  allSelected={allSelected}
+                  someSelected={selectedCount > 0}
+                  onSelectAll={(next) =>
+                    setSelected(
+                      next ? new Set(todos.map((todo) => todo.id)) : new Set(),
+                    )
+                  }
+                  canExpand={parents.length > 0}
+                  allExpanded={allExpanded}
+                  onExpandAll={() =>
+                    setExpanded(allExpanded ? new Set() : new Set(parents))
+                  }
+                />
+
+                {groups.map((group) => (
+                  <tbody key={group.key}>
+                    {grouped && (
+                      <GroupRow
+                        span={span}
+                        label={group.label}
+                        count={group.todos.length}
+                        lozenge={
+                          view.group === "status"
+                            ? categoryOf(
+                                statuses.find(
+                                  (status) => status.id === group.key,
+                                )?.category,
+                              ).lozenge
+                            : null
+                        }
+                        collapsed={collapsed.has(group.key)}
+                        onToggle={() => toggleGroup(group.key)}
+                      />
+                    )}
+
+                    {!collapsed.has(group.key) &&
+                      group.todos.flatMap(withSubtasks)}
+                  </tbody>
+                ))}
+              </table>
+            </ReorderContext>
           </div>
         )}
 

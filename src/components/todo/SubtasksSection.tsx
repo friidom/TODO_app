@@ -214,7 +214,7 @@ function AddSubtaskRow({
   const startIn =
     parentStatus && !parentStatus.is_hidden
       ? parentStatus
-      : parentStatus
+      : parentStatus?.column_id
         ? entryStatus(statuses, parentStatus.column_id)
         : null;
 

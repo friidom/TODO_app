@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 
 import { prisma } from "../../db/prisma.js";
 import type { Actor } from "../../types/actor.js";
@@ -50,6 +50,7 @@ const BOARD_FIELDS = {
   visibility: true,
   sprints_enabled: true,
   workflow_enabled: true,
+  view_tabs: true,
   created_at: true,
   updated_at: true,
   next_key: true,
@@ -90,6 +91,8 @@ export function insert(tx: Prisma.TransactionClient, board: BoardInsert): Promis
   });
 }
 
+export type ViewTabEntry = { mode: string; label: string | null; hidden: boolean };
+
 // Fields are named rather than spread: a patch object reaching Prisma intact
 // would let a caller set owner_id, next_key or key_prefix.
 export interface BoardPatch {
@@ -101,6 +104,7 @@ export interface BoardPatch {
   space_id?: string | null;
   sprints_enabled?: boolean;
   workflow_enabled?: boolean;
+  view_tabs?: ViewTabEntry[] | null;
 }
 
 export function update(
@@ -122,6 +126,11 @@ export function update(
       }),
       ...(patch.workflow_enabled !== undefined && {
         workflow_enabled: patch.workflow_enabled,
+      }),
+      // SQL NULL, the default tab set. JsonNull would store a JSON null, which
+      // boards_view_tabs_is_array refuses.
+      ...(patch.view_tabs !== undefined && {
+        view_tabs: patch.view_tabs ?? Prisma.DbNull,
       }),
     },
     select: BOARD_FIELDS,

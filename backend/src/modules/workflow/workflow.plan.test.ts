@@ -23,6 +23,7 @@ function current(cards: Record<string, number> = {}): CurrentWorkflow {
       { id: S1, column_id: C1, name: "To Do", category: "todo", rank: RANK_GAP, is_hidden: false },
       { id: S2, column_id: C2, name: "Done", category: "done", rank: RANK_GAP, is_hidden: false },
     ],
+    transitions: [{ from: S1, to: S2 }],
     cards: new Map(Object.entries(cards)),
   };
 }
@@ -38,6 +39,7 @@ function unchanged(): PublishWorkflowInput {
       { id: S1, column_id: C1, name: "To Do", category: "todo", is_hidden: false },
       { id: S2, column_id: C2, name: "Done", category: "done", is_hidden: false },
     ],
+    transitions: [{ from: S1, to: S2 }],
     migrations: [],
   };
 }
@@ -57,6 +59,8 @@ function refusal(run: () => unknown): { code: string; message: string } {
 describe("planWorkflow", () => {
   it("plans nothing for the workflow as it already is", () => {
     expect(planWorkflow(current(), unchanged())).toEqual({
+      createTransitions: [],
+      deleteTransitions: [],
       createColumns: [],
       updateColumns: [],
       deleteColumns: [],
@@ -132,6 +136,7 @@ describe("planWorkflow", () => {
 
     input.columns = [{ id: C2, title: "Done" }];
     input.statuses = [input.statuses[1]!];
+    input.transitions = [];
 
     const plan = planWorkflow(current(), input);
 
@@ -143,6 +148,7 @@ describe("planWorkflow", () => {
     const input = unchanged();
 
     input.statuses = [input.statuses[1]!];
+    input.transitions = [];
 
     expect(refusal(() => planWorkflow(current({ [S1]: 2 }), input))).toEqual({
       code: "conflict",
@@ -157,6 +163,7 @@ describe("planWorkflow", () => {
       { id: S4, column_id: C1, name: "Open", category: "todo", is_hidden: false },
       input.statuses[1]!,
     ];
+    input.transitions = [{ from: S4, to: S2 }];
     input.migrations = [{ from: S1, to: S4 }];
 
     expect(planWorkflow(current({ [S1]: 1 }), input).migrations).toEqual([
@@ -174,6 +181,7 @@ describe("planWorkflow", () => {
     const input = unchanged();
 
     input.statuses = [{ ...input.statuses[1]!, is_hidden: true }];
+    input.transitions = [];
     input.migrations = [{ from: S1, to: S2 }];
 
     expect(refusal(() => planWorkflow(current({ [S1]: 1 }), input)).code).toBe("bad_request");
@@ -216,5 +224,42 @@ describe("planWorkflow", () => {
     input.columns.push({ id: C1, title: "Again" });
 
     expect(refusal(() => planWorkflow(current(), input)).code).toBe("bad_request");
+  });
+
+  it("diffs transitions into creates and deletes", () => {
+    const input = unchanged();
+
+    input.transitions = [{ from: S2, to: S1 }];
+
+    const plan = planWorkflow(current(), input);
+
+    expect(plan.createTransitions).toEqual([{ from: S2, to: S1 }]);
+    expect(plan.deleteTransitions).toEqual([{ from: S1, to: S2 }]);
+  });
+
+  it("refuses a self transition, a duplicate and an unknown status", () => {
+    const self = unchanged();
+    self.transitions = [{ from: S1, to: S1 }];
+    expect(refusal(() => planWorkflow(current(), self)).code).toBe("bad_request");
+
+    const twice = unchanged();
+    twice.transitions = [
+      { from: S1, to: S2 },
+      { from: S1, to: S2 },
+    ];
+    expect(refusal(() => planWorkflow(current(), twice)).code).toBe("bad_request");
+
+    const unknown = unchanged();
+    unknown.transitions = [{ from: S1, to: S4 }];
+    expect(refusal(() => planWorkflow(current(), unknown)).code).toBe("bad_request");
+  });
+
+  it("allows an unmapped status, but not one that holds work", () => {
+    const input = unchanged();
+
+    input.statuses[1] = { ...input.statuses[1]!, column_id: null };
+
+    expect(planWorkflow(current(), input).updateStatuses).toEqual([{ id: S2, column_id: null }]);
+    expect(refusal(() => planWorkflow(current({ [S2]: 1 }), input)).code).toBe("conflict");
   });
 });

@@ -29,6 +29,7 @@ afterAll(async () => {
 
 interface Workflow {
   workflow_version: number;
+  transitions: { from: string; to: string }[];
   columns: { id: string; title: string | null; rank: number | null }[];
   statuses: {
     id: string;
@@ -110,6 +111,32 @@ describe("GET /boards/:boardId/workflow", () => {
     ]);
     expect(workflow.statuses.map((status) => status.column_id)).toEqual(
       workflow.columns.map((column) => column.id),
+    );
+  });
+
+  it("stores exactly the edges published, and removes exactly the one deleted", async () => {
+    const { actor, boardId } = await setup();
+    const status = await stageStatuses(boardId);
+    const draft = await workflowDraft(boardId);
+    const ab = { from: status.todo, to: status.inProgress };
+    const bc = { from: status.inProgress, to: status.inReview };
+    const ac = { from: status.todo, to: status.inReview };
+    const key = (edge: { from: string; to: string }) => `${edge.from}>${edge.to}`;
+
+    const first = await publish(actor, boardId, { ...draft, transitions: [ab, bc, ac] });
+
+    expect(first.status).toBe(200);
+    expect(first.body.transitions.map(key).sort()).toEqual([ab, bc, ac].map(key).sort());
+
+    const second = await publish(actor, boardId, {
+      ...draft,
+      version: first.body.workflow_version,
+      transitions: [ab, ac],
+    });
+
+    expect(second.status).toBe(200);
+    expect((await read(actor, boardId)).transitions.map(key).sort()).toEqual(
+      [ab, ac].map(key).sort(),
     );
   });
 
@@ -252,7 +279,7 @@ describe("publishing", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(await prisma.columns.count({ where: { id: review.column_id } })).toBe(0);
+    expect(await prisma.columns.count({ where: { id: review.column_id! } })).toBe(0);
     expect(await prisma.statuses.count({ where: { id: review.id } })).toBe(0);
   });
 
@@ -479,7 +506,7 @@ describe("deleting a status that holds work", () => {
     await makeTodo(actor, boardId, status.inProgress, "stayed");
 
     const draft = await workflowDraft(boardId);
-    const todoColumn = draft.statuses.find((it) => it.id === status.todo)!.column_id;
+    const todoColumn = draft.statuses.find((it) => it.id === status.todo)!.column_id!;
 
     await prisma.activities.deleteMany({ where: { board_id: boardId } });
 
@@ -506,7 +533,7 @@ describe("deleting a status that holds work", () => {
     const { actor, boardId } = await setup();
     const status = await stageStatuses(boardId);
     const first = await workflowDraft(boardId);
-    const todoColumn = first.statuses.find((it) => it.id === status.todo)!.column_id;
+    const todoColumn = first.statuses.find((it) => it.id === status.todo)!.column_id!;
     const queued = randomUUID();
 
     await publish(actor, boardId, {

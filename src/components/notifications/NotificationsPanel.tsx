@@ -3,12 +3,14 @@ import { useNavigate } from "react-router";
 import {
   BellIcon,
   CheckCheckIcon,
+  CheckIcon,
   CircleAlertIcon,
   MailIcon,
   UserPlusIcon,
+  XIcon,
 } from "lucide-react";
 
-import { HEADER_CONTROL_ACTIVE } from "@/components/board/headerControl";
+import IconButton from "@/components/ui/IconButton";
 import InviteActions from "@/components/notifications/InviteActions";
 import type { MyInvite } from "@/services/invites/invitesApi";
 import { useMyInvites } from "@/services/invites/useMyInvites";
@@ -70,32 +72,38 @@ export default function NotificationsPanel({
   }
 
   return (
-    <div className="flex max-h-[min(30rem,70vh)] w-[min(24rem,calc(100vw-2rem))] flex-col">
-      <div className="border-hairline flex items-center gap-2 border-b px-3 py-2.5">
-        <h2 className="text-ink text-meta font-semibold">Notifications</h2>
+    <div className="flex max-h-[min(34rem,calc(100dvh-6rem))] w-[min(26rem,calc(100vw-2rem))] flex-col">
+      <div className="flex items-center gap-2 px-4 pt-3 pb-2">
+        <h2 className="text-ink text-sm font-semibold">Notifications</h2>
 
         {unread > 0 && (
-          <span className="bg-brand text-brand-fg text-micro rounded px-1.5 leading-4 font-semibold tabular-nums">
+          <span className="bg-brand text-brand-fg text-micro rounded-full px-1.5 leading-4 font-semibold tabular-nums">
             {unread}
           </span>
         )}
 
-        {unread > 0 && (
-          <button
-            type="button"
-            onClick={() => markRead.mutate("all")}
-            className="text-ink-3 hover:text-ink focus-visible:ring-brand text-mini ml-auto flex items-center gap-1 rounded px-1 transition-colors outline-none focus-visible:ring-2"
-          >
-            <CheckCheckIcon className="size-3.5" />
-            Mark all read
-          </button>
-        )}
+        <div className="ml-auto flex items-center gap-1">
+          {unread > 0 && (
+            <button
+              type="button"
+              onClick={() => markRead.mutate("all")}
+              className="text-ink-3 hover:text-ink hover:bg-wash-strong focus-visible:ring-brand text-mini rounded-control flex h-7 items-center gap-1 px-2 font-medium transition-colors outline-none focus-visible:ring-2"
+            >
+              <CheckCheckIcon className="size-3.5" />
+              Mark all read
+            </button>
+          )}
+
+          <IconButton label="Close notifications" size="xs" onClick={onClose}>
+            <XIcon />
+          </IconButton>
+        </div>
       </div>
 
       <div
         role="tablist"
         aria-label="Filter notifications"
-        className="border-hairline flex shrink-0 gap-0.5 border-b px-2 py-1.5"
+        className="border-hairline flex shrink-0 gap-1 border-b px-3"
       >
         {NOTIFICATION_TABS.map((value) => {
           const selected = tab === value;
@@ -112,11 +120,11 @@ export default function NotificationsPanel({
               aria-selected={selected}
               onClick={() => setTab(value)}
               className={cn(
-                "flex items-center gap-1.5 rounded-sm px-2 text-xs leading-7 whitespace-nowrap transition-colors duration-150 outline-none",
-                "focus-visible:ring-brand focus-visible:ring-2",
+                "-mb-px flex items-center gap-1.5 border-b-2 px-2 pb-2 text-xs font-medium whitespace-nowrap transition-colors duration-150 outline-none",
+                "focus-visible:ring-brand rounded-t-sm focus-visible:ring-2",
                 selected
-                  ? HEADER_CONTROL_ACTIVE
-                  : "text-ink-3 hover:text-ink hover:bg-ink/[0.06]",
+                  ? "border-brand text-ink"
+                  : "text-ink-3 hover:text-ink border-transparent",
               )}
             >
               {NOTIFICATION_TAB_LABELS[value]}
@@ -138,7 +146,7 @@ export default function NotificationsPanel({
         })}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5">
         {isLoading ? (
           <Skeleton />
         ) : error ? (
@@ -173,6 +181,7 @@ export default function NotificationsPanel({
                 })()}
                 invitesPending={invitesPending}
                 onOpen={() => open(notification)}
+                onMarkRead={() => markRead.mutate([notification.id])}
                 onAccepted={(boardId) => {
                   navigate(`/boards/${boardId}`);
                   onClose();
@@ -191,12 +200,14 @@ function Row({
   invite,
   invitesPending,
   onOpen,
+  onMarkRead,
   onAccepted,
 }: {
   notification: Notification;
   invite: MyInvite | null;
   invitesPending: boolean;
   onOpen: () => void;
+  onMarkRead: () => void;
   onAccepted: (boardId: string) => void;
 }) {
   const { title, detail } = notificationText(notification);
@@ -205,49 +216,79 @@ function Row({
   const Icon = notification.type === "invite" ? MailIcon : UserPlusIcon;
 
   return (
-    <li>
-      <button
-        type="button"
-        onClick={onOpen}
-        className="hover:bg-ink/[0.04] focus-visible:ring-brand flex w-full items-start gap-2.5 rounded-lg px-2 py-2 text-left transition-colors duration-150 outline-none focus-visible:ring-2"
-      >
-        <span
-          className={cn(
-            "mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg",
-            notification.type === "invite"
-              ? "bg-brand-soft text-brand"
-              : "bg-status-blue/15 text-status-blue",
-          )}
+    <li
+      className={cn(
+        "group rounded-lg transition-colors duration-150",
+        unread ? "bg-brand-soft/50" : "",
+        "hover:bg-ink/[0.05]",
+      )}
+    >
+      <div className="flex items-start">
+        <button
+          type="button"
+          onClick={onOpen}
+          className="focus-visible:ring-brand flex min-w-0 flex-1 items-start gap-2.5 rounded-lg px-2 py-2 text-left outline-none focus-visible:ring-2"
         >
-          <Icon className="size-3.5" />
-        </span>
-
-        <span className="min-w-0 flex-1">
           <span
             className={cn(
-              "text-meta block leading-snug",
-              unread ? "text-ink font-medium" : "text-ink-2",
+              "mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg",
+              notification.type === "invite"
+                ? "bg-brand-soft text-brand"
+                : "bg-status-blue/15 text-status-blue",
             )}
           >
-            {title}
+            <Icon className="size-4" />
           </span>
 
-          <span className="text-ink-3 text-mini mt-0.5 block truncate">
-            {detail} · {relativeTime(notification.created_at)}
-          </span>
-        </span>
+          <span className="min-w-0 flex-1">
+            <span
+              className={cn(
+                "text-meta block leading-snug",
+                unread ? "text-ink font-medium" : "text-ink-2",
+              )}
+            >
+              {title}
+            </span>
 
-        {unread && (
-          <span
-            aria-label="Unread"
-            className="bg-brand mt-1.5 size-1.5 shrink-0 rounded-full"
-          />
-        )}
-      </button>
+            <span className="text-ink-3 text-mini mt-0.5 flex min-w-0 items-center gap-1.5">
+              <span className="truncate">{detail}</span>
+              <span aria-hidden>·</span>
+              <time
+                dateTime={notification.created_at}
+                title={new Date(notification.created_at).toLocaleString()}
+                className="shrink-0"
+              >
+                {relativeTime(notification.created_at)}
+              </time>
+            </span>
+          </span>
+        </button>
+
+        {/* one cell, two states: the unread dot gives way to the mark-read button, so they never overlap */}
+        <div className="grid size-8 shrink-0 place-items-center self-start pt-2 pr-1">
+          {unread && (
+            <>
+              <span
+                aria-label="Unread"
+                className="bg-brand col-start-1 row-start-1 size-2 rounded-full transition-opacity duration-150 group-focus-within:opacity-0 group-hover:opacity-0"
+              />
+
+              <button
+                type="button"
+                aria-label="Mark as read"
+                onClick={onMarkRead}
+                className="text-ink-3 hover:text-ink hover:bg-wash-strong focus-visible:ring-brand rounded-control pointer-events-none col-start-1 row-start-1 grid size-6 place-items-center opacity-0 transition-opacity duration-150 outline-none group-focus-within:pointer-events-auto group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:opacity-100 focus-visible:ring-2"
+              >
+                <CheckIcon className="size-3.5" />
+              </button>
+            </>
+          )}
+        </div>
+      </div>
 
       {/* outside the button — a button inside a button is invalid HTML and gets repaired away */}
       {notification.type === "invite" && (
-        <div className="pr-2 pb-2 pl-[3.375rem]">
+        <div className="pr-3 pb-2.5 pl-[3.25rem]">
           <InviteActions
             invite={invite}
             pending={invitesPending}

@@ -206,6 +206,7 @@ describe("the todos-side trigger", () => {
           ...draft.statuses,
           { id: shipped, column_id: doneColumn, name: "Shipped", category: "done", is_hidden: false },
         ],
+        transitions: [...draft.transitions, { from: statuses.done, to: shipped }],
       };
     });
 

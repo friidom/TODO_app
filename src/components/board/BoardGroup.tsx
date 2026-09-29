@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { BoardView } from "@/hooks/useBoardView";
 import { GROUP_KEYS, GROUP_LABELS, type GroupKey } from "@/services/todos/view";
+import { OPEN_ON_CLICK } from "./openOnClick";
 import ToolbarButton from "./ToolbarButton";
 
 // "Status" is offered even though it's the identity — the columns already are the statuses
@@ -27,6 +28,7 @@ export default function BoardGroup({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
+        {...OPEN_ON_CLICK}
         render={
           <ToolbarButton
             label={active ? `Group — ${GROUP_LABELS[group]}` : "Group"}

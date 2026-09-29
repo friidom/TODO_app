@@ -11,6 +11,21 @@ export const createBoardSchema = z.object({
   space_id: z.uuid().nullable().optional(),
 });
 
+// mode is a pattern rather than an enum: the view list is the client's, and it
+// repairs a mode it no longer knows when it reads the board.
+const viewTab = z.object({
+  mode: z.string().regex(/^[a-z][a-z_]{0,31}$/),
+  label: z.string().trim().min(1).max(40).nullable(),
+  hidden: z.boolean(),
+});
+
+const viewTabs = z
+  .array(viewTab)
+  .max(20)
+  .refine((tabs) => new Set(tabs.map((tab) => tab.mode)).size === tabs.length, {
+    message: "each view may appear once",
+  });
+
 // owner_id, next_key and key_prefix are absent on purpose. Unknown keys are
 // stripped by Zod, so naming only these is what makes them unsettable.
 export const updateBoardSchema = z
@@ -25,6 +40,8 @@ export const updateBoardSchema = z
     // toggle does not resend the name and a rename does not resend the toggles.
     sprints_enabled: z.boolean().optional(),
     workflow_enabled: z.boolean().optional(),
+    // null restores the default tab set (migration 0027).
+    view_tabs: viewTabs.nullable().optional(),
   })
   .refine((patch) => Object.keys(patch).length > 0, {
     message: "at least one field must be given",

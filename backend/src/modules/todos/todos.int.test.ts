@@ -704,10 +704,10 @@ describe("sequential workflow", () => {
     // The three the product forbids. The first two were impossible to refuse
     // before 0019, because In Review was filed as in_progress.
     it.each([
-      ["todo -> in_review", "todo", "inReview", "in_progress"],
-      ["in_progress -> done", "inProgress", "done", "in_review"],
-      ["todo -> done", "todo", "done", "in_progress"],
-    ])("REFUSES %s, naming what it skipped", async (_label, from, to, skipped) => {
+      ["todo -> in_review", "todo", "inReview", "In Review"],
+      ["in_progress -> done", "inProgress", "done", "Done"],
+      ["todo -> done", "todo", "done", "Done"],
+    ])("REFUSES %s, naming the missing transition", async (_label, from, to, target) => {
       const { actor, boardId } = await setup();
       const status = (await stageStatuses(boardId)) as Record<string, string>;
       const todo = await makeTodo(actor, boardId, { title: "A", status_id: status[from] });
@@ -720,7 +720,8 @@ describe("sequential workflow", () => {
 
       expect(response.status).toBe(400);
       expect(response.body.error.code).toBe("bad_request");
-      expect(response.body.error.message).toContain(skipped);
+      expect(response.body.error.message).toContain("no transition");
+      expect(response.body.error.message).toContain(`"${target}"`);
       expect(await statusOf(todo.id)).toBe(status[from]);
     });
   });
@@ -834,24 +835,10 @@ describe("sequential workflow", () => {
     });
   });
 
-  // A board is only held to the stages it can receive work in. Refusing
-  // in_progress -> done on a board with no In Review status would leave work
-  // unable to reach Done at all, since there is nowhere to pass through.
-  describe("a stage the board does not have", () => {
-    async function withoutInReview(actor: TestUser, boardId: string, inReview: string) {
-      const draft = await workflowDraft(boardId);
-      const column = draft.statuses.find((status) => status.id === inReview)!.column_id;
-
-      const response = await publish(actor, boardId, {
-        ...draft,
-        columns: draft.columns.filter((it) => it.id !== column),
-        statuses: draft.statuses.filter((it) => it.id !== inReview),
-      });
-
-      expect(response.status).toBe(200);
-    }
-
-    it("allows in_progress -> done once the In Review status is gone", async () => {
+  // The rule is the board's stored edges: adding one allows the move, removing
+  // one refuses it, and nothing is inferred from categories.
+  describe("editing the transitions", () => {
+    it("allows in_progress -> done once that edge is published", async () => {
       const { actor, boardId } = await setup();
       const status = await stageStatuses(boardId);
       const todo = await makeTodo(actor, boardId, {
@@ -861,48 +848,53 @@ describe("sequential workflow", () => {
 
       expect((await moveTo(actor, todo.id, status.done)).status).toBe(400);
 
-      await withoutInReview(actor, boardId, status.inReview);
-
-      expect((await moveTo(actor, todo.id, status.done)).status).toBe(204);
-    });
-
-    it("allows in_progress -> done once the In Review status is hidden", async () => {
-      const { actor, boardId } = await setup();
-      const status = await stageStatuses(boardId);
-      const todo = await makeTodo(actor, boardId, {
-        title: "A",
-        status_id: status.inProgress,
-      });
       const draft = await workflowDraft(boardId);
 
-      const hidden = await publish(actor, boardId, {
+      const published = await publish(actor, boardId, {
         ...draft,
-        statuses: draft.statuses.map((it) =>
-          it.id === status.inReview ? { ...it, is_hidden: true } : it,
-        ),
+        transitions: [...draft.transitions, { from: status.inProgress, to: status.done }],
       });
 
-      expect(hidden.status).toBe(200);
+      expect(published.status).toBe(200);
       expect((await moveTo(actor, todo.id, status.done)).status).toBe(204);
     });
 
-    it("still refuses todo -> done, because In Progress is still there", async () => {
+    it("refuses a move whose edge was removed, and only that direction", async () => {
       const { actor, boardId } = await setup();
       const status = await stageStatuses(boardId);
       const todo = await makeTodo(actor, boardId, { title: "A", status_id: status.todo });
+      const draft = await workflowDraft(boardId);
 
-      await withoutInReview(actor, boardId, status.inReview);
+      const published = await publish(actor, boardId, {
+        ...draft,
+        transitions: draft.transitions.filter(
+          (edge) => !(edge.from === status.todo && edge.to === status.inProgress),
+        ),
+      });
 
-      const response = await client.post<{ error: { message: string } }>(
-        `/api/v1/todos/${todo.id}/move`,
-        { status_id: status.done, rank: 1024 },
-        { token: actor.token },
-      );
+      expect(published.status).toBe(200);
+      expect((await moveTo(actor, todo.id, status.inProgress)).status).toBe(400);
+      expect(await statusOf(todo.id)).toBe(status.todo);
+    });
 
-      expect(response.status).toBe(400);
-      // Names only the stage that is actually reachable.
-      expect(response.body.error.message).toContain("in_progress");
-      expect(response.body.error.message).not.toContain("in_review");
+    it("a move to an unmapped status is refused, however the edges read", async () => {
+      const { actor, boardId } = await setup();
+      const status = await stageStatuses(boardId);
+      const todo = await makeTodo(actor, boardId, { title: "A", status_id: status.todo });
+      const draft = await workflowDraft(boardId);
+      const parked = randomUUID();
+
+      const published = await publish(actor, boardId, {
+        ...draft,
+        statuses: [
+          ...draft.statuses,
+          { id: parked, column_id: null, name: "Parked", category: "in_progress", is_hidden: false },
+        ],
+        transitions: [...draft.transitions, { from: status.todo, to: parked }],
+      });
+
+      expect(published.status).toBe(200);
+      expect((await moveTo(actor, todo.id, parked)).status).toBe(400);
     });
   });
 
@@ -924,9 +916,7 @@ describe("sequential workflow", () => {
       expect((await moveTo(actor, todo.id, status.done)).status).toBe(204);
     });
 
-    // Two statuses sharing a category are one stage; moving between them is
-    // sideways, not a transition — whether they share a column or not.
-    it("sideways between two statuses of one category is allowed", async () => {
+    it("a new status is reachable once its edge is published", async () => {
       const { actor, boardId } = await setup();
       const status = await stageStatuses(boardId);
       const draft = await workflowDraft(boardId);
@@ -940,6 +930,7 @@ describe("sequential workflow", () => {
           ...draft.statuses,
           { id: building, column_id: column, name: "Building", category: "in_progress", is_hidden: false },
         ],
+        transitions: [...draft.transitions, { from: status.inProgress, to: building }],
       });
 
       expect(published.status).toBe(200);

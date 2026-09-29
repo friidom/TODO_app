@@ -41,7 +41,7 @@ export default function BoardSearch({ view }: { view: BoardView }) {
   return (
     <div
       className={cn(
-        "border-ink/15 text-ink-3 flex h-8 w-44 min-w-24 shrink items-center gap-2 rounded-md border px-2.5 transition-colors duration-150 @max-md:min-w-20",
+        "border-ink/15 text-ink-3 flex h-8 w-full min-w-0 items-center gap-2 rounded-md border px-2.5 transition-colors duration-150",
         "focus-within:border-brand/50 focus-within:ring-brand/30 focus-within:ring-2",
         active && "border-brand/40 text-brand pr-1",
       )}

@@ -2,18 +2,27 @@ import { create } from "zustand";
 
 import {
   DEFAULT_LIST_COLUMNS,
-  swapListColumns,
+  moveListColumn,
+  readListColumnWidths,
   readListColumns,
   toggleListColumn,
+  withListColumnWidth,
+  writeListColumnWidths,
   writeListColumns,
   type ListColumnId,
+  type ListColumnWidths,
 } from "@/services/views/listColumns";
+import type { Side } from "@/utils/reorder";
 
 interface ListColumnsStore {
   columns: ListColumnId[];
+  widths: ListColumnWidths;
   toggle: (id: ListColumnId) => void;
-  /** Trades two columns' slots. The caller names the visible neighbour — see swapListColumns. */
-  swap: (a: ListColumnId, b: ListColumnId) => void;
+  move: (activeId: ListColumnId, overId: ListColumnId, side: Side) => void;
+  /** Live, while a resize handle is being dragged — not remembered until setWidth. */
+  previewWidth: (id: ListColumnId, width: number) => void;
+  setWidth: (id: ListColumnId, width: number) => void;
+  resetWidth: (id: ListColumnId) => void;
   reset: () => void;
 }
 
@@ -24,8 +33,9 @@ interface ListColumnsStore {
 //
 // Seeded from localStorage once at module load, so the menu and the table start
 // from the same array without an effect to synchronise them.
-export const useListColumns = create<ListColumnsStore>((set) => ({
+export const useListColumns = create<ListColumnsStore>((set, get) => ({
   columns: readListColumns(),
+  widths: readListColumnWidths(),
 
   toggle: (id) =>
     set((state) => {
@@ -36,20 +46,38 @@ export const useListColumns = create<ListColumnsStore>((set) => ({
       return { columns };
     }),
 
-  swap: (a, b) =>
+  move: (activeId, overId, side) =>
     set((state) => {
-      const columns = swapListColumns(state.columns, a, b);
+      const columns = moveListColumn(state.columns, activeId, overId, side);
 
       writeListColumns(columns);
 
       return { columns };
     }),
 
+  previewWidth: (id, width) =>
+    set((state) => ({ widths: withListColumnWidth(state.widths, id, width) })),
+
+  setWidth: (id, width) => {
+    get().previewWidth(id, width);
+    writeListColumnWidths(get().widths);
+  },
+
+  resetWidth: (id) =>
+    set((state) => {
+      const widths = withListColumnWidth(state.widths, id, null);
+
+      writeListColumnWidths(widths);
+
+      return { widths };
+    }),
+
   reset: () => {
     const columns = [...DEFAULT_LIST_COLUMNS];
 
     writeListColumns(columns);
+    writeListColumnWidths({});
 
-    set({ columns });
+    set({ columns, widths: {} });
   },
 }));

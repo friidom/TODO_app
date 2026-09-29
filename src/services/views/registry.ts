@@ -36,7 +36,8 @@ export const VIEWS: Record<ViewMode, ViewDefinition> = {
   list: {
     mode: "list",
     label: "List",
-    capabilities: { canReorder: false, canGroup: true, canSort: true },
+    // its manual order IS the board's (orderByBoard), so a row drag writes the same rank the Board does — no order of its own
+    capabilities: { canReorder: true, canGroup: true, canSort: true },
   },
   calendar: {
     mode: "calendar",

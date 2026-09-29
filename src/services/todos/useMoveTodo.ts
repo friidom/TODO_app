@@ -26,14 +26,18 @@ export function useMoveTodo(todoId: string) {
 
     if (!activeTodo || activeTodo.status_id === status.id) return;
 
+    const targetColumnId = status.column_id;
+
+    if (targetColumnId === null) return;
+
     // Another status in the card's own column keeps its place; another column
     // takes it to the end, as a drop there would.
     const sameColumn =
-      columnIdOf(activeTodo, workflow.statusById) === status.column_id;
+      columnIdOf(activeTodo, workflow.statusById) === targetColumnId;
 
     const index = todos.filter(
       (todo) =>
-        columnIdOf(todo, workflow.statusById) === status.column_id &&
+        columnIdOf(todo, workflow.statusById) === targetColumnId &&
         todo.id !== todoId &&
         !isGenuineSubtask(todos, todo),
     ).length;
@@ -41,7 +45,7 @@ export function useMoveTodo(todoId: string) {
     drop.mutate({
       todos,
       activeTodo,
-      columnId: status.column_id,
+      columnId: targetColumnId,
       statusId: status.id,
       index,
       rank:

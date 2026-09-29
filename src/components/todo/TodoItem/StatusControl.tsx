@@ -99,7 +99,7 @@ export default function StatusControl({
               // too — this is so the option is not there to click in the first place.
               const refusal = selected
                 ? null
-                : workflow.refusal(current?.category, status.category);
+                : workflow.refusal(current?.id, status.id);
 
               return (
                 <button

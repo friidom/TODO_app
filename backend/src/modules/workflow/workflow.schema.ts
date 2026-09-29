@@ -21,13 +21,19 @@ export const publishWorkflowSchema = z.object({
     .array(
       z.object({
         id: z.uuid(),
-        column_id: z.uuid(),
+        // null is an unmapped status: in the workflow, shown on no column.
+        column_id: z.uuid().nullable(),
         name: label,
         category: z.enum(WORKFLOW_STAGES),
         is_hidden: z.boolean(),
       }),
     )
     .max(300),
+  // Every allowed move, as it should be after the publish. A pair absent here
+  // is refused. Array order carries no meaning.
+  transitions: z
+    .array(z.object({ from: z.uuid(), to: z.uuid() }))
+    .max(5000),
   // Where the work items of a deleted, in-use status go.
   migrations: z
     .array(z.object({ from: z.uuid(), to: z.uuid() }))

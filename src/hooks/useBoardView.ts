@@ -20,6 +20,9 @@ import {
   capabilitiesOf,
   type ViewMode,
 } from "@/services/views/registry";
+import { defaultViewOf } from "@/services/views/tabs";
+import { useDefaultViews } from "@/stores/defaultView";
+import { useBoardId } from "./useBoardId";
 
 export type BoardViewMode = ViewMode;
 
@@ -27,6 +30,8 @@ export type BoardViewMode = ViewMode;
 // only non-default values get written, and every write replaces history so ticking filters doesn't fill the back button.
 export interface BoardView {
   mode: BoardViewMode;
+  // What this board opens on without ?view — the reader's own choice.
+  defaultMode: BoardViewMode;
   filters: TodoFilters;
   query: string;
   sort: SortKey;
@@ -38,6 +43,7 @@ export interface BoardView {
   dndReason: string | null;
 
   setMode: (mode: BoardViewMode) => void;
+  setDefaultMode: (mode: BoardViewMode) => void;
   toggleFilter: (category: FilterCategory, value: string) => void;
   clearFilters: () => void;
   clearCategory: (category: FilterCategory) => void;
@@ -80,6 +86,12 @@ function readOne<T extends string>(
 export function useBoardView(): BoardView {
   const [searchParams, setSearchParams] = useSearchParams();
 
+  const boardId = useBoardId();
+  const defaultMode = useDefaultViews((store) =>
+    defaultViewOf(store.views, boardId),
+  );
+  const setDefault = useDefaultViews((store) => store.setDefault);
+
   // keyed on the serialised string, not the object — useSearchParams hands back a fresh instance every render
   const key = searchParams.toString();
 
@@ -95,7 +107,7 @@ export function useBoardView(): BoardView {
     const group = readOne(params, "group", GROUP_KEYS, "none");
 
     return {
-      mode: readOne(params, "view", VIEW_MODES, "board"),
+      mode: readOne(params, "view", VIEW_MODES, defaultMode),
       filters,
       query: params.get("q") ?? "",
       sort,
@@ -106,7 +118,7 @@ export function useBoardView(): BoardView {
       group,
       filterCount: countFilters(filters),
     };
-  }, [key]);
+  }, [key, defaultMode]);
 
   const write = useCallback(
     (mutate: (params: URLSearchParams) => void) => {
@@ -140,8 +152,23 @@ export function useBoardView(): BoardView {
 
   const setMode = useCallback(
     (mode: BoardViewMode) =>
-      write((params) => set(params, "view", mode, "board")),
-    [write, set],
+      write((params) => set(params, "view", mode, defaultMode)),
+    [write, set, defaultMode],
+  );
+
+  // A bare URL means "the default", so the open view is written into the URL
+  // before the default changes — otherwise choosing another tab as the default
+  // would switch the view under the reader.
+  const setDefaultMode = useCallback(
+    (mode: BoardViewMode) => {
+      if (!boardId) return;
+
+      write((params) =>
+        params.set("view", readOne(params, "view", VIEW_MODES, defaultMode)),
+      );
+      setDefault(boardId, mode);
+    },
+    [boardId, write, defaultMode, setDefault],
   );
 
   const setQuery = useCallback(
@@ -239,6 +266,7 @@ export function useBoardView(): BoardView {
 
   return {
     ...state,
+    defaultMode,
     dndDisabled,
     // null when the view just doesn't reorder — nothing to explain there
     dndReason:
@@ -248,6 +276,7 @@ export function useBoardView(): BoardView {
           ? `Sorted by ${SORT_LABELS[sort]}`
           : `Grouped by ${GROUP_LABELS[group]}`,
     setMode,
+    setDefaultMode,
     toggleFilter,
     clearFilters,
     clearCategory,

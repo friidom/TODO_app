@@ -14,8 +14,7 @@
     "hidden": "Hidden status"
   },
   "workflow": {
-    "passThroughFirst": "Move it to {{stages}} first.",
-    "skipsStep": "That move skips a step. {{reason}}",
+    "noTransition": "The workflow has no transition from “{{from}}” to “{{to}}”.",
     "noStatusToReceive": "This column has no status that can receive work items.",
     "statusNameTaken": "A status named “{{name}}” already exists on this board.",
     "editStale": "The workflow changed before this could be saved. Try again."

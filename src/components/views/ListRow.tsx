@@ -1,6 +1,7 @@
-import { memo, useState } from "react";
-import { PanelRightOpenIcon } from "lucide-react";
+import { memo, useCallback, useState } from "react";
+import { GripVerticalIcon, PanelRightOpenIcon } from "lucide-react";
 
+import { useReorderItem } from "@/components/dnd/reorderDnd";
 import TodoMenu from "@/components/todo/TodoItem/TodoMenu";
 import IconButton from "@/components/ui/IconButton";
 import { useTodoPatch } from "@/hooks/useTodoPatch";
@@ -16,6 +17,7 @@ import { cn } from "@/utils/cn";
 import { taskKey } from "@/utils/taskKey";
 import ListCell from "./ListCell";
 import ListCheckbox from "./ListCheckbox";
+import { LIST_ROW_GROUP } from "./listReorder";
 import {
   CELL,
   ROW_IDLE,
@@ -23,6 +25,7 @@ import {
   STICKY_LEFT,
   STICKY_RIGHT,
 } from "./listTable";
+import { useRowDragState } from "./useRowDragState";
 
 export interface ListRowProps {
   todo: Todo;
@@ -38,6 +41,8 @@ export interface ListRowProps {
   onToggleExpand: (todoId: string) => void;
   selected: boolean;
   onToggleSelect: (todoId: string) => void;
+  /** The rows this one may be dropped among (see rowReorderContainer); null: not draggable. */
+  dragContainer: string | null;
 }
 
 // memo'd because a patch to one card would otherwise re-render every row, and
@@ -59,21 +64,35 @@ const ListRow = memo(function ListRow({
   onToggleExpand,
   selected,
   onToggleSelect,
+  dragContainer,
 }: ListRowProps) {
   const [editing, setEditing] = useState(false);
   const patch = useTodoPatch(todo);
 
   const celebrate = useDoneFlash((state) => state.todoId === todo.id);
+  const { edge, dragging } = useRowDragState(todo.id);
 
   const background = selected ? ROW_SELECTED : ROW_IDLE;
   const name = taskKey(keyPrefix, todo.board_key) ?? todo.title ?? "work item";
 
   return (
-    <tr className={cn("group", celebrate && "done-flash")}>
+    <tr
+      className={cn(
+        "group",
+        celebrate && "done-flash",
+        dragging && "opacity-40",
+        // a <tr> cannot hold the DropLine element, so the line is painted on its cells
+        edge === "before" && "[&>td]:shadow-[inset_0_2px_0_var(--brand)]",
+        edge === "after" && "[&>td]:shadow-[inset_0_-2px_0_var(--brand)]",
+      )}
+    >
       <td
         style={{ left: 0 }}
         className={cn(CELL, background, STICKY_LEFT, "p-0")}
       >
+        {dragContainer !== null && (
+          <RowGrip id={todo.id} container={dragContainer} label={name} />
+        )}
         <ListCheckbox
           checked={selected}
           label={`Select ${name}`}
@@ -157,5 +176,40 @@ const ListRow = memo(function ListRow({
     </tr>
   );
 });
+
+// Only the grip calls useReorderItem: dnd-kit re-renders every draggable as
+// the drop target moves, and this keeps that cost off the memo'd row.
+function RowGrip({
+  id,
+  container,
+  label,
+}: {
+  id: string;
+  container: string;
+  label: string;
+}) {
+  const { setNodeRef, handleProps } = useReorderItem(id, {
+    group: LIST_ROW_GROUP,
+    axis: "y",
+    container,
+  });
+
+  // The row is what gets measured and dropped beside, not the grip.
+  const ref = useCallback(
+    (grip: HTMLElement | null) => setNodeRef(grip?.closest("tr") ?? null),
+    [setNodeRef],
+  );
+
+  return (
+    <span
+      ref={ref}
+      {...handleProps}
+      aria-label={`Reorder ${label}`}
+      className="text-ink-3 hover:text-ink focus-visible:ring-brand coarse:opacity-100 absolute inset-y-0 left-0 z-[1] grid w-4 cursor-grab touch-none place-items-center opacity-0 outline-none group-hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-inset"
+    >
+      <GripVerticalIcon className="size-3.5" />
+    </span>
+  );
+}
 
 export default ListRow;

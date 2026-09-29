@@ -62,3 +62,30 @@ export function stagesBetween(
 
   return WORKFLOW_STAGES.slice(start + 1, end);
 }
+
+// The edges a fresh board starts with, and what migration 0030 backfilled: the
+// category rule above applied to a concrete set of statuses. A stage the board
+// has no visible status in cannot be stopped at, so a move may skip it.
+export function defaultTransitions(
+  statuses: readonly { id: string; category: string; is_hidden?: boolean }[],
+): { from: string; to: string }[] {
+  const present = new Set(
+    statuses.filter((status) => !status.is_hidden).map((status) => stageIndexOf(status.category)),
+  );
+  const edges: { from: string; to: string }[] = [];
+
+  for (const a of statuses) {
+    for (const b of statuses) {
+      const start = stageIndexOf(a.category);
+      const end = stageIndexOf(b.category);
+
+      if (a.id === b.id || start === null || end === null) continue;
+
+      const skipsStop = [...present].some((idx) => idx !== null && idx > start && idx < end);
+
+      if (end - start <= 1 || !skipsStop) edges.push({ from: a.id, to: b.id });
+    }
+  }
+
+  return edges;
+}

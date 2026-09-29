@@ -65,7 +65,7 @@ export function useBoardDragEnd({
   // the first visible one the workflow lets it reach from where it is.
   const landingIn = (columnId: string): IStatus | null =>
     entryStatus(workflow.statuses, columnId, (status) =>
-      gate.allows(sourceStatus?.category, status.category),
+      gate.allows(sourceStatus?.id, status.id),
     );
 
   const onDragEnd = ({ active }: DragEndEvent) => {
@@ -108,10 +108,10 @@ export function useBoardDragEnd({
       const refusal =
         target.id === sourceStatus?.id
           ? null
-          : gate.refusal(sourceStatus?.category, target.category);
+          : gate.refusal(sourceStatus?.id, target.id);
 
       if (refusal !== null) {
-        toast.error(t("workflow.skipsStep", { reason: refusal }));
+        toast.error(refusal);
         resetDrag();
 
         return;

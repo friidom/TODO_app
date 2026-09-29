@@ -3,7 +3,6 @@ import { randomUUID } from "node:crypto";
 import { withActor } from "../../db/withActor.js";
 import { AppError, uniqueConstraintOf } from "../../lib/errors.js";
 import { rankForAppend } from "../../lib/rank.js";
-import { canTransition, stagesBetween } from "../../lib/workflow.js";
 import type { Actor } from "../../types/actor.js";
 import { emitChange, emitDeleted, emitInvalidate } from "../../realtime/emit.js";
 import * as boardsRepo from "../boards/boards.repo.js";
@@ -66,6 +65,10 @@ async function requirePlaceableStatus(
     throw new AppError("bad_request", "That status is not on this board.");
   }
 
+  if (next.column_id === null && nextStatusId !== currentStatusId) {
+    throw new AppError("bad_request", "That status is not on any column and cannot receive work items.");
+  }
+
   if (next.is_hidden && nextStatusId !== currentStatusId) {
     throw new AppError("bad_request", "That status is hidden and cannot receive work items.");
   }
@@ -74,8 +77,8 @@ async function requirePlaceableStatus(
 }
 
 // THE one place the workflow is enforced. Both user-driven writes of status_id
-// call it -- move (drag and drop) and upsert (PATCH) -- so a rule added to
-// lib/workflow.ts cannot be missed by one of them, and neither controller
+// call it -- move (drag and drop) and upsert (PATCH) -- so a rule added here
+// cannot be missed by one of them, and neither controller
 // knows the rule exists.
 //
 // Deliberately NOT called from create (a first placement has no "from"), from
@@ -84,8 +87,8 @@ async function requirePlaceableStatus(
 // fills status_id where it is null).
 //
 // Whether it runs at all is boards.workflow_enabled (migration 0020), one
-// field on the board this request already resolved. The rule in lib/workflow.ts
-// stays pure -- the setting is read here, never in there.
+// field on the board this request already resolved. The rule itself is the
+// board's stored status_transitions.
 async function requireAllowedTransition(
   board: BoardContext,
   currentStatusId: string | null,
@@ -105,25 +108,14 @@ async function requireAllowedTransition(
 
   if (!(await boardsRepo.workflowEnabledFor(board.id))) return;
 
-  const from = placements.get(currentStatusId)?.category ?? null;
-  const to = placements.get(nextStatusId)?.category ?? null;
+  if (await workflowRepo.transitionExists(board.id, currentStatusId, nextStatusId)) return;
 
-  if (canTransition(from, to)) return;
-
-  // The move skips a stage in the sequence — but only stages this board can
-  // actually receive work in are ones it can be asked to pass through. A board
-  // with no visible In Review status has nowhere to stop, and refusing
-  // in_progress -> done there would leave work unable to reach Done at all.
-  const skipped = stagesBetween(from, to);
-  const present = new Set(await workflowRepo.visibleCategoriesOnBoard(board.id));
-  const reachable = skipped.filter((stage) => present.has(stage));
-
-  if (reachable.length === 0) return;
+  const from = placements.get(currentStatusId)?.name ?? "this status";
+  const to = placements.get(nextStatusId)?.name ?? "that status";
 
   throw new AppError(
     "bad_request",
-    `A card cannot move straight from ${from} to ${to}; it has to pass through ` +
-      `${reachable.join(", ")} first.`,
+    `The workflow has no transition from "${from}" to "${to}".`,
   );
 }
 
@@ -185,7 +177,7 @@ export async function create(
   // rank of its own; the card goes after the last card of the status's column.
   const placement = input.status_id == null ? undefined : placements.get(input.status_id);
 
-  if (placement !== undefined && input.rank === undefined) {
+  if (placement?.column_id != null && input.rank === undefined) {
     const last = await todosRepo.lastInColumn(board.id, placement.column_id);
 
     write.rank = rankForAppend(last === null ? [] : [last]);

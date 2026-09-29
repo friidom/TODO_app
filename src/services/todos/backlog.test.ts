@@ -64,10 +64,15 @@ function status(over: Partial<IStatus> & { id: string }): IStatus {
 
 // One column per distinct column_id, in the order the statuses name them.
 function workflow(statuses: IStatus[]): WorkflowModel {
-  const columnIds = [...new Set(statuses.map((it) => it.column_id))];
+  const columnIds = [
+    ...new Set(
+      statuses.flatMap((it) => (it.column_id === null ? [] : [it.column_id])),
+    ),
+  ];
 
   return toWorkflowModel({
     workflow_version: 1,
+    transitions: [],
     columns: columnIds.map((id, index) => ({
       id,
       board_id: "b-1",

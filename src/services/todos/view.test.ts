@@ -394,6 +394,7 @@ const member = (id: string, full_name: string | null): BoardMember => ({
 // their own rows: "todo" in the To do column, "doing" in In progress.
 const BOARD = toWorkflowModel({
   workflow_version: 1,
+  transitions: [],
   columns: [
     column("col-doing", "In progress", 1),
     column("col-todo", "To do", 0),
@@ -453,6 +454,7 @@ describe("orderByBoard", () => {
   it("interleaves the cards of two statuses in one column by rank", () => {
     const board = toWorkflowModel({
       workflow_version: 1,
+      transitions: [],
       columns: [column("col-todo", "To do", 0)],
       statuses: [
         status("todo", "To do", "col-todo"),

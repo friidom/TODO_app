@@ -78,7 +78,7 @@ export async function cardCounts(
 
 export interface StatusStructure {
   id: string;
-  column_id: string;
+  column_id: string | null;
   name: string;
   category: string;
   rank: number;
@@ -132,7 +132,8 @@ export async function removeMany(
 
 export interface StatusPlacement {
   id: string;
-  column_id: string;
+  name: string;
+  column_id: string | null;
   category: string;
   is_hidden: boolean;
 }
@@ -145,20 +146,69 @@ export async function placementsOf(
 ): Promise<Map<string, StatusPlacement>> {
   const rows = await prisma.statuses.findMany({
     where: { board_id: boardId, id: { in: statusIds } },
-    select: { id: true, column_id: true, category: true, is_hidden: true },
+    select: { id: true, name: true, column_id: true, category: true, is_hidden: true },
   });
 
   return new Map(rows.map((row) => [row.id, row]));
 }
 
-// Hidden statuses cannot receive work, so a stage present only through hidden
-// statuses is not one a card can be asked to pass through.
-export async function visibleCategoriesOnBoard(boardId: string): Promise<string[]> {
-  const rows = await prisma.statuses.findMany({
-    where: { board_id: boardId, is_hidden: false },
-    select: { category: true },
-    distinct: ["category"],
+export interface TransitionRow {
+  from: string;
+  to: string;
+}
+
+export async function transitionsOf(
+  boardId: string,
+  db: Prisma.TransactionClient = prisma,
+): Promise<TransitionRow[]> {
+  const rows = await db.status_transitions.findMany({
+    where: { board_id: boardId },
+    select: { from_status_id: true, to_status_id: true },
+    orderBy: [{ from_status_id: "asc" }, { to_status_id: "asc" }],
   });
 
-  return rows.map((row) => row.category);
+  return rows.map((row) => ({ from: row.from_status_id, to: row.to_status_id }));
+}
+
+export async function insertTransitions(
+  tx: Prisma.TransactionClient,
+  boardId: string,
+  edges: TransitionRow[],
+): Promise<void> {
+  if (edges.length === 0) return;
+
+  await tx.status_transitions.createMany({
+    data: edges.map((edge) => ({
+      board_id: boardId,
+      from_status_id: edge.from,
+      to_status_id: edge.to,
+    })),
+  });
+}
+
+export async function removeTransitions(
+  tx: Prisma.TransactionClient,
+  boardId: string,
+  edges: TransitionRow[],
+): Promise<void> {
+  if (edges.length === 0) return;
+
+  await tx.status_transitions.deleteMany({
+    where: {
+      board_id: boardId,
+      OR: edges.map((edge) => ({ from_status_id: edge.from, to_status_id: edge.to })),
+    },
+  });
+}
+
+export async function transitionExists(
+  boardId: string,
+  from: string,
+  to: string,
+): Promise<boolean> {
+  const count = await prisma.status_transitions.count({
+    where: { board_id: boardId, from_status_id: from, to_status_id: to },
+  });
+
+  return count > 0;
 }

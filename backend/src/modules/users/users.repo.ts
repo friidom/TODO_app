@@ -5,6 +5,7 @@ import type { Prisma } from "@prisma/client";
 import { DEFAULT_COLUMNS } from "../../config/constants.js";
 import { prisma } from "../../db/prisma.js";
 import { RANK_GAP } from "../../lib/rank.js";
+import { defaultTransitions } from "../../lib/workflow.js";
 
 export function usernameExists(tx: Prisma.TransactionClient, username: string): Promise<boolean> {
   return tx.profiles
@@ -90,14 +91,23 @@ export async function insertDefaultWorkflow(
     })),
   });
 
+  const statuses = columns.map((column) => ({ ...column, statusId: randomUUID() }));
+
   await tx.statuses.createMany({
-    data: columns.map((column) => ({
+    data: statuses.map((column) => ({
+      id: column.statusId,
       board_id: boardId,
       column_id: column.id,
       name: column.title,
       category: column.category,
       rank: RANK_GAP,
     })),
+  });
+
+  await tx.status_transitions.createMany({
+    data: defaultTransitions(
+      statuses.map((column) => ({ id: column.statusId, category: column.category })),
+    ).map((edge) => ({ board_id: boardId, from_status_id: edge.from, to_status_id: edge.to })),
   });
 }
 

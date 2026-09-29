@@ -78,11 +78,13 @@ const STATUS_FIELDS = { id: true, column_id: true, name: true, category: true } 
 export async function firstStatusOf(boardId: string): Promise<TestStatus> {
   const column = await firstColumnOf(boardId);
 
-  return prisma.statuses.findFirstOrThrow({
+  const status = await prisma.statuses.findFirstOrThrow({
     where: { board_id: boardId, column_id: column.id },
     orderBy: { rank: "asc" },
     select: STATUS_FIELDS,
   });
+
+  return { ...status, column_id: column.id };
 }
 
 // One status per stage on a provisioned board: To Do, In Progress, In Review,
@@ -126,6 +128,7 @@ export async function workflowDraft(boardId: string): Promise<PublishWorkflowInp
       category: status.category as WorkflowStage,
       is_hidden: status.is_hidden,
     })),
+    transitions: snapshot.transitions,
     migrations: [],
   };
 }

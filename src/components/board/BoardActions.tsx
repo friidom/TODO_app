@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import {
+  Columns3Icon,
   HistoryIcon,
   MoreHorizontalIcon,
+  NetworkIcon,
   SettingsIcon,
   Trash2Icon,
   UsersIcon,
@@ -10,6 +12,8 @@ import {
 
 import DeleteBoardModal from "@/components/boards/DeleteBoardModal";
 import IconButton from "@/components/ui/IconButton";
+import ConfigureColumnsModal from "@/components/workflow/ConfigureColumnsModal";
+import ManageWorkflowsModal from "@/components/workflow/ManageWorkflowsModal";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,10 +36,12 @@ export default function BoardActions() {
   const { panel, openPanel } = usePanel();
 
   // Settings is admin+, matching PATCH /boards/:boardId; deleting stays owner-only.
-  const { canEditBoard } = usePermissions(boardId);
+  const { canEditBoard, canManageWorkflow } = usePermissions(boardId);
   const owned = !!board && board.owner_id === user?.id;
 
   const [deleting, setDeleting] = useState(false);
+  const [configuring, setConfiguring] = useState(false);
+  const [managing, setManaging] = useState(false);
 
   return (
     <>
@@ -82,6 +88,20 @@ export default function BoardActions() {
             </DropdownMenuItem>
           )}
 
+          {canManageWorkflow && (
+            <DropdownMenuItem onClick={() => setConfiguring(true)}>
+              <Columns3Icon />
+              Configure columns
+            </DropdownMenuItem>
+          )}
+
+          {canManageWorkflow && (
+            <DropdownMenuItem onClick={() => setManaging(true)}>
+              <NetworkIcon />
+              Manage workflows
+            </DropdownMenuItem>
+          )}
+
           {owned && (
             <>
               <DropdownMenuSeparator />
@@ -97,6 +117,12 @@ export default function BoardActions() {
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {configuring && (
+        <ConfigureColumnsModal onClose={() => setConfiguring(false)} />
+      )}
+
+      {managing && <ManageWorkflowsModal onClose={() => setManaging(false)} />}
 
       {deleting && board && (
         <DeleteBoardModal board={board} onClose={() => setDeleting(false)} />

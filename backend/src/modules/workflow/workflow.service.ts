@@ -18,12 +18,14 @@ export interface WorkflowSnapshot {
   columns: ColumnRow[];
   // Board order: by column, then by rank inside the column.
   statuses: StatusRow[];
+  transitions: workflowRepo.TransitionRow[];
 }
 
 function notFound(): AppError {
   return new AppError("not_found", "Not found.");
 }
 
+// Unmapped statuses sort last, after every column.
 function inBoardOrder(columns: ColumnRow[], statuses: StatusRow[]): StatusRow[] {
   const columnIndex = new Map(columns.map((column, index) => [column.id, index]));
 
@@ -31,8 +33,8 @@ function inBoardOrder(columns: ColumnRow[], statuses: StatusRow[]): StatusRow[] 
     .map((status, index) => ({ status, index }))
     .sort(
       (a, b) =>
-        (columnIndex.get(a.status.column_id) ?? Number.MAX_SAFE_INTEGER) -
-          (columnIndex.get(b.status.column_id) ?? Number.MAX_SAFE_INTEGER) ||
+        (columnIndex.get(a.status.column_id ?? "") ?? Number.MAX_SAFE_INTEGER) -
+          (columnIndex.get(b.status.column_id ?? "") ?? Number.MAX_SAFE_INTEGER) ||
         a.index - b.index,
     )
     .map(({ status }) => status);
@@ -51,8 +53,14 @@ export async function snapshot(boardId: string): Promise<WorkflowSnapshot> {
 
       const columns = await columnsRepo.findByBoard(boardId, tx);
       const statuses = await workflowRepo.findByBoard(boardId, tx);
+      const transitions = await workflowRepo.transitionsOf(boardId, tx);
 
-      return { workflow_version: version, columns, statuses: inBoardOrder(columns, statuses) };
+      return {
+        workflow_version: version,
+        columns,
+        statuses: inBoardOrder(columns, statuses),
+        transitions,
+      };
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
   );
@@ -98,6 +106,7 @@ export async function publish(
       {
         columns: await columnsRepo.findByBoard(boardId, tx),
         statuses: await workflowRepo.findByBoard(boardId, tx),
+        transitions: await workflowRepo.transitionsOf(boardId, tx),
         cards: await workflowRepo.cardCounts(tx, boardId),
       },
       input,
@@ -114,6 +123,9 @@ export async function publish(
     for (const change of plan.updateStatuses) {
       await workflowRepo.updateStructure(tx, boardId, change);
     }
+
+    await workflowRepo.removeTransitions(tx, boardId, plan.deleteTransitions);
+    await workflowRepo.insertTransitions(tx, boardId, plan.createTransitions);
 
     for (const migration of plan.migrations) {
       await todosRepo.moveStatusCards(tx, boardId, migration);

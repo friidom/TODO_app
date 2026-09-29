@@ -1,4 +1,5 @@
 import type { SortKey } from "@/services/todos/view";
+import { reorder, type Side } from "@/utils/reorder";
 
 // The List's columns as data, not markup. Declaring them once is what lets the
 // header, the cells and the Columns menu agree: a `lg:hidden` on a header cell
@@ -26,7 +27,7 @@ export type ListColumnId = (typeof LIST_COLUMN_IDS)[number];
 export interface ListColumnDef {
   id: ListColumnId;
   label: string;
-  /** px. The elastic column reads this as a floor rather than a fixed track. */
+  /** The default width in px, until the reader drags it. The elastic column reads it as a floor. */
   width: number;
   /** Takes the slack left over by the fixed columns — only the identity column does. */
   elastic?: boolean;
@@ -86,8 +87,10 @@ export const PINNED_COLUMN: ListColumnId = "work";
 // the fields are scrolled.
 export const ACTION_COLUMN_WIDTH = 44;
 
-// The row checkboxes. Like the action column, chrome rather than a field.
-export const SELECT_COLUMN_WIDTH = 40;
+// The row checkboxes and the grip a row is dragged by. Like the action column,
+// chrome rather than a field. Sized for the grip whether or not rows can be
+// dragged, so sorting the List does not shift every column sideways.
+export const SELECT_COLUMN_WIDTH = 52;
 
 export const DEFAULT_LIST_COLUMNS: readonly ListColumnId[] = [
   "work",
@@ -142,29 +145,20 @@ export function toggleListColumn(
     : [...ids, id];
 }
 
-// Swaps two named columns rather than moving one by an offset, because the stored
-// list and the rendered list are not the same list: a column the sprints flag
-// hides is still stored, so "one step left" counted over the stored array would
-// step onto an invisible neighbour and appear to do nothing. The caller names the
-// visible neighbour and this swaps their stored slots, which leaves every hidden
-// entry exactly where it was.
-export function swapListColumns(
+// Moves within the stored list, not the rendered one: a column the sprints flag
+// hides is still stored, and working on the stored list is what leaves it
+// exactly where it was. Nothing may land in or leave the pinned column's slot.
+export function moveListColumn(
   ids: readonly ListColumnId[],
-  a: ListColumnId,
-  b: ListColumnId,
+  activeId: ListColumnId,
+  overId: ListColumnId,
+  side: Side,
 ): ListColumnId[] {
-  const left = ids.indexOf(a);
-  const right = ids.indexOf(b);
+  if (activeId === PINNED_COLUMN) return [...ids];
 
-  // index 0 is the pinned column's slot, so nothing may move into or out of it
-  if (left < 1 || right < 1 || left === right) return [...ids];
+  const columns = reorder(ids, activeId, overId, side);
 
-  const columns = [...ids];
-
-  columns[left] = b;
-  columns[right] = a;
-
-  return columns;
+  return columns[0] === PINNED_COLUMN ? columns : [...ids];
 }
 
 export function resolveListColumns(
@@ -186,11 +180,70 @@ export function offeredListColumns({
   );
 }
 
+export type ListColumnWidths = Partial<Record<ListColumnId, number>>;
+
+export const MIN_COLUMN_WIDTH = 80;
+export const MIN_PINNED_COLUMN_WIDTH = 200;
+export const MAX_COLUMN_WIDTH = 800;
+
+export function minListColumnWidth(id: ListColumnId): number {
+  return id === PINNED_COLUMN ? MIN_PINNED_COLUMN_WIDTH : MIN_COLUMN_WIDTH;
+}
+
+export function clampListColumnWidth(id: ListColumnId, width: number): number {
+  return Math.round(
+    Math.min(MAX_COLUMN_WIDTH, Math.max(minListColumnWidth(id), width)),
+  );
+}
+
+export function listColumnWidth(
+  column: ListColumnDef,
+  widths: ListColumnWidths,
+): number {
+  return widths[column.id] ?? column.width;
+}
+
+// A width equal to the default is dropped rather than stored, so a column
+// dragged back to where it started does not count as customised.
+export function withListColumnWidth(
+  widths: ListColumnWidths,
+  id: ListColumnId,
+  width: number | null,
+): ListColumnWidths {
+  const next = { ...widths };
+  const clamped = width === null ? null : clampListColumnWidth(id, width);
+
+  if (clamped === null || clamped === LIST_COLUMNS[id].width) delete next[id];
+  else next[id] = clamped;
+
+  return next;
+}
+
+export function normalizeListColumnWidths(value: unknown): ListColumnWidths {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return {};
+  }
+
+  let widths: ListColumnWidths = {};
+
+  for (const [id, width] of Object.entries(value)) {
+    if (!isListColumnId(id)) continue;
+    if (typeof width !== "number" || !Number.isFinite(width)) continue;
+
+    widths = withListColumnWidth(widths, id, width);
+  }
+
+  return widths;
+}
+
 // What the table is set `min-width` to, which is what makes it scroll sideways
 // instead of crushing its columns. The elastic column contributes its floor.
-export function tableMinWidth(columns: readonly ListColumnDef[]): number {
+export function tableMinWidth(
+  columns: readonly ListColumnDef[],
+  widths: ListColumnWidths = {},
+): number {
   return columns.reduce(
-    (total, column) => total + column.width,
+    (total, column) => total + listColumnWidth(column, widths),
     SELECT_COLUMN_WIDTH + ACTION_COLUMN_WIDTH,
   );
 }
@@ -228,5 +281,30 @@ export function writeListColumns(ids: readonly ListColumnId[]): void {
     else localStorage.setItem(KEY, JSON.stringify(columns));
   } catch {
     // A preference that cannot be remembered is not worth failing a render for.
+  }
+}
+
+// A key of its own rather than a field beside the ids, so a list stored before
+// widths existed still reads as it was written.
+const WIDTHS_KEY = "list:column-widths";
+
+export function readListColumnWidths(): ListColumnWidths {
+  try {
+    const stored = localStorage.getItem(WIDTHS_KEY);
+
+    return stored === null ? {} : normalizeListColumnWidths(JSON.parse(stored));
+  } catch {
+    return {};
+  }
+}
+
+export function writeListColumnWidths(widths: ListColumnWidths): void {
+  try {
+    const repaired = normalizeListColumnWidths(widths);
+
+    if (Object.keys(repaired).length === 0) localStorage.removeItem(WIDTHS_KEY);
+    else localStorage.setItem(WIDTHS_KEY, JSON.stringify(repaired));
+  } catch {
+    // see writeListColumns
   }
 }

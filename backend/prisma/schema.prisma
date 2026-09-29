@@ -91,6 +91,7 @@ model boards {
   sprints_enabled  Boolean         @default(true)
   workflow_enabled Boolean         @default(true)
   workflow_version Int             @default(1)
+  view_tabs        Json?
   created_at       DateTime        @default(now()) @db.Timestamptz(6)
   updated_at       DateTime        @default(now()) @db.Timestamptz(6)
   next_key         Int             @default(1)
@@ -105,6 +106,7 @@ model boards {
   notifications    notifications[]
   sprints          sprints?
   statuses         statuses[]
+  status_transitions status_transitions[]
   todos            todos[]
 
   @@index([owner_id])
@@ -136,7 +138,7 @@ model columns {
 model statuses {
   id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   board_id   String   @db.Uuid
-  column_id  String   @db.Uuid
+  column_id  String?  @db.Uuid
   name       String   @db.Citext
   category   String
   rank       Float
@@ -144,12 +146,27 @@ model statuses {
   created_at DateTime @default(now()) @db.Timestamptz(6)
   updated_at DateTime @default(now()) @db.Timestamptz(6)
   boards     boards   @relation(fields: [board_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  columns    columns  @relation(fields: [column_id, board_id], references: [id, board_id], onDelete: Restrict, onUpdate: NoAction, map: "statuses_column_id_fkey")
+  columns    columns? @relation(fields: [column_id, board_id], references: [id, board_id], onDelete: Restrict, onUpdate: NoAction, map: "statuses_column_id_fkey")
   todos      todos[]
+  transitions_out status_transitions[] @relation("transition_from")
+  transitions_in  status_transitions[] @relation("transition_to")
 
   @@unique([id, board_id])
   @@unique([board_id, name])
   @@index([column_id, rank])
+}
+
+model status_transitions {
+  board_id       String   @db.Uuid
+  from_status_id String   @db.Uuid
+  to_status_id   String   @db.Uuid
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+  boards         boards   @relation(fields: [board_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  from           statuses @relation("transition_from", fields: [from_status_id, board_id], references: [id, board_id], onDelete: Cascade, onUpdate: NoAction, map: "status_transitions_from_fkey")
+  to             statuses @relation("transition_to", fields: [to_status_id, board_id], references: [id, board_id], onDelete: Cascade, onUpdate: NoAction, map: "status_transitions_to_fkey")
+
+  @@id([from_status_id, to_status_id])
+  @@index([board_id])
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.

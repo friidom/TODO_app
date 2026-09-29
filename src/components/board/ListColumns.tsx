@@ -1,52 +1,53 @@
 import { FloatingPortal } from "@floating-ui/react";
 import {
   CheckIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
   Columns3Icon,
+  GripVerticalIcon,
   LockIcon,
   RotateCcwIcon,
 } from "lucide-react";
 
+import DropLine, { DragChip } from "@/components/dnd/DropLine";
+import ReorderContext from "@/components/dnd/ReorderContext";
+import { useReorderItem } from "@/components/dnd/reorderDnd";
 import { useCardPopover } from "@/components/todo/TodoItem/useCardPopover";
 import IconButton from "@/components/ui/IconButton";
+import { LIST_COLUMN_GROUP } from "@/components/views/listReorder";
 import { useSprintsEnabled } from "@/hooks/useSprintsEnabled";
 import {
+  LIST_COLUMNS,
   PINNED_COLUMN,
   isDefaultListColumns,
+  isListColumnId,
   offeredListColumns,
   type ListColumnId,
 } from "@/services/views/listColumns";
 import { useListColumns } from "@/stores/listColumns";
 import { cn } from "@/utils/cn";
 
-// A popover rather than DropdownMenu, for the reason BoardFilters gives: each row
-// carries its own reorder buttons, and a roving-tabindex menu would swallow the
-// keystrokes meant for them. Plain buttons keep the natural tab order instead.
+// A popover rather than DropdownMenu: a roving-tabindex menu would swallow the
+// Space and arrow keys the grips use to lift and move a column.
 export default function ListColumns() {
   const { open, mounted, triggerProps, panelProps } = useCardPopover();
 
   const sprintsEnabled = useSprintsEnabled();
 
   const columns = useListColumns((state) => state.columns);
+  const widths = useListColumns((state) => state.widths);
   const toggle = useListColumns((state) => state.toggle);
-  const swap = useListColumns((state) => state.swap);
+  const move = useListColumns((state) => state.move);
   const reset = useListColumns((state) => state.reset);
 
   const offered = offeredListColumns({ sprintsEnabled });
   const shown = columns.filter((id) =>
     offered.some((column) => column.id === id),
   );
+  const hidden = offered
+    .map((column) => column.id)
+    .filter((id) => !shown.includes(id));
 
-  // Visible first, in the order the table renders them, then the rest — so the
-  // list doubles as the reordering surface.
-  const rows = [
-    ...shown,
-    ...offered.map((column) => column.id).filter((id) => !shown.includes(id)),
-  ];
-
-  const customised = !isDefaultListColumns(shown);
-  const last = shown[shown.length - 1];
+  const customised =
+    !isDefaultListColumns(shown) || Object.keys(widths).length > 0;
 
   return (
     <>
@@ -78,6 +79,7 @@ export default function ListColumns() {
                 <button
                   type="button"
                   onClick={reset}
+                  title="Default columns, order and widths"
                   className="text-ink-3 hover:text-ink text-mini flex items-center gap-1 rounded transition-colors"
                 >
                   <RotateCcwIcon className="size-3" />
@@ -86,35 +88,57 @@ export default function ListColumns() {
               )}
             </div>
 
-            {/* The menu is vertical and the table is horizontal, so say which
-                way the order runs rather than leaving the arrows to imply it. */}
             <p className="text-ink-3/70 text-mini px-2 pb-1.5">
-              Top to bottom here is left to right in the table.
+              Drag to reorder. Top to bottom here is left to right in the table.
             </p>
 
-            <ul className="min-h-0 flex-1 overflow-y-auto">
-              {rows.map((id) => (
-                <ColumnRow
-                  key={id}
-                  id={id}
-                  label={
-                    offered.find((column) => column.id === id)?.label ?? id
-                  }
-                  visible={shown.includes(id)}
-                  canMoveUp={shown.indexOf(id) > 1}
-                  canMoveDown={shown.includes(id) && id !== last}
-                  onToggle={() => toggle(id)}
-                  // Neighbour resolved over the shown list, never the stored
-                  // one, so a column the sprints flag hides is stepped over
-                  // rather than swapped with invisibly.
-                  onMove={(direction) => {
-                    const neighbour = shown[shown.indexOf(id) + direction];
+            <ReorderContext
+              onReorder={({ activeId, overId, side }) => {
+                if (
+                  isListColumnId(activeId) &&
+                  isListColumnId(overId) &&
+                  side
+                ) {
+                  move(activeId, overId, side);
+                }
+              }}
+              describe={(id) =>
+                isListColumnId(id) ? LIST_COLUMNS[id].label : id
+              }
+              renderOverlay={(id) => (
+                <DragChip>
+                  <GripVerticalIcon className="text-ink-3 size-3.5" />
+                  {isListColumnId(id) ? LIST_COLUMNS[id].label : id}
+                </DragChip>
+              )}
+            >
+              <ul className="min-h-0 flex-1 overflow-y-auto">
+                {shown.map((id) => (
+                  <ColumnRow
+                    key={id}
+                    id={id}
+                    visible
+                    onToggle={() => toggle(id)}
+                  />
+                ))}
 
-                    if (neighbour) swap(id, neighbour);
-                  }}
-                />
-              ))}
-            </ul>
+                {hidden.length > 0 && (
+                  <li
+                    aria-hidden
+                    className="border-hairline mx-2 my-1 border-t"
+                  />
+                )}
+
+                {hidden.map((id) => (
+                  <ColumnRow
+                    key={id}
+                    id={id}
+                    visible={false}
+                    onToggle={() => toggle(id)}
+                  />
+                ))}
+              </ul>
+            </ReorderContext>
           </div>
         </FloatingPortal>
       )}
@@ -124,25 +148,45 @@ export default function ListColumns() {
 
 function ColumnRow({
   id,
-  label,
   visible,
-  canMoveUp,
-  canMoveDown,
   onToggle,
-  onMove,
 }: {
   id: ListColumnId;
-  label: string;
   visible: boolean;
-  canMoveUp: boolean;
-  canMoveDown: boolean;
   onToggle: () => void;
-  onMove: (direction: -1 | 1) => void;
 }) {
   const locked = id === PINNED_COLUMN;
+  const label = LIST_COLUMNS[id].label;
+
+  // A hidden column has no place in the table, so it has no place to drag to.
+  const { setNodeRef, handleProps, isDragging, edge } = useReorderItem(id, {
+    group: LIST_COLUMN_GROUP,
+    axis: "y",
+    disabled: locked || !visible,
+  });
 
   return (
-    <li className="flex items-center gap-0.5">
+    <li
+      ref={setNodeRef}
+      className={cn(
+        "relative flex items-center gap-0.5",
+        isDragging && "opacity-40",
+      )}
+    >
+      <DropLine edge={edge} axis="y" className="inset-x-1" />
+
+      {visible && !locked ? (
+        <span
+          {...handleProps}
+          aria-label={`Reorder ${label}`}
+          className="text-ink-3 hover:text-ink focus-visible:ring-brand grid h-7 w-5 shrink-0 cursor-grab touch-none place-items-center rounded outline-none focus-visible:ring-2"
+        >
+          <GripVerticalIcon className="size-3.5" />
+        </span>
+      ) : (
+        <span className="w-5 shrink-0" />
+      )}
+
       <button
         type="button"
         role="checkbox"
@@ -151,7 +195,7 @@ function ColumnRow({
         onClick={locked ? undefined : onToggle}
         title={
           locked
-            ? "The work item column always shows — it names the row"
+            ? "The work item column always shows first — it names the row"
             : undefined
         }
         className={cn(
@@ -172,50 +216,13 @@ function ColumnRow({
           {label}
         </span>
 
-        {locked && <LockIcon className="text-ink-3/60 size-3 shrink-0" />}
+        {locked && (
+          <LockIcon
+            aria-label="Locked"
+            className="text-ink-3/60 size-3 shrink-0"
+          />
+        )}
       </button>
-
-      {!locked && visible && (
-        <span className="flex shrink-0 items-center">
-          <MoveButton
-            label={`Move ${label} left`}
-            icon={ChevronUpIcon}
-            disabled={!canMoveUp}
-            onClick={() => onMove(-1)}
-          />
-          <MoveButton
-            label={`Move ${label} right`}
-            icon={ChevronDownIcon}
-            disabled={!canMoveDown}
-            onClick={() => onMove(1)}
-          />
-        </span>
-      )}
     </li>
-  );
-}
-
-function MoveButton({
-  label,
-  icon: Icon,
-  disabled,
-  onClick,
-}: {
-  label: string;
-  icon: typeof ChevronUpIcon;
-  disabled: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={label}
-      title={label}
-      className="text-ink-3 hover:bg-ink/10 hover:text-ink focus-visible:ring-brand grid size-6 place-items-center rounded transition-colors outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-25"
-    >
-      <Icon className="size-3.5" />
-    </button>
   );
 }

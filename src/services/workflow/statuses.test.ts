@@ -10,10 +10,13 @@ import {
   doneStatusIds,
   entryStatus,
   firstTodoStatus,
+  hasTransition,
   isDoneIn,
+  reachableStatusIds,
   selectableStatuses,
   statusesInColumn,
   toWorkflowModel,
+  unmappedStatuses,
   visibleCategories,
 } from "./statuses";
 
@@ -44,6 +47,7 @@ const card = (status_id: string | null): Pick<Todo, "status_id"> => ({
 // and "blocked". Handed over out of order on purpose.
 const MODEL = toWorkflowModel({
   workflow_version: 7,
+  transitions: [],
   columns: [column("col-doing", 2048), column("col-todo", 1024)],
   statuses: [
     status("blocked", "col-doing", { category: "in_progress", rank: 2048 }),
@@ -73,6 +77,7 @@ describe("toWorkflowModel", () => {
   it("falls back to position for a column with no rank, as byRank does", () => {
     const model = toWorkflowModel({
       workflow_version: 1,
+      transitions: [],
       columns: [column("second", null, 1), column("first", null, 0)],
       statuses: [status("b", "second"), status("a", "first")],
     });
@@ -198,6 +203,7 @@ describe("firstTodoStatus", () => {
   it("skips a todo status in a later column for an earlier one", () => {
     const model = toWorkflowModel({
       workflow_version: 1,
+      transitions: [],
       columns: [column("late", 3), column("early", 2), column("review", 1)],
       statuses: [
         status("todo-2", "late"),
@@ -226,5 +232,43 @@ describe("defaultStatus", () => {
       defaultStatus([status("a", "col-x", { category: "done" })])?.id,
     ).toBe("a");
     expect(defaultStatus([])).toBeNull();
+  });
+});
+
+describe("unmapped statuses", () => {
+  const model = toWorkflowModel({
+    workflow_version: 1,
+    transitions: [
+      { from: "a", to: "b" },
+      { from: "a", to: "c" },
+    ],
+    columns: [column("col", 1024)],
+    statuses: [
+      status("a", "col"),
+      status("b", "col"),
+      status("c", null as unknown as string, { column_id: null }),
+    ],
+  });
+
+  it("sorts an unmapped status after every column and lists it apart", () => {
+    expect(model.statuses.map((it) => it.id)).toEqual(["a", "b", "c"]);
+    expect(unmappedStatuses(model.statuses).map((it) => it.id)).toEqual(["c"]);
+  });
+
+  it("never offers an unmapped status for placement", () => {
+    expect(selectableStatuses(model.statuses, "a").map((it) => it.id)).toEqual([
+      "a",
+      "b",
+    ]);
+    expect(defaultStatus(model.statuses)?.id).toBe("a");
+  });
+
+  it("reads reachability off the stored edges, in one direction", () => {
+    expect(hasTransition(model.transitions, "a", "b")).toBe(true);
+    expect(hasTransition(model.transitions, "b", "a")).toBe(false);
+    expect([...reachableStatusIds(model.transitions, "a")].sort()).toEqual([
+      "b",
+      "c",
+    ]);
   });
 });

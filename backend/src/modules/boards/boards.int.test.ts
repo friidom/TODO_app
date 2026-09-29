@@ -704,3 +704,99 @@ describe("board feature flags", () => {
     expect(renamed.body.workflow_enabled).toBe(false);
   });
 });
+
+// Migration 0027. The board's tab set, shared by everyone on it and edited by
+// admins through the same PATCH as the feature flags.
+describe("board view tabs", () => {
+  interface Tabs {
+    view_tabs: { mode: string; label: string | null; hidden: boolean }[] | null;
+    title: string | null;
+  }
+
+  const TABS = [
+    { mode: "list", label: "Everything", hidden: false },
+    { mode: "board", label: null, hidden: false },
+    { mode: "calendar", label: null, hidden: true },
+  ];
+
+  function patchTabs(actor: TestUser, boardId: string, patch: Record<string, unknown>) {
+    return client.patch<Tabs>(`/api/v1/boards/${boardId}`, patch, { token: actor.token });
+  }
+
+  it("starts null, the default set", async () => {
+    const alice = await makeUser("alice");
+    const response = await client.get<Tabs>(`/api/v1/boards/${alice.boardId}`, {
+      token: alice.token,
+    });
+
+    expect(response.body.view_tabs).toBeNull();
+  });
+
+  it("round-trips an admin's arrangement, in order", async () => {
+    const owner = await makeUser("owner");
+    const admin = await makeUser("admin");
+
+    await addMember(owner.boardId, admin, "admin", owner.id);
+
+    const saved = await patchTabs(admin, owner.boardId, { view_tabs: TABS });
+
+    expect(saved.status).toBe(200);
+    expect(saved.body.view_tabs).toEqual(TABS);
+
+    const read = await client.get<Tabs>(`/api/v1/boards/${owner.boardId}`, {
+      token: owner.token,
+    });
+
+    expect(read.body.view_tabs).toEqual(TABS);
+  });
+
+  it("REFUSES an editor, leaving the tabs alone", async () => {
+    const owner = await makeUser("owner");
+    const editor = await makeUser("editor");
+
+    await addMember(owner.boardId, editor, "editor", owner.id);
+
+    expect((await patchTabs(editor, owner.boardId, { view_tabs: TABS })).status).toBe(403);
+
+    const row = await prisma.boards.findUniqueOrThrow({ where: { id: owner.boardId } });
+
+    expect(row.view_tabs).toBeNull();
+  });
+
+  it("rejects the same mode twice", async () => {
+    const alice = await makeUser("alice");
+    const response = await patchTabs(alice, alice.boardId, {
+      view_tabs: [TABS[0], { ...TABS[0], label: null }],
+    });
+
+    expect(response.status).toBe(400);
+  });
+
+  it("stores null as SQL NULL, so a reset is the default set again", async () => {
+    const alice = await makeUser("alice");
+
+    await patchTabs(alice, alice.boardId, { view_tabs: TABS });
+
+    const reset = await patchTabs(alice, alice.boardId, { view_tabs: null });
+
+    expect(reset.status).toBe(200);
+    expect(reset.body.view_tabs).toBeNull();
+
+    const rows = await prisma.$queryRaw<{ is_null: boolean }[]>`
+      select view_tabs is null as is_null from boards where id = ${alice.boardId}::uuid
+    `;
+
+    expect(rows[0]!.is_null).toBe(true);
+  });
+
+  it("is untouched by a patch that does not name it", async () => {
+    const alice = await makeUser("alice");
+
+    await patchTabs(alice, alice.boardId, { view_tabs: TABS });
+
+    const renamed = await patchTabs(alice, alice.boardId, { title: "Renamed" });
+
+    expect(renamed.body.title).toBe("Renamed");
+    expect(renamed.body.view_tabs).toEqual(TABS);
+  });
+});

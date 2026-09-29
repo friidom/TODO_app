@@ -435,6 +435,18 @@ async function main(): Promise<void> {
         columns.push({ id, statusId, category });
       }
 
+
+      await client.query(
+        `insert into status_transitions (board_id, from_status_id, to_status_id)
+         select $1, a.id, b.id
+           from statuses a
+           join statuses b on b.board_id = a.board_id and b.id <> a.id
+          where a.board_id = $1
+            and array_position(array['todo','in_progress','in_review','done'], b.category)
+              - array_position(array['todo','in_progress','in_review','done'], a.category) <= 1`,
+        [boardId],
+      );
+
       const doneColumn = columns.find((column) => column.category === "done")!;
 
       const sprints: string[] = [];

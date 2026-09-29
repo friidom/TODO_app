@@ -9,7 +9,11 @@ import {
   LIST_COLUMN_IDS,
   PINNED_COLUMN,
   isDefaultListColumns,
-  swapListColumns,
+  moveListColumn,
+  MIN_COLUMN_WIDTH,
+  MIN_PINNED_COLUMN_WIDTH,
+  normalizeListColumnWidths,
+  withListColumnWidth,
   normalizeListColumns,
   offeredListColumns,
   readListColumns,
@@ -104,64 +108,77 @@ describe("toggleListColumn", () => {
   });
 });
 
-describe("swapListColumns", () => {
+describe("moveListColumn", () => {
   const columns: ListColumnId[] = ["work", "assignee", "priority", "status"];
 
-  it("trades the two named slots and leaves the rest alone", () => {
-    expect(swapListColumns(columns, "priority", "assignee")).toEqual([
+  it("moves one column to the named side of another", () => {
+    expect(moveListColumn(columns, "status", "assignee", "before")).toEqual([
       "work",
-      "priority",
-      "assignee",
       "status",
-    ]);
-
-    expect(swapListColumns(columns, "priority", "status")).toEqual([
-      "work",
       "assignee",
-      "status",
       "priority",
     ]);
+
+    expect(moveListColumn(columns, "assignee", "status", "after")).toEqual([
+      "work",
+      "priority",
+      "status",
+      "assignee",
+    ]);
   });
 
-  it("refuses the pinned column's slot from either side", () => {
-    expect(swapListColumns(columns, "assignee", PINNED_COLUMN)).toEqual(
+  it("never moves anything into or out of the pinned column's slot", () => {
+    expect(
+      moveListColumn(columns, "assignee", PINNED_COLUMN, "before"),
+    ).toEqual(columns);
+    expect(moveListColumn(columns, PINNED_COLUMN, "status", "after")).toEqual(
       columns,
     );
-    expect(swapListColumns(columns, PINNED_COLUMN, "assignee")).toEqual(
-      columns,
-    );
   });
 
-  it("leaves a column it does not hold alone", () => {
-    expect(swapListColumns(columns, "sprint", "assignee")).toEqual(columns);
-    expect(swapListColumns(columns, "assignee", "assignee")).toEqual(columns);
-  });
-
-  // The reason this swaps named columns instead of moving one by an offset.
-  // The stored list is shared across boards, so it can hold a column the board
-  // in front of you hides; counting "one step left" over it would swap with the
-  // invisible neighbour and look like the button did nothing.
-  it("steps over a stored column the sprints flag is hiding", () => {
+  // Moves over the stored list, so a column the sprints flag hides keeps its
+  // stored slot instead of being dropped or shuffled.
+  it("leaves a stored column the sprints flag is hiding where it was", () => {
     const stored: ListColumnId[] = ["work", "sprint", "status", "due"];
 
-    const shown = resolveListColumns(stored, { sprintsEnabled: false }).map(
-      (column) => column.id,
-    );
-
-    expect(shown).toEqual(["work", "status", "due"]);
-
-    // "move due left" resolves its neighbour over `shown`, which is `status`
-    const next = swapListColumns(stored, "due", "status");
+    const next = moveListColumn(stored, "due", "status", "before");
 
     expect(next).toEqual(["work", "sprint", "due", "status"]);
-
     expect(
       resolveListColumns(next, { sprintsEnabled: false }).map((c) => c.id),
     ).toEqual(["work", "due", "status"]);
+  });
+});
 
-    // and the hidden column kept its stored slot, so turning sprints back on
-    // does not move it
-    expect(next.indexOf("sprint")).toBe(stored.indexOf("sprint"));
+describe("column widths", () => {
+  it("clamps to the column's floor and drops a width equal to the default", () => {
+    expect(withListColumnWidth({}, "status", 10)).toEqual({
+      status: MIN_COLUMN_WIDTH,
+    });
+    expect(withListColumnWidth({}, "work", 10)).toEqual({
+      work: MIN_PINNED_COLUMN_WIDTH,
+    });
+    expect(
+      withListColumnWidth({ status: 300 }, "status", LIST_COLUMNS.status.width),
+    ).toEqual({});
+    expect(withListColumnWidth({ status: 300 }, "status", null)).toEqual({});
+  });
+
+  it("repairs whatever storage hands back", () => {
+    expect(normalizeListColumnWidths("nope")).toEqual({});
+    expect(
+      normalizeListColumnWidths({ status: 250, bogus: 90, due: "wide" }),
+    ).toEqual({ status: 250 });
+  });
+
+  it("widens the table's floor by a resized column", () => {
+    const shown = resolveListColumns(["work", "status"], {
+      sprintsEnabled: true,
+    });
+
+    expect(tableMinWidth(shown, { status: 400 }) - tableMinWidth(shown)).toBe(
+      400 - LIST_COLUMNS.status.width,
+    );
   });
 });
 

@@ -9,9 +9,14 @@ export interface CurrentColumn {
   position: number | null;
 }
 
+export interface Transition {
+  from: string;
+  to: string;
+}
+
 export interface CurrentStatus {
   id: string;
-  column_id: string;
+  column_id: string | null;
   name: string;
   category: string;
   rank: number;
@@ -21,6 +26,7 @@ export interface CurrentStatus {
 export interface CurrentWorkflow {
   columns: CurrentColumn[];
   statuses: CurrentStatus[];
+  transitions: Transition[];
   // Work items per status id. A status absent from the map holds none.
   cards: ReadonlyMap<string, number>;
 }
@@ -34,7 +40,7 @@ export interface ColumnWrite {
 
 export interface StatusWrite {
   id: string;
-  column_id: string;
+  column_id: string | null;
   name: string;
   category: string;
   rank: number;
@@ -57,6 +63,8 @@ export interface WorkflowPlan {
   createStatuses: StatusWrite[];
   updateStatuses: (Pick<StatusWrite, "id"> & Partial<StatusWrite>)[];
   deleteStatuses: string[];
+  createTransitions: Transition[];
+  deleteTransitions: Transition[];
   migrations: CardMigration[];
 }
 
@@ -120,7 +128,7 @@ export function planWorkflow(current: CurrentWorkflow, input: PublishWorkflowInp
   const nextColumnIds = new Set(input.columns.map((column) => column.id));
 
   for (const status of input.statuses) {
-    if (!nextColumnIds.has(status.column_id)) {
+    if (status.column_id !== null && !nextColumnIds.has(status.column_id)) {
       throw badRequest(`The status "${status.name}" names a column that is not in the workflow.`);
     }
   }
@@ -137,6 +145,8 @@ export function planWorkflow(current: CurrentWorkflow, input: PublishWorkflowInp
     createStatuses: [],
     updateStatuses: [],
     deleteStatuses: [],
+    createTransitions: [],
+    deleteTransitions: [],
     migrations: [],
   };
 
@@ -171,7 +181,7 @@ export function planWorkflow(current: CurrentWorkflow, input: PublishWorkflowInp
     );
   });
 
-  const indexInColumn = new Map<string, number>();
+  const indexInColumn = new Map<string | null, number>();
   const nextStatuses = new Map<string, StatusWrite>();
 
   for (const status of input.statuses) {
@@ -227,6 +237,12 @@ export function planWorkflow(current: CurrentWorkflow, input: PublishWorkflowInp
       throw badRequest(`Work items from "${from.name}" must move to a status in the workflow.`);
     }
 
+    if (to.column_id === null) {
+      throw badRequest(
+        `Work items from "${from.name}" cannot move to "${to.name}", which is not on any column.`,
+      );
+    }
+
     if (to.is_hidden) {
       throw badRequest(
         `Work items from "${from.name}" cannot move to "${to.name}", which is hidden.`,
@@ -238,6 +254,18 @@ export function planWorkflow(current: CurrentWorkflow, input: PublishWorkflowInp
       to: migration.to,
       appendTo: to.column_id === from.column_id ? null : to.column_id,
     });
+  }
+
+  for (const status of nextStatuses.values()) {
+    const count = current.cards.get(status.id) ?? 0;
+
+    if (status.column_id === null && count > 0) {
+      throw new AppError(
+        "conflict",
+        `The status "${status.name}" still holds ${count} work item${count === 1 ? "" : "s"}, ` +
+          "so it has to stay on a column. Move the work items first.",
+      );
+    }
   }
 
   const migrated = new Set(plan.migrations.map((migration) => migration.from));
@@ -255,6 +283,34 @@ export function planWorkflow(current: CurrentWorkflow, input: PublishWorkflowInp
       );
     }
   }
+
+  const pairKey = (edge: Transition) => `${edge.from}>${edge.to}`;
+  const nextEdges = new Map<string, Transition>();
+
+  for (const edge of input.transitions) {
+    if (edge.from === edge.to) throw badRequest("A status cannot have a transition to itself.");
+
+    // An edge on a status this publish deletes goes with it, as the cascade
+    // would take it anyway. One naming a status the board never had is an error.
+    if (deleted.has(edge.from) || deleted.has(edge.to)) continue;
+
+    if (!nextStatuses.has(edge.from) || !nextStatuses.has(edge.to)) {
+      throw badRequest("A transition names a status that is not in the workflow.");
+    }
+
+    if (nextEdges.has(pairKey(edge))) throw badRequest("Each transition may appear only once.");
+
+    nextEdges.set(pairKey(edge), edge);
+  }
+
+  const currentEdges = new Set(current.transitions.map(pairKey));
+
+  plan.createTransitions = [...nextEdges.values()].filter((edge) => !currentEdges.has(pairKey(edge)));
+  // An edge on a deleted status leaves with the status (cascade), so it is not
+  // a delete of its own.
+  plan.deleteTransitions = current.transitions.filter(
+    (edge) => !nextEdges.has(pairKey(edge)) && !deleted.has(edge.from) && !deleted.has(edge.to),
+  );
 
   return plan;
 }

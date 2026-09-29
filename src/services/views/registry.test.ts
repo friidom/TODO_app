@@ -10,8 +10,10 @@ import {
 
 describe("view registry", () => {
   it("ONLY VIEWS WITH THEIR OWN FRACTIONAL-RANK FIELD MAY REORDER", () => {
-    // board and backlog each write a separate field (rank vs backlog_rank) — a third reordering view needs its own field too, not just a spot in this array
-    expect(reorderingViews()).toEqual(["board", "backlog"]);
+    // board and backlog each write a separate field (rank vs backlog_rank). The List is the one exception, and not a
+    // third order: its manual order is orderByBoard, so a row drag writes the board's own rank. A view with an order
+    // of its OWN still needs its own field, not just a spot in this array.
+    expect(reorderingViews()).toEqual(["board", "list", "backlog"]);
   });
 
   it("gives every mode a definition, keyed by its own mode", () => {
@@ -32,9 +34,9 @@ describe("view registry", () => {
     expect(isViewMode(undefined)).toBe(false);
   });
 
-  it("reports the board as reordering and the others as not", () => {
+  it("reports which views write an order and which do not", () => {
     expect(capabilitiesOf("board").canReorder).toBe(true);
-    expect(capabilitiesOf("list").canReorder).toBe(false);
+    expect(capabilitiesOf("list").canReorder).toBe(true);
     expect(capabilitiesOf("summary").canReorder).toBe(false);
     // canReorder means "writes todos.position", not "has drag and drop" — calendar/timeline drags write dates instead
     expect(capabilitiesOf("calendar").canReorder).toBe(false);

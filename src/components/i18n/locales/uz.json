@@ -14,8 +14,7 @@
     "hidden": "Yashirin holat"
   },
   "workflow": {
-    "passThroughFirst": "Avval uni {{stages}} bosqichiga o'tkazing.",
-    "skipsStep": "Bu ko'chirish bosqichni o'tkazib yuboradi. {{reason}}",
+    "noTransition": "Ish jarayonida “{{from}}” holatidan “{{to}}” holatiga o'tish yo'q.",
     "noStatusToReceive": "Bu ustunda vazifalarni qabul qila oladigan holat yo'q.",
     "statusNameTaken": "Bu doskada «{{name}}» nomli holat allaqachon mavjud.",
     "editStale": "Saqlashdan oldin jarayon o'zgardi. Qaytadan urinib ko'ring."

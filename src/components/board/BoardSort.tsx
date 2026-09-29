@@ -16,6 +16,7 @@ import {
   type SortDir,
   type SortKey,
 } from "@/services/todos/view";
+import { OPEN_ON_CLICK } from "./openOnClick";
 import ToolbarButton from "./ToolbarButton";
 
 // View-only, writes nothing — sortTodos under "manual" is the identity function, so switching away and back never loses the drag order.
@@ -34,6 +35,7 @@ export default function BoardSort({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
+        {...OPEN_ON_CLICK}
         render={
           <ToolbarButton
             label={
