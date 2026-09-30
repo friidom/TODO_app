@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useKeyPrefix } from "@/hooks/useKeyPrefix";
 import { useOpenTask } from "@/hooks/useOpenTask";
 import type { DueSoonItem } from "@/services/views/summary";
@@ -16,6 +17,7 @@ export default function DueSoon({
   windowDays: number;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const { openTask } = useOpenTask();
   const keyPrefix = useKeyPrefix();
 
@@ -23,12 +25,12 @@ export default function DueSoon({
 
   return (
     <SummaryCard
-      title="Due soon"
+      title={t("summary.dueSoon")}
       className={className}
       action={
         overdue > 0 ? (
           <span className="text-status-red text-mini font-medium tabular-nums">
-            {overdue} overdue
+            {t("summary.overdue", { count: overdue })}
           </span>
         ) : undefined
       }
@@ -37,7 +39,9 @@ export default function DueSoon({
         // The shared empty state rather than the illustrated one this widget
         // used to carry: a disc and two lines in ~130px of padding made a board
         // with no deadlines the most padded board there is.
-        <WidgetEmpty>Nothing due in the next {windowDays} days.</WidgetEmpty>
+        <WidgetEmpty>
+          {t("summary.nothingDue", { count: windowDays })}
+        </WidgetEmpty>
       ) : (
         <ul className="px-1.5 pb-2">
           {items.map(({ todo, status }) => {
@@ -60,7 +64,9 @@ export default function DueSoon({
 
                   <span className="text-ink text-meta min-w-0 flex-1 truncate">
                     {todo.title || (
-                      <span className="text-ink-3/60">Untitled</span>
+                      <span className="text-ink-3/60">
+                        {t("common.untitled")}
+                      </span>
                     )}
                   </span>
 
@@ -77,7 +83,7 @@ export default function DueSoon({
                     )}
                   >
                     {status === "today"
-                      ? "Today"
+                      ? t("time.today")
                       : formatDue(todo.due_date as string)}
                   </span>
                 </button>

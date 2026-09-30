@@ -67,6 +67,7 @@ export default function ColumnHeader({
   canDelete,
   dragHandleProps,
 }: Props) {
+  const { t } = useTranslation();
   const [renaming, setRenaming] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -103,7 +104,7 @@ export default function ColumnHeader({
     return (
       <Shell dragHandleProps={dragHandleProps}>
         <div className="animate-in fade-in border-brand/50 bg-brand-soft text-brand rounded-control text-meta w-full truncate border border-dashed py-1 text-center font-medium duration-200">
-          Transition to...
+          {t("column.transitionTo")}
         </div>
       </Shell>
     );
@@ -147,7 +148,7 @@ export default function ColumnHeader({
             {label}
           </TooltipTrigger>
 
-          <TooltipContent side="bottom">Rename column</TooltipContent>
+          <TooltipContent side="bottom">{t("column.rename")}</TooltipContent>
         </Tooltip>
       ) : (
         <div
@@ -171,12 +172,15 @@ export default function ColumnHeader({
           )}
         >
           {onAdd && (
-            <IconButton label={`Add a card to ${headerTitle}`} onClick={onAdd}>
+            <IconButton
+              label={t("column.addCard", { name: headerTitle })}
+              onClick={onAdd}
+            >
               <Plus />
             </IconButton>
           )}
 
-          <IconButton label="Collapse column" onClick={onCollapse}>
+          <IconButton label={t("column.collapse")} onClick={onCollapse}>
             <CollapseIcon />
           </IconButton>
 
@@ -259,7 +263,7 @@ function RenameField({
     <div className="relative w-full">
       <input
         autoFocus
-        aria-label="Column name"
+        aria-label={t("column.name")}
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => {
@@ -280,7 +284,7 @@ function RenameField({
         )}
       >
         <IconButton
-          label="Save name"
+          label={t("column.saveName")}
           size="xs"
           tooltip={false}
           onMouseDown={(e) => e.preventDefault()}
@@ -290,7 +294,7 @@ function RenameField({
         </IconButton>
 
         <IconButton
-          label="Cancel rename"
+          label={t("column.cancelRename")}
           size="xs"
           tooltip={false}
           onMouseDown={(e) => e.preventDefault()}

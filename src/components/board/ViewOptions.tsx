@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   ArrowUpDownIcon,
   Rows3Icon,
@@ -27,14 +28,15 @@ export default function ViewOptions({
   view: BoardView;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const { canGroup, canSort } = capabilitiesOf(view.mode);
 
   const grouped = canGroup && view.group !== "none";
   const sorted = canSort && view.sort !== "manual";
 
   const state = [
-    grouped && `grouped by ${GROUP_LABELS[view.group].toLowerCase()}`,
-    sorted && `sorted by ${SORT_LABELS[view.sort].toLowerCase()}`,
+    grouped && t("view.groupedBy", { name: GROUP_LABELS[view.group] }),
+    sorted && t("view.sortedBy", { name: SORT_LABELS[view.sort] }),
   ].filter(Boolean);
 
   return (
@@ -44,10 +46,10 @@ export default function ViewOptions({
           <ToolbarButton
             label={
               state.length
-                ? `View options — ${state.join(", ")}`
-                : "View options"
+                ? t("view.optionsState", { state: state.join(", ") })
+                : t("view.options")
             }
-            text="View options"
+            text={t("view.options")}
             collapse="hidden @4xl:inline"
             icon={<SlidersHorizontalIcon className="size-4" />}
             active={grouped || sorted}
@@ -61,7 +63,7 @@ export default function ViewOptions({
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <Rows3Icon />
-              <span className="flex-1">Group</span>
+              <span className="flex-1">{t("toolbar.group")}</span>
               <span className="text-ink-3">{GROUP_LABELS[view.group]}</span>
             </DropdownMenuSubTrigger>
 
@@ -75,7 +77,7 @@ export default function ViewOptions({
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <ArrowUpDownIcon />
-              <span className="flex-1">Sort</span>
+              <span className="flex-1">{t("toolbar.sort")}</span>
               <span className="text-ink-3">{SORT_LABELS[view.sort]}</span>
             </DropdownMenuSubTrigger>
 

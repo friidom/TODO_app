@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
   ArrowRight,
@@ -34,9 +35,11 @@ export default function ColumnMenu({
   open,
   onOpenChange,
 }: Props) {
+  const { t } = useTranslation();
+
   return (
     <DropdownMenu open={open} onOpenChange={onOpenChange}>
-      <DropdownMenuTrigger render={<IconButton label="Column actions" />}>
+      <DropdownMenuTrigger render={<IconButton label={t("column.actions")} />}>
         <MoreHorizontal />
       </DropdownMenuTrigger>
 
@@ -44,7 +47,7 @@ export default function ColumnMenu({
         {onSetLimit && (
           <DropdownMenuItem onClick={onSetLimit}>
             <Gauge />
-            Set column limit
+            {t("column.setLimit")}
           </DropdownMenuItem>
         )}
 
@@ -53,14 +56,14 @@ export default function ColumnMenu({
         {onMoveLeft && (
           <DropdownMenuItem onClick={onMoveLeft}>
             <ArrowLeft />
-            Move column left
+            {t("column.moveLeft")}
           </DropdownMenuItem>
         )}
 
         {onMoveRight && (
           <DropdownMenuItem onClick={onMoveRight}>
             <ArrowRight />
-            Move column right
+            {t("column.moveRight")}
           </DropdownMenuItem>
         )}
 
@@ -72,7 +75,7 @@ export default function ColumnMenu({
 
             <DropdownMenuItem variant="destructive" onClick={onDelete}>
               <Trash2 />
-              Delete column
+              {t("column.delete")}
             </DropdownMenuItem>
           </>
         )}

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 
@@ -23,6 +24,7 @@ export default function SpaceFormModal({
   space?: ISpace;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [title, setTitle] = useState(space?.title ?? "");
 
   const createSpace = useCreateSpace();
@@ -40,29 +42,32 @@ export default function SpaceFormModal({
     if (!trimmed || tooLong) return;
 
     if (space) {
-      updateSpace.mutate({ id: space.id, title: trimmed }, { onSuccess: onClose });
+      updateSpace.mutate(
+        { id: space.id, title: trimmed },
+        { onSuccess: onClose },
+      );
     } else {
       createSpace.mutate({ title: trimmed }, { onSuccess: onClose });
     }
   }
 
   return (
-    <Modal title={space ? "Rename space" : "Create space"} onClose={onClose}>
+    <Modal
+      title={space ? t("sidebar.renameSpace") : t("sidebar.createSpace")}
+      onClose={onClose}
+    >
       <form onSubmit={handleSubmit}>
         <h2 className={DIALOG_TITLE}>
-          {space ? "Rename space" : "Create space"}
+          {space ? t("sidebar.renameSpace") : t("sidebar.createSpace")}
         </h2>
 
-        <p className="text-ink-3 text-meta mt-1 mb-5">
-          A space is a folder for your boards. It does not change who can see
-          them.
-        </p>
+        <p className="text-ink-3 text-meta mt-1 mb-5">{t("spaces.hint")}</p>
 
         <label
           htmlFor="space-title"
           className="text-ink-2 text-meta mb-1.5 block font-medium"
         >
-          Name
+          {t("common.name")}
         </label>
 
         <input
@@ -73,12 +78,12 @@ export default function SpaceFormModal({
           maxLength={80}
           aria-invalid={tooLong}
           className={cn(FIELD_INPUT, tooLong && FIELD_INPUT_INVALID)}
-          placeholder="Work, Personal, Clients…"
+          placeholder={t("spaces.namePlaceholder")}
         />
 
         {tooLong && (
           <p className="text-status-red mt-1.5 text-xs">
-            Keep it to 60 characters or fewer.
+            {t("spaces.tooLong", { count: 60 })}
           </p>
         )}
 
@@ -90,7 +95,7 @@ export default function SpaceFormModal({
 
         <div className={DIALOG_ACTIONS}>
           <button type="button" onClick={onClose} className={DIALOG_CANCEL}>
-            Cancel
+            {t("common.cancel")}
           </button>
 
           <button
@@ -103,11 +108,11 @@ export default function SpaceFormModal({
             )}
             {mutation.isPending
               ? space
-                ? "Saving…"
-                : "Creating…"
+                ? t("common.saving")
+                : t("common.creating")
               : space
-                ? "Save"
-                : "Create space"}
+                ? t("common.save")
+                : t("sidebar.createSpace")}
           </button>
         </div>
       </form>

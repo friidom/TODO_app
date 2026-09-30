@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 import {
   ChevronDownIcon,
@@ -19,6 +20,7 @@ export default function SectionHeader({
   collapse?: { collapsed: boolean; onToggle: () => void; noun: string };
   actions?: ReactNode;
 }) {
+  const { t } = useTranslation();
   const label = (
     <>
       <span className={SECTION_TITLE}>{title}</span>
@@ -33,7 +35,10 @@ export default function SectionHeader({
           <button
             type="button"
             aria-expanded={!collapse.collapsed}
-            aria-label={`${collapse.collapsed ? "Expand" : "Collapse"} ${collapse.noun}`}
+            aria-label={t(
+              collapse.collapsed ? "sidebar.expand" : "sidebar.collapse",
+              { name: collapse.noun },
+            )}
             onClick={collapse.onToggle}
             className="hover:bg-wash-strong focus-visible:ring-brand rounded-control -ml-1.5 flex h-7 items-center gap-2 px-1.5 transition-colors duration-150 outline-none focus-visible:ring-2"
           >

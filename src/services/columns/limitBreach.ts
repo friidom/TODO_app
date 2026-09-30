@@ -1,3 +1,5 @@
+import i18n from "@/components/i18n";
+
 interface Limits {
   title: string | null;
   min_limit?: number | null;
@@ -10,11 +12,11 @@ export function limitBreach(column: Limits, count: number) {
   const title = rawTitle ?? "";
 
   if (max_limit != null && count > max_limit) {
-    return `${count} work items in ${title}. Maximum is ${max_limit}.`;
+    return i18n.t("column.overMax", { count, title, limit: max_limit });
   }
 
   if (min_limit != null && count < min_limit) {
-    return `${count} work items in ${title}. Minimum is ${min_limit}.`;
+    return i18n.t("column.underMin", { count, title, limit: min_limit });
   }
 
   return null;

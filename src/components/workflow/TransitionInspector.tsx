@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, type ReactNode } from "react";
 import {
   ArrowDownIcon,
@@ -44,7 +45,9 @@ export default function TransitionInspector({
   onSelect: (selection: Selection) => void;
   onClose: () => void;
 }) {
+  // A key rather than text, so the message follows a language switch.
   const [error, setError] = useState<string | null>(null);
+  const { t } = useTranslation();
 
   const from = draft.statuses.find((it) => it.id === fromId);
   const to = draft.statuses.find((it) => it.id === toId);
@@ -68,30 +71,26 @@ export default function TransitionInspector({
 
     setError(
       next.from === next.to
-        ? "A status can't move to itself."
+        ? "workflow.selfTransition"
         : hasEdge(draft, next.from, next.to)
-          ? "That transition already exists."
-          : "That change can't be made.",
+          ? "workflow.transitionExists"
+          : "workflow.changeRefused",
     );
   }
 
   const refusals: ReactNode[] = [];
 
   if (to.is_hidden) {
-    refusals.push(
-      `${to.name} is hidden and takes no new work, so the board refuses this move.`,
-    );
+    refusals.push(t("workflow.refuseHidden", { name: to.name }));
   }
 
   if (to.column_id === null) {
-    refusals.push(
-      `${to.name} is not on the board, so the board refuses this move.`,
-    );
+    refusals.push(t("workflow.refuseUnmapped", { name: to.name }));
   }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <InspectorHeader eyebrow="Transition" onClose={onClose}>
+      <InspectorHeader eyebrow={t("workflow.transition")} onClose={onClose}>
         <span className="flex min-w-0 flex-wrap items-center gap-1.5">
           <StatusLozenge
             name={from.name}
@@ -111,11 +110,11 @@ export default function TransitionInspector({
       </InspectorHeader>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <InspectorSection title="Path" collapsible={false}>
+        <InspectorSection title={t("workflow.path")} collapsible={false}>
           <div className="grid gap-1.5">
-            <Field label="From">
+            <Field label={t("workflow.from")}>
               <StatusSelect
-                label="From status"
+                label={t("workflow.fromStatus")}
                 draft={draft}
                 value={from.id}
                 onChange={(id) => retarget({ from: id, to: to.id })}
@@ -124,9 +123,9 @@ export default function TransitionInspector({
 
             <ArrowDownIcon aria-hidden className="text-ink-3 mx-auto size-4" />
 
-            <Field label="To">
+            <Field label={t("workflow.to")}>
               <StatusSelect
-                label="To status"
+                label={t("workflow.toStatus")}
                 draft={draft}
                 value={to.id}
                 onChange={(id) => retarget({ from: from.id, to: id })}
@@ -135,26 +134,27 @@ export default function TransitionInspector({
 
             {error && (
               <p role="alert" className="text-status-red text-mini">
-                {error}
+                {t(error)}
               </p>
             )}
 
             <button
               type="button"
               disabled={reverse}
-              title={
-                reverse ? "The reverse transition already exists" : undefined
-              }
+              title={reverse ? t("workflow.reverseExists") : undefined}
               onClick={() => retarget({ from: to.id, to: from.id })}
               className={LINK}
             >
               <ArrowLeftRightIcon />
-              Reverse direction
+              {t("workflow.reverse")}
             </button>
           </div>
         </InspectorSection>
 
-        <InspectorSection title="Other direction" collapsible={false}>
+        <InspectorSection
+          title={t("workflow.otherDirection")}
+          collapsible={false}
+        >
           {reverse ? (
             <button
               type="button"
@@ -167,13 +167,13 @@ export default function TransitionInspector({
               <ArrowRightIcon aria-hidden className="text-ink-3 size-3.5" />
               <StatusLozenge name={from.name} category={from.category} />
               <span className="text-brand text-mini ml-auto font-medium">
-                Open
+                {t("common.open")}
               </span>
             </button>
           ) : (
             <>
               <p className="text-ink-3 text-mini">
-                Work in {to.name} can't come back to {from.name} this way.
+                {t("workflow.cantComeBack", { to: to.name, from: from.name })}
               </p>
 
               <button
@@ -186,27 +186,28 @@ export default function TransitionInspector({
                 className={`${LINK} mt-1`}
               >
                 <PlusIcon />
-                Also allow {to.name} → {from.name}
+                {t("workflow.alsoAllow", { to: to.name, from: from.name })}
               </button>
             </>
           )}
         </InspectorSection>
 
-        <InspectorSection title="Who can use it" collapsible={false}>
+        <InspectorSection title={t("workflow.whoCanUse")} collapsible={false}>
           <ul className="text-ink-2 text-mini grid list-disc gap-1.5 pl-4">
-            <li>Anyone who can edit work items on this board.</li>
+            <li>{t("workflow.anyoneWhoCanEdit")}</li>
 
             <li>
               {waiting === 0
-                ? `No work items are in ${from.name} right now.`
-                : `${workItems(waiting)} in ${from.name} can take it now.`}
+                ? t("workflow.noneWaiting", { name: from.name })
+                : t("workflow.waiting", {
+                    items: workItems(waiting),
+                    name: from.name,
+                    count: waiting,
+                  })}
             </li>
 
             {!enforced && (
-              <li className="text-status-orange">
-                Workflow rules are off for this board, so every move is allowed
-                regardless.
-              </li>
+              <li className="text-status-orange">{t("workflow.rulesOff")}</li>
             )}
 
             {refusals.map((text, index) => (
@@ -231,9 +232,9 @@ export default function TransitionInspector({
           className="text-status-red hover:bg-status-red/10 rounded-control text-meta flex h-8 w-full items-center gap-1.5 px-2 font-medium [&_svg]:size-4"
         >
           <Trash2Icon />
-          Delete transition
+          {t("workflow.deleteTransition")}
           <span className="text-ink-3 text-mini ml-auto font-normal">
-            Undo with {MOD_KEY}Z
+            {t("workflow.undoWith", { keys: `${MOD_KEY}Z` })}
           </span>
         </button>
       </div>
@@ -252,6 +253,8 @@ function StatusSelect({
   value: string;
   onChange: (id: string) => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <select
       aria-label={label}
@@ -262,8 +265,10 @@ function StatusSelect({
       {draft.statuses.map((status) => (
         <option key={status.id} value={status.id}>
           {status.name}
-          {status.is_hidden ? " (hidden)" : ""}
-          {status.column_id === null ? " (not on the board)" : ""}
+          {status.is_hidden ? ` (${t("workflow.hiddenLower")})` : ""}
+          {status.column_id === null
+            ? ` (${t("workflow.notOnBoardLower")})`
+            : ""}
         </option>
       ))}
     </select>

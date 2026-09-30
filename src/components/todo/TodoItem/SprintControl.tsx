@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { CheckIcon, Link2OffIcon, LayersIcon } from "lucide-react";
 import { FloatingPortal } from "@floating-ui/react";
 
@@ -29,13 +30,16 @@ export default function SprintControl({
   onChange: (value: string | null) => void;
   variant?: "cell";
 }) {
+  const { t } = useTranslation();
   const { mounted, close, triggerProps, panelProps } = useCardPopover();
 
   const options = sprints.filter((sprint) => sprint.state !== "completed");
   // looked up in the full list, not options — a card can still be linked to a completed sprint and should show its name
   const sprint = sprints.find((candidate) => candidate.id === sprintId) ?? null;
 
-  const label = sprint ? `Sprint: ${sprint.name}` : "No sprint";
+  const label = sprint
+    ? t("sprintControl.labelled", { name: sprint.name })
+    : t("sprintControl.none");
 
   return (
     <>
@@ -58,7 +62,7 @@ export default function SprintControl({
       >
         {variant !== "cell" && <LayersIcon className="size-3 shrink-0" />}
         <span className="min-w-0 truncate">
-          {sprint ? sprint.name : "None"}
+          {sprint ? sprint.name : t("common.none")}
         </span>
       </button>
 
@@ -67,14 +71,14 @@ export default function SprintControl({
           <div
             {...panelProps}
             role="menu"
-            aria-label="Sprint"
+            aria-label={t("fields.sprint")}
             className={cn(POPOVER_PANEL, "z-50 max-h-64 w-56 overflow-y-auto")}
           >
-            <p className={MENU_LABEL}>Sprint</p>
+            <p className={MENU_LABEL}>{t("fields.sprint")}</p>
 
             {options.length === 0 ? (
               <p className="text-ink-3 text-meta px-2 py-2">
-                No open sprints on this board yet.
+                {t("sprintControl.noneOpen")}
               </p>
             ) : (
               <ul>
@@ -97,7 +101,7 @@ export default function SprintControl({
 
                         {candidate.state === "active" && (
                           <span className="text-status-green text-micro shrink-0 font-medium tracking-wide uppercase">
-                            Active
+                            {t("sprint.active")}
                           </span>
                         )}
 
@@ -124,7 +128,7 @@ export default function SprintControl({
                   className={MENU_ITEM}
                 >
                   <Link2OffIcon />
-                  Remove from sprint
+                  {t("sprintControl.remove")}
                 </button>
               </>
             )}

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 
@@ -28,6 +29,7 @@ export default function CompleteSprintModal({
   otherOpenSprints: Sprint[];
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [destination, setDestination] = useState<string>("backlog");
 
   const { data: todos = [] } = useTodos();
@@ -36,9 +38,7 @@ export default function CompleteSprintModal({
 
   const items = todos.filter((todo) => todo.sprint_id === sprint.id);
   const doneStatuses = doneStatusIds(statuses);
-  const unfinished = items.filter(
-    (todo) => !isDoneIn(todo, doneStatuses),
-  );
+  const unfinished = items.filter((todo) => !isDoneIn(todo, doneStatuses));
   const finished = items.length - unfinished.length;
 
   function handleSubmit(e: React.FormEvent) {
@@ -54,23 +54,28 @@ export default function CompleteSprintModal({
   }
 
   return (
-    <Modal title="Complete sprint" onClose={onClose}>
+    <Modal title={t("sprint.complete")} onClose={onClose}>
       <form onSubmit={handleSubmit}>
-        <h2 className={DIALOG_TITLE}>Complete “{sprint.name}”</h2>
+        <h2 className={DIALOG_TITLE}>
+          {t("backlog.completeTitle", { name: sprint.name })}
+        </h2>
 
         <p className={`${DIALOG_BODY} mt-1.5`}>
           {finished > 0
-            ? `${finished} finished ${finished === 1 ? "item stays" : "items stay"} marked as completed in this sprint. `
+            ? `${t("backlog.finishedStay", { count: finished })} `
             : ""}
           {unfinished.length > 0
-            ? `${unfinished.length} unfinished ${unfinished.length === 1 ? "item" : "items"} will move.`
-            : "Nothing is left unfinished."}
+            ? t("backlog.unfinishedMove", { count: unfinished.length })
+            : t("backlog.nothingUnfinished")}
         </p>
 
         {unfinished.length > 0 && (
           <>
-            <label htmlFor="complete-destination" className={`${DIALOG_LABEL} mt-4`}>
-              Move unfinished work to
+            <label
+              htmlFor="complete-destination"
+              className={`${DIALOG_LABEL} mt-4`}
+            >
+              {t("backlog.moveUnfinishedTo")}
             </label>
 
             <select
@@ -79,7 +84,7 @@ export default function CompleteSprintModal({
               onChange={(e) => setDestination(e.target.value)}
               className={FIELD_INPUT}
             >
-              <option value="backlog">Backlog</option>
+              <option value="backlog">{t("views.backlog")}</option>
               {otherOpenSprints.map((candidate) => (
                 <option key={candidate.id} value={candidate.id}>
                   {candidate.name}
@@ -97,7 +102,7 @@ export default function CompleteSprintModal({
 
         <div className={DIALOG_ACTIONS}>
           <button type="button" onClick={onClose} className={DIALOG_CANCEL}>
-            Cancel
+            {t("common.cancel")}
           </button>
 
           <button
@@ -108,7 +113,9 @@ export default function CompleteSprintModal({
             {completeSprint.isPending && (
               <Loader2 className="size-3.5 animate-spin" />
             )}
-            {completeSprint.isPending ? "Completing…" : "Complete sprint"}
+            {completeSprint.isPending
+              ? t("backlog.completing")
+              : t("sprint.complete")}
           </button>
         </div>
       </form>

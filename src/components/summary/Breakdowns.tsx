@@ -1,10 +1,15 @@
+import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 import { UserIcon } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { memberInitial, memberName } from "@/components/members/memberLabels";
 import { PRIORITIES, type Priority } from "@/constants/priorities";
-import { workTypeOf, type WorkType } from "@/constants/workTypes";
+import {
+  WORK_TYPE_LABELS,
+  workTypeOf,
+  type WorkType,
+} from "@/constants/workTypes";
 import type { BoardMember } from "@/services/members/membersApi";
 import type { Slice, WorkloadEntry } from "@/services/views/summary";
 import { cn } from "@/utils/cn";
@@ -42,6 +47,7 @@ export function WorkDistribution({
   types: Slice<WorkType>[];
   className?: string;
 }) {
+  const { t } = useTranslation();
   const priorityHeaviest = Math.max(...priority.map((s) => s.count), 0);
   const priorityTotal = priority.reduce((sum, s) => sum + s.count, 0);
 
@@ -49,12 +55,12 @@ export function WorkDistribution({
   const typeTotal = types.reduce((sum, s) => sum + s.count, 0);
 
   return (
-    <SummaryCard title="Work distribution" className={className}>
+    <SummaryCard title={t("summary.distribution")} className={className}>
       {priorityTotal === 0 && typeTotal === 0 ? (
-        <WidgetEmpty>No work items to break down.</WidgetEmpty>
+        <WidgetEmpty>{t("summary.distributionEmpty")}</WidgetEmpty>
       ) : (
         <div className="flex flex-col gap-3 px-3.5 pb-3">
-          <Subsection label="Priority">
+          <Subsection label={t("fields.priority")}>
             {priority.map((slice) => {
               const meta = slice.key ? PRIORITIES[slice.key] : null;
               const Icon = meta?.icon;
@@ -69,7 +75,7 @@ export function WorkDistribution({
                       <span className="bg-ink/20 size-1.5 shrink-0 rounded-full" />
                     )
                   }
-                  label={meta?.label ?? "No priority"}
+                  label={meta?.label ?? t("priority.none")}
                   count={slice.count}
                   percent={scale(slice.count, priorityHeaviest)}
                   share={
@@ -86,7 +92,7 @@ export function WorkDistribution({
             })}
           </Subsection>
 
-          <Subsection label="Type">
+          <Subsection label={t("activity.type")}>
             {types.map((slice) => {
               const meta = workTypeOf(slice.key);
               const Icon = meta.icon;
@@ -95,7 +101,7 @@ export function WorkDistribution({
                 <DistributionRow
                   key={slice.key}
                   icon={<Icon className={cn("size-3.5 shrink-0", meta.tone)} />}
-                  label={slice.key}
+                  label={WORK_TYPE_LABELS[slice.key]}
                   count={slice.count}
                   percent={scale(slice.count, typeHeaviest)}
                   share={
@@ -123,23 +129,24 @@ export function TeamWorkload({
   members: BoardMember[];
   className?: string;
 }) {
+  const { t } = useTranslation();
   const heaviest = Math.max(...entries.map((entry) => entry.open), 0);
   const totalOpen = entries.reduce((sum, entry) => sum + entry.open, 0);
 
   return (
     <SummaryCard
-      title="Team workload"
+      title={t("summary.workload")}
       className={className}
       action={
         totalOpen > 0 ? (
           <span className="text-ink-3 text-mini tabular-nums">
-            {totalOpen} open
+            {t("summary.open", { count: totalOpen })}
           </span>
         ) : undefined
       }
     >
       {entries.length === 0 ? (
-        <WidgetEmpty>No open work items to distribute.</WidgetEmpty>
+        <WidgetEmpty>{t("summary.workloadEmpty")}</WidgetEmpty>
       ) : (
         <div className="max-h-52 overflow-y-auto px-3.5 pb-3">
           {entries.map((entry) => {
@@ -174,8 +181,8 @@ export function TeamWorkload({
                     {member
                       ? memberName(member)
                       : entry.assigneeId
-                        ? "Former member"
-                        : "Unassigned"}
+                        ? t("members.former")
+                        : t("members.unassigned")}
                   </span>
                 </div>
 

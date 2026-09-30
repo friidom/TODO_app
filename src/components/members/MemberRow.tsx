@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import MemberActions from "./MemberActions";
 import MemberIdentity from "./MemberIdentity";
 import { roleLabel, roleStyle } from "./roleStyles";
@@ -12,6 +13,8 @@ export default function MemberRow({
   member: BoardMember;
   isCurrentUser?: boolean;
 }) {
+  const { t } = useTranslation();
+
   return (
     <li
       className={cn(
@@ -23,7 +26,10 @@ export default function MemberRow({
         member={member}
         suffix={
           isCurrentUser ? (
-            <span className="text-ink-3 font-normal"> (You)</span>
+            <span className="text-ink-3 font-normal">
+              {" "}
+              {t("members.youSuffix")}
+            </span>
           ) : null
         }
       />

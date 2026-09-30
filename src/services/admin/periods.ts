@@ -7,6 +7,8 @@
 // That mitigation exists for a matrix whose drift would be silent; a period
 // string that drifts from the server's Zod enum is a 400 on the first
 // request, which is loud enough.
+import { translated } from "@/components/i18n";
+
 export const ADMIN_PERIODS = [
   "1d",
   "7d",
@@ -20,25 +22,25 @@ export type AdminPeriod = (typeof ADMIN_PERIODS)[number];
 
 export const DEFAULT_PERIOD: AdminPeriod = "7d";
 
-export const PERIOD_LABELS: Record<AdminPeriod, string> = {
-  "1d": "Today",
-  "7d": "7 days",
-  "30d": "30 days",
-  "3m": "3 months",
-  quarter: "Quarter",
-  year: "Year",
-};
+export const PERIOD_LABELS = translated<AdminPeriod>({
+  "1d": "time.today",
+  "7d": "admin.periods.7d",
+  "30d": "admin.periods.30d",
+  "3m": "admin.periods.3m",
+  quarter: "admin.periods.quarter",
+  year: "admin.periods.year",
+});
 
 // "3 months" and "Quarter" sit next to each other in the selector and would
 // otherwise look like the same thing said twice.
-export const PERIOD_HINTS: Record<AdminPeriod, string> = {
-  "1d": "Today so far",
-  "7d": "The last 7 days",
-  "30d": "The last 30 days",
-  "3m": "A rolling three months",
-  quarter: "This calendar quarter, to date",
-  year: "This calendar year, to date",
-};
+export const PERIOD_HINTS = translated<AdminPeriod>({
+  "1d": "admin.periodHints.1d",
+  "7d": "admin.periodHints.7d",
+  "30d": "admin.periodHints.30d",
+  "3m": "admin.periodHints.3m",
+  quarter: "admin.periodHints.quarter",
+  year: "admin.periodHints.year",
+});
 
 export function isAdminPeriod(value: unknown): value is AdminPeriod {
   return (

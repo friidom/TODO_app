@@ -92,7 +92,7 @@ export default function ActivityFeed({
           compact ? "px-3.5 pb-3" : "p-4",
         )}
       >
-        Could not load this board's activity.
+        {t("activity.loadFailed")}
       </p>
     );
   }
@@ -100,7 +100,7 @@ export default function ActivityFeed({
   if (days.length === 0) {
     return compact ? (
       <p className="text-ink-3 px-4 py-5 text-center text-xs">
-        No activity yet.
+        {t("activity.empty")}
       </p>
     ) : (
       <div className="flex flex-col items-center gap-1 px-6 py-16 text-center">
@@ -108,9 +108,11 @@ export default function ActivityFeed({
           <HistoryIcon className="size-4" />
         </span>
 
-        <p className="text-ink text-sm font-medium">Nothing has happened yet</p>
+        <p className="text-ink text-sm font-medium">
+          {t("activity.emptyTitle")}
+        </p>
         <p className="text-ink-3 max-w-[15rem] text-xs">
-          Creating, moving and assigning work items will show up here.
+          {t("activity.emptyHint")}
         </p>
       </div>
     );
@@ -159,6 +161,7 @@ function ActivityRow({
   members: BoardMember[];
   compact?: boolean;
 }) {
+  const { t } = useTranslation();
   const { openTask } = useOpenTask();
 
   const line = describeActivity(activity, context);
@@ -186,7 +189,7 @@ function ActivityRow({
   const sentence = (
     <p className="text-ink-2 text-meta min-w-0 leading-snug">
       <span className="text-ink font-medium">
-        {actor ? memberName(actor) : "Someone"}
+        {actor ? memberName(actor) : t("presence.someone")}
       </span>{" "}
       {line.text}
     </p>

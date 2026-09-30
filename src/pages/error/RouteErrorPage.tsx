@@ -1,18 +1,20 @@
+import { useTranslation } from "react-i18next";
 import { Link, isRouteErrorResponse, useRouteError } from "react-router";
 
 export default function RouteErrorPage() {
+  const { t } = useTranslation();
   const error = useRouteError();
 
   const detail = isRouteErrorResponse(error)
     ? `${error.status} ${error.statusText}`
     : error instanceof Error
       ? error.message
-      : "Unknown error";
+      : t("errors.unknown");
 
   return (
     <div className="bg-background text-foreground flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
       <p className="text-ink text-xl font-semibold tracking-tight">
-        This page stopped working.
+        {t("errors.pageStopped")}
       </p>
 
       <p className="text-muted-foreground max-w-md wrap-break-word">{detail}</p>
@@ -23,14 +25,14 @@ export default function RouteErrorPage() {
           onClick={() => window.location.reload()}
           className="border-hairline text-ink hover:bg-ink/[0.06] focus-visible:ring-brand rounded-control text-meta inline-flex h-9 cursor-pointer items-center border px-4 font-medium transition-colors outline-none focus-visible:ring-2"
         >
-          Reload
+          {t("errors.reload")}
         </button>
 
         <Link
           to="/"
           className="bg-brand text-brand-fg hover:bg-brand/90 focus-visible:ring-brand rounded-control px-5 py-2.5 text-sm font-semibold transition-colors outline-none focus-visible:ring-2"
         >
-          Back to the board
+          {t("errors.backToBoard")}
         </Link>
       </div>
     </div>

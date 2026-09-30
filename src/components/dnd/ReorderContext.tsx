@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   DndContext,
   DragOverlay,
@@ -54,6 +55,7 @@ export default function ReorderContext({
     useSensor(KeyboardSensor, { coordinateGetter: reorderKeyboardCoordinates }),
   );
 
+  const { t } = useTranslation();
   const name = (id: UniqueIdentifier) => describe(String(id));
 
   function reset() {
@@ -67,16 +69,24 @@ export default function ReorderContext({
       collisionDetection={reorderCollision}
       accessibility={{
         announcements: {
-          onDragStart: ({ active }) => `Picked up ${name(active.id)}.`,
+          onDragStart: ({ active }) =>
+            t("dnd.pickedUp", { label: name(active.id) }),
           onDragOver: ({ active, over }) =>
             over
-              ? `${name(active.id)} is next to ${name(over.id)}.`
-              : `${name(active.id)} is back where it started.`,
+              ? t("dnd.nextTo", {
+                  label: name(active.id),
+                  other: name(over.id),
+                })
+              : t("dnd.backWhereStarted", { label: name(active.id) }),
           onDragEnd: ({ active, over }) =>
             over
-              ? `Moved ${name(active.id)} next to ${name(over.id)}.`
-              : `${name(active.id)} was not moved.`,
-          onDragCancel: ({ active }) => `Cancelled moving ${name(active.id)}.`,
+              ? t("dnd.movedNextTo", {
+                  label: name(active.id),
+                  other: name(over.id),
+                })
+              : t("dnd.notMoved", { label: name(active.id) }),
+          onDragCancel: ({ active }) =>
+            t("dnd.cancelledMoving", { label: name(active.id) }),
         },
       }}
       onDragStart={({ active }) => {

@@ -1,3 +1,4 @@
+import i18n from "@/components/i18n";
 import type { SortKey } from "@/services/todos/view";
 import { reorder, type Side } from "@/utils/reorder";
 
@@ -45,33 +46,110 @@ export interface ListColumnDef {
 export const LIST_COLUMNS: Record<ListColumnId, ListColumnDef> = {
   // 320 is a floor, not a track: the column takes the slack on a wide screen,
   // so this only decides how much of a phone the identity column is allowed.
-  work: { id: "work", label: "Work", width: 320, elastic: true, sort: "title" },
-  assignee: { id: "assignee", label: "Assignee", width: 168, sort: null },
-  reporter: { id: "reporter", label: "Reporter", width: 168, sort: null },
-  priority: { id: "priority", label: "Priority", width: 120, sort: "priority" },
-  status: { id: "status", label: "Status", width: 144, sort: null },
-  due: { id: "due", label: "Due date", width: 132, sort: "due" },
-  start: { id: "start", label: "Start date", width: 132, sort: null },
+  work: {
+    id: "work",
+    get label() {
+      return i18n.t("fields.work");
+    },
+    width: 320,
+    elastic: true,
+    sort: "title",
+  },
+  assignee: {
+    id: "assignee",
+    get label() {
+      return i18n.t("fields.assignee");
+    },
+    width: 168,
+    sort: null,
+  },
+  reporter: {
+    id: "reporter",
+    get label() {
+      return i18n.t("fields.reporter");
+    },
+    width: 168,
+    sort: null,
+  },
+  priority: {
+    id: "priority",
+    get label() {
+      return i18n.t("fields.priority");
+    },
+    width: 120,
+    sort: "priority",
+  },
+  status: {
+    id: "status",
+    get label() {
+      return i18n.t("fields.status");
+    },
+    width: 144,
+    sort: null,
+  },
+  due: {
+    id: "due",
+    get label() {
+      return i18n.t("fields.dueDate");
+    },
+    width: 132,
+    sort: "due",
+  },
+  start: {
+    id: "start",
+    get label() {
+      return i18n.t("fields.startDate");
+    },
+    width: 132,
+    sort: null,
+  },
   estimate: {
     id: "estimate",
-    label: "Estimate",
+    get label() {
+      return i18n.t("fields.estimate");
+    },
     width: 96,
     align: "center",
     sort: null,
   },
   sprint: {
     id: "sprint",
-    label: "Sprint",
+    get label() {
+      return i18n.t("fields.sprint");
+    },
     width: 160,
     sort: null,
     sprintsOnly: true,
   },
-  parent: { id: "parent", label: "Parent", width: 152, sort: null },
-  created: { id: "created", label: "Created", width: 116, sort: "created" },
-  updated: { id: "updated", label: "Updated", width: 116, sort: "updated" },
+  parent: {
+    id: "parent",
+    get label() {
+      return i18n.t("fields.parent");
+    },
+    width: 152,
+    sort: null,
+  },
+  created: {
+    id: "created",
+    get label() {
+      return i18n.t("fields.created");
+    },
+    width: 116,
+    sort: "created",
+  },
+  updated: {
+    id: "updated",
+    get label() {
+      return i18n.t("fields.updated");
+    },
+    width: 116,
+    sort: "updated",
+  },
   completed: {
     id: "completed",
-    label: "Completed",
+    get label() {
+      return i18n.t("fields.completed");
+    },
     width: 124,
     sort: "completed",
   },

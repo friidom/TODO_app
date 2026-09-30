@@ -168,7 +168,7 @@ export function useBoardDragEnd({
       : null;
 
   const transition =
-    crossColumn && landing
+    crossColumn && landing && reachable(landing)
       ? {
           from: sourceStatus
             ? pill(sourceStatus)

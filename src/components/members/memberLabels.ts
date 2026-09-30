@@ -1,3 +1,4 @@
+import i18n from "@/components/i18n";
 import type { BoardMember } from "@/services/members/membersApi";
 
 export function memberInitial(member: BoardMember) {
@@ -7,5 +8,5 @@ export function memberInitial(member: BoardMember) {
 }
 
 export function memberName(member: BoardMember) {
-  return member.full_name || member.username || "Unnamed member";
+  return member.full_name || member.username || i18n.t("members.unnamed");
 }

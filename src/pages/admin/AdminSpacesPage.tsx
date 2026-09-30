@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 
@@ -14,10 +15,11 @@ import SummaryCard, {
   WidgetEmpty,
 } from "@/components/summary/SummaryCard";
 import { useAdminPeriod } from "@/hooks/useAdminPeriod";
-import { spaceTarget } from "@/services/admin/drilldown";
+import { spaceName, spaceTarget } from "@/services/admin/drilldown";
 import { barShare, peakOf, proportionOf } from "@/services/admin/flow";
 import { dash, formatDuration, rangeLabel } from "@/services/admin/format";
-import { BOARD_SORT_LABELS, compareBy } from "@/services/admin/leaderboard";
+import { compareBy } from "@/services/admin/leaderboard";
+import { translated } from "@/components/i18n";
 import { useAdminSpaces } from "@/services/admin/useAdmin";
 import type { SpaceMetrics } from "@/services/admin/types";
 import { cn } from "@/utils/cn";
@@ -37,18 +39,19 @@ const NUMERIC = [
 
 type SpaceSortKey = (typeof NUMERIC)[number] | "title";
 
-const LABELS: Record<SpaceSortKey, string> = {
-  title: "Space",
-  boards: "Boards",
-  members: "People",
-  open_todos: "Open",
-  completed_todos: "Done",
-  completed_points: "Points",
-  median_cycle_days: BOARD_SORT_LABELS.median_cycle_days,
-  activities: "Activity",
-};
+const LABELS = translated<SpaceSortKey>({
+  title: "boards.space",
+  boards: "boards.title",
+  members: "admin.modes.people",
+  open_todos: "admin.columns.open",
+  completed_todos: "columnCategory.done",
+  completed_points: "admin.columns.points",
+  median_cycle_days: "admin.columns.cycle",
+  activities: "board.activity",
+});
 
 export default function AdminSpacesPage() {
+  const { t } = useTranslation();
   const { period } = useAdminPeriod();
   const navigate = useNavigate();
   const { data, isFetching, error } = useAdminSpaces(period);
@@ -74,33 +77,36 @@ export default function AdminSpacesPage() {
 
   return (
     <AdminShell
-      title="Spaces"
+      title={t("sidebar.spaces")}
       hint={
         data
-          ? `${rows.length} spaces · ${rangeLabel(data.from, data.to)}`
-          : "Boards grouped by the space they are filed into"
+          ? t("admin.spaces.hint", {
+              count: rows.length,
+              range: rangeLabel(data.from, data.to),
+            })
+          : t("admin.spaces.hintLoading")
       }
       busy={isFetching}
     >
       {error ? (
-        <AdminEmpty>That did not load. Try again.</AdminEmpty>
+        <AdminEmpty>{t("admin.loadFailedRetry")}</AdminEmpty>
       ) : !data ? (
         <AdminSkeleton />
       ) : (
         <div className="flex flex-col gap-3">
           <SummaryCard
-            title="Completed work by space"
-            hint="Where delivery is concentrated in this window"
+            title={t("admin.spaces.completedTitle")}
+            hint={t("admin.spaces.completedHint")}
           >
             {total === 0 ? (
-              <WidgetEmpty>Nothing was completed in this window.</WidgetEmpty>
+              <WidgetEmpty>{t("admin.spaces.nothingCompleted")}</WidgetEmpty>
             ) : (
               <div className="flex flex-col gap-2 px-3.5 pb-3.5">
                 {rows.slice(0, 8).map((space) => (
                   <DistributionRow
                     key={space.id ?? "unfiled"}
-                    label={space.title}
-                    title={space.title}
+                    label={spaceName(space)}
+                    title={spaceName(space)}
                     count={space.completed_todos}
                     percent={barShare(space.completed_todos, peak)}
                     share={proportionOf(space.completed_todos, total)}
@@ -114,7 +120,7 @@ export default function AdminSpacesPage() {
             )}
           </SummaryCard>
 
-          <AdminGrid columns={COLUMNS} label="Spaces and their metrics">
+          <AdminGrid columns={COLUMNS} label={t("admin.spaces.gridLabel")}>
             <AdminRow header>
               <AdminCell header>
                 <SortButton
@@ -137,12 +143,12 @@ export default function AdminSpacesPage() {
               ))}
 
               <AdminCell header align="right">
-                Owner
+                {t("roles.owner")}
               </AdminCell>
             </AdminRow>
 
             {rows.length === 0 ? (
-              <AdminEmpty>No spaces yet.</AdminEmpty>
+              <AdminEmpty>{t("admin.noSpaces")}</AdminEmpty>
             ) : (
               rows.map((space) => (
                 <AdminRow
@@ -161,11 +167,11 @@ export default function AdminSpacesPage() {
                       )}
                       title={
                         space.id === null
-                          ? "Boards filed into no space"
+                          ? t("admin.spaces.unfiledHint")
                           : space.title
                       }
                     >
-                      {space.title}
+                      {spaceName(space)}
                     </span>
                   </AdminCell>
 

@@ -1,3 +1,4 @@
+import { translated } from "@/components/i18n";
 import { compareBy } from "./leaderboard";
 import type { AdminUser } from "./types";
 
@@ -14,16 +15,16 @@ export const USER_SORT_KEYS = [
 
 export type UserSortKey = (typeof USER_SORT_KEYS)[number];
 
-export const USER_SORT_LABELS: Record<UserSortKey, string> = {
-  username: "Developer",
-  completed_todos: "Tasks",
-  completed_points: "Points",
-  median_cycle_days: "Cycle",
-  comments: "Comments",
-  activities: "Activity",
-  boards: "Boards",
-  performance: "Performance",
-};
+export const USER_SORT_LABELS = translated<UserSortKey>({
+  username: "admin.columns.developer",
+  completed_todos: "admin.columns.tasks",
+  completed_points: "admin.columns.points",
+  median_cycle_days: "admin.columns.cycle",
+  comments: "taskActivity.comments",
+  activities: "board.activity",
+  boards: "boards.title",
+  performance: "admin.columns.performance",
+});
 
 export const DEFAULT_USER_SORT: UserSortKey = "completed_todos";
 

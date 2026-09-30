@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Fragment, useEffect, useRef, type ReactNode } from "react";
 import { ListTree, Pencil } from "lucide-react";
 
@@ -75,6 +76,7 @@ export default function TodoCard({
   setNodeRef,
   handleProps,
 }: TodoCardProps) {
+  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -193,7 +195,7 @@ export default function TodoCard({
           <div className="coarse:opacity-100 -my-0.5 -mr-1 ml-auto flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100">
             <IconButton
               size="xs"
-              label="Rename"
+              label={t("common.rename")}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={onStartEdit}
             >
@@ -256,9 +258,11 @@ export default function TodoCard({
 }
 
 function SubtaskProgress({ done, total }: { done: number; total: number }) {
+  const { t } = useTranslation();
+
   return (
     <span
-      title={`${done} of ${total} subtasks done`}
+      title={t("subtasks.progress", { done, count: total })}
       className="text-ink-3 flex h-5 shrink-0 flex-col justify-center gap-0.5"
     >
       <span className="text-mini flex items-center gap-1 leading-none font-medium tabular-nums">

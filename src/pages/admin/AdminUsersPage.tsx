@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
 
@@ -33,6 +34,7 @@ const NUMERIC = [
 ] as const;
 
 export default function AdminUsersPage() {
+  const { t } = useTranslation();
   const { period } = useAdminPeriod();
   const { data, isFetching, error } = useAdminUsers(period);
   const [sort, setSort] = useState<UserSortKey>(DEFAULT_USER_SORT);
@@ -54,20 +56,23 @@ export default function AdminUsersPage() {
 
   return (
     <AdminShell
-      title="Developers"
+      title={t("admin.sections.users")}
       hint={
         data
-          ? `${rows.length} people · ${rangeLabel(data.from, data.to)}`
-          : "Factual metrics, side by side"
+          ? t("admin.users.hint", {
+              count: rows.length,
+              range: rangeLabel(data.from, data.to),
+            })
+          : t("admin.users.hintLoading")
       }
       busy={isFetching}
     >
       {error ? (
-        <AdminEmpty>That did not load. Try again.</AdminEmpty>
+        <AdminEmpty>{t("admin.loadFailedRetry")}</AdminEmpty>
       ) : !data ? (
         <AdminSkeleton />
       ) : (
-        <AdminGrid columns={COLUMNS} label="Developers and their metrics">
+        <AdminGrid columns={COLUMNS} label={t("admin.users.gridLabel")}>
           <AdminRow header>
             <AdminCell header>
               <SortButton
@@ -78,7 +83,7 @@ export default function AdminUsersPage() {
               </SortButton>
             </AdminCell>
 
-            <AdminCell header>Level</AdminCell>
+            <AdminCell header>{t("admin.level")}</AdminCell>
 
             {NUMERIC.map((key) => (
               <AdminCell key={key} header align="right">
@@ -99,7 +104,7 @@ export default function AdminUsersPage() {
           </AdminRow>
 
           {rows.length === 0 ? (
-            <AdminEmpty>No developers yet.</AdminEmpty>
+            <AdminEmpty>{t("admin.noDevelopers")}</AdminEmpty>
           ) : (
             rows.map((row) => (
               <UserRow key={row.id} row={row} maxima={maxima} period={period} />
@@ -147,6 +152,8 @@ function UserRow({
   maxima: Record<string, number>;
   period: string;
 }) {
+  const { t } = useTranslation();
+
   return (
     <AdminRow>
       <AdminCell>
@@ -160,7 +167,7 @@ function UserRow({
 
       <AdminCell>
         <span className="text-ink-3 text-micro uppercase">
-          {row.seniority ?? "—"}
+          {row.seniority ? t(`admin.seniority.${row.seniority}`) : "—"}
         </span>
       </AdminCell>
 
@@ -181,7 +188,7 @@ function UserRow({
         </span>
         <span
           className="text-ink-3 text-micro ml-1.5"
-          title="completed points / target points"
+          title={t("admin.pointsOverTarget")}
         >
           {dash(row.completed_points)} / {dash(row.target_points)}
         </span>

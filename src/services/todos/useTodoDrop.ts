@@ -1,3 +1,4 @@
+import i18n from "@/components/i18n";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { moveTodo, rebalanceColumnRanks } from "@/services/todos/todoApi";
@@ -81,7 +82,7 @@ export function useTodoDrop() {
     );
 
     if (retried === null) {
-      throw new Error("Could not find room for the card after rebalancing");
+      throw new Error(i18n.t("apiErrors.noRoom"));
     }
 
     return retried;

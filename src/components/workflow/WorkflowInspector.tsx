@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   MousePointerClickIcon,
   SplineIcon,
@@ -36,6 +37,8 @@ export default function WorkflowInspector({
   edit: (change: WorkflowEdit) => boolean;
   onSelect: (selection: Selection) => void;
 }) {
+  const { t } = useTranslation();
+
   if (selection?.kind === "status") {
     return (
       <StatusInspector
@@ -76,35 +79,29 @@ export default function WorkflowInspector({
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
       <p className="text-ink text-meta font-semibold">
-        Select a status or transition to edit it.
+        {t("workflow.inspectorEmpty")}
       </p>
 
       <ul className="text-ink-2 text-mini mt-3 grid gap-2.5">
-        <Tip icon={<MousePointerClickIcon />}>
-          Click a status to rename it, change its category or column, and see
-          where work in it can go.
-        </Tip>
-        <Tip icon={<WaypointsIcon />}>
-          Click an arrow to see which two statuses it joins, change either end,
-          or delete it.
-        </Tip>
-        <Tip icon={<SplineIcon />}>
-          Drag from the dot on a status's right edge onto another status to add
-          a transition.
-        </Tip>
+        <Tip icon={<MousePointerClickIcon />}>{t("workflow.tipStatus")}</Tip>
+        <Tip icon={<WaypointsIcon />}>{t("workflow.tipArrow")}</Tip>
+        <Tip icon={<SplineIcon />}>{t("workflow.tipConnect")}</Tip>
       </ul>
 
       <dl className="border-hairline text-mini mt-4 grid grid-cols-3 gap-2 border-t pt-3">
-        <Stat label="Statuses" value={draft.statuses.length} />
-        <Stat label="Transitions" value={draft.transitions.length} />
-        <Stat label="From any" value={anyTargets.size} />
+        <Stat label={t("review.statuses")} value={draft.statuses.length} />
+        <Stat
+          label={t("review.transitions")}
+          value={draft.transitions.length}
+        />
+        <Stat label={t("workflow.fromAny")} value={anyTargets.size} />
       </dl>
 
       {warnings.length > 0 && (
         <div className="mt-4">
           <p className="text-ink-2 text-mini flex items-center gap-1.5 font-semibold">
             <TriangleAlertIcon className="text-status-orange size-3.5" />
-            Needs attention
+            {t("workflow.needsAttention")}
           </p>
 
           <ul className="mt-1.5 grid gap-1">
@@ -129,8 +126,8 @@ export default function WorkflowInspector({
                     />
                     <span className="truncate">
                       {warning.kind === "no-way-out"
-                        ? "can't move anywhere"
-                        : "nothing leads here"}
+                        ? t("workflow.cantMoveAnywhereShort")
+                        : t("workflow.nothingLeadsHereShort")}
                     </span>
                   </button>
                 </li>

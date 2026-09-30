@@ -1,8 +1,10 @@
+import { useTranslation } from "react-i18next";
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "@/providers/themeContext";
 import { cn } from "@/utils/cn";
 
 export default function ThemeToggle() {
+  const { t } = useTranslation();
   const { theme, toggleTheme } = useTheme();
 
   return (
@@ -10,7 +12,7 @@ export default function ThemeToggle() {
       type="button"
       onClick={toggleTheme}
       aria-label={
-        theme === "dark" ? "Switch to light theme" : "Switch to dark theme"
+        theme === "dark" ? t("header.lightTheme") : t("header.darkTheme")
       }
       className="border-hairline bg-surface text-ink-2 hover:bg-elevated hover:text-ink focus-visible:ring-brand rounded-control grid size-9 cursor-pointer place-items-center border transition-colors outline-none focus-visible:ring-2"
     >

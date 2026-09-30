@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { Link } from "react-router";
 import {
@@ -31,6 +32,7 @@ import { useBoard } from "@/services/boards/useBoard";
 // Activity is in the menu as well, because the icon gives way first on a narrow toolbar
 export default function BoardActions() {
   const boardId = useBoardId();
+  const { t } = useTranslation();
   const { data: board } = useBoard(boardId);
   const { user } = useAuth();
   const { panel, openPanel } = usePanel();
@@ -46,7 +48,7 @@ export default function BoardActions() {
   return (
     <>
       <IconButton
-        label="Board activity"
+        label={t("board.activityButton")}
         size="toolbar"
         active={panel === "activity"}
         onClick={() => openPanel("activity")}
@@ -59,7 +61,7 @@ export default function BoardActions() {
         <DropdownMenuTrigger
           render={
             <IconButton
-              label="Board actions"
+              label={t("board.actions")}
               size="toolbar"
               className="border-ink/15 hover:bg-wash-strong size-8 rounded-md bg-transparent"
             />
@@ -71,12 +73,12 @@ export default function BoardActions() {
         <DropdownMenuContent align="end" className="w-48">
           <DropdownMenuItem onClick={() => openPanel("members")}>
             <UsersIcon />
-            Members
+            {t("board.members")}
           </DropdownMenuItem>
 
           <DropdownMenuItem onClick={() => openPanel("activity")}>
             <HistoryIcon />
-            Activity
+            {t("board.activity")}
           </DropdownMenuItem>
 
           {canEditBoard && boardId && (
@@ -84,21 +86,21 @@ export default function BoardActions() {
               render={<Link to={boardSettingsPath(boardId, "details")} />}
             >
               <SettingsIcon />
-              Board settings
+              {t("sidebar.boardSettings")}
             </DropdownMenuItem>
           )}
 
           {canManageWorkflow && (
             <DropdownMenuItem onClick={() => setConfiguring(true)}>
               <Columns3Icon />
-              Configure columns
+              {t("board.configureColumns")}
             </DropdownMenuItem>
           )}
 
           {canManageWorkflow && (
             <DropdownMenuItem onClick={() => setManaging(true)}>
               <NetworkIcon />
-              Manage workflows
+              {t("board.manageWorkflows")}
             </DropdownMenuItem>
           )}
 
@@ -111,7 +113,7 @@ export default function BoardActions() {
                 onClick={() => setDeleting(true)}
               >
                 <Trash2Icon />
-                Delete board
+                {t("sidebar.deleteBoard")}
               </DropdownMenuItem>
             </>
           )}

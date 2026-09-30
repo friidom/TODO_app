@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useOAuthProviders } from "@/services/auth/useOAuth";
 import { startOAuth, type OAuthProvider } from "@/services/auth/oauthApi";
 
@@ -54,6 +55,7 @@ export default function OAuthButtons({
   disabled?: boolean;
   divider?: "above" | "below";
 }) {
+  const { t } = useTranslation();
   const { data: providers } = useOAuthProviders();
 
   // Renders nothing at all while unknown, and nothing if the server has no
@@ -63,7 +65,7 @@ export default function OAuthButtons({
   const rule = (
     <div className="flex items-center gap-3">
       <span className="border-hairline h-px flex-1 border-t" />
-      <span className="text-ink-3 text-xs">or</span>
+      <span className="text-ink-3 text-xs">{t("auth.or")}</span>
       <span className="border-hairline h-px flex-1 border-t" />
     </div>
   );
@@ -82,7 +84,7 @@ export default function OAuthButtons({
             className={BUTTON}
           >
             {MARKS[provider].icon}
-            Continue with {MARKS[provider].label}
+            {t("auth.continueWith", { provider: MARKS[provider].label })}
           </button>
         ))}
       </div>

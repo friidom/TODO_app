@@ -1,3 +1,4 @@
+import { translated } from "@/components/i18n";
 import {
   BugIcon,
   LightbulbIcon,
@@ -49,6 +50,15 @@ export const WORK_TYPE_OPTIONS = [
   "Feature",
   "Epic",
 ] as const;
+
+// The stored value stays English; only what the reader sees is translated.
+export const WORK_TYPE_LABELS = translated<WorkType>({
+  Task: "workType.task",
+  Bug: "workType.bug",
+  Story: "workType.story",
+  Feature: "workType.feature",
+  Epic: "workType.epic",
+});
 
 export const DEFAULT_WORK_TYPE: WorkType = "Task";
 

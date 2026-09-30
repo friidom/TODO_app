@@ -84,10 +84,10 @@ function CreateColumnDialog({ onClose }: { onClose: () => void }) {
         onSubmit={handleSubmit}
         className="border-hairline bg-surface rounded-surface shadow-e3 max-h-full w-[420px] max-w-full overflow-y-auto border p-5 sm:p-6"
       >
-        <h2 className={`${DIALOG_TITLE} mb-5`}>Create column</h2>
+        <h2 className={`${DIALOG_TITLE} mb-5`}>{t("column.createTitle")}</h2>
 
         <label htmlFor="create-column-name" className={DIALOG_LABEL}>
-          Name
+          {t("common.name")}
         </label>
 
         <input
@@ -96,10 +96,10 @@ function CreateColumnDialog({ onClose }: { onClose: () => void }) {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           className={`${FIELD_INPUT} mb-6`}
-          placeholder="Column name..."
+          placeholder={t("column.namePlaceholder")}
         />
 
-        <label className={DIALOG_LABEL}>Status category</label>
+        <label className={DIALOG_LABEL}>{t("column.statusCategory")}</label>
 
         <div className="mb-8">
           <CategorySelect value={category} onChange={setCategory} />
@@ -119,7 +119,7 @@ function CreateColumnDialog({ onClose }: { onClose: () => void }) {
 
         <div className={DIALOG_ACTIONS}>
           <button type="button" onClick={onClose} className={DIALOG_CANCEL}>
-            Cancel
+            {t("common.cancel")}
           </button>
 
           <button
@@ -129,7 +129,9 @@ function CreateColumnDialog({ onClose }: { onClose: () => void }) {
             }
             className={DIALOG_CONFIRM}
           >
-            {createColumnMutation.isPending ? "Creating..." : "Create"}
+            {createColumnMutation.isPending
+              ? t("common.creating")
+              : t("common.create")}
           </button>
         </div>
       </form>

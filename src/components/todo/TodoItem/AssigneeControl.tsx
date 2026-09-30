@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { CheckIcon, UserIcon, UserMinusIcon } from "lucide-react";
 import { FloatingPortal } from "@floating-ui/react";
 
@@ -37,14 +38,15 @@ export default function AssigneeControl({
   showName?: boolean;
   variant?: "cell";
 }) {
+  const { t } = useTranslation();
   const { mounted, close, triggerProps, panelProps } = useCardPopover();
 
   const { data: members } = useBoardMembers(boardId);
   const assignee = members?.find((member) => member.id === assigneeId) ?? null;
 
   const label = assignee
-    ? `Assigned to ${memberName(assignee)}`
-    : "Assign a member";
+    ? t("assignee.assignedTo", { name: memberName(assignee) })
+    : t("assignee.assign");
 
   const cell = variant === "cell";
   const named = showName || cell;
@@ -91,7 +93,7 @@ export default function AssigneeControl({
               assignee ? "text-ink" : cell ? "text-ink-2" : "text-ink-3",
             )}
           >
-            {assignee ? memberName(assignee) : "Unassigned"}
+            {assignee ? memberName(assignee) : t("members.unassigned")}
           </span>
         )}
       </button>
@@ -99,7 +101,7 @@ export default function AssigneeControl({
       {mounted && (
         <FloatingPortal>
           <div {...panelProps} className={cn(POPOVER_PANEL, "z-50 w-60")}>
-            <p className={MENU_LABEL}>Assignee</p>
+            <p className={MENU_LABEL}>{t("fields.assignee")}</p>
 
             <MemberList
               boardId={boardId}
@@ -125,6 +127,7 @@ function MemberList({
   assigneeId: string | null;
   onSelect: (value: string | null) => void;
 }) {
+  const { t } = useTranslation();
   const { data: members, isPending, error } = useBoardMembers(boardId);
 
   const assign = onSelect;
@@ -145,7 +148,7 @@ function MemberList({
   if (error) {
     return (
       <p className="text-status-red text-meta px-2 py-2">
-        Could not load members.
+        {t("assignee.loadFailed")}
       </p>
     );
   }
@@ -153,7 +156,7 @@ function MemberList({
   if (members.length === 0) {
     return (
       <p className="text-ink-3 text-meta px-2 py-2">
-        No members on this board.
+        {t("assignee.noMembers")}
       </p>
     );
   }
@@ -190,7 +193,7 @@ function MemberList({
             className={MENU_ITEM}
           >
             <UserMinusIcon />
-            Unassign
+            {t("assignee.unassign")}
           </button>
         </>
       )}

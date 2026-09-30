@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   useState,
   type KeyboardEvent,
@@ -53,6 +54,8 @@ export default function ListHeader({
   allExpanded,
   onExpandAll,
 }: ListHeaderProps) {
+  const { t } = useTranslation();
+
   return (
     <thead>
       <tr>
@@ -64,7 +67,7 @@ export default function ListHeader({
           <ListCheckbox
             checked={allSelected}
             indeterminate={someSelected && !allSelected}
-            label="Select all work items"
+            label={t("list.selectAll")}
             onChange={onSelectAll}
           />
         </th>
@@ -85,8 +88,8 @@ export default function ListHeader({
                       aria-expanded={allExpanded}
                       aria-label={
                         allExpanded
-                          ? "Collapse all subtasks"
-                          : "Expand all subtasks"
+                          ? t("list.collapseAll")
+                          : t("list.expandAll")
                       }
                       className="text-ink-2 hover:bg-wash-strong hover:text-ink focus-visible:ring-brand grid size-6 place-items-center rounded transition-colors outline-none focus-visible:ring-2"
                     >
@@ -124,6 +127,7 @@ function HeadCell({
   view: BoardView;
   expand: ReactNode;
 }) {
+  const { t } = useTranslation();
   const pinned = column.id === PINNED_COLUMN;
 
   const { setNodeRef, pointerProps, isDragging, edge } = useReorderItem(
@@ -150,7 +154,7 @@ function HeadCell({
 
   const lock = pinned && (
     <LockIcon
-      aria-label="Locked column"
+      aria-label={t("list.lockedColumn")}
       className="text-ink-3 mr-2 size-3 shrink-0 opacity-0 transition-opacity group-hover/th:opacity-60"
     />
   );
@@ -212,9 +216,9 @@ function HeadCell({
           title={
             active
               ? descending
-                ? `Sorted by ${column.label}, descending — click to clear`
-                : `Sorted by ${column.label}, ascending — click for descending`
-              : `Sort by ${column.label}`
+                ? t("list.sortedDesc", { name: column.label })
+                : t("list.sortedAsc", { name: column.label })
+              : t("list.sortBy", { name: column.label })
           }
           className={cn(
             "group/head hover:text-ink focus-visible:ring-brand flex h-10 min-w-0 flex-1 items-center gap-1 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset",
@@ -249,6 +253,7 @@ const KEY_STEP = 16;
 // store write per pointer move re-rendered the header and ran every row's memo
 // check, which a list of thousands feels.
 function ResizeHandle({ column }: { column: ListColumnDef }) {
+  const { t } = useTranslation();
   const boardId = useBoardId();
   const widths = useListColumnWidths(boardId);
   const setWidth = useListColumns((state) => state.setWidth);
@@ -343,13 +348,13 @@ function ResizeHandle({ column }: { column: ListColumnDef }) {
     <span
       role="separator"
       aria-orientation="vertical"
-      aria-label={`Resize ${column.label}`}
+      aria-label={t("list.resize", { name: column.label })}
       aria-valuenow={Math.round(listColumnWidth(column, widths))}
       aria-valuemin={minListColumnWidth(column.id)}
       aria-valuemax={MAX_COLUMN_WIDTH}
       tabIndex={0}
       data-no-drag
-      title="Drag to resize, double-click to reset"
+      title={t("list.resizeHint")}
       onPointerDown={onPointerDown}
       onKeyDown={onKeyDown}
       onDoubleClick={() => boardId && resetWidth(boardId, column.id)}

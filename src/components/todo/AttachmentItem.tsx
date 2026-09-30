@@ -55,23 +55,25 @@ export interface PendingUpload {
 }
 
 export function AttachmentTableHeader() {
+  const { t } = useTranslation();
+
   return (
     <div role="row" className={cn(ATTACHMENT_GRID, TABLE_HEAD)}>
       <span role="columnheader" className="col-span-2">
-        Name
+        {t("common.name")}
       </span>
 
       <span role="columnheader" className="hidden sm:block">
-        Date added
+        {t("attachments.dateAdded")}
       </span>
 
       <span role="columnheader" className="hidden sm:block">
-        Size
+        {t("attachments.size")}
       </span>
 
       <span role="columnheader" className="hidden sm:block">
         {/* sr-only on the nested span, not the grid item — position:absolute would drop the cell out of the grid. */}
-        <span className="sr-only">Actions</span>
+        <span className="sr-only">{t("attachments.actionsColumn")}</span>
       </span>
     </div>
   );
@@ -234,6 +236,8 @@ function ConfirmStrip({
   actions: RowActions;
   compact?: boolean;
 }) {
+  const { t } = useTranslation();
+
   return (
     <span
       className="flex min-w-0 items-center gap-1 text-xs"
@@ -246,7 +250,8 @@ function ConfirmStrip({
     >
       {!compact && (
         <span className="text-ink-2 text-meta mr-1 min-w-0 truncate">
-          Remove <span className="font-medium">{actions.filename}</span>?
+          {t("attachments.removePrefix")}{" "}
+          <span className="font-medium">{actions.filename}</span>?
         </span>
       )}
 
@@ -257,7 +262,7 @@ function ConfirmStrip({
         disabled={actions.removing}
         className={INLINE_ACTION_DANGER}
       >
-        {actions.removing ? "Removing…" : "Remove"}
+        {actions.removing ? t("attachments.removing") : t("attachments.remove")}
       </button>
 
       <button
@@ -265,7 +270,7 @@ function ConfirmStrip({
         onClick={() => actions.setConfirming(false)}
         className={INLINE_ACTION}
       >
-        Keep
+        {t("common.keep")}
       </button>
     </span>
   );
@@ -273,15 +278,16 @@ function ConfirmStrip({
 
 // A menu, not two icon buttons — keeps a misclick near the filename from triggering delete.
 function AttachmentMenu({ actions }: { actions: RowActions }) {
+  const { t } = useTranslation();
   const { mounted, close, triggerProps, panelProps } = useCardPopover();
 
   return (
     <>
       <IconButton
-        label={`Actions for ${actions.filename}`}
+        label={t("attachments.actionsFor", { name: actions.filename })}
         size="xs"
         tooltip={false}
-        title="More actions"
+        title={t("task.moreActions")}
         aria-haspopup="menu"
         {...triggerProps}
       >
@@ -297,12 +303,12 @@ function AttachmentMenu({ actions }: { actions: RowActions }) {
           <div
             {...panelProps}
             role="menu"
-            aria-label={`Actions for ${actions.filename}`}
+            aria-label={t("attachments.actionsFor", { name: actions.filename })}
             className={cn(POPOVER_PANEL, "z-[70] w-44")}
           >
             <MenuItem
               icon={DownloadIcon}
-              label="Download"
+              label={t("attachments.download")}
               onClick={() => {
                 actions.download();
                 close();
@@ -315,7 +321,7 @@ function AttachmentMenu({ actions }: { actions: RowActions }) {
 
                 <MenuItem
                   icon={Trash2Icon}
-                  label="Delete"
+                  label={t("common.delete")}
                   danger
                   onClick={() => {
                     actions.setConfirming(true);
@@ -426,6 +432,7 @@ export function PendingRow({
   onRetry: () => void;
   onDismiss: () => void;
 }) {
+  const { t } = useTranslation();
   const failed = Boolean(row.error);
 
   return (
@@ -468,16 +475,18 @@ export function PendingRow({
             onClick={onRetry}
             className={INLINE_ACTION_BRAND}
           >
-            Retry
+            {t("common.retry")}
           </button>
 
           <button type="button" onClick={onDismiss} className={INLINE_ACTION}>
-            Dismiss
+            {t("common.dismiss")}
           </button>
         </span>
       ) : (
         // Text, not a progress bar — fetch exposes no upload progress events.
-        <span className="text-ink-3 text-mini shrink-0">Uploading…</span>
+        <span className="text-ink-3 text-mini shrink-0">
+          {t("attachments.uploadingEllipsis")}
+        </span>
       )}
     </div>
   );

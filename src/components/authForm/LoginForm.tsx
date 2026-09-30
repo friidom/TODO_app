@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { Link } from "react-router";
 import { Loader2 } from "lucide-react";
@@ -16,6 +17,7 @@ import {
 } from "@/utils/validation";
 
 export default function LoginForm() {
+  const { t } = useTranslation();
   const login = useLogin();
   const [searchParams] = useSearchParams();
 
@@ -53,9 +55,9 @@ export default function LoginForm() {
       {/* type="text", not "email" — the browser's own validation would reject a username */}
       <AuthField
         id="login-identifier"
-        label="Email or username"
+        label={t("auth.identifier")}
         type="text"
-        placeholder="you@company.com or ada_lovelace"
+        placeholder={t("auth.identifierPlaceholder")}
         autoComplete="username"
         value={identifier}
         error={errors.email}
@@ -68,7 +70,7 @@ export default function LoginForm() {
 
       <PasswordInput
         id="login-password"
-        label="Password"
+        label={t("auth.password")}
         autoComplete="current-password"
         value={password}
         error={errors.password}
@@ -82,7 +84,7 @@ export default function LoginForm() {
             to="/forgot-password"
             className="text-ink-3 hover:text-ink focus-visible:ring-brand rounded text-xs transition-colors outline-none focus-visible:ring-2"
           >
-            Forgot password?
+            {t("auth.forgot")}
           </Link>
         }
       />
@@ -101,10 +103,10 @@ export default function LoginForm() {
         {login.isPending ? (
           <>
             <Loader2 className="size-4 animate-spin" />
-            Signing in…
+            {t("auth.signingIn")}
           </>
         ) : (
-          "Sign in"
+          t("auth.signIn")
         )}
       </button>
 

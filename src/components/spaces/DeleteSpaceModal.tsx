@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
 
 import Modal from "@/components/ui/Modal";
@@ -22,24 +23,19 @@ export default function DeleteSpaceModal({
   boardCount: number;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const deleteSpace = useDeleteSpace();
 
   return (
-    <Modal title="Delete space" onClose={onClose}>
-      <h2 className={DIALOG_TITLE}>Delete this space?</h2>
+    <Modal title={t("sidebar.deleteSpace")} onClose={onClose}>
+      <h2 className={DIALOG_TITLE}>{t("spaces.deleteQuestion")}</h2>
 
       <p className={`${DIALOG_BODY} mt-2`}>
-        <span className="text-ink font-medium">{space.title}</span> will be
-        removed.{" "}
-        {boardCount > 0 ? (
-          <>
-            The {boardCount} {boardCount === 1 ? "board" : "boards"} in it{" "}
-            <span className="text-ink font-medium">are not deleted</span> — they
-            move out of this space, with their members and work items untouched.
-          </>
-        ) : (
-          <>It has no boards in it.</>
-        )}
+        <span className="text-ink font-medium">{space.title}</span>{" "}
+        {t("spaces.willBeRemoved")}{" "}
+        {boardCount > 0
+          ? t("spaces.boardsKept", { count: boardCount })
+          : t("spaces.noBoards")}
       </p>
 
       {deleteSpace.error && (
@@ -50,7 +46,7 @@ export default function DeleteSpaceModal({
 
       <div className={DIALOG_ACTIONS}>
         <button type="button" onClick={onClose} className={DIALOG_CANCEL}>
-          Cancel
+          {t("common.cancel")}
         </button>
 
         <button
@@ -62,7 +58,9 @@ export default function DeleteSpaceModal({
           {deleteSpace.isPending && (
             <Loader2 className="size-3.5 animate-spin" />
           )}
-          {deleteSpace.isPending ? "Deleting…" : "Delete space"}
+          {deleteSpace.isPending
+            ? t("common.deleting")
+            : t("sidebar.deleteSpace")}
         </button>
       </div>
     </Modal>

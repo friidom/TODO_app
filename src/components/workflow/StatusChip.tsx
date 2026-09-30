@@ -113,7 +113,7 @@ export default function StatusChip({
         <button
           type="button"
           {...handleProps}
-          aria-label={`Reorder ${status.name} status`}
+          aria-label={t("workflow.reorderStatus", { name: status.name })}
           className={GRIP}
         >
           <GripVerticalIcon />
@@ -126,7 +126,7 @@ export default function StatusChip({
                 inlineRef.current = node;
               }}
               initial={status.name}
-              label="Status name"
+              label={t("workflow.statusName")}
               validate={(name) =>
                 statusNameTaken(draft, name, status.id)
                   ? t("workflow.statusNameTaken", { name })
@@ -152,7 +152,7 @@ export default function StatusChip({
             {status.is_hidden && (
               <span className="inline-flex items-center gap-1">
                 <EyeOffIcon className="size-3" aria-hidden />
-                Hidden
+                {t("workflow.hidden")}
               </span>
             )}
           </p>
@@ -163,7 +163,7 @@ export default function StatusChip({
             ref={triggerRef}
             render={
               <IconButton
-                label={`${status.name} status actions`}
+                label={t("workflow.statusActions", { name: status.name })}
                 data-no-drag
                 className={cn(mode === "renaming" && "invisible")}
               />
@@ -179,13 +179,13 @@ export default function StatusChip({
           >
             <DropdownMenuItem onClick={() => setMode("renaming")}>
               <PencilIcon />
-              Rename
+              {t("common.rename")}
             </DropdownMenuItem>
 
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
                 <TagIcon />
-                Category
+                {t("workflow.category")}
               </DropdownMenuSubTrigger>
 
               <DropdownMenuSubContent className="w-44">
@@ -222,14 +222,14 @@ export default function StatusChip({
               }
             >
               {status.is_hidden ? <EyeIcon /> : <EyeOffIcon />}
-              {status.is_hidden ? "Show" : "Hide"}
+              {status.is_hidden ? t("workflow.show") : t("workflow.hide")}
             </DropdownMenuItem>
 
             {otherColumns.length > 0 && (
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>
                   <ArrowRightLeftIcon />
-                  Move to
+                  {t("workflow.moveTo")}
                 </DropdownMenuSubTrigger>
 
                 <DropdownMenuSubContent className="w-48">
@@ -261,7 +261,7 @@ export default function StatusChip({
                 }
               >
                 <UnlinkIcon />
-                Unmap from column
+                {t("workflow.unmap")}
               </DropdownMenuItem>
             )}
 
@@ -269,7 +269,7 @@ export default function StatusChip({
 
             <DropdownMenuItem variant="destructive" onClick={remove}>
               <Trash2Icon />
-              Delete
+              {t("common.delete")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -310,6 +310,7 @@ function DeleteConfirm({
   onConfirm: (target: string) => void;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation();
   const targets = draft.statuses.filter(
     (it) => it.id !== status.id && !it.is_hidden && it.column_id !== null,
   );
@@ -324,7 +325,7 @@ function DeleteConfirm({
     <div
       role="group"
       data-no-drag
-      aria-label={`Delete ${status.name}`}
+      aria-label={t("workflow.deleteNamed", { name: status.name })}
       onKeyDown={(e) => {
         if (e.key === "Escape") {
           e.preventDefault();
@@ -339,7 +340,7 @@ function DeleteConfirm({
             htmlFor={`move-${status.id}`}
             className="text-ink-2 text-mini mb-1 block font-medium"
           >
-            Move {workItems(count)} to
+            {t("workflow.moveItemsTo", { items: workItems(count), count })}
           </label>
 
           <select
@@ -369,8 +370,7 @@ function DeleteConfirm({
         </>
       ) : (
         <p className="text-ink-2 text-mini leading-snug">
-          Its {workItems(count)} need a visible status to move to. Show or add
-          one first.
+          {t("workflow.needVisibleStatus", { items: workItems(count), count })}
         </p>
       )}
 
@@ -380,7 +380,7 @@ function DeleteConfirm({
           onClick={onCancel}
           className="text-ink-2 hover:bg-wash-strong hover:text-ink focus-visible:ring-brand rounded-control text-mini h-7 px-2.5 font-medium outline-none focus-visible:ring-2"
         >
-          Cancel
+          {t("common.cancel")}
         </button>
 
         <button
@@ -389,7 +389,7 @@ function DeleteConfirm({
           onClick={() => onConfirm(chosen)}
           className="bg-status-red hover:bg-status-red/90 focus-visible:ring-status-red rounded-control text-mini h-7 px-2.5 font-medium text-white outline-none focus-visible:ring-2 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Delete
+          {t("common.delete")}
         </button>
       </div>
     </div>

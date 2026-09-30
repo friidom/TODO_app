@@ -1,3 +1,4 @@
+import i18n from "@/components/i18n";
 import { identifierKind } from "./identifier";
 import { validateUsername } from "./username";
 
@@ -17,8 +18,8 @@ export interface AuthFieldErrors {
 export function validateEmail(email: string): string | undefined {
   const trimmed = email.trim();
 
-  if (!trimmed) return "Email is required.";
-  if (!EMAIL_SHAPE.test(trimmed)) return "Enter a valid email address.";
+  if (!trimmed) return i18n.t("validation.emailRequired");
+  if (!EMAIL_SHAPE.test(trimmed)) return i18n.t("validation.emailInvalid");
 
   return undefined;
 }
@@ -26,22 +27,22 @@ export function validateEmail(email: string): string | undefined {
 export function validateIdentifier(value: string): string | undefined {
   const trimmed = value.trim();
 
-  if (!trimmed) return "Email or username is required.";
+  if (!trimmed) return i18n.t("validation.identifierRequired");
 
   if (identifierKind(trimmed) === "email") return validateEmail(trimmed);
 
   // shape check only — existence is the server's call, checking it here would build an enumeration oracle
   return validateUsername(trimmed)
-    ? "Enter a valid email address or username."
+    ? i18n.t("validation.identifierInvalid")
     : undefined;
 }
 
 export function validatePassword(password: string): string | undefined {
   // not trimmed — spaces are part of a password, dropping them would reject valid credentials
-  if (!password) return "Password is required.";
+  if (!password) return i18n.t("validation.passwordRequired");
 
   if (password.length < PASSWORD_MIN_LENGTH) {
-    return `Password must be at least ${PASSWORD_MIN_LENGTH} characters.`;
+    return i18n.t("validation.passwordMin", { count: PASSWORD_MIN_LENGTH });
   }
 
   return undefined;
@@ -74,8 +75,9 @@ export function validateConfirmPassword(
   password: string,
   confirmPassword: string,
 ): string | undefined {
-  if (!confirmPassword) return "Confirm your password.";
-  if (password !== confirmPassword) return "Passwords do not match.";
+  if (!confirmPassword) return i18n.t("validation.confirmRequired");
+  if (password !== confirmPassword)
+    return i18n.t("validation.passwordMismatch");
 
   return undefined;
 }

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { FlagIcon } from "lucide-react";
 
@@ -17,6 +18,7 @@ import ToolbarButton from "./ToolbarButton";
 // Backlog, and starting one means choosing which.
 export default function SprintControls() {
   const sprintsEnabled = useSprintsEnabled();
+  const { t } = useTranslation();
   const { data: sprints = [] } = useSprints();
   const { canEditTodos } = usePermissions();
 
@@ -37,7 +39,7 @@ export default function SprintControls() {
 
       {canEditTodos && (
         <ToolbarButton
-          label="Complete sprint"
+          label={t("sprint.complete")}
           collapse="hidden @3xl:inline"
           icon={<FlagIcon className="size-4 @3xl:hidden" />}
           tooltip={

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon } from "lucide-react";
 
 import {
@@ -27,6 +28,7 @@ export default function BoardSort({
   view: BoardView;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const { sort, dir } = view;
 
   const active = sort !== "manual";
@@ -40,10 +42,19 @@ export default function BoardSort({
           <ToolbarButton
             label={
               active
-                ? `Sort — ${SORT_LABELS[sort]}, ${dir === "desc" ? "descending" : "ascending"}`
-                : "Sort"
+                ? t(
+                    dir === "desc" ? "view.sortLabelDesc" : "view.sortLabelAsc",
+                    {
+                      name: SORT_LABELS[sort],
+                    },
+                  )
+                : t("toolbar.sort")
             }
-            text={active ? `Sort: ${SORT_LABELS[sort]}` : "Sort"}
+            text={
+              active
+                ? t("view.sortText", { name: SORT_LABELS[sort] })
+                : t("toolbar.sort")
+            }
             icon={<ArrowUpDownIcon className="size-4" />}
             active={active}
             className={className}
@@ -62,6 +73,7 @@ export default function BoardSort({
 
 // shared with ViewOptions, so the folded menu offers exactly these choices
 export function SortOptions({ view }: { view: BoardView }) {
+  const { t } = useTranslation();
   const { sort, dir, setSort, setDir } = view;
 
   const active = sort !== "manual";
@@ -73,7 +85,7 @@ export function SortOptions({ view }: { view: BoardView }) {
         value={sort}
         onValueChange={(next) => setSort(next as SortKey)}
       >
-        <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+        <DropdownMenuLabel>{t("view.sortBy")}</DropdownMenuLabel>
         {SORT_KEYS.map((key) => (
           <DropdownMenuRadioItem key={key} value={key}>
             {SORT_LABELS[key]}
@@ -86,14 +98,14 @@ export function SortOptions({ view }: { view: BoardView }) {
         value={dir}
         onValueChange={(next) => setDir(next as SortDir)}
       >
-        <DropdownMenuLabel>Direction</DropdownMenuLabel>
+        <DropdownMenuLabel>{t("view.direction")}</DropdownMenuLabel>
         <DropdownMenuRadioItem value="asc" disabled={!active}>
           <ArrowUpIcon className="size-4 shrink-0" />
-          Ascending
+          {t("view.ascending")}
         </DropdownMenuRadioItem>
         <DropdownMenuRadioItem value="desc" disabled={!active}>
           <ArrowDownIcon className="size-4 shrink-0" />
-          Descending
+          {t("view.descending")}
         </DropdownMenuRadioItem>
       </DropdownMenuRadioGroup>
     </>

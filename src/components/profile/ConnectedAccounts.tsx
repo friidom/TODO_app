@@ -1,7 +1,13 @@
+import { useTranslation } from "react-i18next";
 import { CheckIcon, Loader2 } from "lucide-react";
 import { useSearchParams } from "react-router";
 
-import { useLinkProvider, useOAuthConnections, useOAuthProviders, useUnlinkProvider } from "@/services/auth/useOAuth";
+import {
+  useLinkProvider,
+  useOAuthConnections,
+  useOAuthProviders,
+  useUnlinkProvider,
+} from "@/services/auth/useOAuth";
 import type { OAuthConnection, OAuthProvider } from "@/services/auth/oauthApi";
 import { oauthErrorMessage } from "@/services/auth/oauthErrors";
 
@@ -18,6 +24,7 @@ const DANGER =
   "border-status-red/30 text-status-red hover:bg-status-red/10 focus-visible:ring-status-red rounded-control text-meta flex h-9 items-center gap-2 border px-3 font-medium transition-colors outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-60";
 
 export default function ConnectedAccounts() {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const { data, isLoading } = useOAuthConnections();
   const { data: providers } = useOAuthProviders();
@@ -25,7 +32,7 @@ export default function ConnectedAccounts() {
   const unlink = useUnlinkProvider();
 
   if (isLoading || data === undefined) {
-    return <p className="text-ink-3 text-sm">Loading…</p>;
+    return <p className="text-ink-3 text-sm">{t("common.loading")}</p>;
   }
 
   const { connections, hasPassword } = data;
@@ -53,7 +60,7 @@ export default function ConnectedAccounts() {
       {justLinked && (
         <p className="border-status-green/30 bg-status-green/10 text-status-green rounded-control flex items-center gap-2 border px-3 py-2 text-xs">
           <CheckIcon className="size-4 shrink-0" />
-          Sign-in method connected.
+          {t("profile.methodConnected")}
         </p>
       )}
 
@@ -67,9 +74,7 @@ export default function ConnectedAccounts() {
       )}
 
       {connections.length === 0 && (
-        <p className="text-ink-3 text-sm">
-          No sign-in methods connected yet. Connecting one lets you sign in without a password.
-        </p>
+        <p className="text-ink-3 text-sm">{t("profile.noMethods")}</p>
       )}
 
       {connections.map((connection: OAuthConnection) => {
@@ -78,25 +83,23 @@ export default function ConnectedAccounts() {
         return (
           <div key={connection.id} className="flex items-center gap-4">
             <div className="min-w-0 flex-1">
-              <p className="text-ink text-sm font-medium">{labelOf(connection.provider)}</p>
+              <p className="text-ink text-sm font-medium">
+                {labelOf(connection.provider)}
+              </p>
               <p className="text-ink-3 truncate text-xs">
-                {connection.email ?? "Connected"}
+                {connection.email ?? t("profile.connectedStatus")}
               </p>
             </div>
 
             <button
               type="button"
               disabled={blocked || unlink.isPending}
-              title={
-                blocked
-                  ? "This is the only way into your account. Set a password first, or connect another provider."
-                  : undefined
-              }
+              title={blocked ? t("profile.lastWayIn") : undefined}
               onClick={() => unlink.mutate(connection.id)}
               className={DANGER}
             >
               {unlink.isPending && <Loader2 className="size-4 animate-spin" />}
-              Disconnect
+              {t("profile.disconnect")}
             </button>
           </div>
         );
@@ -112,7 +115,7 @@ export default function ConnectedAccounts() {
         <div key={provider} className="flex items-center gap-4">
           <div className="min-w-0 flex-1">
             <p className="text-ink text-sm font-medium">{labelOf(provider)}</p>
-            <p className="text-ink-3 text-xs">Not connected</p>
+            <p className="text-ink-3 text-xs">{t("profile.notConnected")}</p>
           </div>
 
           <button
@@ -122,7 +125,7 @@ export default function ConnectedAccounts() {
             className={ACTION}
           >
             {link.isPending && <Loader2 className="size-4 animate-spin" />}
-            Connect
+            {t("profile.connect")}
           </button>
         </div>
       ))}

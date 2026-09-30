@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useId, useState } from "react";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 
@@ -29,6 +30,7 @@ export default function PasswordInput({
   labelAction?: React.ReactNode;
 }) {
   const [revealed, setRevealed] = useState(false);
+  const { t } = useTranslation();
 
   const errorId = `${id}-error`;
   const hintId = useId();
@@ -68,7 +70,9 @@ export default function PasswordInput({
           type="button"
           onClick={() => setRevealed((on) => !on)}
           disabled={disabled}
-          aria-label={revealed ? "Hide password" : "Show password"}
+          aria-label={
+            revealed ? t("auth.hidePassword") : t("auth.showPassword")
+          }
           aria-pressed={revealed}
           aria-controls={id}
           className="text-ink-3 hover:text-ink-2 focus-visible:ring-brand absolute inset-y-0 right-0 grid w-10 place-items-center rounded-r-[inherit] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset disabled:pointer-events-none disabled:opacity-60"

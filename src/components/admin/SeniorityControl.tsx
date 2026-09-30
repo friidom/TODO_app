@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { HEADER_CONTROL } from "@/components/board/headerControl";
 import { useSaveSeniority } from "@/services/admin/useAdmin";
 import {
@@ -7,14 +8,15 @@ import {
 } from "@/services/admin/types";
 
 export default function SeniorityControl({ user }: { user: AdminUser }) {
+  const { t } = useTranslation();
   const save = useSaveSeniority();
 
   return (
     <label className="flex shrink-0 items-center gap-2">
-      <span className="text-ink-3 text-mini">Level</span>
+      <span className="text-ink-3 text-mini">{t("admin.level")}</span>
 
       <select
-        aria-label={`Seniority for ${user.username}`}
+        aria-label={t("admin.seniorityFor", { name: user.username })}
         className={HEADER_CONTROL}
         value={user.seniority ?? ""}
         disabled={save.isPending}
@@ -30,10 +32,10 @@ export default function SeniorityControl({ user }: { user: AdminUser }) {
           })
         }
       >
-        <option value="">Unclassified</option>
+        <option value="">{t("admin.unclassified")}</option>
         {SENIORITIES.map((value) => (
           <option key={value} value={value}>
-            {value}
+            {t(`admin.seniority.${value}`)}
           </option>
         ))}
       </select>

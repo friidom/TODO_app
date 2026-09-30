@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Tooltip,
@@ -15,6 +16,7 @@ const SHOWN = 4;
 const RING = "ring-canvas group-hover/members:ring-surface ring-2";
 
 export default function MemberStack({ onOpen }: { onOpen: () => void }) {
+  const { t } = useTranslation();
   const boardId = useBoardId();
   const { data: members = [] } = useBoardMembers(boardId);
 
@@ -22,14 +24,14 @@ export default function MemberStack({ onOpen }: { onOpen: () => void }) {
 
   const shown = members.slice(0, SHOWN);
   const rest = members.length - shown.length;
-  const count = `${members.length} ${members.length === 1 ? "member" : "members"}`;
+  const count = t("members.count", { count: members.length });
 
   return (
     <Tooltip>
       <TooltipTrigger
         type="button"
         onClick={onOpen}
-        aria-label={`${count} — open members`}
+        aria-label={t("members.openStack", { count: members.length })}
         className="group/members focus-visible:ring-brand hover:bg-surface rounded-control flex h-8 shrink-0 items-center -space-x-1.5 px-1 transition-colors duration-150 outline-none focus-visible:ring-2"
       >
         {shown.map((member) => (

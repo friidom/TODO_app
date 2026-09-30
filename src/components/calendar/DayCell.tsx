@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useDroppable } from "@dnd-kit/core";
 
 import type { BoardMember } from "@/services/members/membersApi";
@@ -31,6 +32,7 @@ export default function DayCell({
   onOpenTask: (id: string) => void;
   onOpenDay: (day: string) => void;
 }) {
+  const { t } = useTranslation();
   const { setNodeRef, isOver } = useDroppable({
     id: `day:${day}`,
     data: { day },
@@ -97,7 +99,7 @@ export default function DayCell({
             onClick={() => onOpenDay(day)}
             className="text-ink-3 hover:text-brand hover:bg-ink/[0.05] focus-visible:ring-brand rounded-control text-micro h-5 px-1.5 text-left font-medium transition-colors outline-none focus-visible:ring-2"
           >
-            +{hidden} more
+            {t("calendar.more", { count: hidden })}
           </button>
         )}
       </div>

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { UserPlusIcon } from "lucide-react";
 
@@ -9,6 +10,7 @@ import { useAuth } from "@/services/auth/useAuth";
 import { useBoardMembers } from "@/services/members/useBoardMembers";
 
 export default function MembersDrawer({ boardId }: { boardId: string }) {
+  const { t } = useTranslation();
   const { data: members, isPending, error } = useBoardMembers(boardId);
   const { user } = useAuth();
   const { canManageMembers } = usePermissions(boardId);
@@ -24,7 +26,7 @@ export default function MembersDrawer({ boardId }: { boardId: string }) {
             className="border-hairline text-ink-2 hover:border-brand/40 hover:bg-brand-soft hover:text-brand rounded-control flex h-9 w-full items-center justify-center gap-2 border border-dashed text-sm font-medium transition-colors"
           >
             <UserPlusIcon className="size-4" />
-            Add people
+            {t("members.addPeople")}
           </button>
         </div>
       )}
@@ -44,13 +46,13 @@ export default function MembersDrawer({ boardId }: { boardId: string }) {
 
         {error && (
           <p className="border-status-red/30 text-status-red rounded-card border border-dashed px-3 py-4 text-xs leading-relaxed">
-            Could not load members. {error.message}
+            {t("assignee.loadFailed")} {error.message}
           </p>
         )}
 
         {members?.length === 0 && (
           <p className="border-hairline text-ink-3 rounded-card border border-dashed px-3 py-4 text-xs leading-relaxed">
-            No members to show.
+            {t("members.none")}
           </p>
         )}
 

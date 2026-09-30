@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { FloatingPortal } from "@floating-ui/react";
 import {
@@ -99,6 +100,7 @@ function Overlay({
   leaving: boolean;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const { data: todo, isPending, error } = useTodo(taskId, boardId);
 
   // Ref, not a prop — only Body knows if a draft is unsaved, and it rebinds this every render.
@@ -135,7 +137,7 @@ function Overlay({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Task details"
+        aria-label={t("task.details")}
         className={cn(
           "border-hairline bg-surface rounded-surface shadow-e3 flex h-[min(46rem,100%)] w-[min(1100px,100%)] flex-col overflow-hidden border",
           leaving
@@ -148,15 +150,15 @@ function Overlay({
         ) : error ? (
           <Dead
             onClose={requestClose}
-            title="Could not load this task"
-            body="Something went wrong fetching it. Close this and try again."
+            title={t("task.loadFailed")}
+            body={t("task.loadFailedHint")}
           />
         ) : !todo ? (
           // Deliberately doesn't distinguish "deleted" from "wrong board" — fetchTodo is board-scoped.
           <Dead
             onClose={requestClose}
-            title="Task not found"
-            body="This task no longer exists, or it belongs to a different board."
+            title={t("task.notFound")}
+            body={t("task.notFoundHint")}
           />
         ) : (
           <Body todo={todo} onClose={onClose} bindCloseRef={requestCloseRef} />
@@ -175,6 +177,7 @@ function Body({
   onClose: () => void;
   bindCloseRef: React.RefObject<() => void>;
 }) {
+  const { t } = useTranslation();
   const patch = useTodoPatch(todo);
   const deleteTodo = useDeleteTodo();
   const { canEditTodos } = usePermissions();
@@ -260,7 +263,7 @@ function Body({
       {confirming === "delete" && (
         <ConfirmBar
           tone="danger"
-          message={`Delete ${key ?? "this task"}? It is removed for everyone and cannot be restored.`}
+          message={t("task.deleteConfirm", { name: key ?? t("task.thisTask") })}
           onCancel={() => setConfirming(null)}
         >
           <button
@@ -269,7 +272,7 @@ function Body({
             onClick={() => setConfirming(null)}
             className={cn(DIALOG_CANCEL, "h-8 px-3")}
           >
-            Cancel
+            {t("common.cancel")}
           </button>
 
           <button
@@ -277,14 +280,14 @@ function Body({
             onClick={confirmDelete}
             className={cn(DIALOG_DANGER, "h-8 px-3")}
           >
-            Delete task
+            {t("task.delete")}
           </button>
         </ConfirmBar>
       )}
 
       {confirming === "close" && (
         <ConfirmBar
-          message="Close with unsaved changes? They will be lost."
+          message={t("task.closeUnsaved")}
           onCancel={() => setConfirming(null)}
         >
           <button
@@ -292,7 +295,7 @@ function Body({
             onClick={() => setConfirming(null)}
             className={cn(DIALOG_CANCEL, "h-8 px-3")}
           >
-            Keep editing
+            {t("workflow.keepEditing")}
           </button>
 
           <button
@@ -300,7 +303,7 @@ function Body({
             onClick={onClose}
             className={cn(DIALOG_DANGER, "h-8 px-3")}
           >
-            Discard
+            {t("workflow.discard")}
           </button>
         </ConfirmBar>
       )}
@@ -314,7 +317,7 @@ function Body({
               onChange={(e) => setTitle(e.target.value)}
               onBlur={saveTitle}
               rows={1}
-              aria-label="Title"
+              aria-label={t("fields.title")}
               className={cn(
                 "text-ink rounded-control -mx-2 field-sizing-content w-[calc(100%+1rem)] resize-none bg-transparent px-2 py-1 text-xl leading-snug font-semibold tracking-tight transition-colors duration-150 outline-none",
                 canEditTodos &&
@@ -323,7 +326,7 @@ function Body({
             />
 
             <div className="mt-5">
-              <SectionHeader title="Description" />
+              <SectionHeader title={t("task.description")} />
 
               <textarea
                 value={description}
@@ -332,9 +335,11 @@ function Body({
                 onBlur={saveDescription}
                 rows={5}
                 placeholder={
-                  canEditTodos ? "Add a description…" : "No description."
+                  canEditTodos
+                    ? t("task.addDescription")
+                    : t("task.noDescription")
                 }
-                aria-label="Description"
+                aria-label={t("task.description")}
                 className={cn(
                   TEXT_FIELD,
                   "rounded-card block field-sizing-content max-h-[28rem] min-h-24 w-full resize-y px-3 py-2.5 text-sm leading-relaxed",
@@ -363,7 +368,7 @@ function Body({
           )}
         >
           <div>
-            <p className={cn(SECTION_TITLE, "mb-2")}>Status</p>
+            <p className={cn(SECTION_TITLE, "mb-2")}>{t("fields.status")}</p>
 
             <StatusControl
               todoId={todo.id}
@@ -379,11 +384,11 @@ function Body({
                 "border-hairline border-b px-3.5 py-2.5",
               )}
             >
-              Details
+              {t("workflow.details")}
             </h3>
 
             <dl className="px-3.5 py-1.5">
-              <Field label="Assignee">
+              <Field label={t("fields.assignee")}>
                 <AssigneeControl
                   boardId={todo.board_id}
                   value={todo.assignee_id}
@@ -393,7 +398,7 @@ function Body({
                 />
               </Field>
 
-              <Field label="Work type">
+              <Field label={t("fields.workType")}>
                 <WorkTypeControl
                   value={todo.type}
                   onChange={(type) => patch({ type })}
@@ -401,7 +406,7 @@ function Body({
                 />
               </Field>
 
-              <Field label="Priority">
+              <Field label={t("fields.priority")}>
                 <PriorityControl
                   value={todo.priority}
                   onChange={(priority) => patch({ priority })}
@@ -410,7 +415,7 @@ function Body({
                 />
               </Field>
 
-              <Field label="Story points">
+              <Field label={t("task.storyPoints")}>
                 <EstimateControl
                   value={todo.estimate}
                   onChange={(estimate) => patch({ estimate })}
@@ -420,7 +425,7 @@ function Body({
               </Field>
 
               {hierarchy.canPickEpicParent && (
-                <Field label="Parent">
+                <Field label={t("fields.parent")}>
                   <EpicParentControl
                     value={todo.parent_id}
                     onChange={(epicId) => patch({ parent_id: epicId })}
@@ -432,7 +437,7 @@ function Body({
                   The field also goes with the Sprints feature (0020); the stored
                   sprint_id is left alone so turning it back on restores it. */}
               {sprintsEnabled && !hierarchy.isGenuineSubtask && (
-                <Field label="Sprint">
+                <Field label={t("fields.sprint")}>
                   <SprintControl
                     value={todo.sprint_id}
                     sprints={sprints}
@@ -442,7 +447,7 @@ function Body({
               )}
 
               {/* Each end is bounded by the other, so the range can't be inverted. */}
-              <Field label="Start date">
+              <Field label={t("fields.startDate")}>
                 <StartDateControl
                   value={todo.start_date}
                   onChange={(start_date) => patch({ start_date })}
@@ -452,7 +457,7 @@ function Body({
                 />
               </Field>
 
-              <Field label="Due date">
+              <Field label={t("fields.dueDate")}>
                 <DueDateControl
                   value={todo.due_date}
                   onChange={(due_date) => patch({ due_date })}
@@ -466,8 +471,16 @@ function Body({
 
           {(created || updated) && (
             <p className="text-ink-3 text-mini px-0.5 leading-relaxed">
-              {created && <span className="block">Created {created}</span>}
-              {updated && <span className="block">Updated {updated}</span>}
+              {created && (
+                <span className="block">
+                  {t("task.createdAgo", { when: created })}
+                </span>
+              )}
+              {updated && (
+                <span className="block">
+                  {t("task.updatedAgo", { when: updated })}
+                </span>
+              )}
             </p>
           )}
         </aside>
@@ -489,6 +502,7 @@ function Header({
   actions?: ReactNode;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const workType = type === undefined ? null : workTypeOf(type);
   const TypeIcon = workType?.icon;
 
@@ -514,7 +528,7 @@ function Header({
       <div className="flex shrink-0 items-center gap-1">
         {actions}
 
-        <IconButton label="Close task details" onClick={onClose}>
+        <IconButton label={t("task.closeDetails")} onClick={onClose}>
           <XIcon />
         </IconButton>
       </div>
@@ -523,11 +537,16 @@ function Header({
 }
 
 function MoreActions({ onDelete }: { onDelete: () => void }) {
+  const { t } = useTranslation();
   const { mounted, close, triggerProps, panelProps } = useCardPopover();
 
   return (
     <>
-      <IconButton label="More actions" aria-haspopup="menu" {...triggerProps}>
+      <IconButton
+        label={t("task.moreActions")}
+        aria-haspopup="menu"
+        {...triggerProps}
+      >
         <MoreHorizontalIcon />
       </IconButton>
 
@@ -536,7 +555,7 @@ function MoreActions({ onDelete }: { onDelete: () => void }) {
           <div
             {...panelProps}
             role="menu"
-            aria-label="Task actions"
+            aria-label={t("task.actions")}
             className={cn(POPOVER_PANEL, "z-50 w-48")}
           >
             <button
@@ -551,7 +570,7 @@ function MoreActions({ onDelete }: { onDelete: () => void }) {
               className={MENU_ITEM_DANGER}
             >
               <Trash2Icon />
-              Delete task
+              {t("task.delete")}
             </button>
           </div>
         </FloatingPortal>
@@ -643,6 +662,8 @@ function Dead({
   body: string;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <>
       <Header keyLabel={null} onClose={onClose} />
@@ -656,7 +677,7 @@ function Dead({
           onClick={onClose}
           className={cn(DIALOG_CANCEL, "mt-2 h-8 px-3")}
         >
-          Close
+          {t("common.close")}
         </button>
       </div>
     </>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronRightIcon } from "lucide-react";
 
@@ -159,7 +160,9 @@ export default function ListCell(props: ListCellProps) {
 }
 
 function None() {
-  return <span className="text-ink-3 text-sm">None</span>;
+  const { t } = useTranslation();
+
+  return <span className="text-ink-3 text-sm">{t("common.none")}</span>;
 }
 
 function NotApplicable() {
@@ -181,6 +184,7 @@ function WorkCell({
   expanded,
   onToggleExpand,
 }: ListCellProps) {
+  const { t } = useTranslation();
   const [draft, setDraft] = useState(todo.title ?? "");
   const [wasEditing, setWasEditing] = useState(editing);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -231,8 +235,8 @@ function WorkCell({
             aria-expanded={expanded}
             aria-label={
               expanded
-                ? "Hide subtasks"
-                : `Show ${childCount} ${childCount === 1 ? "subtask" : "subtasks"}`
+                ? t("list.hideSubtasks")
+                : t("list.showSubtasks", { count: childCount })
             }
             className="text-ink-2 hover:bg-wash-strong hover:text-ink focus-visible:ring-brand grid size-6 place-items-center rounded transition-colors outline-none focus-visible:ring-2"
           >
@@ -258,7 +262,7 @@ function WorkCell({
         <button
           type="button"
           onClick={() => openTask(todo.id)}
-          title={`Open ${key}`}
+          title={t("list.open", { key })}
           className={cn(
             "text-brand focus-visible:ring-brand mr-2 shrink-0 rounded text-sm font-medium whitespace-nowrap underline-offset-[3px] outline-none focus-visible:ring-2",
             // Jira's cue for resolved work, read straight off the status category
@@ -286,7 +290,7 @@ function WorkCell({
               onEditEnd();
             }
           }}
-          aria-label="Title"
+          aria-label={t("fields.title")}
           className="border-brand text-ink h-7 min-w-0 flex-1 rounded border bg-(--list-row) px-1.5 text-sm outline-none"
         />
       ) : canEdit ? (
@@ -296,14 +300,18 @@ function WorkCell({
           title={todo.title ?? undefined}
           className="text-ink hover:bg-wash-strong focus-visible:ring-brand -mx-1 min-w-0 truncate rounded px-1 py-0.5 text-left text-sm transition-colors outline-none focus-visible:ring-2"
         >
-          {todo.title || <span className="text-ink-3">Untitled</span>}
+          {todo.title || (
+            <span className="text-ink-3">{t("common.untitled")}</span>
+          )}
         </button>
       ) : (
         <span
           title={todo.title ?? undefined}
           className="text-ink min-w-0 truncate text-sm"
         >
-          {todo.title || <span className="text-ink-3">Untitled</span>}
+          {todo.title || (
+            <span className="text-ink-3">{t("common.untitled")}</span>
+          )}
         </span>
       )}
     </div>
@@ -319,6 +327,8 @@ function MemberCell({
   id: string | null;
   members: Map<string, BoardMember>;
 }) {
+  const { t } = useTranslation();
+
   if (id === null) return <None />;
 
   const member = members.get(id);
@@ -326,7 +336,9 @@ function MemberCell({
   if (!member) {
     // creator_id survives the author leaving the board, so the row still has an
     // id the roster cannot name.
-    return <span className="text-ink-3 text-sm italic">Former member</span>;
+    return (
+      <span className="text-ink-3 text-sm italic">{t("members.former")}</span>
+    );
   }
 
   const name = memberName(member);
@@ -386,6 +398,7 @@ function SprintCell({
 }
 
 function TimeCell({ value }: { value: string | null }) {
+  const { i18n } = useTranslation();
   const relative = relativeTime(value);
 
   if (value === null || relative === null) return <None />;
@@ -393,7 +406,7 @@ function TimeCell({ value }: { value: string | null }) {
   return (
     <time
       dateTime={value}
-      title={new Date(value).toLocaleString()}
+      title={new Date(value).toLocaleString(i18n.language)}
       className="text-ink-2 truncate text-sm tabular-nums"
     >
       {relative}

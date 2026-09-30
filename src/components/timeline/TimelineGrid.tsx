@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useCallback, useState } from "react";
 import { CalendarRangeIcon, ChevronRightIcon } from "lucide-react";
 
@@ -80,6 +81,7 @@ export default function TimelineGrid({
   const todayIndex = tickIndexOf(today, ticks, scale);
   const columns = trackColumns(ticks.length, scale);
 
+  const { t } = useTranslation();
   const [pending, setPending] = useState<{
     key: string;
     range: DayRange;
@@ -268,8 +270,8 @@ export default function TimelineGrid({
             today={today}
             locale={locale}
             interactive={interactive}
-            label="Create epic"
-            placeholder="Epic name"
+            label={t("timeline.createEpic")}
+            placeholder={t("timeline.epicName")}
             onBegin={(event) =>
               begin(event, {
                 key: CREATE_EPIC_KEY,
@@ -344,6 +346,7 @@ function Undated({
     },
   ) => void;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
   if (todos.length === 0) return null;
@@ -368,7 +371,7 @@ function Undated({
               open && "rotate-90",
             )}
           />
-          No dates
+          {t("timeline.noDates")}
           <span className="text-ink-3 tabular-nums">{todos.length}</span>
         </button>
       </div>
@@ -384,7 +387,7 @@ function Undated({
                 todo={todo}
                 keyPrefix={keyPrefix}
                 onOpen={() => onOpenTask(todo.id)}
-                hint={interactive ? "drag to plan" : undefined}
+                hint={interactive ? t("timeline.dragToPlan") : undefined}
               />
 
               <div

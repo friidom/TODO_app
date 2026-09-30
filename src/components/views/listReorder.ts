@@ -1,3 +1,4 @@
+import i18n from "@/components/i18n";
 import { isGenuineSubtask } from "@/services/todos/subtasks";
 import type { GroupKey } from "@/services/todos/view";
 import { columnIdOf, type StatusIndex } from "@/services/workflow/statuses";
@@ -10,7 +11,11 @@ export const LIST_COLUMN_GROUP = "list-columns";
 export const LIST_ROW_GROUP = "list-rows";
 
 export function rowLabel(todo: Todo, keyPrefix: string): string {
-  return taskKey(keyPrefix, todo.board_key) ?? todo.title ?? "work item";
+  return (
+    taskKey(keyPrefix, todo.board_key) ??
+    todo.title ??
+    i18n.t("task.fallbackName")
+  );
 }
 
 // A List row move writes the rank the Board writes, and a rank only orders the

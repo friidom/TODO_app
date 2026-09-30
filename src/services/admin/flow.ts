@@ -1,12 +1,38 @@
+import i18n from "@/components/i18n";
+import { PRIORITIES, type Priority } from "@/constants/priorities";
+import { WORK_TYPE_LABELS, type WorkType } from "@/constants/workTypes";
 import type {
   AgingBucket,
   CfdPoint,
   DurationBin,
   DurationStats,
+  FlowSliceBy,
   WipSlice,
 } from "./types";
 
 export type CfdBandKey = "done" | "in_progress" | "backlog";
+
+// The API names slices in English ("Unestimated", "3 pts", a raw priority);
+// only the words are translated, the values are the data's.
+export function flowSliceLabel(
+  key: string | null,
+  sliceBy: FlowSliceBy,
+  serverLabel: string,
+): string {
+  if (key === null) {
+    return i18n.t(
+      sliceBy === "estimate" ? "sprint.unestimated" : "admin.slices.unset",
+    );
+  }
+
+  if (sliceBy === "estimate")
+    return i18n.t("admin.slices.points", { value: key });
+
+  if (sliceBy === "priority")
+    return PRIORITIES[key as Priority]?.label ?? serverLabel;
+
+  return WORK_TYPE_LABELS[key as WorkType] ?? serverLabel;
+}
 
 export interface CfdBand {
   key: CfdBandKey;
@@ -16,9 +42,27 @@ export interface CfdBand {
 }
 
 export const CFD_BANDS: { key: CfdBandKey; label: string; fill: string }[] = [
-  { key: "done", label: "Done", fill: "text-status-green" },
-  { key: "in_progress", label: "In progress", fill: "text-brand" },
-  { key: "backlog", label: "Backlog", fill: "text-ink-3" },
+  {
+    key: "done",
+    get label() {
+      return i18n.t("columnCategory.done");
+    },
+    fill: "text-status-green",
+  },
+  {
+    key: "in_progress",
+    get label() {
+      return i18n.t("columnCategory.in_progress");
+    },
+    fill: "text-brand",
+  },
+  {
+    key: "backlog",
+    get label() {
+      return i18n.t("views.backlog");
+    },
+    fill: "text-ink-3",
+  },
 ];
 
 // done > started is normal, not a bug: 0016 backfilled no start dates, so

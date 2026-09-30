@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useMemo, useRef, useState, type KeyboardEvent } from "react";
 import {
   CalendarIcon,
@@ -77,6 +78,7 @@ const STEP: Record<string, (index: number, count: number) => number> = {
 // (boards.view_tabs); which tab a person lands on is their own (useBoardView).
 export default function ViewTabs({ view }: { view: BoardView }) {
   const boardId = useBoardId();
+  const { t } = useTranslation();
   const { data: board } = useBoard(boardId);
   const { canEditBoard } = usePermissions();
   const sprintsEnabled = useSprintsEnabled();
@@ -123,7 +125,7 @@ export default function ViewTabs({ view }: { view: BoardView }) {
   return (
     <div className="-mb-px -ml-2 flex min-w-0 items-stretch gap-1">
       <ReorderContext
-        describe={(mode) => `the ${labelOf(mode)} tab`}
+        describe={(mode) => t("views.tabDescribe", { name: labelOf(mode) })}
         onReorder={({ activeId, overId, side }) =>
           save(
             moveTab(
@@ -148,7 +150,7 @@ export default function ViewTabs({ view }: { view: BoardView }) {
         {/* the ! is needed: global.css sets scrollbar-width on `*` unlayered, which outranks any layered utility */}
         <div
           role="tablist"
-          aria-label="View"
+          aria-label={t("views.label")}
           onKeyDown={handleKeyDown}
           className="flex min-w-0 [scrollbar-width:none]! items-stretch gap-1 overflow-x-auto [&::-webkit-scrollbar]:hidden"
         >
@@ -186,7 +188,7 @@ export default function ViewTabs({ view }: { view: BoardView }) {
           <DropdownMenuTrigger
             render={
               <IconButton
-                label="Add a view"
+                label={t("views.addAView")}
                 size="sm"
                 className="my-auto shrink-0"
               />
@@ -197,7 +199,7 @@ export default function ViewTabs({ view }: { view: BoardView }) {
 
           <DropdownMenuContent align="start" className="w-48">
             <DropdownMenuGroup>
-              <DropdownMenuLabel>Add view</DropdownMenuLabel>
+              <DropdownMenuLabel>{t("views.addView")}</DropdownMenuLabel>
 
               {hidden.map((tab) => {
                 const Icon = ICONS[tab.mode];
@@ -342,6 +344,7 @@ function TabMenu({
   // Base UI returns focus to the trigger as the menu closes, which would pull
   // it straight back out of the rename field that just took it.
   const renameStarting = useRef(false);
+  const { t } = useTranslation();
 
   return (
     <DropdownMenu
@@ -352,7 +355,7 @@ function TabMenu({
       <DropdownMenuTrigger
         render={
           <IconButton
-            label={`${label} tab actions`}
+            label={t("views.tabActions", { name: label })}
             size="xs"
             data-no-drag
             tabIndex={selected ? 0 : -1}
@@ -370,7 +373,7 @@ function TabMenu({
       >
         <DropdownMenuItem onClick={onSetDefault}>
           <StarIcon />
-          <span className="flex-1">Set as default</span>
+          <span className="flex-1">{t("views.setDefault")}</span>
           {isDefault && <CheckIcon className="text-brand" />}
         </DropdownMenuItem>
 
@@ -383,13 +386,13 @@ function TabMenu({
               }}
             >
               <PencilIcon />
-              Rename
+              {t("common.rename")}
             </DropdownMenuItem>
 
             {renamed && (
               <DropdownMenuItem onClick={onResetName}>
                 <RotateCcwIcon />
-                Reset name
+                {t("views.resetName")}
               </DropdownMenuItem>
             )}
 
@@ -399,7 +402,7 @@ function TabMenu({
 
                 <DropdownMenuItem onClick={onHide}>
                   <EyeOffIcon />
-                  Hide tab
+                  {t("views.hideTab")}
                 </DropdownMenuItem>
               </>
             )}
@@ -419,6 +422,7 @@ function RenameInput({
   icon: LucideIcon;
   onDone: (label?: string | null) => void;
 }) {
+  const { t } = useTranslation();
   const [value, setValue] = useState(initial);
   // Enter commits and unmounts the field, which then blurs — without this the
   // blur would commit a second time.
@@ -438,7 +442,7 @@ function RenameInput({
         autoFocus
         value={value}
         maxLength={TAB_LABEL_MAX}
-        aria-label="Tab name"
+        aria-label={t("views.tabName")}
         onFocus={(e) => e.currentTarget.select()}
         onChange={(e) => setValue(e.target.value)}
         onBlur={() => finish(value.trim() || null)}

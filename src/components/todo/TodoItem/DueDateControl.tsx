@@ -68,13 +68,13 @@ export default function DueDateControl({
   const { mounted, close, triggerProps, panelProps } = useCardPopover({
     placement,
   });
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const selected = dueDate ? toCalendarDay(dueDate) : null;
   const status = dueDate ? dueStatus(dueDate) : null;
   const label = dueDate
-    ? `Due ${formatDue(dueDate, todayISO(), i18n.language)}`
-    : "Set a due date";
+    ? t("dates.dueOn", { date: formatDue(dueDate, todayISO(), i18n.language) })
+    : t("dates.setDue");
   const cell = variant === "cell";
 
   function commit(day: string | null) {
@@ -114,7 +114,7 @@ export default function DueDateControl({
               </span>
             </>
           ) : (
-            "None"
+            t("common.none")
           )
         ) : (
           <>
@@ -126,7 +126,7 @@ export default function DueDateControl({
             )}
             {dueDate
               ? formatDue(dueDate, todayISO(), i18n.language)
-              : showLabel && "None"}
+              : showLabel && t("common.none")}
           </>
         )}
       </button>
@@ -136,11 +136,11 @@ export default function DueDateControl({
           <div
             {...panelProps}
             role="dialog"
-            aria-label="Due date"
+            aria-label={t("fields.dueDate")}
             className={cn(POPOVER_PANEL, "z-50 w-[268px] p-3")}
           >
             <DatePanel
-              title="Due date"
+              title={t("fields.dueDate")}
               icon={CalendarIcon}
               accent="text-status-red"
               selected={selected}

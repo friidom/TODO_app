@@ -1,3 +1,4 @@
+import i18n from "@/components/i18n";
 import type { Activity } from "@/types/data";
 
 // pure, takes `now` instead of reading the clock — testable around midnight/DST/year-end edges.
@@ -61,9 +62,9 @@ function labelFor(
   yesterday: string,
   locale?: string,
 ): string {
-  if (key === "unknown") return "Undated";
-  if (key === today) return "Today";
-  if (key === yesterday) return "Yesterday";
+  if (key === "unknown") return i18n.t("time.undated");
+  if (key === today) return i18n.t("time.today");
+  if (key === yesterday) return i18n.t("time.yesterday");
 
   const [year, month, date] = key.split("-").map(Number);
 

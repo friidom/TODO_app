@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { CheckIcon, XIcon } from "lucide-react";
 import { FloatingPortal, type Placement } from "@floating-ui/react";
 import { useState } from "react";
@@ -40,6 +41,7 @@ export default function EstimateControl({
     placement,
   });
   const [draft, setDraft] = useState(() => estimateToDraft(value));
+  const { t } = useTranslation();
 
   const parsed = parseEstimateDraft(draft);
   const invalid = parsed === undefined;
@@ -57,9 +59,7 @@ export default function EstimateControl({
   }
 
   const label =
-    value === null
-      ? "Set a story point estimate"
-      : `Story point estimate: ${value}`;
+    value === null ? t("estimate.set") : t("estimate.current", { value });
 
   return (
     <>
@@ -93,12 +93,15 @@ export default function EstimateControl({
       >
         {variant === "cell"
           ? value === null
-            ? "None"
+            ? t("common.none")
             : formatEstimate(value)
           : showLabel
             ? value === null
-              ? "None"
-              : `${formatEstimate(value)} ${value === 1 ? "point" : "points"}`
+              ? t("common.none")
+              : t("estimate.points", {
+                  count: value,
+                  value: formatEstimate(value),
+                })
             : formatEstimate(value)}
       </button>
 
@@ -107,7 +110,7 @@ export default function EstimateControl({
           <div
             {...panelProps}
             role="dialog"
-            aria-label="Story point estimate"
+            aria-label={t("estimate.label")}
             className={cn(POPOVER_PANEL, "z-50 flex items-center gap-1 p-1.5")}
           >
             <input
@@ -126,7 +129,7 @@ export default function EstimateControl({
                 if (e.key === "Escape") cancel();
               }}
               onPointerDown={(e) => e.stopPropagation()}
-              aria-label="Story points"
+              aria-label={t("task.storyPoints")}
               aria-invalid={invalid}
               className={cn(
                 "text-meta rounded-control border-hairline bg-surface text-ink h-7 w-14 border px-1.5 text-center outline-none",
@@ -138,7 +141,7 @@ export default function EstimateControl({
             <IconButton
               size="xs"
               tooltip={false}
-              label="Save estimate"
+              label={t("estimate.save")}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={commit}
               disabled={invalid}
@@ -149,7 +152,7 @@ export default function EstimateControl({
             <IconButton
               size="xs"
               tooltip={false}
-              label="Cancel"
+              label={t("common.cancel")}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={cancel}
             >

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useCallback, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { PlusIcon } from "lucide-react";
@@ -20,6 +21,7 @@ import { useProfile } from "@/services/profile/useProfile";
 
 // `/` renders this instead of redirecting to your oldest board — every tab here is a question about you, not about a board.
 export default function ForYouPage() {
+  const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
@@ -75,7 +77,7 @@ export default function ForYouPage() {
             <SidebarTrigger className="coarse:size-9 text-ink-2 hover:bg-ink/[0.06] -ml-1 shrink-0 md:hidden" />
 
             <h1 className="text-ink text-xl font-semibold tracking-tight">
-              For You
+              {t("sidebar.forYou")}
             </h1>
 
             <div className="order-last w-full md:order-none md:ml-auto md:w-auto">
@@ -114,13 +116,14 @@ export default function ForYouPage() {
 }
 
 function NoBoards({ onCreate }: { onCreate: () => void }) {
+  const { t } = useTranslation();
+
   return (
     <div className="border-hairline rounded-surface bg-surface flex min-h-[13rem] flex-col items-center justify-center gap-1 border border-dashed px-6 py-10 text-center">
-      <p className="text-ink text-sm font-medium">No boards yet</p>
+      <p className="text-ink text-sm font-medium">{t("sidebar.noBoardsYet")}</p>
 
       <p className="text-ink-3 max-w-sm text-xs leading-relaxed">
-        Create one to get started — it arrives with the four default columns,
-        and whatever you put on it shows up here.
+        {t("forYou.noBoardsHint")}
       </p>
 
       <button
@@ -129,7 +132,7 @@ function NoBoards({ onCreate }: { onCreate: () => void }) {
         className="bg-brand text-brand-fg hover:bg-brand/90 rounded-control focus-visible:ring-brand focus-visible:ring-offset-surface text-meta mt-4 inline-flex h-9 items-center gap-1.5 px-3.5 font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
       >
         <PlusIcon className="size-4" />
-        Create board
+        {t("boards.create")}
       </button>
     </div>
   );

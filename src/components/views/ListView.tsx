@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useCallback, useMemo, useState } from "react";
 import { ChevronRightIcon, InboxIcon } from "lucide-react";
 
@@ -55,6 +56,7 @@ const NO_CHILDREN: Todo[] = [];
 const NO_STATUSES: IStatus[] = [];
 
 export default function ListView() {
+  const { t } = useTranslation();
   const boardId = useBoardId();
   const view = useBoardView();
 
@@ -98,7 +100,10 @@ export default function ListView() {
 
     // groupTodos keeps empty status groups (a visible status can still receive work) — the list drops them, since an empty section here is just a bare header.
     return view.group === "none" ? all : all.filter((g) => g.todos.length > 0);
-  }, [todos, view.group, statuses, members]);
+    // t: groupTodos names the fallback groups ("No status", "Unassigned") in
+    // the current language, so a language switch must regroup
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [todos, view.group, statuses, members, t]);
 
   // Client-only, like KanbanBoard's collapsed columns: which sections you have
   // folded away, which parents you opened and which rows you ticked are not
@@ -347,19 +352,21 @@ export default function ListView() {
 
           <span className="text-ink-2 text-sm tabular-nums">
             {todos.length === total
-              ? `${total} ${total === 1 ? "item" : "items"}`
-              : `${todos.length} of ${total}`}
+              ? t("list.itemCount", { count: total })
+              : t("list.visibleOf", { visible: todos.length, total })}
           </span>
 
           {selectedCount > 0 && (
             <span className="text-ink-2 flex items-center gap-2 justify-self-end text-sm">
-              <span className="tabular-nums">{selectedCount} selected</span>
+              <span className="tabular-nums">
+                {t("list.selected", { count: selectedCount })}
+              </span>
               <button
                 type="button"
                 onClick={() => setSelected(new Set())}
                 className="text-brand focus-visible:ring-brand rounded font-medium outline-none hover:underline focus-visible:ring-2"
               >
-                Clear
+                {t("common.clear")}
               </button>
             </span>
           )}
@@ -445,23 +452,24 @@ function GroupRow({
 }
 
 function EmptyList({ view }: { view: BoardView }) {
+  const { t } = useTranslation();
   const query = view.query.trim();
 
   const { title, hint, action } = query
     ? {
-        title: `Nothing matches “${query}”`,
-        hint: "Try a shorter term, or a work item key like KAN-12.",
-        action: { label: "Clear search", run: () => view.setQuery("") },
+        title: t("list.emptySearchTitle", { query }),
+        hint: t("list.emptySearchHint"),
+        action: { label: t("view.clearSearch"), run: () => view.setQuery("") },
       }
     : view.filterCount > 0
       ? {
-          title: "No work items match this filter",
-          hint: "Every item on the board is hidden by the current filter.",
-          action: { label: "Clear filters", run: view.clearFilters },
+          title: t("list.emptyFilterTitle"),
+          hint: t("list.emptyFilterHint"),
+          action: { label: t("view.clearFilters"), run: view.clearFilters },
         }
       : {
-          title: "No work items yet",
-          hint: "Create one below and it will appear here.",
+          title: t("list.emptyTitle"),
+          hint: t("list.emptyHint"),
           action: null,
         };
 

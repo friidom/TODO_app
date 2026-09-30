@@ -1,31 +1,31 @@
+import { useTranslation } from "react-i18next";
 import { CircleAlertIcon, InboxIcon, type LucideIcon } from "lucide-react";
 
-import { groupFeed, type FeedItem, type ForYouTab } from "@/services/forYou/feed";
+import {
+  groupFeed,
+  type FeedItem,
+  type ForYouTab,
+} from "@/services/forYou/feed";
 import FeedRow from "./FeedRow";
 
-const EMPTY: Record<ForYouTab, { icon: LucideIcon; title: string; hint: string }> =
-  {
-    recommended: {
-      icon: InboxIcon,
-      title: "No recent work yet",
-      hint: "Once you create or update work items, the ones worth your attention show up here.",
-    },
-    assigned: {
-      icon: InboxIcon,
-      title: "Nothing assigned to you",
-      hint: "Work items get here when someone sets you as the assignee — including you, from a card's assignee control.",
-    },
-    workedon: {
-      icon: InboxIcon,
-      title: "You haven't worked on anything yet",
-      hint: "Creating, editing or moving a work item puts it here, newest first.",
-    },
-    viewed: {
-      icon: InboxIcon,
-      title: "Nothing viewed yet",
-      hint: "Tasks you open appear here. This list is kept in this browser only, so it starts empty on a new device.",
-    },
-  };
+const EMPTY: Record<ForYouTab, { titleKey: string; hintKey: string }> = {
+  recommended: {
+    titleKey: "forYou.empty.recommended.title",
+    hintKey: "forYou.empty.recommended.hint",
+  },
+  assigned: {
+    titleKey: "forYou.empty.assigned.title",
+    hintKey: "forYou.empty.assigned.hint",
+  },
+  workedon: {
+    titleKey: "forYou.empty.workedOn.title",
+    hintKey: "forYou.empty.workedOn.hint",
+  },
+  viewed: {
+    titleKey: "forYou.empty.viewed.title",
+    hintKey: "forYou.empty.viewed.hint",
+  },
+};
 
 export default function FeedList({
   tab,
@@ -48,13 +48,15 @@ export default function FeedList({
   initial: string;
   onOpen: (item: FeedItem) => void;
 }) {
+  const { t } = useTranslation();
+
   if (isLoading) return <Skeleton />;
 
   if (error) {
     return (
       <State
         icon={CircleAlertIcon}
-        title="Couldn't load your work"
+        title={t("forYou.loadFailed")}
         hint={error.message}
         tone="error"
       />
@@ -64,7 +66,13 @@ export default function FeedList({
   if (items.length === 0) {
     const empty = EMPTY[tab];
 
-    return <State icon={empty.icon} title={empty.title} hint={empty.hint} />;
+    return (
+      <State
+        icon={InboxIcon}
+        title={t(empty.titleKey)}
+        hint={t(empty.hintKey)}
+      />
+    );
   }
 
   // now is passed in, not read here, so every row agrees on the "Today"/"Yesterday" boundary

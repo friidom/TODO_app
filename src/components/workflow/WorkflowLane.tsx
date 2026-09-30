@@ -115,7 +115,7 @@ export default function WorkflowLane({
         <button
           type="button"
           {...handleProps}
-          aria-label={`Reorder ${column.title} column`}
+          aria-label={t("workflow.reorderColumn", { name: column.title })}
           className={GRIP}
         >
           <GripVerticalIcon />
@@ -126,7 +126,7 @@ export default function WorkflowLane({
             ref={renameRef}
             className="flex-1"
             initial={column.title}
-            label="Column name"
+            label={t("column.name")}
             validate={(name) => {
               const carried = renamedWithColumn(draft, column.id);
 
@@ -148,7 +148,7 @@ export default function WorkflowLane({
           <button
             ref={titleRef}
             type="button"
-            title="Rename column"
+            title={t("column.rename")}
             onClick={() => setRenaming(true)}
             className="hover:bg-wash-strong focus-visible:ring-brand rounded-control flex h-7 min-w-0 flex-1 items-center gap-2 px-1.5 text-left transition-colors outline-none focus-visible:ring-2"
           >
@@ -165,7 +165,7 @@ export default function WorkflowLane({
 
             <span
               className={COUNT_CHIP}
-              aria-label={`${statuses.length} statuses`}
+              aria-label={t("workflow.statusCount", { count: statuses.length })}
             >
               {statuses.length}
             </span>
@@ -176,7 +176,7 @@ export default function WorkflowLane({
           <DropdownMenuTrigger
             render={
               <IconButton
-                label={`${column.title} column actions`}
+                label={t("workflow.columnActions", { name: column.title })}
                 data-no-drag
                 className={cn(renaming && "invisible")}
               />
@@ -192,7 +192,7 @@ export default function WorkflowLane({
           >
             <DropdownMenuItem onClick={() => setRenaming(true)}>
               <PencilIcon />
-              Rename
+              {t("common.rename")}
             </DropdownMenuItem>
 
             <DropdownMenuSeparator />
@@ -205,13 +205,13 @@ export default function WorkflowLane({
               <Trash2Icon />
 
               <span className="flex min-w-0 flex-col">
-                Delete column
+                {t("column.delete")}
                 <span className="text-ink-3 text-mini truncate">
                   {!neighbour
-                    ? "A board needs at least one column"
+                    ? t("workflow.needsOneColumn")
                     : statuses.length
-                      ? `Its statuses move to ${neighbour.title}`
-                      : "It holds no statuses"}
+                      ? t("workflow.statusesMoveTo", { name: neighbour.title })
+                      : t("workflow.holdsNoStatuses")}
                 </span>
               </span>
             </DropdownMenuItem>
@@ -241,15 +241,15 @@ export default function WorkflowLane({
               : "border-ink/20",
           )}
         >
-          Drop statuses here
+          {t("workflow.dropStatusesHere")}
         </div>
       )}
 
       <div className="mt-auto px-2 pt-1.5 pb-2">
         {adding ? (
           <NameInput
-            label="New status name"
-            placeholder="Status name"
+            label={t("workflow.newStatusName")}
+            placeholder={t("workflow.statusName")}
             validate={taken}
             onSubmit={(name) => {
               edit((next) =>
@@ -276,7 +276,7 @@ export default function WorkflowLane({
             className={ADD_BUTTON}
           >
             <PlusIcon />
-            Add status
+            {t("workflow.addStatus")}
           </button>
         )}
       </div>

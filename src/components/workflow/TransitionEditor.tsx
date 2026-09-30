@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { ArrowLeftIcon, ArrowRightIcon, PlusIcon, XIcon } from "lucide-react";
 
@@ -69,6 +70,7 @@ function Group({
   anyTarget?: boolean;
   onSelectEdge?: (from: string, to: string) => void;
 }) {
+  const { t } = useTranslation();
   const outgoing = direction === "out";
   const [adding, setAdding] = useState(false);
 
@@ -84,7 +86,9 @@ function Group({
   const candidates = draft.statuses.filter(
     (status) => status.id !== statusId && !connected.has(status.id),
   );
-  const title = outgoing ? "Can move to" : "Can arrive from";
+  const title = outgoing
+    ? t("workflow.canMoveTo")
+    : t("workflow.canArriveFrom");
 
   function pair(otherId: string): [string, string] {
     return outgoing ? [statusId, otherId] : [otherId, statusId];
@@ -101,8 +105,12 @@ function Group({
         <IconButton
           label={
             outgoing
-              ? `Add a transition out of ${self?.name ?? "this status"}`
-              : `Add a transition into ${self?.name ?? "this status"}`
+              ? t("workflow.addTransitionOut", {
+                  name: self?.name ?? t("workflow.thisStatus"),
+                })
+              : t("workflow.addTransitionInto", {
+                  name: self?.name ?? t("workflow.thisStatus"),
+                })
           }
           size="xs"
           disabled={candidates.length === 0}
@@ -115,9 +123,9 @@ function Group({
       {anyTarget && (
         <p className="text-ink-2 text-mini mb-1.5 flex items-center gap-1.5">
           <span className="bg-ink text-canvas text-micro rounded-full px-1.5 font-semibold">
-            Any
+            {t("workflow.any")}
           </span>
-          Every other status can move here.
+          {t("workflow.everyOtherCanMoveHere")}
         </p>
       )}
 
@@ -132,9 +140,9 @@ function Group({
         >
           {outgoing
             ? self?.category === "done"
-              ? "Nothing leads out — work here is finished."
-              : "Work here can't move anywhere."
-            : "No status leads here."}
+              ? t("workflow.nothingLeadsOutDone")
+              : t("workflow.cantMoveAnywhere")
+            : t("workflow.noStatusLeadsHere")}
         </p>
       ) : (
         <ul className="-mx-1 flex flex-col">
@@ -163,7 +171,7 @@ function Group({
                   <button
                     type="button"
                     onClick={() => onSelectEdge(from, to)}
-                    title="Open this transition"
+                    title={t("workflow.openTransition")}
                     className="focus-visible:ring-brand rounded-control flex min-w-0 flex-1 items-center gap-1.5 px-1 py-1 text-left outline-none focus-visible:ring-2"
                   >
                     {lozenge}
@@ -175,11 +183,10 @@ function Group({
                 )}
 
                 <IconButton
-                  label={`Remove transition ${
-                    outgoing
-                      ? `${self?.name ?? ""} to ${other.name}`
-                      : `${other.name} to ${self?.name ?? ""}`
-                  }`}
+                  label={t("workflow.removeTransition", {
+                    from: outgoing ? (self?.name ?? "") : other.name,
+                    to: outgoing ? other.name : (self?.name ?? ""),
+                  })}
                   size="xs"
                   onClick={() =>
                     edit((next) => withTransitionRemoved(next, from, to))
@@ -198,7 +205,7 @@ function Group({
         <select
           autoFocus
           aria-label={
-            outgoing ? "Add outgoing transition" : "Add incoming transition"
+            outgoing ? t("workflow.addOutgoing") : t("workflow.addIncoming")
           }
           value=""
           onBlur={() => setAdding(false)}
@@ -218,7 +225,9 @@ function Group({
           className={cn(SELECT, "mt-1.5")}
         >
           <option value="" disabled>
-            {outgoing ? "Move to..." : "Arrive from..."}
+            {outgoing
+              ? t("workflow.moveToEllipsis")
+              : t("workflow.arriveFromEllipsis")}
           </option>
 
           {candidates.map((status) => (
@@ -236,7 +245,7 @@ function Group({
           className="text-brand hover:bg-brand-soft focus-visible:ring-brand rounded-control text-mini mt-1.5 flex h-7 items-center gap-1 px-1.5 font-medium outline-none focus-visible:ring-2 [&_svg]:size-3.5"
         >
           <PlusIcon />
-          Allow from every status
+          {t("workflow.allowFromEvery")}
         </button>
       )}
     </InspectorSection>

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { cn } from "@/utils/cn";
 
 export interface LegendItem {
@@ -15,10 +16,12 @@ export default function ChartLegend({
   hidden: ReadonlySet<string>;
   onToggle: (key: string) => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div
       role="group"
-      aria-label="Series"
+      aria-label={t("admin.series")}
       className="flex flex-wrap items-center gap-2.5"
     >
       {items.map((item) => {

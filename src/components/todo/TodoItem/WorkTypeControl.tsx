@@ -1,8 +1,10 @@
+import { useTranslation } from "react-i18next";
 import { CheckIcon } from "lucide-react";
 import { FloatingPortal, type Placement } from "@floating-ui/react";
 
 import { MENU_LABEL, POPOVER_PANEL } from "@/components/ui/controlChrome";
 import {
+  WORK_TYPE_LABELS,
   WORK_TYPE_OPTIONS,
   type WorkType,
   toWorkType,
@@ -31,6 +33,7 @@ export default function WorkTypeControl({
     placement,
   });
 
+  const { t } = useTranslation();
   const current = toWorkType(value);
   const meta = workTypeOf(current);
   const Icon = meta.icon;
@@ -40,8 +43,12 @@ export default function WorkTypeControl({
       <button
         type="button"
         {...triggerProps}
-        title={`Work type: ${current}`}
-        aria-label={`Work type: ${current}`}
+        title={t("workTypeControl.labelled", {
+          name: WORK_TYPE_LABELS[current],
+        })}
+        aria-label={t("workTypeControl.labelled", {
+          name: WORK_TYPE_LABELS[current],
+        })}
         className={
           bare
             ? cn(FIELD_ICON, meta.tone)
@@ -49,7 +56,7 @@ export default function WorkTypeControl({
         }
       >
         <Icon className={bare ? "size-3.5" : "size-3"} />
-        {showLabel && current}
+        {showLabel && WORK_TYPE_LABELS[current]}
       </button>
 
       {mounted && (
@@ -57,10 +64,10 @@ export default function WorkTypeControl({
           <div
             {...panelProps}
             role="menu"
-            aria-label="Work type"
+            aria-label={t("fields.workType")}
             className={cn(POPOVER_PANEL, "z-50 w-44")}
           >
-            <p className={MENU_LABEL}>Work type</p>
+            <p className={MENU_LABEL}>{t("fields.workType")}</p>
 
             {WORK_TYPE_OPTIONS.map((option) => {
               const optionMeta = workTypeOf(option);
@@ -80,7 +87,7 @@ export default function WorkTypeControl({
                   className={OPTION_ITEM}
                 >
                   <OptionIcon className={cn("size-4", optionMeta.tone)} />
-                  <span className="flex-1">{option}</span>
+                  <span className="flex-1">{WORK_TYPE_LABELS[option]}</span>
                   {selected && <CheckIcon className="text-brand size-4" />}
                 </button>
               );

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
 
 import type { MyInvite } from "@/services/invites/invitesApi";
@@ -18,6 +19,7 @@ export default function InviteActions({
   pending: boolean;
   onSettled: (boardId: string) => void;
 }) {
+  const { t } = useTranslation();
   const accept = useAcceptInvite();
   const decline = useDeclineInvite();
 
@@ -31,7 +33,7 @@ export default function InviteActions({
   if (!invite) {
     return (
       <p className="text-ink-3 text-mini mt-1.5">
-        This invitation is no longer available.
+        {t("notifications.inviteUnavailable")}
       </p>
     );
   }
@@ -45,9 +47,12 @@ export default function InviteActions({
           onClick={(e) => {
             // the row itself is a button that navigates
             e.stopPropagation();
-            accept.mutate({ invite_id: invite.id }, {
-              onSuccess: ({ board_id }) => onSettled(board_id),
-            });
+            accept.mutate(
+              { invite_id: invite.id },
+              {
+                onSuccess: ({ board_id }) => onSettled(board_id),
+              },
+            );
           }}
           className={cn(
             "bg-brand text-brand-fg hover:bg-brand/90 focus-visible:ring-brand rounded-control inline-flex h-7 items-center gap-1.5 px-2.5 text-xs font-medium transition-colors outline-none focus-visible:ring-2",
@@ -55,7 +60,7 @@ export default function InviteActions({
           )}
         >
           {accept.isPending && <Loader2 className="size-3 animate-spin" />}
-          Accept
+          {t("notifications.accept")}
         </button>
 
         <button
@@ -72,7 +77,7 @@ export default function InviteActions({
           )}
         >
           {decline.isPending && <Loader2 className="size-3 animate-spin" />}
-          Decline
+          {t("notifications.decline")}
         </button>
       </div>
 

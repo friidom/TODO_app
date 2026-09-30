@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { ChevronDownIcon, ChevronRightIcon, InboxIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -28,6 +29,7 @@ export default function Swimlanes({
   orderedColumns: IColumn[];
   members: BoardMember[];
 }) {
+  const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState<string[]>([]);
   const { data: workflow = EMPTY_WORKFLOW } = useWorkflow();
 
@@ -36,7 +38,7 @@ export default function Swimlanes({
       <EmptyState
         size="sm"
         icon={InboxIcon}
-        title="Nothing to show in this view"
+        title={t("kanban.nothingToShow")}
       />
     );
   }

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { Loader2, TriangleAlertIcon } from "lucide-react";
@@ -17,6 +18,7 @@ import {
 // already-signed-in user away from their own reset link.
 
 export default function ResetPasswordPage() {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
 
@@ -51,9 +53,9 @@ export default function ResetPasswordPage() {
   if (!token) {
     return (
       <AuthShell
-        title="That link has expired"
-        subtitle="Reset links are single-use and last about an hour."
-        footer={<Link to="/login">Back to sign in</Link>}
+        title={t("auth.linkExpiredTitle")}
+        subtitle={t("auth.linkExpiredSubtitle")}
+        footer={<Link to="/login">{t("auth.backToSignIn")}</Link>}
       >
         <div className="flex flex-col items-center gap-3 py-2 text-center">
           <span className="bg-status-red/10 text-status-red grid size-11 place-items-center rounded-full">
@@ -61,11 +63,11 @@ export default function ResetPasswordPage() {
           </span>
 
           <p className="text-ink-2 text-sm leading-relaxed">
-            Ask for a new one and it will work straight away.
+            {t("auth.askNewLink")}
           </p>
 
           <Link to="/forgot-password" className={`${FORM_SUBMIT} mt-2`}>
-            Send a new link
+            {t("auth.sendNewLink")}
           </Link>
         </div>
       </AuthShell>
@@ -74,19 +76,19 @@ export default function ResetPasswordPage() {
 
   return (
     <AuthShell
-      title="Set a new password"
-      subtitle="Choose something you have not used here before."
-      footer={<Link to="/login">Back to sign in</Link>}
+      title={t("auth.newPasswordTitle")}
+      subtitle={t("auth.newPasswordSubtitle")}
+      footer={<Link to="/login">{t("auth.backToSignIn")}</Link>}
     >
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
         <PasswordInput
           id="reset-password"
-          label="New password"
+          label={t("auth.newPassword")}
           placeholder="••••••••"
           autoComplete="new-password"
           value={password}
           error={errors.password}
-          hint={`At least ${PASSWORD_MIN_LENGTH} characters.`}
+          hint={t("auth.atLeast", { count: PASSWORD_MIN_LENGTH })}
           disabled={update.isPending}
           onChange={(value) => {
             setPassword(value);
@@ -97,7 +99,7 @@ export default function ResetPasswordPage() {
 
         <PasswordInput
           id="reset-confirm-password"
-          label="Confirm new password"
+          label={t("auth.confirmNewPassword")}
           autoComplete="new-password"
           value={confirmPassword}
           error={errors.confirmPassword}
@@ -126,10 +128,10 @@ export default function ResetPasswordPage() {
           {update.isPending ? (
             <>
               <Loader2 className="size-4 animate-spin" />
-              Updating…
+              {t("auth.updating")}
             </>
           ) : (
-            "Update password"
+            t("auth.updatePassword")
           )}
         </button>
       </form>

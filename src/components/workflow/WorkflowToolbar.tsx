@@ -86,6 +86,7 @@ export default function WorkflowToolbar({
   onClose: () => void;
 }) {
   const [open, setOpen] = useState<"status" | "transition" | null>(null);
+  const { t } = useTranslation();
 
   return (
     <header className="border-hairline flex flex-wrap items-center gap-x-4 gap-y-2 border-b pb-3">
@@ -93,21 +94,20 @@ export default function WorkflowToolbar({
         <p className="text-ink-3 text-mini flex min-w-0 items-center gap-1">
           <span className="truncate">{boardTitle}</span>
           <ChevronRightIcon aria-hidden className="size-3 shrink-0" />
-          <span>Workflow</span>
+          <span>{t("workflow.workflow")}</span>
         </p>
 
         <div className="flex items-center gap-2">
-          <h2 className={DIALOG_TITLE}>Manage workflow</h2>
+          <h2 className={DIALOG_TITLE}>{t("workflow.manageTitle")}</h2>
 
           {changeCount > 0 ? (
             <span className="bg-status-orange/15 text-ink-2 text-micro inline-flex h-5 items-center gap-1.5 rounded-full px-2 font-semibold">
               <span className="bg-status-orange size-1.5 rounded-full" />
-              Draft · {changeCount} unpublished{" "}
-              {changeCount === 1 ? "change" : "changes"}
+              {t("workflow.draftChanges", { count: changeCount })}
             </span>
           ) : (
             <span className="text-ink-3 text-micro">
-              No unpublished changes
+              {t("workflow.noUnpublished")}
             </span>
           )}
         </div>
@@ -115,7 +115,7 @@ export default function WorkflowToolbar({
 
       <div className="flex items-center gap-1">
         <ToolbarPopover
-          label="Add status"
+          label={t("workflow.addStatus")}
           icon={<PlusIcon />}
           open={open === "status"}
           onOpenChange={(next) => setOpen(next ? "status" : null)}
@@ -131,7 +131,7 @@ export default function WorkflowToolbar({
         </ToolbarPopover>
 
         <ToolbarPopover
-          label="Add transition"
+          label={t("workflow.addTransition")}
           icon={<SplineIcon />}
           disabled={draft.statuses.length < 2}
           open={open === "transition"}
@@ -152,28 +152,28 @@ export default function WorkflowToolbar({
 
         <div
           role="tablist"
-          aria-label="Workflow view"
+          aria-label={t("workflow.viewLabel")}
           className="border-hairline rounded-control flex border p-0.5"
         >
           <ModeTab
             active={mode === "diagram"}
             onClick={() => onMode("diagram")}
             icon={<NetworkIcon />}
-            label="Diagram"
+            label={t("workflow.diagram")}
           />
 
           <ModeTab
             active={mode === "table"}
             onClick={() => onMode("table")}
             icon={<TableIcon />}
-            label="Table"
+            label={t("workflow.table")}
           />
         </div>
       </div>
 
       <div className="ml-auto flex items-center gap-1">
         <IconButton
-          label={`Undo (${MOD_KEY}Z)`}
+          label={t("workflow.undo", { keys: `${MOD_KEY}Z` })}
           disabled={!canUndo}
           onClick={onUndo}
         >
@@ -181,7 +181,7 @@ export default function WorkflowToolbar({
         </IconButton>
 
         <IconButton
-          label={`Redo (${MOD_KEY}⇧Z)`}
+          label={t("workflow.redo", { keys: `${MOD_KEY}⇧Z` })}
           disabled={!canRedo}
           onClick={onRedo}
         >
@@ -196,7 +196,7 @@ export default function WorkflowToolbar({
           onClick={onDiscard}
           className={cn(DIALOG_CANCEL, "h-8")}
         >
-          Discard changes
+          {t("workflow.discardChanges")}
         </button>
 
         <button
@@ -206,10 +206,10 @@ export default function WorkflowToolbar({
           onClick={onPublish}
           className={cn(DIALOG_CONFIRM, "h-8")}
         >
-          Publish changes
+          {t("workflow.publishChanges")}
         </button>
 
-        <IconButton label="Close" size="md" onClick={onClose}>
+        <IconButton label={t("common.close")} size="md" onClick={onClose}>
           <XIcon />
         </IconButton>
       </div>
@@ -321,16 +321,18 @@ function AddStatusPanel({
 
   return (
     <form onSubmit={submit} className="grid gap-3">
-      <p className="text-ink text-meta font-semibold">New status</p>
+      <p className="text-ink text-meta font-semibold">
+        {t("workflow.newStatus")}
+      </p>
 
       <label className={LABEL}>
-        Name
+        {t("common.name")}
         <input
           autoFocus
           maxLength={60}
           value={name}
           onChange={(event) => setName(event.target.value)}
-          placeholder="e.g. In QA"
+          placeholder={t("workflow.statusNamePlaceholder")}
           aria-invalid={taken}
           className={cn(SELECT, "bg-elevated", taken && "border-status-red/60")}
         />
@@ -342,18 +344,18 @@ function AddStatusPanel({
       </label>
 
       <div className={LABEL}>
-        Category
+        {t("workflow.category")}
         <CategoryPicker value={category} onChange={setCategory} />
       </div>
 
       <label className={LABEL}>
-        Board column
+        {t("workflow.boardColumn")}
         <select
           value={columnId ?? ""}
           onChange={(event) => setPicked(event.target.value || null)}
           className={SELECT}
         >
-          <option value="">Not on the board</option>
+          <option value="">{t("workflow.notOnBoard")}</option>
 
           {draft.columns.map((column) => (
             <option key={column.id} value={column.id}>
@@ -363,7 +365,7 @@ function AddStatusPanel({
         </select>
         {columnId === null && (
           <span className="text-ink-3 font-normal">
-            It stays off the board, and takes no work, until it is in a column.
+            {t("workflow.staysOffBoard")}
           </span>
         )}
       </label>
@@ -374,7 +376,7 @@ function AddStatusPanel({
           onClick={onCancel}
           className={cn(DIALOG_CANCEL, "h-8")}
         >
-          Cancel
+          {t("common.cancel")}
         </button>
 
         <button
@@ -382,7 +384,7 @@ function AddStatusPanel({
           disabled={!trimmed || taken}
           className={cn(DIALOG_CONFIRM, "h-8")}
         >
-          Add status
+          {t("workflow.addStatus")}
         </button>
       </div>
     </form>
@@ -402,6 +404,7 @@ function TransitionComposer({
   onSubmit: (from: string, to: string) => void;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation();
   const [from, setFrom] = useState(initialFrom ?? draft.statuses[0]?.id ?? "");
   const [to, setTo] = useState(
     draft.statuses.find((status) => status.id !== from)?.id ?? "",
@@ -419,11 +422,13 @@ function TransitionComposer({
       }}
       className="grid gap-3"
     >
-      <p className="text-ink text-meta font-semibold">New transition</p>
+      <p className="text-ink text-meta font-semibold">
+        {t("workflow.newTransition")}
+      </p>
 
       <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
         <label className={LABEL}>
-          From
+          {t("workflow.from")}
           <select
             autoFocus
             value={from}
@@ -441,7 +446,7 @@ function TransitionComposer({
         <ArrowRightIcon aria-hidden className="text-ink-3 mb-2 size-4" />
 
         <label className={LABEL}>
-          To
+          {t("workflow.to")}
           <select
             value={to}
             onChange={(event) => setTo(event.target.value)}
@@ -459,8 +464,8 @@ function TransitionComposer({
       {(from === to || duplicate) && from !== "" && (
         <p role="status" className="text-ink-3 text-mini">
           {from === to
-            ? "A status cannot transition to itself."
-            : "That transition already exists."}
+            ? t("workflow.selfTransition")
+            : t("workflow.transitionExists")}
         </p>
       )}
 
@@ -470,7 +475,7 @@ function TransitionComposer({
           onClick={onCancel}
           className={cn(DIALOG_CANCEL, "h-8")}
         >
-          Cancel
+          {t("common.cancel")}
         </button>
 
         <button
@@ -478,7 +483,7 @@ function TransitionComposer({
           disabled={invalid}
           className={cn(DIALOG_CONFIRM, "h-8")}
         >
-          Add transition
+          {t("workflow.addTransition")}
         </button>
       </div>
     </form>

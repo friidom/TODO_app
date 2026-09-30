@@ -1,3 +1,5 @@
+import i18n from "@/components/i18n";
+
 // The admin area declared as values, the shape services/views/registry.ts
 // already uses for board views. The nav renders this list and a test pins it,
 // so a section cannot be added to one and forgotten in the other.
@@ -24,18 +26,62 @@ export const ADMIN_SECTION_DEFINITIONS: Record<
   AdminSection,
   AdminSectionDefinition
 > = {
-  dashboard: { section: "dashboard", label: "Dashboard", path: "/admin" },
-  flow: { section: "flow", label: "Flow", path: "/admin/flow" },
+  dashboard: {
+    section: "dashboard",
+    get label() {
+      return i18n.t("admin.sections.dashboard");
+    },
+    path: "/admin",
+  },
+  flow: {
+    section: "flow",
+    get label() {
+      return i18n.t("admin.sections.flow");
+    },
+    path: "/admin/flow",
+  },
   leaderboards: {
     section: "leaderboards",
-    label: "Leaderboards",
+    get label() {
+      return i18n.t("admin.sections.leaderboards");
+    },
     path: "/admin/leaderboards",
   },
-  users: { section: "users", label: "Developers", path: "/admin/users" },
-  boards: { section: "boards", label: "Boards", path: "/admin/boards" },
-  spaces: { section: "spaces", label: "Spaces", path: "/admin/spaces" },
-  activity: { section: "activity", label: "Activity", path: "/admin/activity" },
-  kpi: { section: "kpi", label: "KPI settings", path: "/admin/kpi" },
+  users: {
+    section: "users",
+    get label() {
+      return i18n.t("admin.sections.users");
+    },
+    path: "/admin/users",
+  },
+  boards: {
+    section: "boards",
+    get label() {
+      return i18n.t("boards.title");
+    },
+    path: "/admin/boards",
+  },
+  spaces: {
+    section: "spaces",
+    get label() {
+      return i18n.t("sidebar.spaces");
+    },
+    path: "/admin/spaces",
+  },
+  activity: {
+    section: "activity",
+    get label() {
+      return i18n.t("board.activity");
+    },
+    path: "/admin/activity",
+  },
+  kpi: {
+    section: "kpi",
+    get label() {
+      return i18n.t("admin.sections.kpi");
+    },
+    path: "/admin/kpi",
+  },
 };
 
 export function adminSections(): AdminSectionDefinition[] {
@@ -71,28 +117,36 @@ export const SERIES_METRIC_DEFINITIONS: Record<
 > = {
   completed_todos: {
     metric: "completed_todos",
-    label: "Completed tasks",
+    get label() {
+      return i18n.t("admin.metrics.completedTasks");
+    },
     tone: "text-brand",
     fill: "bg-brand",
     countsUnestimated: false,
   },
   completed_points: {
     metric: "completed_points",
-    label: "Completed points",
+    get label() {
+      return i18n.t("admin.metrics.completedPoints");
+    },
     tone: "text-status-green",
     fill: "bg-status-green",
     countsUnestimated: true,
   },
   comments: {
     metric: "comments",
-    label: "Comments",
+    get label() {
+      return i18n.t("taskActivity.comments");
+    },
     tone: "text-status-blue",
     fill: "bg-status-blue",
     countsUnestimated: false,
   },
   activities: {
     metric: "activities",
-    label: "Activity events",
+    get label() {
+      return i18n.t("admin.metrics.activityEvents");
+    },
     tone: "text-status-orange",
     fill: "bg-status-orange",
     countsUnestimated: false,

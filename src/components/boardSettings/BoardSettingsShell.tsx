@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 import { Link, NavLink, useNavigate } from "react-router";
 import { ArrowLeftIcon, Loader2 } from "lucide-react";
@@ -22,12 +23,13 @@ export default function BoardSettingsShell({
 }: {
   children: ReactNode;
 }) {
+  const { t } = useTranslation();
   const boardId = useBoardId();
   const { data: board, isPending } = useBoard(boardId);
   const { canEditBoard, isLoading } = usePermissions(boardId);
   const navigate = useNavigate();
 
-  const title = board?.title || "Untitled board";
+  const title = board?.title || t("common.untitledBoard");
 
   // Everything is false while permissions load, deliberately — the same rule
   // usePermissions states — so this waits rather than flashing a refusal.
@@ -44,10 +46,10 @@ export default function BoardSettingsShell({
       <div className="bg-canvas grid h-svh place-items-center px-5">
         <EmptyState
           icon={ArrowLeftIcon}
-          title="You can't change this board's settings"
-          hint="Board settings are open to admins and the board's owner."
+          title={t("boardSettings.forbiddenTitle")}
+          hint={t("boardSettings.forbiddenHint")}
           action={{
-            label: "Back to board",
+            label: t("boardSettings.backToBoard"),
             run: () => void navigate(`/boards/${boardId}`),
           }}
         />
@@ -70,11 +72,11 @@ export default function BoardSettingsShell({
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-5 py-8 md:flex-row md:gap-8 md:px-6">
           <nav
-            aria-label="Board settings"
+            aria-label={t("sidebar.boardSettings")}
             className="shrink-0 md:w-52 md:pt-1"
           >
             <p className="text-ink-3 text-mini mb-1 font-semibold tracking-[0.1em] uppercase">
-              Board settings
+              {t("sidebar.boardSettings")}
             </p>
 
             <p className="text-ink mb-3 truncate text-sm font-semibold">

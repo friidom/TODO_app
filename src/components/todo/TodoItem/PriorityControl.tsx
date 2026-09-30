@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { CheckIcon, MinusIcon, SignalIcon } from "lucide-react";
 import { FloatingPortal, type Placement } from "@floating-ui/react";
 
@@ -47,10 +48,11 @@ export default function PriorityControl({
     placement,
   });
 
+  const { t } = useTranslation();
   const current = toPriority(value);
   const meta = priorityOf(current);
   const Icon = meta?.icon ?? SignalIcon;
-  const label = meta?.label ?? "No priority";
+  const label = meta?.label ?? t("priority.none");
   const cell = variant === "cell";
 
   return (
@@ -58,8 +60,8 @@ export default function PriorityControl({
       <button
         type="button"
         {...triggerProps}
-        title={`Priority: ${label}`}
-        aria-label={`Priority: ${label}`}
+        title={t("priority.labelled", { name: label })}
+        aria-label={t("priority.labelled", { name: label })}
         className={cn(
           cell
             ? cn(FIELD_CELL, !meta && "text-ink-3")
@@ -73,7 +75,9 @@ export default function PriorityControl({
         {cell ? (
           <>
             {meta && <Icon className={cn("size-4 shrink-0", meta.tone)} />}
-            <span className="truncate">{meta ? meta.label : "None"}</span>
+            <span className="truncate">
+              {meta ? meta.label : t("common.none")}
+            </span>
           </>
         ) : (
           <>
@@ -88,10 +92,10 @@ export default function PriorityControl({
           <div
             {...panelProps}
             role="menu"
-            aria-label="Priority"
+            aria-label={t("fields.priority")}
             className={cn(POPOVER_PANEL, "z-50 w-44")}
           >
-            <p className={MENU_LABEL}>Priority</p>
+            <p className={MENU_LABEL}>{t("fields.priority")}</p>
 
             {PRIORITY_OPTIONS.map((option) => {
               const optionMeta = PRIORITIES[option];
@@ -130,7 +134,7 @@ export default function PriorityControl({
               className={cn(OPTION_ITEM, "text-ink-2")}
             >
               <MinusIcon className="text-ink-3 size-4" />
-              <span className="flex-1">No priority</span>
+              <span className="flex-1">{t("priority.none")}</span>
               {current === null && <CheckIcon className="text-brand size-4" />}
             </button>
           </div>

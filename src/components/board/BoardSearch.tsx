@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import { SearchIcon, XIcon } from "lucide-react";
 
@@ -11,6 +12,7 @@ const WRITE_DELAY = 180;
 // q is a URL param, so writing it on every keystroke means a router nav + full re-filter per character.
 // This echoes locally and writes the URL on a delay instead — q still ends up holding exactly what was typed.
 export default function BoardSearch({ view }: { view: BoardView }) {
+  const { t } = useTranslation();
   const { query, setQuery } = view;
 
   const [draft, setDraft] = useState(query);
@@ -58,8 +60,8 @@ export default function BoardSearch({ view }: { view: BoardView }) {
             clear();
           }
         }}
-        aria-label="Search work items"
-        placeholder="Search work"
+        aria-label={t("board.searchLabel")}
+        placeholder={t("board.searchPlaceholder")}
         className="text-ink placeholder:text-ink-3 min-w-0 flex-1 bg-transparent text-sm outline-none [&::-webkit-search-cancel-button]:hidden"
       />
 
@@ -67,7 +69,7 @@ export default function BoardSearch({ view }: { view: BoardView }) {
         <button
           type="button"
           onClick={clear}
-          aria-label="Clear search"
+          aria-label={t("view.clearSearch")}
           className={ICON_BUTTON.xs}
         >
           <XIcon />

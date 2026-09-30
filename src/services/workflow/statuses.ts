@@ -140,7 +140,9 @@ export interface DropChoice {
 
 // The statuses a card dropped into this column chooses between, each flagged
 // with whether `accepts` (the workflow gate) lets it go there. null when there
-// is no choice to make, and the card takes entryStatus directly.
+// is no choice to make, and the card takes entryStatus directly. A lone status
+// the gate refuses is still returned, so the column says so while the card is
+// in the air instead of taking the drop and refusing it afterwards.
 export function dropChoices(
   statuses: IStatus[],
   columnId: string,
@@ -148,7 +150,8 @@ export function dropChoices(
 ): DropChoice[] | null {
   const visible = placeableStatuses(statuses, columnId);
 
-  if (visible.length < 2) return null;
+  if (visible.length === 0) return null;
+  if (visible.length === 1 && accepts(visible[0])) return null;
 
   return visible.map((status) => ({ status, allowed: accepts(status) }));
 }

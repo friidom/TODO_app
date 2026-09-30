@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 
@@ -42,6 +43,7 @@ export default function CumulativeFlow({
   note?: string;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [hidden, setHidden] = useState<ReadonlySet<CfdBandKey>>(new Set());
 
@@ -81,8 +83,8 @@ export default function CumulativeFlow({
 
   return (
     <SummaryCard
-      title="Cumulative flow"
-      hint="Every countable card by the stage it had reached, at the end of each bucket"
+      title={t("admin.cfd.title")}
+      hint={t("admin.cfd.hint")}
       className={className}
       action={
         <ChartLegend
@@ -97,7 +99,7 @@ export default function CumulativeFlow({
       }
     >
       {empty ? (
-        <WidgetEmpty>Nothing has flowed through this window yet.</WidgetEmpty>
+        <WidgetEmpty>{t("admin.cfd.empty")}</WidgetEmpty>
       ) : (
         <>
           <ChartFrame
@@ -110,7 +112,10 @@ export default function CumulativeFlow({
               viewBox={`0 0 100 ${PLOT_HEIGHT}`}
               preserveAspectRatio="none"
               role="img"
-              aria-label={`Cumulative flow across ${points.length} buckets, ${dash(peak)} items at its peak`}
+              aria-label={t("admin.cfd.aria", {
+                count: points.length,
+                peak: dash(peak),
+              })}
               className="h-full w-full overflow-visible"
             >
               {GRID.map((share) => (
@@ -164,13 +169,13 @@ export default function CumulativeFlow({
             <div
               {...hover.surface}
               role="slider"
-              aria-label="Flow bucket"
+              aria-label={t("admin.cfd.bucket")}
               aria-valuemin={0}
               aria-valuemax={Math.max(0, points.length - 1)}
               aria-valuenow={hover.index ?? 0}
               aria-valuetext={
                 hover.index === null
-                  ? "none"
+                  ? t("common.none")
                   : bucketLabel(points[hover.index]!.bucket, bucket)
               }
               onClick={() => hover.index !== null && drill(hover.index)}
@@ -184,12 +189,13 @@ export default function CumulativeFlow({
                 title={bucketLabel(points[hover.index]!.bucket, bucket)}
                 rows={[...bands].reverse().map((band) => ({
                   key: band.key,
-                  label: band.label,
+                  label: CFD_BANDS.find((entry) => entry.key === band.key)!
+                    .label,
                   value: dash(bandValueAt(band, hover.index!)),
                   tone: CFD_BANDS.find((entry) => entry.key === band.key)!.fill,
                 }))}
                 footer={{
-                  label: "Total",
+                  label: t("summary.total"),
                   value: dash(cfdTotalAt(points, hover.index)),
                 }}
               />
@@ -197,8 +203,8 @@ export default function CumulativeFlow({
           </ChartFrame>
 
           <p className="text-ink-3 text-mini px-3.5 pb-3">
-            {note ? `${note} ` : ""}Click a point to open the activity for that
-            range.
+            {note ? `${note} ` : ""}
+            {t("admin.clickPoint")}
           </p>
         </>
       )}

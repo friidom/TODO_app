@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   HEADER_CONTROL,
   HEADER_CONTROL_ACTIVE,
@@ -21,12 +22,14 @@ export default function ScopeFilter({
   spaces: ScopeOption[];
   boards: ScopeOption[];
 }) {
+  const { t } = useTranslation();
+
   return (
     <div className="flex flex-wrap gap-1.5">
       {spaces.length > 0 && (
         <Facet
-          label="Space"
-          all="All spaces"
+          label={t("boards.space")}
+          all={t("admin.allSpaces")}
           value={scope.space}
           options={spaces}
           onChange={(space) => setScope({ space })}
@@ -35,8 +38,8 @@ export default function ScopeFilter({
 
       {boards.length > 0 && (
         <Facet
-          label="Board"
-          all="All boards"
+          label={t("sidebar.board")}
+          all={t("admin.allBoards")}
           value={scope.board}
           options={boards}
           onChange={(board) => setScope({ board })}

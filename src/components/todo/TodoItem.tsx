@@ -94,6 +94,25 @@ function DraggableTodo({
         )?.[key]?.(event);
     }
 
+    const pointerDown = out.onPointerDown;
+
+    if (pointerDown) {
+      delete out.onPointerDown;
+
+      // capture, so a press on one of the card's controls still picks the card up — they stop pointerdown for their
+      // popovers; a plain click on them still lands, since nothing activates before the pointer moves 8px
+      out.onPointerDownCapture = (event) => {
+        const { currentTarget, target } = event as React.PointerEvent;
+
+        // a portalled popover bubbles through the card in React's tree, and a text field needs its drag to select
+        if (!currentTarget.contains(target as Node)) return;
+        if ((target as Element).closest("input, textarea, [contenteditable]"))
+          return;
+
+        pointerDown(event);
+      };
+    }
+
     return out;
   }, [listenerKeys]);
 

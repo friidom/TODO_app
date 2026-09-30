@@ -35,7 +35,7 @@ export interface FilterContext {
 
 export interface FilterDefinition {
   id: FilterId;
-  label: string;
+  labelKey: string;
   // Every predefined filter is cross-board today. A saved filter scoped to one
   // board is the same field with a different value.
   scope: ViewScope;
@@ -55,7 +55,7 @@ const isDone = (todo: Todo, context: FilterContext) =>
 export const FILTER_DEFINITIONS: Record<FilterId, FilterDefinition> = {
   "my-open": {
     id: "my-open",
-    label: "My open work",
+    labelKey: "filters.myOpen",
     scope: ALL,
     match: (todo, context) =>
       Boolean(context.userId) &&
@@ -65,7 +65,7 @@ export const FILTER_DEFINITIONS: Record<FilterId, FilterDefinition> = {
   },
   "reported-by-me": {
     id: "reported-by-me",
-    label: "Reported by me",
+    labelKey: "filters.reportedByMe",
     scope: ALL,
     match: (todo, context) =>
       Boolean(context.userId) && todo.creator_id === context.userId,
@@ -73,46 +73,46 @@ export const FILTER_DEFINITIONS: Record<FilterId, FilterDefinition> = {
   },
   "all-work": {
     id: "all-work",
-    label: "All work",
+    labelKey: "filters.allWork",
     scope: ALL,
     sort: { key: "updated", dir: "desc" },
   },
   "open-work": {
     id: "open-work",
-    label: "Open work",
+    labelKey: "filters.openWork",
     scope: ALL,
     match: (todo, context) => !isDone(todo, context),
     sort: { key: "updated", dir: "desc" },
   },
   "done-work": {
     id: "done-work",
-    label: "Done work",
+    labelKey: "filters.doneWork",
     scope: ALL,
     match: isDone,
     sort: { key: "updated", dir: "desc" },
   },
   "viewed-recently": {
     id: "viewed-recently",
-    label: "Viewed recently",
+    labelKey: "filters.viewedRecently",
     scope: ALL,
     // Ordered by when this browser saw it, so no sort key applies.
     source: "viewed",
   },
   "created-recently": {
     id: "created-recently",
-    label: "Created recently",
+    labelKey: "filters.createdRecently",
     scope: ALL,
     sort: { key: "created", dir: "desc" },
   },
   "updated-recently": {
     id: "updated-recently",
-    label: "Updated recently",
+    labelKey: "filters.updatedRecently",
     scope: ALL,
     sort: { key: "updated", dir: "desc" },
   },
   "resolved-recently": {
     id: "resolved-recently",
-    label: "Resolved recently",
+    labelKey: "filters.resolvedRecently",
     scope: ALL,
     // completed_at, not the status: a card moved out of Done is not resolved,
     // and the trigger clears the stamp when that happens.
@@ -127,7 +127,8 @@ export function filterDefinitions(): FilterDefinition[] {
 
 export function isFilterId(value: unknown): value is FilterId {
   return (
-    typeof value === "string" && (FILTER_IDS as readonly string[]).includes(value)
+    typeof value === "string" &&
+    (FILTER_IDS as readonly string[]).includes(value)
   );
 }
 

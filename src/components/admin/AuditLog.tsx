@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import SummaryCard, { WidgetEmpty } from "@/components/summary/SummaryCard";
 import { actionLabel } from "@/services/admin/format";
 import { useAdminAudit } from "@/services/admin/useAdmin";
@@ -6,19 +7,17 @@ import { relativeTime } from "@/utils/relativeTime";
 const SHOWN = 12;
 
 export default function AuditLog() {
+  const { t } = useTranslation();
   const { data, error } = useAdminAudit();
 
   const entries = (data?.entries ?? []).slice(0, SHOWN);
 
   return (
-    <SummaryCard
-      title="Recent admin changes"
-      hint="Append-only — no entry can be edited"
-    >
+    <SummaryCard title={t("admin.audit.title")} hint={t("admin.audit.hint")}>
       {error ? (
-        <WidgetEmpty>That did not load.</WidgetEmpty>
+        <WidgetEmpty>{t("admin.loadFailed")}</WidgetEmpty>
       ) : entries.length === 0 ? (
-        <WidgetEmpty>Nothing has been changed yet.</WidgetEmpty>
+        <WidgetEmpty>{t("admin.audit.empty")}</WidgetEmpty>
       ) : (
         <ul className="flex flex-col">
           {entries.map((entry) => (
@@ -28,7 +27,7 @@ export default function AuditLog() {
             >
               <span className="text-ink text-meta min-w-0 flex-1 truncate">
                 <span className="font-medium">
-                  {entry.actor_username ?? "A removed account"}
+                  {entry.actor_username ?? t("admin.removedAccount")}
                 </span>{" "}
                 <span className="text-ink-2">{actionLabel(entry.action)}</span>
                 {entry.target_id && (

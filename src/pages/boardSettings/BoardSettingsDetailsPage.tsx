@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 
@@ -30,6 +31,7 @@ export default function BoardSettingsDetailsPage() {
 // Keyed off the loaded board so the form seeds once, without an effect — the
 // idiom ProfilePage uses, for the reason it records there.
 function DetailsForm({ board }: { board: IBoard }) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { data: spaces = [] } = useSpaces();
   const updateBoard = useUpdateBoard();
@@ -63,8 +65,8 @@ function DetailsForm({ board }: { board: IBoard }) {
 
   return (
     <form onSubmit={handleSubmit}>
-      <Section title="Details">
-        <Field label="Name">
+      <Section title={t("boardSettings.details")}>
+        <Field label={t("common.name")}>
           <input
             value={title}
             onChange={(event) => setTitle(event.target.value)}
@@ -76,17 +78,14 @@ function DetailsForm({ board }: { board: IBoard }) {
 
         {tooLong && (
           <p className="text-status-red -mt-2 text-xs">
-            Keep it to {TITLE_MAX} characters or fewer.
+            {t("spaces.tooLong", { count: TITLE_MAX })}
           </p>
         )}
 
         {/* Read-only: key_prefix is absent from updateBoardSchema on purpose,
             and card keys are never reused, so a rename would orphan every key
             already written into activity history. */}
-        <Field
-          label="Board key"
-          hint="Used to label every card on this board. It can't be changed once cards exist."
-        >
+        <Field label={t("boardSettings.key")} hint={t("boardSettings.keyHint")}>
           <input
             value={board.key_prefix}
             readOnly
@@ -95,7 +94,7 @@ function DetailsForm({ board }: { board: IBoard }) {
           />
         </Field>
 
-        <Field label="Description">
+        <Field label={t("task.description")}>
           <textarea
             rows={3}
             value={description}
@@ -106,16 +105,13 @@ function DetailsForm({ board }: { board: IBoard }) {
         </Field>
 
         {canFile && (
-          <Field
-            label="Space"
-            hint="A space is a folder for your boards. It does not change who can see them."
-          >
+          <Field label={t("boards.space")} hint={t("spaces.hint")}>
             <select
               value={space}
               onChange={(event) => setSpace(event.target.value)}
               className={FIELD_INPUT}
             >
-              <option value="">No space</option>
+              <option value="">{t("boards.noSpace")}</option>
               {spaces.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.title}
@@ -133,7 +129,7 @@ function DetailsForm({ board }: { board: IBoard }) {
           )}
 
           {updateBoard.isSuccess && !updateBoard.isPending && (
-            <p className="text-ink-3 mr-auto text-xs">Saved.</p>
+            <p className="text-ink-3 mr-auto text-xs">{t("common.saved")}</p>
           )}
 
           <button
@@ -144,7 +140,7 @@ function DetailsForm({ board }: { board: IBoard }) {
             {updateBoard.isPending && (
               <Loader2 className="size-3.5 animate-spin" />
             )}
-            {updateBoard.isPending ? "Saving…" : "Save"}
+            {updateBoard.isPending ? t("common.saving") : t("common.save")}
           </button>
         </div>
       </Section>

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { ArrowLeftIcon, CameraIcon, Loader2, LogOut } from "lucide-react";
@@ -18,6 +19,7 @@ import { cn } from "@/utils/cn";
 
 // deliberately outside the app shell — settings is a place you finish with and leave, not a workspace view
 export default function ProfilePage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const logout = useLogout();
 
@@ -49,7 +51,8 @@ export default function ProfilePage() {
     uploadAvatar.mutate(
       { file },
       {
-        onSuccess: (saved) => setForm({ ...form, avatar_url: saved.avatar_url }),
+        onSuccess: (saved) =>
+          setForm({ ...form, avatar_url: saved.avatar_url }),
       },
     );
   }
@@ -58,7 +61,8 @@ export default function ProfilePage() {
 
   const patch = (fields: Partial<Profile>) => setForm({ ...form, ...fields });
 
-  const displayName = form.full_name || form.username || "Your account";
+  const displayName =
+    form.full_name || form.username || t("profile.yourAccount");
 
   return (
     <div className="bg-canvas flex h-svh flex-col overflow-hidden">
@@ -70,11 +74,11 @@ export default function ProfilePage() {
             className="border-hairline text-ink-2 hover:bg-elevated hover:text-ink focus-visible:ring-brand rounded-control text-meta flex h-8 items-center gap-1.5 border px-2.5 transition-colors outline-none focus-visible:ring-2"
           >
             <ArrowLeftIcon className="size-4" />
-            Back
+            {t("common.back")}
           </button>
 
           <h1 className="text-ink text-base font-semibold tracking-tight">
-            Profile
+            {t("profile.title")}
           </h1>
         </div>
       </header>
@@ -121,29 +125,26 @@ export default function ProfilePage() {
             </div>
           </section>
 
-          <Section title="Account">
-            <Field label="Full name">
+          <Section title={t("sidebar.account")}>
+            <Field label={t("profile.fullName")}>
               <input
                 value={form.full_name ?? ""}
                 onChange={(e) => patch({ full_name: e.target.value })}
-                placeholder="Your full name"
+                placeholder={t("profile.fullNamePlaceholder")}
                 className={FIELD_INPUT}
               />
             </Field>
 
-            <Field label="Username">
+            <Field label={t("auth.username")}>
               <input
                 value={form.username ?? ""}
                 onChange={(e) => patch({ username: e.target.value })}
-                placeholder="Your username"
+                placeholder={t("profile.usernamePlaceholder")}
                 className={FIELD_INPUT}
               />
             </Field>
 
-            <Field
-              label="Email"
-              hint="Changing this is an auth operation, not a profile edit."
-            >
+            <Field label={t("auth.email")} hint={t("profile.emailHint")}>
               <input
                 value={user?.email ?? ""}
                 disabled
@@ -151,12 +152,12 @@ export default function ProfilePage() {
               />
             </Field>
 
-            <Field label="Bio">
+            <Field label={t("profile.bio")}>
               <textarea
                 rows={3}
                 value={form.bio ?? ""}
                 onChange={(e) => patch({ bio: e.target.value })}
-                placeholder="Tell people what you work on"
+                placeholder={t("profile.bioPlaceholder")}
                 className={cn(FIELD_INPUT, "resize-none")}
               />
             </Field>
@@ -177,39 +178,38 @@ export default function ProfilePage() {
                 {updateProfile.isPending && (
                   <Loader2 className="size-4 animate-spin" />
                 )}
-                {updateProfile.isPending ? "Saving…" : "Save changes"}
+                {updateProfile.isPending
+                  ? t("common.saving")
+                  : t("profile.saveChanges")}
               </button>
             </div>
           </Section>
 
-          <Section title="Connected accounts">
+          <Section title={t("profile.connected")}>
             <ConnectedAccounts />
           </Section>
 
-          <Section title="Preferences">
-            <Row label="Theme" hint="Dark or light, remembered on this device.">
+          <Section title={t("profile.preferences")}>
+            <Row label={t("profile.theme")} hint={t("profile.themeHint")}>
               <ThemeToggle />
             </Row>
 
-            <Row label="Language" hint="English, Russian or Uzbek.">
+            <Row label={t("header.language")} hint={t("profile.languageHint")}>
               <LanguageSwitcher />
             </Row>
 
             {user?.org_role === "superadmin" && (
               <Row
-                label="Default reporting period"
-                hint="Which window the Superadmin screens open on."
+                label={t("profile.defaultPeriod")}
+                hint={t("profile.defaultPeriodHint")}
               >
                 <DefaultPeriodSetting />
               </Row>
             )}
           </Section>
 
-          <Section title="Account actions">
-            <Row
-              label="Sign out"
-              hint="Ends the session and clears the cached board."
-            >
+          <Section title={t("profile.accountActions")}>
+            <Row label={t("profile.signOut")} hint={t("profile.signOutHint")}>
               <button
                 type="button"
                 onClick={() => logout.mutate()}
@@ -217,7 +217,7 @@ export default function ProfilePage() {
                 className="border-status-red/30 text-status-red hover:bg-status-red/10 focus-visible:ring-status-red rounded-control text-meta flex h-9 items-center gap-2 border px-3 font-medium transition-colors outline-none focus-visible:ring-2 disabled:opacity-60"
               >
                 <LogOut className="size-4" />
-                Sign out
+                {t("profile.signOut")}
               </button>
             </Row>
           </Section>

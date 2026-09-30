@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 
 export default function LanguageSwitcher() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   function changeLanguage(language: string) {
     i18n.changeLanguage(language);
@@ -12,7 +12,7 @@ export default function LanguageSwitcher() {
     <select
       value={i18n.language}
       onChange={(e) => changeLanguage(e.target.value)}
-      aria-label="Language"
+      aria-label={t("header.language")}
       className="border-hairline bg-surface text-ink-2 hover:bg-elevated hover:text-ink focus-visible:ring-brand rounded-control h-9 cursor-pointer border px-2 text-sm transition-colors outline-none focus-visible:ring-2"
     >
       <option value="en">🇺🇸 EN</option>

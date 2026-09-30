@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { memo, useCallback, useState } from "react";
 import { GripVerticalIcon, PanelRightOpenIcon } from "lucide-react";
 
@@ -66,6 +67,7 @@ const ListRow = memo(function ListRow({
   onToggleSelect,
   dragContainer,
 }: ListRowProps) {
+  const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const patch = useTodoPatch(todo);
 
@@ -73,7 +75,8 @@ const ListRow = memo(function ListRow({
   const { edge, dragging } = useRowDragState(todo.id);
 
   const background = selected ? ROW_SELECTED : ROW_IDLE;
-  const name = taskKey(keyPrefix, todo.board_key) ?? todo.title ?? "work item";
+  const name =
+    taskKey(keyPrefix, todo.board_key) ?? todo.title ?? t("task.fallbackName");
 
   return (
     <tr
@@ -95,7 +98,7 @@ const ListRow = memo(function ListRow({
         )}
         <ListCheckbox
           checked={selected}
-          label={`Select ${name}`}
+          label={t("list.select", { name })}
           onChange={() => onToggleSelect(todo.id)}
         />
       </td>
@@ -155,7 +158,7 @@ const ListRow = memo(function ListRow({
               <span className="coarse:flex absolute inset-y-0 right-0 hidden items-center bg-inherit pr-2 pl-1 group-hover:flex">
                 <IconButton
                   size="xs"
-                  label="Open details"
+                  label={t("list.openDetails")}
                   onClick={() => openTask(todo.id)}
                 >
                   <PanelRightOpenIcon />
@@ -188,6 +191,7 @@ function RowGrip({
   container: string;
   label: string;
 }) {
+  const { t } = useTranslation();
   const { setNodeRef, handleProps } = useReorderItem(id, {
     group: LIST_ROW_GROUP,
     axis: "y",
@@ -204,7 +208,7 @@ function RowGrip({
     <span
       ref={ref}
       {...handleProps}
-      aria-label={`Reorder ${label}`}
+      aria-label={t("dnd.reorder", { name: label })}
       className="text-ink-3 hover:text-ink focus-visible:ring-brand coarse:opacity-100 absolute inset-y-0 left-0 z-[1] grid w-4 cursor-grab touch-none place-items-center opacity-0 outline-none group-hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-inset"
     >
       <GripVerticalIcon className="size-3.5" />

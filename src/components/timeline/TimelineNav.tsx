@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 
 import { HEADER_CONTROL_ACTIVE } from "@/components/board/headerControl";
@@ -21,6 +22,7 @@ export default function TimelineNav({
   unscheduled: number;
   offWindow: number;
 }) {
+  const { t } = useTranslation();
   const period = view.scale === "weeks" ? "week" : "month";
 
   return (
@@ -29,7 +31,11 @@ export default function TimelineNav({
         <button
           type="button"
           onClick={() => view.step(-1)}
-          aria-label={`Previous ${period}`}
+          aria-label={
+            period === "week"
+              ? t("calendar.previousWeek")
+              : t("dates.previousMonth")
+          }
           className={cn(STEP, "border-hairline border-r")}
         >
           <ChevronLeftIcon className="size-4" />
@@ -42,13 +48,15 @@ export default function TimelineNav({
           disabled={view.isCurrent}
           className={cn(STEP, "px-2.5 text-xs font-medium")}
         >
-          Today
+          {t("time.today")}
         </button>
 
         <button
           type="button"
           onClick={() => view.step(1)}
-          aria-label={`Next ${period}`}
+          aria-label={
+            period === "week" ? t("calendar.nextWeek") : t("dates.nextMonth")
+          }
           className={cn(STEP, "border-hairline border-l")}
         >
           <ChevronRightIcon className="size-4" />
@@ -62,8 +70,12 @@ export default function TimelineNav({
       {(unscheduled > 0 || offWindow > 0) && (
         <span className="text-ink-3 text-xs">
           {[
-            offWindow > 0 ? `${offWindow} outside this range` : null,
-            unscheduled > 0 ? `${unscheduled} undated` : null,
+            offWindow > 0
+              ? t("timeline.outsideRange", { count: offWindow })
+              : null,
+            unscheduled > 0
+              ? t("timeline.undated", { count: unscheduled })
+              : null,
           ]
             .filter(Boolean)
             .join(" · ")}
@@ -88,7 +100,7 @@ export default function TimelineNav({
                   : "text-ink-3 hover:text-ink hover:bg-ink/[0.06]",
               )}
             >
-              {scale}
+              {t(`timeline.scale.${scale}`)}
             </button>
           );
         })}

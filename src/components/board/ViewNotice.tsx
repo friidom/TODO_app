@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 import { InboxIcon, LockIcon, type LucideIcon } from "lucide-react";
 
@@ -12,6 +13,7 @@ export default function ViewNotice({
   visibleCount: number;
   showDragHint?: boolean;
 }) {
+  const { t } = useTranslation();
   // tracked separately from the filter empty-state because the undo button differs
   const query = view.query.trim();
   const empty = visibleCount === 0 && (view.filterCount > 0 || query !== "");
@@ -22,21 +24,24 @@ export default function ViewNotice({
   return (
     <div className="mb-3 flex flex-col gap-2">
       {drag && (
-        <Notice icon={LockIcon} action="Reset" onAction={view.enableDnd}>
-          {view.dndReason} · cards cannot be dragged while the board is not
-          showing its own order
+        <Notice
+          icon={LockIcon}
+          action={t("common.reset")}
+          onAction={view.enableDnd}
+        >
+          {t("view.dragLocked", { reason: view.dndReason })}
         </Notice>
       )}
 
       {empty && (
         <Notice
           icon={InboxIcon}
-          action={query ? "Clear search" : "Clear filters"}
+          action={query ? t("view.clearSearch") : t("view.clearFilters")}
           onAction={query ? () => view.setQuery("") : view.clearFilters}
         >
           {query
-            ? `Nothing matches “${query}”.`
-            : "No cards match the current filter."}
+            ? t("common.nothingMatches", { query })
+            : t("view.noCardsMatch")}
         </Notice>
       )}
     </div>

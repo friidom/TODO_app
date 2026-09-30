@@ -1,3 +1,4 @@
+import i18n from "@/components/i18n";
 import { inviteUrl } from "@/services/invites/inviteLink";
 import { toast } from "@/stores/toasts";
 
@@ -7,8 +8,8 @@ export async function copyInviteLink(token: string): Promise<void> {
 
   try {
     await navigator.clipboard.writeText(url);
-    toast.success("Invite link copied");
+    toast.success(i18n.t("invites.copied"));
   } catch {
-    toast.error("Could not copy the link. Select it and copy manually.");
+    toast.error(i18n.t("invites.copyFailed"));
   }
 }

@@ -1,3 +1,5 @@
+import i18n from "@/components/i18n";
+
 // client-side mirror of profiles_username_key / profiles_username_shape — the DB is the real authority, this just gives a nicer error than a 23505
 export const USERNAME_MIN_LENGTH = 3;
 export const USERNAME_MAX_LENGTH = 30;
@@ -12,22 +14,22 @@ const USERNAME_SHAPE = /^[a-z0-9][a-z0-9_]{2,29}$/;
 export function validateUsername(value: string): string | undefined {
   const username = normalizeUsername(value);
 
-  if (!username) return "Username is required.";
+  if (!username) return i18n.t("validation.usernameRequired");
 
   if (username.length < USERNAME_MIN_LENGTH) {
-    return `Username must be at least ${USERNAME_MIN_LENGTH} characters.`;
+    return i18n.t("validation.usernameMin", { count: USERNAME_MIN_LENGTH });
   }
 
   if (username.length > USERNAME_MAX_LENGTH) {
-    return `Username must be at most ${USERNAME_MAX_LENGTH} characters.`;
+    return i18n.t("validation.usernameMax", { count: USERNAME_MAX_LENGTH });
   }
 
   if (!/^[a-z0-9]/.test(username)) {
-    return "Username must start with a letter or a number.";
+    return i18n.t("validation.usernameStart");
   }
 
   if (!USERNAME_SHAPE.test(username)) {
-    return "Username can only contain letters, numbers and underscores.";
+    return i18n.t("validation.usernameChars");
   }
 
   return undefined;

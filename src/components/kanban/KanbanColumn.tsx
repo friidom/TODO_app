@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useDroppable } from "@dnd-kit/core";
 import TodoItem from "../todo/TodoItem";
 
@@ -37,7 +38,7 @@ interface Props {
   dragHandleProps?: Record<string, unknown>;
   isDragSource?: boolean;
   transition?: { from: TransitionPill; to: TransitionPill } | null;
-  // set while a card from another column is dragged and this column has more than one status to land in
+  // set while a card from another column is dragged and this column has more than one status to land in, or refuses it
   choices?: DropChoice[] | null;
   // view sort or swimlanes on — nothing can be picked up, so no drop indicators either
   dragDisabled?: boolean;
@@ -101,6 +102,7 @@ export default function KanbanColumn({
   const canCreate = canEditTodos && newCardStatus !== null;
 
   const { taskId } = useOpenTask();
+  const { t } = useTranslation();
 
   const [creatingAt, setCreatingAt] = useState<number | null>(null);
   const [skeleton, setSkeleton] = useState(false);
@@ -281,7 +283,7 @@ export default function KanbanColumn({
                   dragging && "invisible",
                 )}
               >
-                Nothing here yet
+                {t("kanban.emptyColumn")}
               </p>
             )}
 
@@ -324,7 +326,7 @@ export default function KanbanColumn({
             className="text-ink-3 hover:bg-wash-strong hover:text-ink focus-visible:ring-brand rounded-control text-meta flex h-8 w-full items-center gap-1.5 px-2 font-medium transition-colors duration-150 outline-none focus-visible:ring-2"
           >
             <Plus className="size-4" />
-            Create
+            {t("common.create")}
           </button>
         </div>
       )}

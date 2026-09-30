@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { NavLink, useLocation } from "react-router";
 import { ListFilterIcon } from "lucide-react";
 
@@ -14,6 +15,7 @@ import SectionLabel from "./SectionLabel";
 // Collapsed by default: nine entries under the boards would push them off the
 // first screen, and the boards are what people come here for.
 export default function FiltersSection() {
+  const { t } = useTranslation();
   const location = useLocation();
   const [open, setOpen] = useState(() =>
     location.pathname.startsWith("/filters/"),
@@ -22,7 +24,7 @@ export default function FiltersSection() {
   return (
     <SidebarGroup>
       <SectionLabel
-        label="Filters"
+        label={t("sidebar.filters")}
         open={open}
         onToggle={() => setOpen((it) => !it)}
       />
@@ -39,7 +41,7 @@ export default function FiltersSection() {
                   isActive={location.pathname === to}
                 >
                   <ListFilterIcon />
-                  <span>{definition.label}</span>
+                  <span>{t(definition.labelKey)}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             );

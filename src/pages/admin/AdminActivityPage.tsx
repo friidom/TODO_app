@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router";
 
 import AdminShell from "@/components/admin/AdminShell";
@@ -29,6 +30,7 @@ const COLUMNS =
   "minmax(8rem,1fr) minmax(7rem,0.8fr) minmax(12rem,2fr) minmax(9rem,1fr) 7rem";
 
 export default function AdminActivityPage() {
+  const { t } = useTranslation();
   const { period } = useAdminPeriod();
   const [params, setParams] = useSearchParams();
 
@@ -91,22 +93,26 @@ export default function AdminActivityPage() {
 
   return (
     <AdminShell
-      title="Activity"
+      title={t("board.activity")}
       hint={
         firstPage
-          ? `${rows.length} entries${hasNextPage ? "+" : ""} · ${rangeLabel(firstPage.from, firstPage.to)}`
-          : "Across every board"
+          ? t("admin.activity.hint", {
+              count: rows.length,
+              more: hasNextPage ? "+" : "",
+              range: rangeLabel(firstPage.from, firstPage.to),
+            })
+          : t("admin.activity.hintLoading")
       }
       busy={isFetching}
       actions={
         <div className="flex flex-wrap gap-1.5">
           <select
-            aria-label="Filter by developer"
+            aria-label={t("admin.activity.byDeveloper")}
             className={HEADER_CONTROL}
             value={user ?? ""}
             onChange={(event) => setFilter("user", event.target.value)}
           >
-            <option value="">Everyone</option>
+            <option value="">{t("admin.activity.everyone")}</option>
             {(users?.users ?? []).map((row) => (
               <option key={row.id} value={row.id}>
                 {row.username}
@@ -115,26 +121,26 @@ export default function AdminActivityPage() {
           </select>
 
           <select
-            aria-label="Filter by board"
+            aria-label={t("admin.activity.byBoard")}
             className={HEADER_CONTROL}
             value={board ?? ""}
             onChange={(event) => setFilter("board", event.target.value)}
           >
-            <option value="">Every board</option>
+            <option value="">{t("admin.allBoards")}</option>
             {(boards?.boards ?? []).map((row) => (
               <option key={row.id} value={row.id}>
-                {row.title ?? "Untitled board"}
+                {row.title ?? t("common.untitledBoard")}
               </option>
             ))}
           </select>
 
           <select
-            aria-label="Filter by action"
+            aria-label={t("admin.activity.byAction")}
             className={HEADER_CONTROL}
             value={action ?? ""}
             onChange={(event) => setFilter("action", event.target.value)}
           >
-            <option value="">Every action</option>
+            <option value="">{t("admin.activity.everyAction")}</option>
             {actions.map((value) => (
               <option key={value} value={value}>
                 {actionLabel(value)}
@@ -148,7 +154,7 @@ export default function AdminActivityPage() {
         <div className="mb-3 flex flex-wrap items-center gap-2">
           {space && (
             <FilterChip
-              label={spaceName ?? "One space"}
+              label={spaceName ?? t("admin.activity.oneSpace")}
               onClear={() => clearFilters(["space"])}
             />
           )}
@@ -163,23 +169,23 @@ export default function AdminActivityPage() {
       )}
 
       {error ? (
-        <AdminEmpty>That did not load. Try again.</AdminEmpty>
+        <AdminEmpty>{t("admin.loadFailedRetry")}</AdminEmpty>
       ) : !data ? (
         <AdminSkeleton rows={12} />
       ) : (
-        <AdminGrid columns={COLUMNS} label="System-wide activity">
+        <AdminGrid columns={COLUMNS} label={t("admin.activity.gridLabel")}>
           <AdminRow header>
-            <AdminCell header>Developer</AdminCell>
-            <AdminCell header>Action</AdminCell>
-            <AdminCell header>Item</AdminCell>
-            <AdminCell header>Board</AdminCell>
+            <AdminCell header>{t("admin.columns.developer")}</AdminCell>
+            <AdminCell header>{t("admin.columns.action")}</AdminCell>
+            <AdminCell header>{t("admin.columns.item")}</AdminCell>
+            <AdminCell header>{t("sidebar.board")}</AdminCell>
             <AdminCell header align="right">
-              When
+              {t("admin.columns.when")}
             </AdminCell>
           </AdminRow>
 
           {rows.length === 0 ? (
-            <AdminEmpty>Nothing happened in this window.</AdminEmpty>
+            <AdminEmpty>{t("admin.nothingHappened")}</AdminEmpty>
           ) : (
             rows.map((row) => (
               <AdminRow
@@ -192,7 +198,7 @@ export default function AdminActivityPage() {
               >
                 <AdminCell>
                   <span className="text-ink">
-                    {row.actor_username ?? "Unknown"}
+                    {row.actor_username ?? t("admin.unknown")}
                   </span>
                 </AdminCell>
 
@@ -207,7 +213,7 @@ export default function AdminActivityPage() {
                     </span>
                   )}
                   <span className="text-ink-2">
-                    {row.title ?? `Untitled ${row.entity_type}`}
+                    {row.title ?? t("common.untitled")}
                   </span>
                 </AdminCell>
 
@@ -237,7 +243,7 @@ export default function AdminActivityPage() {
             disabled={isFetchingNextPage}
             className={cn(HEADER_CONTROL, "px-3")}
           >
-            {isFetchingNextPage ? "Loading…" : "Load more"}
+            {isFetchingNextPage ? t("common.loading") : t("admin.loadMore")}
           </button>
         </div>
       )}
@@ -254,13 +260,15 @@ function FilterChip({
   label: string;
   onClear: () => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <span className="border-brand/40 bg-brand-soft text-brand text-mini rounded-control flex items-center gap-1.5 border px-2 py-1">
       {label}
       <button
         type="button"
         onClick={onClear}
-        aria-label={`Clear ${label}`}
+        aria-label={t("admin.clearFilter", { name: label })}
         className="hover:text-ink transition-colors"
       >
         ×

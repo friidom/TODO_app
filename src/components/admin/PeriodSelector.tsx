@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   HEADER_CONTROL,
   HEADER_CONTROL_ACTIVE,
@@ -11,12 +12,13 @@ import {
 import { cn } from "@/utils/cn";
 
 export default function PeriodSelector() {
+  const { t } = useTranslation();
   const { period, setPeriod } = useAdminPeriod();
 
   return (
     <div
       role="group"
-      aria-label="Reporting period"
+      aria-label={t("admin.reportingPeriod")}
       className="flex shrink-0 flex-wrap gap-1"
     >
       {ADMIN_PERIODS.map((value) => (

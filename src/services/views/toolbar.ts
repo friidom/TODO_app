@@ -1,3 +1,5 @@
+import { translated } from "@/components/i18n";
+
 export const TOOLBAR_CONTROL_IDS = [
   "search",
   "assignee",
@@ -11,16 +13,16 @@ export const TOOLBAR_CONTROL_IDS = [
 
 export type ToolbarControlId = (typeof TOOLBAR_CONTROL_IDS)[number];
 
-export const TOOLBAR_LABELS: Record<ToolbarControlId, string> = {
-  search: "Search",
-  assignee: "Assignee",
-  status: "Status",
-  priority: "Priority",
-  type: "Type",
-  due: "Due",
-  group: "Group",
-  sort: "Sort",
-};
+export const TOOLBAR_LABELS = translated<ToolbarControlId>({
+  search: "toolbar.search",
+  assignee: "fields.assignee",
+  status: "fields.status",
+  priority: "fields.priority",
+  type: "toolbar.type",
+  due: "toolbar.due",
+  group: "toolbar.group",
+  sort: "toolbar.sort",
+});
 
 export function isToolbarControl(value: unknown): value is ToolbarControlId {
   return (

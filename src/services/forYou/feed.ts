@@ -1,3 +1,4 @@
+import { translated } from "@/components/i18n";
 import type { IBoard, Todo } from "@/types/data";
 import { DEFAULT_KEY_PREFIX, taskKey } from "@/utils/taskKey";
 
@@ -17,12 +18,12 @@ export const FOR_YOU_TABS = [
 
 export type ForYouTab = (typeof FOR_YOU_TABS)[number];
 
-export const FOR_YOU_TAB_LABELS: Record<ForYouTab, string> = {
-  recommended: "Recommended",
-  assigned: "Assigned to me",
-  workedon: "Worked on",
-  viewed: "Viewed",
-};
+export const FOR_YOU_TAB_LABELS = translated<ForYouTab>({
+  recommended: "forYou.tabs.recommended",
+  assigned: "members.assignedToMe",
+  workedon: "forYou.tabs.workedOn",
+  viewed: "forYou.tabs.viewed",
+});
 
 export function isForYouTab(value: string | null): value is ForYouTab {
   return (FOR_YOU_TABS as readonly string[]).includes(value ?? "");
@@ -87,14 +88,14 @@ export const FEED_PERIODS = [
 
 export type FeedPeriod = (typeof FEED_PERIODS)[number];
 
-export const FEED_PERIOD_LABELS: Record<FeedPeriod, string> = {
-  today: "Today",
-  yesterday: "Yesterday",
-  week: "Earlier this week",
-  lastweek: "Last week",
-  month: "Earlier this month",
-  older: "Older",
-};
+export const FEED_PERIOD_LABELS = translated<FeedPeriod>({
+  today: "time.today",
+  yesterday: "time.yesterday",
+  week: "forYou.periods.week",
+  lastweek: "forYou.periods.lastWeek",
+  month: "forYou.periods.month",
+  older: "forYou.periods.older",
+});
 
 export interface FeedGroup {
   period: FeedPeriod;

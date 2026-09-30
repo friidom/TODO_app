@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Rows3Icon } from "lucide-react";
 
 import {
@@ -21,6 +22,7 @@ export default function BoardGroup({
   view: BoardView;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const { group } = view;
 
   const active = group !== "none";
@@ -31,8 +33,16 @@ export default function BoardGroup({
         {...OPEN_ON_CLICK}
         render={
           <ToolbarButton
-            label={active ? `Group — ${GROUP_LABELS[group]}` : "Group"}
-            text={active ? `Group: ${GROUP_LABELS[group]}` : "Group"}
+            label={
+              active
+                ? t("view.groupLabel", { name: GROUP_LABELS[group] })
+                : t("toolbar.group")
+            }
+            text={
+              active
+                ? t("view.groupText", { name: GROUP_LABELS[group] })
+                : t("toolbar.group")
+            }
             icon={<Rows3Icon className="size-4" />}
             active={active}
             className={className}
@@ -49,13 +59,15 @@ export default function BoardGroup({
 
 // shared with ViewOptions, so the folded menu offers exactly these choices
 export function GroupOptions({ view }: { view: BoardView }) {
+  const { t } = useTranslation();
+
   return (
     // label goes inside the radio group — Base UI's Menu.GroupLabel needs the group context
     <DropdownMenuRadioGroup
       value={view.group}
       onValueChange={(next) => view.setGroup(next as GroupKey)}
     >
-      <DropdownMenuLabel>Group by</DropdownMenuLabel>
+      <DropdownMenuLabel>{t("view.groupBy")}</DropdownMenuLabel>
       {GROUP_KEYS.map((key) => (
         <DropdownMenuRadioItem key={key} value={key}>
           {GROUP_LABELS[key]}

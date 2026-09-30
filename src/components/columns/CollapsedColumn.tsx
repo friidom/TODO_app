@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useDraggable } from "@dnd-kit/core";
 
 import LimitWarning from "./LimitWarning";
@@ -28,6 +29,7 @@ export default function CollapsedColumn({
   onExpand,
   reorderDisabled = false,
 }: Props) {
+  const { t } = useTranslation();
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: column.id,
     data: { type: "column", columnId: column.id },
@@ -74,7 +76,7 @@ export default function CollapsedColumn({
       {breach && <LimitWarning message={breach} side="right" />}
 
       <IconButton
-        label="Expand column"
+        label={t("column.expand")}
         tooltipSide="right"
         onClick={onExpand}
         className="coarse:pointer-events-auto coarse:opacity-100 pointer-events-none opacity-0 transition-[opacity,color,background-color] group-focus-within/rail:pointer-events-auto group-focus-within/rail:opacity-100 group-hover/rail:pointer-events-auto group-hover/rail:opacity-100"

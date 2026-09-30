@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { BellIcon } from "lucide-react";
@@ -20,6 +21,7 @@ type Anchor = { left: number; top: number };
 // rendered inside it can never rise above the page beside it. The layer is
 // above the task modal (z-50) and the attachment lightbox (z-60).
 export default function NotificationsButton() {
+  const { t } = useTranslation();
   const [phase, setPhase] = useState<"closed" | "open" | "closing">("closed");
   const [anchor, setAnchor] = useState<Anchor>({ left: 0, top: 0 });
   const triggerRef = useRef<HTMLElement | null>(null);
@@ -80,7 +82,7 @@ export default function NotificationsButton() {
           className={cn(visible && "bg-wash-strong text-ink")}
         >
           <BellIcon />
-          <span>Notifications</span>
+          <span>{t("notifications.title")}</span>
 
           {unread > 0 && (
             <span className="bg-brand text-brand-fg text-micro ml-auto rounded px-1.5 leading-4 font-semibold tabular-nums">
@@ -108,7 +110,7 @@ export default function NotificationsButton() {
               ref={panelRef}
               role="dialog"
               aria-modal="true"
-              aria-label="Notifications"
+              aria-label={t("notifications.title")}
               tabIndex={-1}
               style={
                 {

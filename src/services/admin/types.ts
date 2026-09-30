@@ -1,3 +1,4 @@
+import { translated } from "@/components/i18n";
 import type { AdminPeriod } from "./periods";
 
 export interface SystemTotals {
@@ -272,11 +273,11 @@ export const FLOW_SLICES: FlowSliceBy[] = ["estimate", "priority", "type"];
 // send the same value or it keys a second cache entry for one answer.
 export const DEFAULT_FLOW_SLICE: FlowSliceBy = "estimate";
 
-export const FLOW_SLICE_LABELS: Record<FlowSliceBy, string> = {
-  estimate: "By estimate",
-  priority: "By priority",
-  type: "By type",
-};
+export const FLOW_SLICE_LABELS = translated<FlowSliceBy>({
+  estimate: "admin.slices.estimate",
+  priority: "admin.slices.priority",
+  type: "admin.slices.type",
+});
 
 export interface FlowFilters extends AdminScope {
   period: AdminPeriod;

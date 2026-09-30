@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { X } from "lucide-react";
 
@@ -44,6 +45,7 @@ function ColumnLimitDialog({
   column: IColumn;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [min, setMin] = useState(column.min_limit?.toString() ?? "");
   const [max, setMax] = useState(column.max_limit?.toString() ?? "");
 
@@ -53,11 +55,11 @@ function ColumnLimitDialog({
   const maxValue = parseLimit(max);
 
   const error = Number.isNaN(minValue)
-    ? "Minimum must be a whole number of 0 or more."
+    ? t("column.limitMinInvalid")
     : Number.isNaN(maxValue)
-      ? "Maximum must be a whole number of 0 or more."
+      ? t("column.limitMaxInvalid")
       : minValue !== null && maxValue !== null && minValue > maxValue
-        ? "Minimum cannot be greater than maximum."
+        ? t("column.limitMinOverMax")
         : null;
 
   function handleSubmit(e: React.FormEvent) {
@@ -83,10 +85,10 @@ function ColumnLimitDialog({
         className="border-hairline bg-surface rounded-surface shadow-e3 max-h-full w-[480px] max-w-full overflow-y-auto border p-5 sm:p-6"
       >
         <div className="mb-4 flex items-start justify-between gap-4">
-          <h2 className={DIALOG_TITLE}>Column limit</h2>
+          <h2 className={DIALOG_TITLE}>{t("column.limitTitle")}</h2>
 
           <IconButton
-            label="Close"
+            label={t("common.close")}
             size="md"
             tooltip={false}
             onClick={onClose}
@@ -96,14 +98,12 @@ function ColumnLimitDialog({
           </IconButton>
         </div>
 
-        <p className={`${DIALOG_BODY} mb-6`}>
-          Set minimum and maximum work item limits for this column.
-        </p>
+        <p className={`${DIALOG_BODY} mb-6`}>{t("column.limitBody")}</p>
 
         <div className="mb-2 grid grid-cols-2 gap-4">
           <div>
             <label htmlFor="column-min-limit" className={DIALOG_LABEL}>
-              Minimum
+              {t("column.minimum")}
             </label>
 
             <input
@@ -111,14 +111,14 @@ function ColumnLimitDialog({
               inputMode="numeric"
               value={min}
               onChange={(e) => setMin(e.target.value)}
-              placeholder="No limit set"
+              placeholder={t("column.noLimit")}
               className={FIELD_INPUT}
             />
           </div>
 
           <div>
             <label htmlFor="column-max-limit" className={DIALOG_LABEL}>
-              Maximum
+              {t("column.maximum")}
             </label>
 
             <input
@@ -126,7 +126,7 @@ function ColumnLimitDialog({
               inputMode="numeric"
               value={max}
               onChange={(e) => setMax(e.target.value)}
-              placeholder="No limit set"
+              placeholder={t("column.noLimit")}
               className={FIELD_INPUT}
             />
           </div>
@@ -138,7 +138,7 @@ function ColumnLimitDialog({
 
         <div className={DIALOG_ACTIONS}>
           <button type="button" onClick={onClose} className={DIALOG_CANCEL}>
-            Cancel
+            {t("common.cancel")}
           </button>
 
           <button
@@ -146,7 +146,7 @@ function ColumnLimitDialog({
             disabled={!!error || updateColumn.isPending}
             className={DIALOG_CONFIRM}
           >
-            {updateColumn.isPending ? "Saving..." : "Save"}
+            {updateColumn.isPending ? t("common.saving") : t("common.save")}
           </button>
         </div>
       </form>

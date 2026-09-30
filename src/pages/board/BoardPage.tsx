@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useMemo } from "react";
 
 import BoardIdentity from "@/components/layout/BoardIdentity";
@@ -46,6 +47,7 @@ function BoardView({ boardId }: { boardId: string }) {
   const sprintsEnabled = useSprintsEnabled();
 
   const { panel, closePanel } = usePanel();
+  const { t } = useTranslation();
 
   // one channel per board, opened here and torn down on unmount/boardId change — every view below just reads the cache it patches
   const viewers = useBoardRealtime(boardId);
@@ -67,11 +69,11 @@ function BoardView({ boardId }: { boardId: string }) {
         framed={view.mode === "list"}
         drawer={
           panel === "members" ? (
-            <Drawer title="Members" onClose={closePanel}>
+            <Drawer title={t("board.members")} onClose={closePanel}>
               <MembersDrawer boardId={boardId} />
             </Drawer>
           ) : panel === "activity" ? (
-            <Drawer title="Activity" onClose={closePanel}>
+            <Drawer title={t("board.activity")} onClose={closePanel}>
               <ActivityDrawer boardId={boardId} />
             </Drawer>
           ) : undefined

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 
 import SummaryCard, { WidgetEmpty } from "@/components/summary/SummaryCard";
@@ -16,7 +17,7 @@ const LABEL_SLOTS = 12;
 export default function BarSeries({
   points,
   bucket,
-  title = "Delivery over time",
+  title,
   note,
   className,
 }: {
@@ -26,6 +27,7 @@ export default function BarSeries({
   note?: string;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const [metric, setMetric] = useState<SeriesMetric>("completed_todos");
 
   const definition = SERIES_METRIC_DEFINITIONS[metric];
@@ -42,15 +44,22 @@ export default function BarSeries({
 
   return (
     <SummaryCard
-      title={title}
+      title={title ?? t("admin.bars.title")}
       hint={
         definition.countsUnestimated && unestimated > 0
-          ? `${dash(total)} in this period · ${unestimated} completed with no estimate`
-          : `${dash(total)} in this period`
+          ? t("admin.bars.hintUnestimated", {
+              total: dash(total),
+              count: unestimated,
+            })
+          : t("admin.bars.hint", { total: dash(total) })
       }
       className={className}
       action={
-        <div role="group" aria-label="Metric" className="flex flex-wrap gap-1">
+        <div
+          role="group"
+          aria-label={t("admin.metric")}
+          className="flex flex-wrap gap-1"
+        >
           {seriesMetrics().map((option) => (
             <button
               key={option.metric}
@@ -69,7 +78,7 @@ export default function BarSeries({
       }
     >
       {points.length === 0 ? (
-        <WidgetEmpty>Nothing to chart yet.</WidgetEmpty>
+        <WidgetEmpty>{t("summary.trendsEmpty")}</WidgetEmpty>
       ) : (
         <div className="flex gap-2.5 px-3.5 pb-3">
           {/* h-28, matching the plot exactly. Without it this column stretches
@@ -86,12 +95,15 @@ export default function BarSeries({
                 would assert values between them that do not exist. */}
             <ol
               className="flex h-28 items-end gap-0.5"
-              aria-label={`${definition.label} per bucket: ${points
-                .map(
-                  (point) =>
-                    `${bucketLabel(point.bucket, bucket)} ${point[metric]}`,
-                )
-                .join(", ")}`}
+              aria-label={t("admin.perBucket", {
+                name: definition.label,
+                values: points
+                  .map(
+                    (point) =>
+                      `${bucketLabel(point.bucket, bucket)} ${point[metric]}`,
+                  )
+                  .join(", "),
+              })}
             >
               {points.map((point) => (
                 <li

@@ -1,11 +1,17 @@
+import { useTranslation } from "react-i18next";
 import { Fragment } from "react";
 import { Link } from "react-router";
 
 import type { Crumb } from "@/services/admin/drilldown";
 
 export default function AdminCrumbs({ trail }: { trail: Crumb[] }) {
+  const { t } = useTranslation();
+
   return (
-    <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5">
+    <nav
+      aria-label={t("common.breadcrumb")}
+      className="flex min-w-0 items-center gap-1.5"
+    >
       {trail.map((crumb, index) => (
         <Fragment key={`${crumb.label}-${index}`}>
           <span className="text-ink-3/50 text-mini" aria-hidden>

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useMemo } from "react";
 import { Link, useParams } from "react-router";
 
@@ -50,6 +51,7 @@ const CONTRIBUTORS = 6;
 const RECENT = 8;
 
 export default function AdminBoardPage() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const { period } = useAdminPeriod();
   const { taskId, openTask, closeTask } = useOpenTask();
@@ -79,11 +81,11 @@ export default function AdminBoardPage() {
 
   return (
     <AdminShell
-      title={row?.title ?? "Board"}
+      title={row?.title ?? t("sidebar.board")}
       hint={
         board.data
           ? `${row?.key_prefix ?? ""} · ${rangeLabel(board.data.from, board.data.to)}`
-          : "Board analytics"
+          : t("admin.board.analytics")
       }
       busy={board.isFetching || flow.isFetching}
       breadcrumb={
@@ -97,36 +99,46 @@ export default function AdminBoardPage() {
       }
     >
       {board.error ? (
-        <AdminEmpty>That board could not be loaded.</AdminEmpty>
+        <AdminEmpty>{t("admin.board.loadFailed")}</AdminEmpty>
       ) : board.data === undefined || row === undefined ? (
         <AdminSkeleton />
       ) : (
         <div className="flex flex-col gap-3">
           <KpiTiles
             items={[
-              { key: "open", label: "Open", value: dash(row.open_todos) },
+              {
+                key: "open",
+                label: t("admin.columns.open"),
+                value: dash(row.open_todos),
+              },
               {
                 key: "done",
-                label: "Completed",
+                label: t("fields.completed"),
                 value: dash(row.completed_todos),
-                aside: `of ${dash(row.todos)} total`,
+                aside: t("admin.ofTotal", { total: dash(row.todos) }),
               },
               {
                 key: "points",
-                label: "Points",
+                label: t("admin.columns.points"),
                 value: dash(row.completed_points),
                 aside:
                   row.unestimated_completed > 0
-                    ? `${row.unestimated_completed} unestimated`
+                    ? t("admin.unestimatedCount", {
+                        count: row.unestimated_completed,
+                      })
                     : undefined,
               },
-              { key: "members", label: "Members", value: dash(row.members) },
+              {
+                key: "members",
+                label: t("board.members"),
+                value: dash(row.members),
+              },
               {
                 key: "cycle",
-                label: "Median cycle",
+                label: t("admin.medianCycle"),
                 value: formatDuration(row.median_cycle_days),
                 aside: row.owner_username
-                  ? `owner ${row.owner_username}`
+                  ? t("admin.ownerNamed", { name: row.owner_username })
                   : undefined,
               },
             ]}
@@ -159,8 +171,8 @@ export default function AdminBoardPage() {
                   note={note}
                 />
                 <Histogram
-                  title="Cycle time distribution"
-                  hint="Where this board's tail is"
+                  title={t("admin.histogram.title")}
+                  hint={t("admin.board.histogramHint")}
                   bins={flow.data.cycle_histogram}
                   stats={flow.data.cycle_time}
                   className="xl:col-span-2"
@@ -170,7 +182,7 @@ export default function AdminBoardPage() {
               <div className="grid gap-3 xl:grid-cols-2">
                 <WipStrip
                   slices={flow.data.wip}
-                  scopeHint="Open cards on this board, by column"
+                  scopeHint={t("admin.board.wipHint")}
                 />
                 <AgingBuckets buckets={flow.data.wip_aging} />
               </div>
@@ -179,13 +191,11 @@ export default function AdminBoardPage() {
 
           <div className="grid gap-3 xl:grid-cols-[22rem_1fr]">
             <SummaryCard
-              title="Top contributors"
-              hint="Completed work credited in this period"
+              title={t("admin.contributors.title")}
+              hint={t("admin.contributors.hint")}
             >
               {contributors.length === 0 ? (
-                <WidgetEmpty>
-                  Nobody completed work here in this window.
-                </WidgetEmpty>
+                <WidgetEmpty>{t("admin.contributors.empty")}</WidgetEmpty>
               ) : (
                 <div className="flex flex-col gap-2 px-3.5 pb-3.5">
                   {contributors.map((person) => (
@@ -224,31 +234,31 @@ export default function AdminBoardPage() {
             <section className="flex flex-col gap-2">
               <div className="flex items-baseline justify-between gap-3">
                 <h2 className="text-ink text-xs font-semibold tracking-tight">
-                  Recent activity
+                  {t("admin.recentActivity")}
                 </h2>
                 <Link
                   to={`/admin/activity?board=${id}&period=${period}`}
                   className="text-ink-3 hover:text-brand text-mini transition-colors"
                 >
-                  See all →
+                  {t("admin.seeAll")}
                 </Link>
               </div>
 
               <AdminGrid
                 columns="minmax(6rem,1fr) minmax(7rem,1fr) minmax(9rem,2fr) 5rem"
-                label="Recent activity on this board"
+                label={t("admin.board.recentLabel")}
               >
                 <AdminRow header>
-                  <AdminCell header>Developer</AdminCell>
-                  <AdminCell header>Action</AdminCell>
-                  <AdminCell header>Item</AdminCell>
+                  <AdminCell header>{t("admin.columns.developer")}</AdminCell>
+                  <AdminCell header>{t("admin.columns.action")}</AdminCell>
+                  <AdminCell header>{t("admin.columns.item")}</AdminCell>
                   <AdminCell header align="right">
-                    When
+                    {t("admin.columns.when")}
                   </AdminCell>
                 </AdminRow>
 
                 {recent.length === 0 ? (
-                  <AdminEmpty>Nothing happened in this window.</AdminEmpty>
+                  <AdminEmpty>{t("admin.nothingHappened")}</AdminEmpty>
                 ) : (
                   recent.map((entry) => (
                     <AdminRow
@@ -261,7 +271,7 @@ export default function AdminBoardPage() {
                     >
                       <AdminCell>
                         <span className="text-ink truncate">
-                          {entry.actor_username ?? "Unknown"}
+                          {entry.actor_username ?? t("admin.unknown")}
                         </span>
                       </AdminCell>
                       <AdminCell>
@@ -276,7 +286,7 @@ export default function AdminBoardPage() {
                           </span>
                         )}
                         <span className="text-ink-2 truncate">
-                          {entry.title ?? `Untitled ${entry.entity_type}`}
+                          {entry.title ?? t("common.untitled")}
                         </span>
                       </AdminCell>
                       <AdminCell align="right">
@@ -295,11 +305,14 @@ export default function AdminBoardPage() {
           </div>
 
           <p className={cn("text-ink-3 text-mini")}>
-            Completion rate{" "}
-            {percent(
-              row.todos === 0 ? null : (row.completed_todos / row.todos) * 100,
-            )}{" "}
-            over {dash(row.todos)} countable cards.
+            {t("admin.board.completionRate", {
+              rate: percent(
+                row.todos === 0
+                  ? null
+                  : (row.completed_todos / row.todos) * 100,
+              ),
+              total: dash(row.todos),
+            })}
           </p>
         </div>
       )}

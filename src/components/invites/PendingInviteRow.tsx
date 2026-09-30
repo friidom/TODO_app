@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { roleLabel, roleStyle } from "@/components/members/roleStyles";
 import { expiresLabel } from "@/services/invites/inviteLink";
@@ -6,6 +7,7 @@ import type { BoardInvite } from "@/services/invites/invitesApi";
 import { cn } from "@/utils/cn";
 
 export default function PendingInviteRow({ invite }: { invite: BoardInvite }) {
+  const { t } = useTranslation();
   const [confirming, setConfirming] = useState(false);
 
   const revoke = useRevokeInvite();
@@ -27,11 +29,11 @@ export default function PendingInviteRow({ invite }: { invite: BoardInvite }) {
 
       {revoke.error ? (
         <span className="text-status-red shrink-0 text-xs">
-          Could not revoke
+          {t("invites.revokeFailed")}
         </span>
       ) : confirming ? (
         <span className="flex shrink-0 items-center gap-2 text-xs">
-          <span className="text-ink-2">Revoke?</span>
+          <span className="text-ink-2">{t("invites.revokeQuestion")}</span>
 
           <button
             type="button"
@@ -39,7 +41,7 @@ export default function PendingInviteRow({ invite }: { invite: BoardInvite }) {
             onClick={() => revoke.mutate(invite.id)}
             className="text-status-red font-medium hover:underline disabled:opacity-50"
           >
-            {revoke.isPending ? "Revoking..." : "Yes"}
+            {revoke.isPending ? t("invites.revoking") : t("common.yes")}
           </button>
 
           <button
@@ -47,7 +49,7 @@ export default function PendingInviteRow({ invite }: { invite: BoardInvite }) {
             onClick={() => setConfirming(false)}
             className="text-ink-2 hover:text-ink"
           >
-            No
+            {t("common.no")}
           </button>
         </span>
       ) : (
@@ -57,7 +59,7 @@ export default function PendingInviteRow({ invite }: { invite: BoardInvite }) {
             onClick={() => setConfirming(true)}
             className="text-ink-2 hover:text-status-red text-xs font-medium"
           >
-            Revoke
+            {t("invites.revoke")}
           </button>
         </span>
       )}

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { ArrowRightIcon } from "lucide-react";
 import { useMemo } from "react";
 
@@ -30,6 +31,7 @@ export default function TodoHistoryList({
     error,
   } = useTodoActivities(todoId, boardId);
   const { data: members = [] } = useBoardMembers(boardId);
+  const { t } = useTranslation();
 
   const names = useMemo(
     () => Object.fromEntries(members.map((m) => [m.id, memberName(m)])),
@@ -53,9 +55,7 @@ export default function TodoHistoryList({
   }
 
   if (error) {
-    return (
-      <p className="text-status-red text-sm">Could not load this history.</p>
-    );
+    return <p className="text-status-red text-sm">{t("history.loadFailed")}</p>;
   }
 
   // describeHistoryChange returns null for actions it doesn't know how to phrase — filtered, not rendered blank
@@ -70,7 +70,7 @@ export default function TodoHistoryList({
     );
 
   if (rows.length === 0) {
-    return <p className="text-ink-3 py-1 text-sm">No history yet.</p>;
+    return <p className="text-ink-3 py-1 text-sm">{t("history.empty")}</p>;
   }
 
   return (
@@ -101,15 +101,16 @@ export function HistoryRow({
   members: BoardMember[];
   currentUserId: string | undefined;
 }) {
+  const { t, i18n } = useTranslation();
   const actor = members.find((member) => member.id === activity.actor_id);
 
   // "You" for the viewer's own edits — only here, ActivityFeed always resolves a name
   const actorLabel =
     activity.actor_id !== null && activity.actor_id === currentUserId
-      ? "You"
+      ? t("history.you")
       : actor
         ? memberName(actor)
-        : "Someone";
+        : t("presence.someone");
 
   const hasChip = change.from !== null && change.to !== null;
 
@@ -127,7 +128,7 @@ export function HistoryRow({
           <span className="text-ink font-medium">{actorLabel}</span>{" "}
           {change.field ? (
             <>
-              {change.verb} the{" "}
+              {change.verb}{" "}
               <span className="text-ink font-medium">{change.field}</span>
             </>
           ) : (
@@ -137,7 +138,7 @@ export function HistoryRow({
 
         <time
           dateTime={activity.created_at}
-          title={new Date(activity.created_at).toLocaleString()}
+          title={new Date(activity.created_at).toLocaleString(i18n.language)}
           className="text-ink-3 text-xs"
         >
           {relativeTime(activity.created_at)}

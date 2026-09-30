@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { memo } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { Plus } from "lucide-react";
@@ -28,6 +29,7 @@ const DropZone = memo(function DropZone({
   canAdd = false,
   onAdd,
 }: Props) {
+  const { t } = useTranslation();
   const { setNodeRef } = useDroppable({
     id: `todo-gap:${columnId}:${index}`,
     data: { type: "todo-gap", columnId, index, beforeId, afterId },
@@ -49,7 +51,7 @@ const DropZone = memo(function DropZone({
           <span className="bg-brand/40 pointer-events-none absolute inset-x-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full opacity-0 transition-opacity duration-100 group-focus-within:opacity-100 group-hover:opacity-100" />
 
           <IconButton
-            label="Create work item"
+            label={t("list.createItem")}
             size="xs"
             tooltip={false}
             onClick={() => onAdd?.(index)}

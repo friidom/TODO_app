@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { dash, formatDuration } from "@/services/admin/format";
 import type { DurationStats, SystemTotals } from "@/services/admin/types";
 import { cn } from "@/utils/cn";
@@ -9,6 +10,8 @@ export default function StatTiles({
   totals: SystemTotals;
   cycle?: DurationStats;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div className="flex flex-col gap-3">
       {/* Five that answer "what happened in this period", then three that
@@ -16,37 +19,48 @@ export default function StatTiles({
           period and do not belong in the same row. Eight tiles in one
           five-column grid left a hole at every width. */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
-        <Tile label="Completed tasks" value={totals.completed_todos} />
+        <Tile
+          label={t("admin.metrics.completedTasks")}
+          value={totals.completed_todos}
+        />
 
         <Tile
-          label="Completed points"
+          label={t("admin.metrics.completedPoints")}
           value={totals.completed_points}
           // D-7: a points figure never travels without the count of work
           // nobody sized, or it reads as the whole of what was finished.
           aside={
             totals.unestimated_completed > 0
-              ? `${totals.unestimated_completed} unestimated`
+              ? t("admin.unestimatedCount", {
+                  count: totals.unestimated_completed,
+                })
               : undefined
           }
         />
 
-        <Tile label="Tasks created" value={totals.created_todos} />
-        <Tile label="Comments" value={totals.comments} />
-        <Tile label="Activity events" value={totals.activities} />
+        <Tile label={t("admin.tasksCreated")} value={totals.created_todos} />
+        <Tile label={t("taskActivity.comments")} value={totals.comments} />
+        <Tile
+          label={t("admin.metrics.activityEvents")}
+          value={totals.activities}
+        />
       </div>
 
       <dl className="border-hairline bg-surface rounded-card flex flex-wrap items-center gap-x-8 gap-y-2 border px-3.5 py-2.5">
-        <Standing label="Open tasks" value={totals.open_todos} />
-        <Standing label="Developers" value={totals.users} />
-        <Standing label="Boards" value={totals.boards} />
+        <Standing label={t("admin.openTasks")} value={totals.open_todos} />
+        <Standing label={t("admin.sections.users")} value={totals.users} />
+        <Standing label={t("boards.title")} value={totals.boards} />
 
         {cycle && (
           <>
             <Standing
-              label="Median cycle"
+              label={t("admin.medianCycle")}
               text={formatDuration(cycle.median_days)}
             />
-            <Standing label="p75 cycle" text={formatDuration(cycle.p75_days)} />
+            <Standing
+              label={t("admin.p75Cycle")}
+              text={formatDuration(cycle.p75_days)}
+            />
           </>
         )}
       </dl>

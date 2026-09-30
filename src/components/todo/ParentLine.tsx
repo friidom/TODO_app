@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { ChevronRightIcon, ListTreeIcon } from "lucide-react";
 
 import { useKeyPrefix } from "@/hooks/useKeyPrefix";
@@ -13,6 +14,7 @@ export default function ParentLine({
   parentId: string | null;
   boardId: string;
 }) {
+  const { t } = useTranslation();
   const { openTask } = useOpenTask();
   const { data: todos = [] } = useTodos();
   const keyPrefix = useKeyPrefix();
@@ -33,18 +35,22 @@ export default function ParentLine({
         <button
           type="button"
           onClick={() => openTask(parent.id)}
-          title={`Open ${key ?? parent.title ?? "the parent task"}`}
+          title={t("list.open", {
+            key: key ?? parent.title ?? t("parent.theParent"),
+          })}
           className="text-ink-3 hover:bg-wash-strong hover:text-ink focus-visible:ring-brand rounded-control text-meta -ml-1.5 flex h-7 max-w-64 min-w-0 items-center gap-1.5 px-1.5 transition-colors duration-150 outline-none focus-visible:ring-2"
         >
           <ListTreeIcon className="size-3.5 shrink-0" />
           {key && <span className="shrink-0 tabular-nums">{key}</span>}
-          <span className="min-w-0 truncate">{parent.title || "Untitled"}</span>
+          <span className="min-w-0 truncate">
+            {parent.title || t("common.untitled")}
+          </span>
         </button>
       ) : (
         // board array not loaded yet, or (shouldn't happen — fk cascades) the parent is gone
         <span className="text-ink-3 text-meta flex shrink-0 items-center gap-1.5 italic">
           <ListTreeIcon className="size-3.5 shrink-0" />
-          Subtask of a task
+          {t("parent.subtaskOf")}
         </span>
       )}
 

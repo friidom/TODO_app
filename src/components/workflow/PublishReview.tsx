@@ -47,6 +47,7 @@ export default function PublishReview({
   onBack: () => void;
   onPublish: () => void;
 }) {
+  const { t } = useTranslation();
   const statuses = changes.filter((change) => change.kind.startsWith("status"));
   const transitions = changes.filter((change) =>
     change.kind.startsWith("transition"),
@@ -74,21 +75,21 @@ export default function PublishReview({
       >
         <div className="border-hairline border-b px-5 pt-5 pb-3">
           <h3 id="publish-review-title" className={DIALOG_TITLE}>
-            Publish {changes.length}{" "}
-            {changes.length === 1 ? "change" : "changes"}
+            {t("review.title", { count: changes.length })}
           </h3>
 
           <p className={cn(DIALOG_BODY, "mt-1")}>
-            The workflow on {boardTitle} changes for everyone as soon as you
-            publish. Work items follow the moves listed below.
+            {t("review.body", { board: boardTitle })}
           </p>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3">
-          {statuses.length > 0 && <Group title="Statuses" changes={statuses} />}
+          {statuses.length > 0 && (
+            <Group title={t("review.statuses")} changes={statuses} />
+          )}
 
           {transitions.length > 0 && (
-            <Group title="Transitions" changes={transitions} />
+            <Group title={t("review.transitions")} changes={transitions} />
           )}
 
           {warnings.length > 0 && (
@@ -96,9 +97,7 @@ export default function PublishReview({
               <TriangleAlertIcon className="text-status-orange mt-px size-3.5 shrink-0" />
 
               <div>
-                <p className="font-semibold">
-                  Worth a look — publishing is still allowed:
-                </p>
+                <p className="font-semibold">{t("review.worthALook")}</p>
 
                 <ul className="mt-1 grid list-disc gap-0.5 pl-4">
                   {warnings.map((warning) => (
@@ -124,7 +123,7 @@ export default function PublishReview({
             onClick={onBack}
             className={DIALOG_CANCEL}
           >
-            Back to editing
+            {t("review.backToEditing")}
           </button>
 
           <button
@@ -133,7 +132,7 @@ export default function PublishReview({
             onClick={onPublish}
             className={DIALOG_CONFIRM}
           >
-            {pending ? "Publishing..." : "Publish"}
+            {pending ? t("workflow.publishing") : t("workflow.publish")}
           </button>
         </div>
       </div>
@@ -142,6 +141,7 @@ export default function PublishReview({
 }
 
 function Group({ title, changes }: { title: string; changes: DraftChange[] }) {
+  const { t } = useTranslation();
   const [all, setAll] = useState(false);
   const shown = all ? changes : changes.slice(0, FOLDED);
 
@@ -163,7 +163,9 @@ function Group({ title, changes }: { title: string; changes: DraftChange[] }) {
           onClick={() => setAll((current) => !current)}
           className="text-brand text-mini mt-1 font-medium hover:underline"
         >
-          {all ? "Show fewer" : `Show all ${changes.length}`}
+          {all
+            ? t("review.showFewer")
+            : t("review.showAll", { count: changes.length })}
         </button>
       )}
     </section>
@@ -188,12 +190,11 @@ function ChangeRow({ change }: { change: DraftChange }) {
         <PlusIcon />,
         "text-status-green",
         <>
-          Add <Name>{change.name}</Name>
+          {t("review.add")} <Name>{change.name}</Name>
           {change.transitions > 0 && (
             <span className="text-ink-3">
               {" "}
-              with {change.transitions} transition
-              {change.transitions === 1 ? "" : "s"}
+              {t("review.withTransitions", { count: change.transitions })}
             </span>
           )}
         </>,
@@ -204,11 +205,15 @@ function ChangeRow({ change }: { change: DraftChange }) {
         <Trash2Icon />,
         "text-status-red",
         <>
-          Delete <Name>{change.name}</Name>
+          {t("review.delete")} <Name>{change.name}</Name>
           {change.workItems > 0 && change.movedTo && (
             <strong className="text-ink font-medium">
               {" "}
-              — {workItems(change.workItems)} move to{" "}
+              —{" "}
+              {t("review.moveTo", {
+                items: workItems(change.workItems),
+                count: change.workItems,
+              })}{" "}
               <Name>{change.movedTo}</Name>
             </strong>
           )}
@@ -220,7 +225,8 @@ function ChangeRow({ change }: { change: DraftChange }) {
         <PencilIcon />,
         "text-ink-3",
         <>
-          Rename <Name>{change.from}</Name> to <Name>{change.to}</Name>
+          {t("review.rename")} <Name>{change.from}</Name> {t("review.to")}{" "}
+          <Name>{change.to}</Name>
         </>,
       );
 
@@ -240,7 +246,9 @@ function ChangeRow({ change }: { change: DraftChange }) {
         "text-ink-3",
         <>
           <Name>{change.name}</Name>{" "}
-          {change.hidden ? "stops taking new work" : "takes new work again"}
+          {change.hidden
+            ? t("review.stopsTakingWork")
+            : t("review.takesWorkAgain")}
         </>,
       );
 
@@ -249,8 +257,8 @@ function ChangeRow({ change }: { change: DraftChange }) {
         <SquareStackIcon />,
         "text-ink-3",
         <>
-          <Name>{change.name}</Name>: {change.from ?? "not on the board"} →{" "}
-          {change.to ?? "not on the board"}
+          <Name>{change.name}</Name>: {change.from ?? t("review.notOnBoard")} →{" "}
+          {change.to ?? t("review.notOnBoard")}
         </>,
       );
 

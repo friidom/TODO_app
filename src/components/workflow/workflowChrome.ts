@@ -1,5 +1,7 @@
 import type { RefObject } from "react";
 
+import i18n from "@/components/i18n";
+
 export const LANE_WIDTH = "w-60";
 
 export const GRIP =
@@ -18,7 +20,7 @@ export const MOD_KEY =
     : "Ctrl+";
 
 export function workItems(count: number): string {
-  return `${count} work item${count === 1 ? "" : "s"}`;
+  return i18n.t("workflow.workItems", { count });
 }
 
 // Where focus goes once an inline editor closes: back to the control that

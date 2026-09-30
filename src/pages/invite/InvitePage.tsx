@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { CheckIcon, MailOpenIcon, UsersIcon } from "lucide-react";
 import { Navigate, useNavigate, useParams } from "react-router";
 
@@ -26,18 +27,22 @@ export default function InvitePage() {
 }
 
 function AcceptInvite({ token }: { token: string }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const accept = useAcceptInvite();
 
   function handleAccept() {
-    accept.mutate({ token }, {
-      onSuccess: ({ status, board_id }) => {
-        if (status === "accepted") {
-          toast.success("You've joined the board");
-          navigate(`/boards/${board_id}`, { replace: true });
-        }
+    accept.mutate(
+      { token },
+      {
+        onSuccess: ({ status, board_id }) => {
+          if (status === "accepted") {
+            toast.success(t("invites.joined"));
+            navigate(`/boards/${board_id}`, { replace: true });
+          }
+        },
       },
-    });
+    );
   }
 
   const result = accept.data;
@@ -46,15 +51,15 @@ function AcceptInvite({ token }: { token: string }) {
     return (
       <InviteCard
         icon={<UsersIcon className="text-brand size-7" />}
-        title="You're already a member"
-        body="This invitation is for a board you already have access to. Your role has not changed."
+        title={t("invites.alreadyMember")}
+        body={t("invites.alreadyMemberBody")}
       >
         <button
           type="button"
           onClick={() => navigate(`/boards/${result.board_id}`)}
           className="bg-brand text-brand-fg hover:bg-brand/90 w-full rounded-lg px-4 py-2.5 text-sm font-medium"
         >
-          Open board
+          {t("invites.openBoard")}
         </button>
       </InviteCard>
     );
@@ -63,8 +68,8 @@ function AcceptInvite({ token }: { token: string }) {
   return (
     <InviteCard
       icon={<MailOpenIcon className="text-brand size-7" />}
-      title="You've been invited to a board"
-      body="Accept to join. The role you get was chosen by whoever sent the link."
+      title={t("invites.invitedTitle")}
+      body={t("invites.invitedBody")}
     >
       {accept.error && (
         <p className="bg-status-red/15 text-status-red mb-3 rounded-lg px-4 py-3 text-sm">
@@ -79,11 +84,11 @@ function AcceptInvite({ token }: { token: string }) {
         className="bg-brand text-brand-fg hover:bg-brand/90 mb-2 flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium disabled:opacity-50"
       >
         {accept.isPending ? (
-          "Accepting..."
+          t("invites.accepting")
         ) : (
           <>
             <CheckIcon className="size-4" />
-            Accept invitation
+            {t("invites.accept")}
           </>
         )}
       </button>
@@ -93,7 +98,7 @@ function AcceptInvite({ token }: { token: string }) {
         onClick={() => navigate("/")}
         className="text-ink-2 hover:text-ink w-full rounded-lg px-4 py-2 text-sm"
       >
-        Not now
+        {t("invites.notNow")}
       </button>
     </InviteCard>
   );
@@ -112,7 +117,7 @@ function InviteCard({
 }) {
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
-      <div className="border-hairline bg-surface rounded-surface w-full max-w-[420px] border p-6 shadow-e3 sm:p-8">
+      <div className="border-hairline bg-surface rounded-surface shadow-e3 w-full max-w-[420px] border p-6 sm:p-8">
         <span className="bg-brand-soft rounded-surface mb-5 grid size-14 place-items-center">
           {icon}
         </span>

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import SummaryCard from "@/components/summary/SummaryCard";
 import { dash, percent } from "@/services/admin/format";
 import type { AdminUser } from "@/services/admin/types";
@@ -12,6 +13,7 @@ export default function BulletBar({
   periodLabel: string;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const target = user.target_points;
   const actual = user.completed_points;
 
@@ -23,11 +25,11 @@ export default function BulletBar({
 
   return (
     <SummaryCard
-      title="Target vs actual"
+      title={t("admin.bullet.title")}
       hint={
         target === null
-          ? "No level set, so no target — the facts below are unaffected"
-          : `${periodLabel} · target scaled from the weekly figure`
+          ? t("admin.bullet.noLevel")
+          : t("admin.bullet.scaled", { period: periodLabel })
       }
       className={className}
     >
@@ -43,7 +45,10 @@ export default function BulletBar({
           </span>
 
           <span className="text-ink-3 text-mini">
-            {dash(actual)} of {dash(target)} points
+            {t("admin.bullet.ofPoints", {
+              actual: dash(actual),
+              target: dash(target),
+            })}
           </span>
         </div>
 
@@ -71,8 +76,10 @@ export default function BulletBar({
 
         <p className="text-ink-3 text-mini">
           {user.unestimated_completed > 0
-            ? `${user.unestimated_completed} completed task${user.unestimated_completed === 1 ? "" : "s"} carried no estimate and count toward neither figure.`
-            : "Every completed task in this period carried an estimate."}
+            ? t("admin.bullet.unestimated", {
+                count: user.unestimated_completed,
+              })
+            : t("admin.bullet.allEstimated")}
         </p>
       </div>
     </SummaryCard>

@@ -59,12 +59,12 @@ export default function StatusOverview({
 
   return (
     <SummaryCard
-      title="Work status"
-      hint="Snapshot of your work items"
+      title={t("summary.workStatus")}
+      hint={t("summary.workStatusHint")}
       className={className}
     >
       {total === 0 ? (
-        <WidgetEmpty>No work items on this board yet.</WidgetEmpty>
+        <WidgetEmpty>{t("summary.workStatusEmpty")}</WidgetEmpty>
       ) : (
         <div className="flex flex-col gap-3 px-3.5 pb-3">
           <div className="flex flex-col items-center gap-3 sm:flex-row sm:gap-4">
@@ -161,7 +161,9 @@ export default function StatusOverview({
 
           {/* done is the status category, not a status literally named "Done" — counts every finished status */}
           <div className="border-hairline flex items-center gap-2.5 border-t pt-2.5">
-            <span className="text-ink-3 text-mini shrink-0">Completed</span>
+            <span className="text-ink-3 text-mini shrink-0">
+              {t("fields.completed")}
+            </span>
 
             <div className="bg-ink/[0.06] h-1 min-w-0 flex-1 overflow-hidden rounded-full">
               <div
@@ -171,7 +173,7 @@ export default function StatusOverview({
             </div>
 
             <span className="text-ink-2 text-mini shrink-0 tabular-nums">
-              {done} of {total}
+              {t("summary.doneOf", { done, total })}
             </span>
 
             <span className="text-status-green text-mini w-8 shrink-0 text-right font-medium tabular-nums">

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -33,6 +34,7 @@ export default function AttachmentPreview({
   attachment: Attachment;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const kind = previewKind(attachment.mime_type);
 
   // Its own fetch rather than the thumbnail's URL — the row that opened this
@@ -76,7 +78,7 @@ export default function AttachmentPreview({
       tabIndex={-1}
       role="dialog"
       aria-modal="true"
-      aria-label={`Preview of ${attachment.filename}`}
+      aria-label={t("attachments.previewOf", { name: attachment.filename })}
       onMouseDown={closeOnBackdrop}
       className={cn(
         "fixed inset-0 z-[60] flex flex-col outline-none",
@@ -144,6 +146,7 @@ function Header({
   onToggleZoom: () => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const download = useDownloadAttachment();
   const age = relativeTime(attachment.created_at, undefined, { short: true });
 
@@ -166,14 +169,14 @@ function Header({
       {kind === "image" && (
         <PreviewAction
           icon={zoomed ? ZoomOutIcon : ZoomInIcon}
-          label={zoomed ? "Fit to screen" : "Actual size"}
+          label={zoomed ? t("workflow.fit") : t("attachments.actualSize")}
           onClick={onToggleZoom}
         />
       )}
 
       <PreviewAction
         icon={DownloadIcon}
-        label="Download"
+        label={t("attachments.download")}
         busy={download.isPending}
         onClick={() =>
           download.mutate({
@@ -184,7 +187,11 @@ function Header({
         }
       />
 
-      <PreviewAction icon={XIcon} label="Close preview" onClick={onClose} />
+      <PreviewAction
+        icon={XIcon}
+        label={t("attachments.closePreview")}
+        onClick={onClose}
+      />
     </header>
   );
 }
@@ -220,6 +227,7 @@ function PreviewAction({
 }
 
 function Fallback({ attachment }: { attachment: Attachment }) {
+  const { t } = useTranslation();
   const download = useDownloadAttachment();
   const Icon = KIND_ICONS[fileKind(attachment.mime_type, attachment.filename)];
 
@@ -240,9 +248,7 @@ function Fallback({ attachment }: { attachment: Attachment }) {
         {attachment.mime_type} · {formatBytes(attachment.size_bytes)}
       </p>
 
-      <p className="text-ink-3 text-meta mt-4">
-        This file type can&rsquo;t be previewed here.
-      </p>
+      <p className="text-ink-3 text-meta mt-4">{t("attachments.noPreview")}</p>
 
       <button
         type="button"
@@ -261,7 +267,9 @@ function Fallback({ attachment }: { attachment: Attachment }) {
         ) : (
           <DownloadIcon className="size-3.5" />
         )}
-        {download.isPending ? "Preparing…" : "Download"}
+        {download.isPending
+          ? t("attachments.preparing")
+          : t("attachments.download")}
       </button>
     </div>
   );

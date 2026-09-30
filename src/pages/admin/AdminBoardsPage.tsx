@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 
 import AdminShell from "@/components/admin/AdminShell";
@@ -17,6 +18,7 @@ const COLUMNS =
   "minmax(12rem,2fr) minmax(8rem,1fr) repeat(5, minmax(5rem,0.8fr)) 7rem";
 
 export default function AdminBoardsPage() {
+  const { t } = useTranslation();
   const { period } = useAdminPeriod();
   const navigate = useNavigate();
   const { data, isFetching, error } = useAdminBoards(period);
@@ -25,45 +27,48 @@ export default function AdminBoardsPage() {
 
   return (
     <AdminShell
-      title="Boards"
+      title={t("boards.title")}
       hint={
         data
-          ? `${boards.length} boards · ${rangeLabel(data.from, data.to)}`
-          : "Every board"
+          ? t("admin.boards.hint", {
+              count: boards.length,
+              range: rangeLabel(data.from, data.to),
+            })
+          : t("admin.allBoards")
       }
       busy={isFetching}
     >
       {error ? (
-        <AdminEmpty>That did not load. Try again.</AdminEmpty>
+        <AdminEmpty>{t("admin.loadFailedRetry")}</AdminEmpty>
       ) : !data ? (
         <AdminSkeleton />
       ) : (
-        <AdminGrid columns={COLUMNS} label="Boards and their aggregates">
+        <AdminGrid columns={COLUMNS} label={t("admin.boards.gridLabel")}>
           <AdminRow header>
-            <AdminCell header>Board</AdminCell>
-            <AdminCell header>Owner</AdminCell>
+            <AdminCell header>{t("sidebar.board")}</AdminCell>
+            <AdminCell header>{t("roles.owner")}</AdminCell>
             <AdminCell header align="right">
-              Members
+              {t("board.members")}
             </AdminCell>
             <AdminCell header align="right">
-              Open
+              {t("admin.columns.open")}
             </AdminCell>
             <AdminCell header align="right">
-              Done
+              {t("columnCategory.done")}
             </AdminCell>
             <AdminCell header align="right">
-              Points
+              {t("admin.columns.points")}
             </AdminCell>
             <AdminCell header align="right">
-              Comments
+              {t("taskActivity.comments")}
             </AdminCell>
             <AdminCell header align="right">
-              Last seen
+              {t("admin.columns.lastSeen")}
             </AdminCell>
           </AdminRow>
 
           {boards.length === 0 ? (
-            <AdminEmpty>No boards yet.</AdminEmpty>
+            <AdminEmpty>{t("sidebar.noBoardsYet")}</AdminEmpty>
           ) : (
             boards.map((board) => (
               <AdminRow
@@ -74,7 +79,7 @@ export default function AdminBoardsPage() {
               >
                 <AdminCell>
                   <span className="text-ink font-medium">
-                    {board.title ?? "Untitled board"}
+                    {board.title ?? t("common.untitledBoard")}
                   </span>
                 </AdminCell>
 
@@ -93,7 +98,9 @@ export default function AdminBoardsPage() {
                   {board.unestimated_completed > 0 && (
                     <span
                       className="text-ink-3 text-micro ml-1"
-                      title={`${board.unestimated_completed} completed with no estimate`}
+                      title={t("admin.unestimatedCompleted", {
+                        count: board.unestimated_completed,
+                      })}
                     >
                       +{board.unestimated_completed}?
                     </span>

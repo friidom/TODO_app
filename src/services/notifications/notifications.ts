@@ -1,3 +1,6 @@
+import i18n, { translated } from "@/components/i18n";
+import { roleLabel } from "@/components/members/roleStyles";
+
 // Pure inbox logic — which tab a row belongs to, where clicking it goes, how many are unread.
 // payload carries titles as they were when the event happened, so a notification still reads right after the board's renamed or the card's gone.
 
@@ -27,11 +30,11 @@ export const NOTIFICATION_TABS = ["all", "invite", "assigned"] as const;
 
 export type NotificationTab = (typeof NOTIFICATION_TABS)[number];
 
-export const NOTIFICATION_TAB_LABELS: Record<NotificationTab, string> = {
-  all: "All",
-  invite: "Invitations",
-  assigned: "Assignments",
-};
+export const NOTIFICATION_TAB_LABELS = translated<NotificationTab>({
+  all: "notifications.tabs.all",
+  invite: "notifications.tabs.invite",
+  assigned: "notifications.tabs.assigned",
+});
 
 export function isNotificationTab(
   value: string | null,
@@ -78,20 +81,26 @@ export function notificationText(notification: Notification): {
   title: string;
   detail: string;
 } {
-  const actor = notification.payload.actor_name || "Someone";
-  const board = notification.payload.board_title || "a board";
+  const actor = notification.payload.actor_name || i18n.t("presence.someone");
+  const board =
+    notification.payload.board_title || i18n.t("notifications.aBoard");
 
   if (notification.type === "invite") {
     return {
-      title: `${actor} invited you to ${board}`,
+      title: i18n.t("notifications.invited", { actor, board }),
       detail: notification.payload.role
-        ? `As ${notification.payload.role}`
-        : "Board invitation",
+        ? i18n.t("notifications.asRole", {
+            role: roleLabel(notification.payload.role).toLowerCase(),
+          })
+        : i18n.t("notifications.boardInvitation"),
     };
   }
 
   return {
-    title: `${actor} assigned you ${notification.payload.todo_title || "a task"}`,
+    title: i18n.t("notifications.assigned", {
+      actor,
+      task: notification.payload.todo_title || i18n.t("notifications.aTask"),
+    }),
     detail: board,
   };
 }

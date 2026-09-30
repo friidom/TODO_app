@@ -1,3 +1,5 @@
+import i18n from "@/components/i18n";
+import { useTranslation } from "react-i18next";
 import { useEffect, useId, useRef, useState } from "react";
 import { Loader2, Search, X } from "lucide-react";
 
@@ -17,6 +19,7 @@ export default function InviteeCombobox({
   onChange: (invitee: Invitee | null) => void;
   disabled?: boolean;
 }) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   // -1 means "none", not "the first"
@@ -147,7 +150,7 @@ export default function InviteeCombobox({
           }}
           onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}
-          placeholder="Search people by name or email"
+          placeholder={t("invites.searchPeople")}
           role="combobox"
           aria-expanded={open}
           aria-controls={listId}
@@ -167,18 +170,19 @@ export default function InviteeCombobox({
         <ul
           id={listId}
           role="listbox"
-          className="border-hairline bg-elevated absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border py-1 shadow-e2"
+          className="border-hairline bg-elevated shadow-e2 absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border py-1"
         >
           {error ? (
             <li className="text-status-red px-3 py-2.5 text-sm">
-              Could not search people. Try again.
+              {t("invites.searchFailed")}
             </li>
           ) : searching && !results.length ? (
-            <li className="text-ink-3 px-3 py-2.5 text-sm">Searching…</li>
+            <li className="text-ink-3 px-3 py-2.5 text-sm">
+              {t("invites.searching")}
+            </li>
           ) : showEmpty ? (
             <li className="text-ink-3 px-3 py-2.5 text-sm">
-              No users found. Only people with an account can be invited for now
-              — share a link instead.
+              {t("invites.noUsers")}
             </li>
           ) : (
             results.map((invitee, index) => (
@@ -221,7 +225,12 @@ export default function InviteeCombobox({
 }
 
 function displayName(invitee: Invitee) {
-  return invitee.full_name || invitee.username || invitee.email || "Unnamed";
+  return (
+    invitee.full_name ||
+    invitee.username ||
+    invitee.email ||
+    i18n.t("members.unnamed")
+  );
 }
 
 function Avatar({ invitee }: { invitee: Invitee }) {

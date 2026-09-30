@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { ListTreeIcon, PlusIcon } from "lucide-react";
 
@@ -30,6 +31,7 @@ const SUBTASK_GRID =
   "grid items-center gap-x-2 px-3 grid-cols-[3.75rem_minmax(0,1fr)_1.5rem_1.5rem_7.5rem]";
 
 export default function SubtasksSection({ todo }: { todo: Todo }) {
+  const { t } = useTranslation();
   const { subtasks, progress, isPending } = useSubtasks(todo.id);
   const { canEditTodos } = usePermissions();
 
@@ -39,17 +41,17 @@ export default function SubtasksSection({ todo }: { todo: Todo }) {
   return (
     <section>
       <SectionHeader
-        title="Subtasks"
+        title={t("subtasks.title")}
         count={progress.total > 0 ? `${progress.done}/${progress.total}` : null}
         collapse={{
           collapsed,
           onToggle: () => setCollapsed((open) => !open),
-          noun: "subtasks",
+          noun: t("subtasks.title"),
         }}
         actions={
           canEditTodos && (
             <IconButton
-              label="Add subtask"
+              label={t("subtasks.add")}
               onClick={() => {
                 setCollapsed(false);
                 setAdding(true);
@@ -68,7 +70,10 @@ export default function SubtasksSection({ todo }: { todo: Todo }) {
           aria-valuenow={progress.done}
           aria-valuemin={0}
           aria-valuemax={progress.total}
-          aria-label={`${progress.done} of ${progress.total} subtasks done`}
+          aria-label={t("subtasks.progress", {
+            done: progress.done,
+            count: progress.total,
+          })}
         >
           <div
             style={{ width: `${progress.percent}%` }}
@@ -88,26 +93,30 @@ export default function SubtasksSection({ todo }: { todo: Todo }) {
           ) : subtasks.length === 0 && !adding ? (
             <EmptyLine icon={ListTreeIcon}>
               <span>
-                No subtasks yet.
-                {canEditTodos && " Break this task down with the + above."}
+                {t("subtasks.empty")}
+                {canEditTodos && ` ${t("subtasks.emptyHint")}`}
               </span>
             </EmptyLine>
           ) : (
             subtasks.length > 0 && (
-              <div role="table" aria-label="Subtasks" className={TABLE}>
+              <div
+                role="table"
+                aria-label={t("subtasks.title")}
+                className={TABLE}
+              >
                 <div role="row" className={cn(SUBTASK_GRID, TABLE_HEAD)}>
-                  <span role="columnheader">Work</span>
+                  <span role="columnheader">{t("fields.work")}</span>
                   <span role="columnheader">
                     {/* sr-only on the span, not the grid item, or it'd drop out of the grid */}
-                    <span className="sr-only">Title</span>
+                    <span className="sr-only">{t("fields.title")}</span>
                   </span>
                   <span role="columnheader">
-                    <span className="sr-only">Priority</span>
+                    <span className="sr-only">{t("fields.priority")}</span>
                   </span>
                   <span role="columnheader">
-                    <span className="sr-only">Assignee</span>
+                    <span className="sr-only">{t("fields.assignee")}</span>
                   </span>
-                  <span role="columnheader">Status</span>
+                  <span role="columnheader">{t("fields.status")}</span>
                 </div>
 
                 {subtasks.map((subtask) => (
@@ -131,6 +140,7 @@ export default function SubtasksSection({ todo }: { todo: Todo }) {
 }
 
 function SubtaskRow({ subtask }: { subtask: Todo }) {
+  const { t } = useTranslation();
   const { openTask } = useOpenTask();
   const patch = useTodoPatch(subtask);
   const { canEditTodos } = usePermissions();
@@ -146,7 +156,7 @@ function SubtaskRow({ subtask }: { subtask: Todo }) {
           <button
             type="button"
             onClick={() => openTask(subtask.id)}
-            title={`Open ${key}`}
+            title={t("list.open", { key })}
             className="text-ink-3 hover:text-brand focus-visible:ring-brand text-mini block truncate rounded font-medium tabular-nums transition-colors outline-none focus-visible:ring-2"
           >
             {key}
@@ -164,7 +174,9 @@ function SubtaskRow({ subtask }: { subtask: Todo }) {
           title={subtask.title ?? undefined}
           className="text-ink hover:text-brand focus-visible:ring-brand text-meta block w-full truncate rounded text-left font-medium transition-colors outline-none focus-visible:ring-2"
         >
-          {subtask.title || <span className="text-ink-3">Untitled</span>}
+          {subtask.title || (
+            <span className="text-ink-3">{t("common.untitled")}</span>
+          )}
         </button>
       </div>
 
@@ -200,6 +212,7 @@ function AddSubtaskRow({
   onDone: () => void;
   hasRows: boolean;
 }) {
+  const { t } = useTranslation();
   const [title, setTitle] = useState("");
   const add = useAddSubtask();
   const { data: statuses = [] } = useStatuses();
@@ -252,8 +265,8 @@ function AddSubtaskRow({
           }
         }}
         onBlur={submit}
-        placeholder="What needs doing?"
-        aria-label="Subtask title"
+        placeholder={t("list.newItemPlaceholder")}
+        aria-label={t("subtasks.itemTitle")}
         className={cn(
           TEXT_FIELD,
           "rounded-control h-8 min-w-0 flex-1 px-2.5 text-sm",
@@ -266,7 +279,7 @@ function AddSubtaskRow({
         onMouseDown={onDone}
         className={cn(INLINE_ACTION, "py-1 text-xs")}
       >
-        Done
+        {t("common.done")}
       </button>
     </div>
   );

@@ -1,4 +1,5 @@
 import { NavLink, useLocation } from "react-router";
+import { useTranslation } from "react-i18next";
 import {
   CircleUserIcon,
   CircleUserRoundIcon,
@@ -24,35 +25,41 @@ import { useAuth } from "@/services/auth/useAuth";
 import { useProfile } from "@/services/profile/useProfile";
 
 type Item = {
-  label: string;
+  labelKey: string;
   icon: LucideIcon;
   // present only when a route exists — absent means placeholder
   to?: string;
 };
 
 const WORKSPACE: Item[] = [
-  { label: "For You", icon: CircleUserRoundIcon, to: "/" },
+  { labelKey: "sidebar.forYou", icon: CircleUserRoundIcon, to: "/" },
   // { label: "Dashboard", icon: SquareKanbanIcon },
 ];
 
-const ADMIN: Item = { label: "Superadmin", icon: ShieldIcon, to: "/admin" };
+const ADMIN: Item = {
+  labelKey: "sidebar.superadmin",
+  icon: ShieldIcon,
+  to: "/admin",
+};
 
 function NavItem({ item }: { item: Item }) {
+  const { t } = useTranslation();
   const Icon = item.icon;
   const location = useLocation();
+  const label = t(item.labelKey);
 
   if (!item.to) {
     return (
       <SidebarMenuItem>
         <SidebarMenuButton
           aria-disabled
-          title={`${item.label} — not built yet`}
+          title={t("sidebar.notBuilt", { name: label })}
           className="cursor-default"
         >
           <Icon />
-          <span>{item.label}</span>
+          <span>{label}</span>
           <span className="bg-wash-strong text-micro ml-auto rounded px-1.5 py-0.5 font-medium">
-            Soon
+            {t("sidebar.soon")}
           </span>
         </SidebarMenuButton>
       </SidebarMenuItem>
@@ -66,13 +73,14 @@ function NavItem({ item }: { item: Item }) {
     <SidebarMenuItem>
       <SidebarMenuButton render={<NavLink to={item.to} />} isActive={isActive}>
         <Icon />
-        <span>{item.label}</span>
+        <span>{label}</span>
       </SidebarMenuButton>
     </SidebarMenuItem>
   );
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { t } = useTranslation();
   const { data: profile } = useProfile();
   const { user } = useAuth();
 
@@ -96,7 +104,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarGroup>
           <SidebarMenu>
             {WORKSPACE.map((item) => (
-              <NavItem key={item.label} item={item} />
+              <NavItem key={item.labelKey} item={item} />
             ))}
 
             {user?.org_role === "superadmin" && <NavItem item={ADMIN} />}
@@ -114,7 +122,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <div className="flex items-center">
           <NavLink
             to="/profile"
-            title="Profile and preferences"
+            title={t("sidebar.profile")}
             className="hover:bg-wash focus-visible:ring-brand rounded-control flex min-w-0 flex-1 items-center gap-2.5 p-1.5 transition-colors duration-150 outline-none focus-visible:ring-2"
           >
             {profile?.avatar_url ? (
@@ -131,7 +139,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
             <span className="min-w-0 flex-1">
               <span className="text-ink text-meta block truncate font-medium">
-                {profile?.username || "Account"}
+                {profile?.username || t("sidebar.account")}
               </span>
               <span className="text-ink-3 text-mini block truncate">
                 {user?.email}

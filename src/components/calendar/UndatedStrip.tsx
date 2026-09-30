@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useDroppable } from "@dnd-kit/core";
 import { CalendarOffIcon, PanelRightCloseIcon } from "lucide-react";
 
@@ -23,6 +24,7 @@ export default function UndatedStrip({
   onToggle: () => void;
   onOpenTask: (id: string) => void;
 }) {
+  const { t } = useTranslation();
   // registered even while collapsed — dnd-kit measures drop targets at drag start, so one that appears mid-drag never gets picked up
   const { setNodeRef, isOver } = useDroppable({
     id: "undated",
@@ -41,8 +43,8 @@ export default function UndatedStrip({
         <button
           type="button"
           onClick={onToggle}
-          title={`No due date — ${todos.length}`}
-          aria-label={`Show undated work items (${todos.length})`}
+          title={t("calendar.undatedCount", { count: todos.length })}
+          aria-label={t("calendar.showUndated", { count: todos.length })}
           className="text-ink-3 hover:text-ink hover:bg-ink/[0.06] focus-visible:ring-brand rounded-control grid size-7 place-items-center transition-colors outline-none focus-visible:ring-2"
         >
           <CalendarOffIcon className="size-4" />
@@ -67,7 +69,7 @@ export default function UndatedStrip({
         <CalendarOffIcon className="text-ink-3 size-3.5 shrink-0" />
 
         <h3 className="text-ink min-w-0 flex-1 truncate text-xs font-semibold">
-          No due date
+          {t("due.none")}
         </h3>
 
         <span className="text-ink-3 text-mini shrink-0 tabular-nums">
@@ -77,7 +79,7 @@ export default function UndatedStrip({
         <button
           type="button"
           onClick={onToggle}
-          aria-label="Hide undated work items"
+          aria-label={t("calendar.hideUndated")}
           className="text-ink-3 hover:text-ink hover:bg-ink/[0.06] focus-visible:ring-brand rounded-control grid size-5 shrink-0 place-items-center transition-colors outline-none focus-visible:ring-2"
         >
           <PanelRightCloseIcon className="size-3.5" />
@@ -87,9 +89,7 @@ export default function UndatedStrip({
       <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-1.5">
         {todos.length === 0 ? (
           <p className="text-ink-3 text-mini px-2 py-8 text-center">
-            {canEdit
-              ? "Drag a work item here to clear its due date."
-              : "Everything here has a due date."}
+            {canEdit ? t("calendar.dragToClear") : t("calendar.allDated")}
           </p>
         ) : (
           todos.map((todo) => (

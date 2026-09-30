@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useMemo, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router";
 import { FilterIcon } from "lucide-react";
@@ -35,6 +36,7 @@ export default function FilterPage() {
 }
 
 function Filter({ id }: { id: FilterId }) {
+  const { t } = useTranslation();
   const definition = FILTER_DEFINITIONS[id];
 
   const { user } = useAuth();
@@ -97,7 +99,7 @@ function Filter({ id }: { id: FilterId }) {
             <SidebarTrigger className="coarse:size-9 text-ink-3 hover:text-ink shrink-0 md:hidden" />
 
             <h1 className="text-ink text-base font-semibold tracking-tight">
-              {definition.label}
+              {t(definition.labelKey)}
             </h1>
 
             {!busy && (
@@ -116,8 +118,8 @@ function Filter({ id }: { id: FilterId }) {
           ) : items.length === 0 ? (
             <EmptyState
               icon={FilterIcon}
-              title="Nothing here yet"
-              hint={`No work items match “${definition.label}”.`}
+              title={t("filters.emptyTitle")}
+              hint={t("filters.emptyHint", { name: t(definition.labelKey) })}
             />
           ) : (
             <ul className="border-hairline bg-surface rounded-card divide-ink/[0.06] divide-y overflow-hidden border">

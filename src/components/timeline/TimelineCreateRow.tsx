@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { PlusIcon } from "lucide-react";
 
 import { placeItem, type TimelineScale } from "@/services/views/timeline";
@@ -19,8 +20,8 @@ export default function TimelineCreateRow({
   onBegin,
   onSubmit,
   onCancel,
-  label = "Create task",
-  placeholder = "What needs to be done?",
+  label,
+  placeholder,
   indent = false,
 }: {
   ticks: string[];
@@ -37,6 +38,7 @@ export default function TimelineCreateRow({
   placeholder?: string;
   indent?: boolean;
 }) {
+  const { t } = useTranslation();
   const range = pending ?? draft;
   const place = range ? placeItem(range, ticks, scale) : null;
 
@@ -73,7 +75,7 @@ export default function TimelineCreateRow({
               onBlur={(event) => {
                 if (!event.currentTarget.value.trim()) onCancel();
               }}
-              placeholder={placeholder}
+              placeholder={placeholder ?? t("kanban.itemPlaceholder")}
               className="text-ink placeholder:text-ink-3 min-w-0 flex-1 bg-transparent text-xs outline-none"
             />
 
@@ -89,7 +91,9 @@ export default function TimelineCreateRow({
             className="text-ink-3 hover:text-ink focus-visible:ring-brand text-mini -mx-1 flex min-w-0 flex-1 items-center gap-1.5 rounded px-1 text-left font-medium transition-colors outline-none focus-visible:ring-2 disabled:opacity-50"
           >
             <PlusIcon className="size-3.5 shrink-0" />
-            <span className="truncate">{label}</span>
+            <span className="truncate">
+              {label ?? t("timeline.createTask")}
+            </span>
           </button>
         )}
       </div>

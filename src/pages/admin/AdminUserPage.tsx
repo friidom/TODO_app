@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useMemo } from "react";
 import { Link, useParams } from "react-router";
 
@@ -40,6 +41,7 @@ import { taskKey } from "@/utils/taskKey";
 import type { BoardShare, RecentCompletion } from "@/services/admin/types";
 
 export default function AdminUserPage() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const { period } = useAdminPeriod();
   const { scope, setScope } = useAdminScope();
@@ -53,9 +55,9 @@ export default function AdminUserPage() {
     () =>
       (boards.data?.boards ?? []).map((board) => ({
         id: board.id,
-        label: board.title ?? "Untitled board",
+        label: board.title ?? t("common.untitledBoard"),
       })),
-    [boards.data],
+    [boards.data, t],
   );
 
   const spaceOptions = useMemo(
@@ -81,13 +83,12 @@ export default function AdminUserPage() {
 
   if (error || (!data && !isLoading)) {
     return (
-      <AdminShell title="Developer">
+      <AdminShell title={t("admin.columns.developer")}>
         <AdminEmpty>
-          That developer could not be loaded.{" "}
+          {t("admin.user.loadFailed")}{" "}
           <Link to="/admin/users" className="text-brand">
-            Back to the list
+            {t("admin.user.backToList")}
           </Link>
-          .
         </AdminEmpty>
       </AdminShell>
     );
@@ -95,7 +96,7 @@ export default function AdminUserPage() {
 
   if (!data) {
     return (
-      <AdminShell title="Developer">
+      <AdminShell title={t("admin.columns.developer")}>
         <AdminSkeleton />
       </AdminShell>
     );
@@ -124,27 +125,40 @@ export default function AdminUserPage() {
       <div className="flex flex-col gap-4">
         <div className="grid gap-4 xl:grid-cols-[1fr_22rem]">
           <SummaryCard
-            title="This period"
-            hint="Counted from rows, not configured"
+            title={t("admin.user.thisPeriod")}
+            hint={t("admin.user.thisPeriodHint")}
           >
             <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 px-3.5 pt-1 pb-3.5 sm:grid-cols-3">
               <Fact
-                label="Completed tasks"
+                label={t("admin.metrics.completedTasks")}
                 value={dash(user.completed_todos)}
               />
               <Fact
-                label="Completed points"
+                label={t("admin.metrics.completedPoints")}
                 value={dash(user.completed_points)}
                 aside={
                   user.unestimated_completed > 0
-                    ? `${user.unestimated_completed} unestimated`
+                    ? t("admin.unestimatedCount", {
+                        count: user.unestimated_completed,
+                      })
                     : undefined
                 }
               />
-              <Fact label="Comments" value={dash(user.comments)} />
-              <Fact label="Activity events" value={dash(user.activities)} />
-              <Fact label="Boards" value={dash(user.boards)} />
-              <Fact label="Level" value={user.seniority ?? "—"} />
+              <Fact
+                label={t("taskActivity.comments")}
+                value={dash(user.comments)}
+              />
+              <Fact
+                label={t("admin.metrics.activityEvents")}
+                value={dash(user.activities)}
+              />
+              <Fact label={t("boards.title")} value={dash(user.boards)} />
+              <Fact
+                label={t("admin.level")}
+                value={
+                  user.seniority ? t(`admin.seniority.${user.seniority}`) : "—"
+                }
+              />
             </dl>
           </SummaryCard>
 
@@ -154,13 +168,13 @@ export default function AdminUserPage() {
         <BarSeries
           points={data.series}
           bucket={data.bucket}
-          title="This developer over time"
+          title={t("admin.user.overTime")}
           note={backfillNote(data.from)}
         />
 
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
           <h2 className="text-ink text-xs font-semibold tracking-tight">
-            How long their work takes
+            {t("admin.user.howLong")}
           </h2>
 
           {/* A comparison, and named as one: /admin/flow has no person facet
@@ -170,7 +184,7 @@ export default function AdminUserPage() {
             to={`/admin/flow?period=${period}${scopeQuery(scope)}`}
             className="text-ink-3 hover:text-brand text-mini transition-colors"
           >
-            Compare with system flow →
+            {t("admin.user.compare")}
           </Link>
         </div>
 
@@ -182,8 +196,8 @@ export default function AdminUserPage() {
           />
 
           <Histogram
-            title="Their cycle time distribution"
-            hint="Where this person's tail is, not just their median"
+            title={t("admin.user.histogramTitle")}
+            hint={t("admin.user.histogramHint")}
             bins={data.cycle_histogram}
             stats={data.cycle_time}
             className="xl:col-span-2"
@@ -240,6 +254,7 @@ function BoardSplit({
   shares: BoardShare[];
   period: string;
 }) {
+  const { t } = useTranslation();
   const peak = peakOf(
     shares.map((share) => ({ count: share.completed_todos })),
   );
@@ -247,11 +262,11 @@ function BoardSplit({
 
   return (
     <SummaryCard
-      title="Where the work happened"
-      hint="Completed tasks by board, for this period"
+      title={t("admin.user.whereTitle")}
+      hint={t("admin.user.whereHint")}
     >
       {shares.length === 0 ? (
-        <WidgetEmpty>Nothing completed in this period.</WidgetEmpty>
+        <WidgetEmpty>{t("admin.user.nothingCompleted")}</WidgetEmpty>
       ) : (
         <div className="flex flex-col gap-2 px-3.5 pb-3.5">
           {shares.map((share) => (
@@ -262,10 +277,10 @@ function BoardSplit({
                   to={`/admin/boards/${share.board_id}?period=${period}`}
                   className="hover:text-brand min-w-0 truncate transition-colors"
                 >
-                  {share.title ?? "Untitled board"}
+                  {share.title ?? t("common.untitledBoard")}
                 </Link>
               }
-              title={share.title ?? "Untitled board"}
+              title={share.title ?? t("common.untitledBoard")}
               count={share.completed_todos}
               percent={barShare(share.completed_todos, peak)}
               share={proportionOf(share.completed_todos, total)}
@@ -290,15 +305,17 @@ function RecentWork({
   onOpen: (todoId: string) => void;
   activityHref: string;
 }) {
+  const { t } = useTranslation();
+
   return (
     <section className="flex flex-col gap-2">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-ink text-xs font-semibold tracking-tight">
-            Recently completed
+            {t("admin.user.recentTitle")}
           </h2>
           <p className="text-ink-3 text-mini mt-0.5">
-            The latest work credited to this person in the selected period
+            {t("admin.user.recentHint")}
           </p>
         </div>
 
@@ -306,25 +323,25 @@ function RecentWork({
           to={activityHref}
           className="text-ink-3 hover:text-brand text-mini shrink-0 transition-colors"
         >
-          See their activity →
+          {t("admin.user.seeActivity")}
         </Link>
       </div>
 
-      <AdminGrid columns={RECENT_COLUMNS} label="Recently completed work">
+      <AdminGrid columns={RECENT_COLUMNS} label={t("admin.user.recentLabel")}>
         <AdminRow header>
-          <AdminCell header>Key</AdminCell>
-          <AdminCell header>Title</AdminCell>
-          <AdminCell header>Board</AdminCell>
+          <AdminCell header>{t("boards.key")}</AdminCell>
+          <AdminCell header>{t("fields.title")}</AdminCell>
+          <AdminCell header>{t("sidebar.board")}</AdminCell>
           <AdminCell header align="right">
-            Points
+            {t("admin.columns.points")}
           </AdminCell>
           <AdminCell header align="right">
-            Cycle
+            {t("admin.columns.cycle")}
           </AdminCell>
         </AdminRow>
 
         {rows.length === 0 ? (
-          <AdminEmpty>Nothing completed in this period.</AdminEmpty>
+          <AdminEmpty>{t("admin.user.nothingCompleted")}</AdminEmpty>
         ) : (
           rows.map((row) => (
             <AdminRow key={row.id} onOpen={() => onOpen(row.id)}>
@@ -339,13 +356,13 @@ function RecentWork({
                   className="text-ink truncate"
                   title={row.title ?? undefined}
                 >
-                  {row.title ?? "Untitled"}
+                  {row.title ?? t("common.untitled")}
                 </span>
               </AdminCell>
 
               <AdminCell>
                 <span className="text-ink-3 truncate">
-                  {row.board_title ?? "Untitled board"}
+                  {row.board_title ?? t("common.untitledBoard")}
                 </span>
               </AdminCell>
 

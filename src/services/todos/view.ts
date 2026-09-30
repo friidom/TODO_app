@@ -1,3 +1,4 @@
+import i18n, { translated } from "@/components/i18n";
 import { memberName } from "@/components/members/memberLabels";
 import {
   PRIORITIES,
@@ -5,7 +6,11 @@ import {
   priorityRank,
   toPriority,
 } from "@/constants/priorities";
-import { WORK_TYPE_OPTIONS, toWorkType } from "@/constants/workTypes";
+import {
+  WORK_TYPE_LABELS,
+  WORK_TYPE_OPTIONS,
+  toWorkType,
+} from "@/constants/workTypes";
 import type { BoardMember } from "@/services/members/membersApi";
 import { columnIdOf, type WorkflowModel } from "@/services/workflow/statuses";
 import type { IStatus, Todo } from "@/types/data";
@@ -28,13 +33,13 @@ export const FILTER_CATEGORIES = [
 
 export type FilterCategory = (typeof FILTER_CATEGORIES)[number];
 
-export const FILTER_LABELS: Record<FilterCategory, string> = {
-  assignee: "Assignee",
-  status: "Status",
-  type: "Work type",
-  priority: "Priority",
-  due: "Due date",
-};
+export const FILTER_LABELS = translated<FilterCategory>({
+  assignee: "fields.assignee",
+  status: "fields.status",
+  type: "fields.workType",
+  priority: "fields.priority",
+  due: "fields.dueDate",
+});
 
 // an empty array means the category is off, not that it excludes everything
 export type TodoFilters = Record<FilterCategory, string[]>;
@@ -55,12 +60,12 @@ export const DUE_BUCKETS = ["none", "overdue", "today", "upcoming"] as const;
 
 export type DueBucket = (typeof DUE_BUCKETS)[number];
 
-export const DUE_LABELS: Record<DueBucket, string> = {
-  none: "No due date",
-  overdue: "Overdue",
-  today: "Due today",
-  upcoming: "Upcoming",
-};
+export const DUE_LABELS = translated<DueBucket>({
+  none: "due.none",
+  overdue: "due.overdue",
+  today: "due.today",
+  upcoming: "due.upcoming",
+});
 
 export function countFilters(filters: TodoFilters): number {
   return FILTER_CATEGORIES.reduce(
@@ -188,15 +193,15 @@ export const SORT_KEYS = [
 export type SortKey = (typeof SORT_KEYS)[number];
 export type SortDir = "asc" | "desc";
 
-export const SORT_LABELS: Record<SortKey, string> = {
-  manual: "Manual",
-  due: "Due date",
-  created: "Created",
-  updated: "Updated",
-  completed: "Completed",
-  priority: "Priority",
-  title: "Title",
-};
+export const SORT_LABELS = translated<SortKey>({
+  manual: "sort.manual",
+  due: "fields.dueDate",
+  created: "fields.created",
+  updated: "fields.updated",
+  completed: "fields.completed",
+  priority: "fields.priority",
+  title: "fields.title",
+});
 
 // due dates compare fine as plain YYYY-MM-DD strings since the format is fixed-width and big-endian
 function sortValue(todo: Todo, key: SortKey): string | number | null {
@@ -281,13 +286,13 @@ export const GROUP_KEYS = [
 
 export type GroupKey = (typeof GROUP_KEYS)[number];
 
-export const GROUP_LABELS: Record<GroupKey, string> = {
-  none: "None",
-  status: "Status",
-  assignee: "Assignee",
-  type: "Work type",
-  priority: "Priority",
-};
+export const GROUP_LABELS = translated<GroupKey>({
+  none: "group.none",
+  status: "fields.status",
+  assignee: "fields.assignee",
+  type: "fields.workType",
+  priority: "fields.priority",
+});
 
 // status and none are excluded — the board already is a grouping by status, through the columns that show them
 export function isSwimlaneGroup(group: GroupKey): boolean {
@@ -353,7 +358,11 @@ export function groupTodos(
     const orphans = buckets.get(UNSET);
 
     if (orphans?.length) {
-      groups.push({ key: UNSET, label: "No status", todos: orphans });
+      groups.push({
+        key: UNSET,
+        label: i18n.t("status.none"),
+        todos: orphans,
+      });
     }
 
     return groups;
@@ -378,7 +387,7 @@ export function groupTodos(
       .filter((key) => key !== UNSET && !known.has(key))
       .map((key) => ({
         key,
-        label: "Former member",
+        label: i18n.t("members.former"),
         todos: buckets.get(key) ?? [],
       }));
 
@@ -388,7 +397,13 @@ export function groupTodos(
       ...named,
       ...former,
       ...(unassigned?.length
-        ? [{ key: UNSET, label: "Unassigned", todos: unassigned }]
+        ? [
+            {
+              key: UNSET,
+              label: i18n.t("members.unassigned"),
+              todos: unassigned,
+            },
+          ]
         : []),
     ];
   }
@@ -397,7 +412,11 @@ export function groupTodos(
     const buckets = bucketBy(todos, (todo) => toWorkType(todo.type));
 
     return WORK_TYPE_OPTIONS.filter((type) => buckets.get(type)?.length).map(
-      (type) => ({ key: type, label: type, todos: buckets.get(type) ?? [] }),
+      (type) => ({
+        key: type,
+        label: WORK_TYPE_LABELS[type],
+        todos: buckets.get(type) ?? [],
+      }),
     );
   }
 
@@ -416,7 +435,7 @@ export function groupTodos(
   return [
     ...ranked,
     ...(unset?.length
-      ? [{ key: UNSET, label: "No priority", todos: unset }]
+      ? [{ key: UNSET, label: i18n.t("priority.none"), todos: unset }]
       : []),
   ];
 }

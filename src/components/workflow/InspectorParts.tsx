@@ -22,6 +22,8 @@ export function InspectorHeader({
   children: ReactNode;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div className="border-hairline flex items-start gap-2 border-b px-3 py-2.5">
       <div className="min-w-0 flex-1">
@@ -32,7 +34,11 @@ export function InspectorHeader({
         <div className="mt-1 flex min-w-0 items-center gap-1.5">{children}</div>
       </div>
 
-      <IconButton label="Close details" size="xs" onClick={onClose}>
+      <IconButton
+        label={t("workflow.closeDetails")}
+        size="xs"
+        onClick={onClose}
+      >
         <XIcon />
       </IconButton>
     </div>
@@ -151,7 +157,7 @@ export function CategoryPicker({
       />
 
       <select
-        aria-label="Status category"
+        aria-label={t("column.statusCategory")}
         value={value}
         onChange={(event) => onChange(event.target.value as ColumnCategory)}
         className={cn(SELECT, "pl-7")}

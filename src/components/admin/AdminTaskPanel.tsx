@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { XIcon } from "lucide-react";
 
@@ -5,8 +6,16 @@ import Modal from "@/components/ui/Modal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { COLUMN_CATEGORIES } from "@/constants/columns";
 import { PRIORITIES } from "@/constants/priorities";
-import { WORK_TYPES } from "@/constants/workTypes";
-import { actionLabel, formatDuration, LOCALE } from "@/services/admin/format";
+import {
+  WORK_TYPE_LABELS,
+  WORK_TYPES,
+  toWorkType,
+} from "@/constants/workTypes";
+import {
+  actionLabel,
+  adminLocale,
+  formatDuration,
+} from "@/services/admin/format";
 import { useAdminTodo } from "@/services/admin/useAdmin";
 import type { AdminActivityRow } from "@/services/admin/types";
 import { cn } from "@/utils/cn";
@@ -20,12 +29,13 @@ export default function AdminTaskPanel({
   todoId: string;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const { data, error, isLoading } = useAdminTodo(todoId);
   const todo = data?.todo;
 
   const key = todo
-    ? (taskKey(todo.key_prefix, todo.board_key) ?? "Task")
-    : "Task";
+    ? (taskKey(todo.key_prefix, todo.board_key) ?? t("workType.task"))
+    : t("workType.task");
 
   return (
     <Modal title={key} onClose={onClose} width="w-[30rem]">
@@ -38,7 +48,7 @@ export default function AdminTaskPanel({
             <Skeleton className="mt-1.5 h-5 w-64" />
           ) : (
             <h2 className="text-ink mt-0.5 text-sm leading-snug font-semibold">
-              {todo?.title ?? "Untitled"}
+              {todo?.title ?? t("common.untitled")}
             </h2>
           )}
         </div>
@@ -46,7 +56,7 @@ export default function AdminTaskPanel({
         <button
           type="button"
           onClick={onClose}
-          aria-label="Close"
+          aria-label={t("common.close")}
           className="text-ink-3 hover:text-ink hover:bg-wash rounded-control -mt-1 -mr-1 shrink-0 p-1 transition-colors"
         >
           <XIcon className="size-4" />
@@ -55,7 +65,7 @@ export default function AdminTaskPanel({
 
       {error ? (
         <p className="text-ink-3 mt-5 text-center text-xs">
-          That task could not be loaded.
+          {t("admin.taskLoadFailed")}
         </p>
       ) : isLoading || data === undefined || todo === undefined ? (
         <div className="mt-5 flex flex-col gap-2">
@@ -66,17 +76,17 @@ export default function AdminTaskPanel({
       ) : (
         <>
           <dl className="border-hairline mt-4 grid grid-cols-[6rem_1fr] gap-x-3 gap-y-2 border-t pt-4">
-            <Field label="Board">
+            <Field label={t("sidebar.board")}>
               <Link
                 to={`/admin/boards/${todo.board_id}`}
                 className="text-ink hover:text-brand truncate transition-colors"
               >
-                {todo.board_title ?? "Untitled board"}
+                {todo.board_title ?? t("common.untitledBoard")}
               </Link>
             </Field>
 
             {todo.space_id && (
-              <Field label="Space">
+              <Field label={t("boards.space")}>
                 <Link
                   to={`/admin/spaces/${todo.space_id}`}
                   className="text-ink-2 hover:text-brand truncate transition-colors"
@@ -86,7 +96,7 @@ export default function AdminTaskPanel({
               </Field>
             )}
 
-            <Field label="Status">
+            <Field label={t("fields.status")}>
               <Chip
                 className={
                   COLUMN_CATEGORIES[
@@ -94,21 +104,21 @@ export default function AdminTaskPanel({
                   ]?.pill
                 }
               >
-                {todo.status_name ?? "Backlog"}
+                {todo.status_name ?? t("views.backlog")}
               </Chip>
             </Field>
 
-            <Field label="Type">
+            <Field label={t("activity.type")}>
               <Chip
                 className={
                   WORK_TYPES[todo.type as keyof typeof WORK_TYPES]?.chip
                 }
               >
-                {todo.type}
+                {WORK_TYPE_LABELS[toWorkType(todo.type)]}
               </Chip>
             </Field>
 
-            <Field label="Priority">
+            <Field label={t("fields.priority")}>
               {todo.priority === null ? (
                 <Dash />
               ) : (
@@ -123,15 +133,20 @@ export default function AdminTaskPanel({
               )}
             </Field>
 
-            <Field label="Estimate">
+            <Field label={t("fields.estimate")}>
               {todo.estimate === null ? (
                 <Dash />
               ) : (
-                <span>{todo.estimate} points</span>
+                <span>
+                  {t("estimate.points", {
+                    count: todo.estimate,
+                    value: todo.estimate,
+                  })}
+                </span>
               )}
             </Field>
 
-            <Field label="Assignee">
+            <Field label={t("fields.assignee")}>
               {todo.assignee_username === null ? (
                 <Dash />
               ) : (
@@ -140,31 +155,31 @@ export default function AdminTaskPanel({
             </Field>
 
             {todo.completed_by_username && (
-              <Field label="Completed by">
+              <Field label={t("admin.completedBy")}>
                 <span>{todo.completed_by_username}</span>
               </Field>
             )}
           </dl>
 
           <dl className="border-hairline mt-4 grid grid-cols-[6rem_1fr] gap-x-3 gap-y-2 border-t pt-4">
-            <Field label="Created">
+            <Field label={t("fields.created")}>
               <span className="tabular-nums">{day(todo.created_at)}</span>
             </Field>
-            <Field label="Started">
+            <Field label={t("admin.started")}>
               {todo.started_at === null ? (
                 <Dash />
               ) : (
                 <span className="tabular-nums">{day(todo.started_at)}</span>
               )}
             </Field>
-            <Field label="Completed">
+            <Field label={t("fields.completed")}>
               {todo.completed_at === null ? (
                 <Dash />
               ) : (
                 <span className="tabular-nums">{day(todo.completed_at)}</span>
               )}
             </Field>
-            <Field label="Cycle time">
+            <Field label={t("admin.cycleTime")}>
               {todo.cycle_days === null ? (
                 <Dash />
               ) : (
@@ -173,7 +188,7 @@ export default function AdminTaskPanel({
                 </span>
               )}
             </Field>
-            <Field label="Lead time">
+            <Field label={t("admin.leadTime")}>
               {todo.lead_days === null ? (
                 <Dash />
               ) : (
@@ -187,7 +202,7 @@ export default function AdminTaskPanel({
           <section className="border-hairline mt-4 border-t pt-4">
             <div className="mb-2 flex items-baseline justify-between gap-3">
               <h3 className="text-ink-3 text-micro font-semibold tracking-wide uppercase">
-                Activity
+                {t("board.activity")}
               </h3>
 
               {/* The board's feed, not this task's: /admin/activity takes no
@@ -197,13 +212,13 @@ export default function AdminTaskPanel({
                 to={`/admin/activity?board=${todo.board_id}`}
                 className="text-ink-3 hover:text-brand text-mini shrink-0 transition-colors"
               >
-                All board activity →
+                {t("admin.allBoardActivity")}
               </Link>
             </div>
 
             {data.activity.length === 0 ? (
               <p className="text-ink-3 text-mini">
-                Nothing recorded for this task.
+                {t("admin.nothingRecorded")}
               </p>
             ) : (
               <ol className="flex flex-col gap-1.5">
@@ -215,15 +230,13 @@ export default function AdminTaskPanel({
           </section>
 
           <div className="border-hairline mt-4 flex items-center justify-between gap-3 border-t pt-3">
-            <p className="text-ink-3 text-micro">
-              Read-only. Editing a task needs board membership.
-            </p>
+            <p className="text-ink-3 text-micro">{t("admin.readOnlyTask")}</p>
 
             <Link
               to={`/boards/${todo.board_id}?task=${todo.id}`}
               className="text-brand text-mini shrink-0 hover:underline"
             >
-              Open task →
+              {t("admin.openTask")}
             </Link>
           </div>
         </>
@@ -289,7 +302,7 @@ function Entry({ row }: { row: AdminActivityRow }) {
 }
 
 function day(value: string): string {
-  return new Date(value).toLocaleDateString(LOCALE, {
+  return new Date(value).toLocaleDateString(adminLocale(), {
     day: "numeric",
     month: "short",
   });

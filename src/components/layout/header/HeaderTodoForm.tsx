@@ -51,7 +51,7 @@ export default function HeaderTodoForm() {
         className="bg-brand text-brand-fg hover:bg-brand/90 active:bg-brand/80 focus-visible:ring-brand shadow-e1 flex h-8 shrink-0 items-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors outline-none focus-visible:ring-2 disabled:cursor-default disabled:opacity-50"
       >
         <PlusIcon className="size-4" />
-        <span className="hidden sm:inline">New task</span>
+        <span className="hidden sm:inline">{t("header.newTask")}</span>
       </button>
     );
   }

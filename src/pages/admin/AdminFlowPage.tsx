@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router";
 
@@ -37,11 +38,19 @@ import {
   FLOW_SLICES,
   type FlowSliceBy,
 } from "@/services/admin/types";
+import { flowSliceLabel } from "@/services/admin/flow";
 import { cn } from "@/utils/cn";
 
 const COLUMNS = "minmax(8rem,1.4fr) 6rem repeat(2, minmax(6rem,1fr))";
 
+const SLICE_COLUMN: Record<FlowSliceBy, string> = {
+  estimate: "fields.estimate",
+  priority: "fields.priority",
+  type: "activity.type",
+};
+
 export default function AdminFlowPage() {
+  const { t } = useTranslation();
   const { period } = useAdminPeriod();
   const { scope, setScope } = useAdminScope();
   const slice = useSlice();
@@ -59,9 +68,9 @@ export default function AdminFlowPage() {
     () =>
       (boards.data?.boards ?? []).map((board) => ({
         id: board.id,
-        label: board.title ?? "Untitled board",
+        label: board.title ?? t("common.untitledBoard"),
       })),
-    [boards.data],
+    [boards.data, t],
   );
 
   const spaceOptions = useMemo(
@@ -77,10 +86,10 @@ export default function AdminFlowPage() {
 
   return (
     <AdminShell
-      title="Flow"
+      title={t("admin.sections.flow")}
       hint={
         data === undefined
-          ? "How work moves, and how long it takes"
+          ? t("admin.flow.hint")
           : `${periodLabel(period)} · ${rangeLabel(data.from, data.to)}`
       }
       busy={isFetching}
@@ -94,7 +103,7 @@ export default function AdminFlowPage() {
       }
     >
       {error ? (
-        <AdminEmpty>That did not load. Try again.</AdminEmpty>
+        <AdminEmpty>{t("admin.loadFailedRetry")}</AdminEmpty>
       ) : data === undefined ? (
         <AdminSkeleton />
       ) : (
@@ -122,8 +131,8 @@ export default function AdminFlowPage() {
             />
 
             <Histogram
-              title="Cycle time distribution"
-              hint="Where the tail is — a median alone cannot show it"
+              title={t("admin.histogram.title")}
+              hint={t("admin.flow.histogramHint")}
               bins={data.cycle_histogram}
               stats={data.cycle_time}
               className="lg:col-span-2"
@@ -135,8 +144,8 @@ export default function AdminFlowPage() {
               slices={data.wip}
               scopeHint={
                 scope.board === undefined
-                  ? "Every open card across the system, by category"
-                  : "Every open card on this board, by column"
+                  ? t("admin.flow.wipSystem")
+                  : t("admin.flow.wipBoard")
               }
             />
 
@@ -197,19 +206,25 @@ function SliceTable({
   sliceBy: FlowSliceBy;
   onSlice: (next: FlowSliceBy) => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <section className="flex flex-col gap-2">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <div>
           <h2 className="text-ink text-xs font-semibold tracking-tight">
-            Duration by attribute
+            {t("admin.flow.byAttribute")}
           </h2>
           <p className="text-ink-3 text-mini mt-0.5">
-            Whether a bigger card really takes longer
+            {t("admin.flow.byAttributeHint")}
           </p>
         </div>
 
-        <div role="group" aria-label="Slice" className="flex flex-wrap gap-1">
+        <div
+          role="group"
+          aria-label={t("admin.flow.slice")}
+          className="flex flex-wrap gap-1"
+        >
           {FLOW_SLICES.map((option) => (
             <button
               key={option}
@@ -228,24 +243,22 @@ function SliceTable({
         </div>
       </div>
 
-      <AdminGrid columns={COLUMNS} label="Duration by attribute">
+      <AdminGrid columns={COLUMNS} label={t("admin.flow.byAttribute")}>
         <AdminRow header>
-          <AdminCell header>
-            {FLOW_SLICE_LABELS[sliceBy].replace("By ", "")}
+          <AdminCell header>{t(SLICE_COLUMN[sliceBy])}</AdminCell>
+          <AdminCell header align="right">
+            {t("admin.flow.finished")}
           </AdminCell>
           <AdminCell header align="right">
-            Finished
+            {t("admin.medianCycle")}
           </AdminCell>
           <AdminCell header align="right">
-            Median cycle
-          </AdminCell>
-          <AdminCell header align="right">
-            Median lead
+            {t("admin.medianLead")}
           </AdminCell>
         </AdminRow>
 
         {slices.length === 0 ? (
-          <AdminEmpty>Nothing finished in this window.</AdminEmpty>
+          <AdminEmpty>{t("admin.flow.nothingFinished")}</AdminEmpty>
         ) : (
           slices.map((row) => (
             <AdminRow key={row.key ?? "unset"}>
@@ -253,7 +266,7 @@ function SliceTable({
                 <span
                   className={cn("truncate", row.key === null && "text-ink-3")}
                 >
-                  {row.label}
+                  {flowSliceLabel(row.key, sliceBy, row.label)}
                 </span>
               </AdminCell>
               <AdminCell align="right">{row.count}</AdminCell>

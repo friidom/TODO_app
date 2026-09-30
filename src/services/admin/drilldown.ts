@@ -1,3 +1,4 @@
+import i18n from "@/components/i18n";
 import type {
   AdminActivityRow,
   AdminBoard,
@@ -21,20 +22,31 @@ export function taskTarget(
 export function boardTrail(
   board: Pick<AdminBoard, "title" | "space_id" | "space_title">,
 ): Crumb[] {
-  const trail: Crumb[] = [{ label: "Boards", to: "/admin/boards" }];
+  const trail: Crumb[] = [
+    { label: i18n.t("boards.title"), to: "/admin/boards" },
+  ];
 
   if (board.space_id !== null) {
     trail.push({
-      label: board.space_title ?? "Space",
+      label: board.space_title ?? i18n.t("boards.space"),
       to: `/admin/spaces/${board.space_id}`,
     });
   }
 
-  return [...trail, { label: board.title ?? "Untitled board" }];
+  return [...trail, { label: board.title ?? i18n.t("common.untitledBoard") }];
 }
 
 export function spaceTrail(space: Pick<SpaceMetrics, "title">): Crumb[] {
-  return [{ label: "All spaces", to: "/admin/spaces" }, { label: space.title }];
+  return [
+    { label: i18n.t("admin.allSpaces"), to: "/admin/spaces" },
+    { label: space.title },
+  ];
+}
+
+// The API names the no-space bucket "Unfiled" in English; the reader's
+// language names it here.
+export function spaceName(space: Pick<SpaceMetrics, "id" | "title">): string {
+  return space.id === null ? i18n.t("common.unfiled") : space.title;
 }
 
 // The Unfiled bucket is a grouping, not a row anything can open.
@@ -48,7 +60,10 @@ export function spaceTarget(
 }
 
 export function userTrail(username: string): Crumb[] {
-  return [{ label: "Developers", to: "/admin/users" }, { label: username }];
+  return [
+    { label: i18n.t("admin.sections.users"), to: "/admin/users" },
+    { label: username },
+  ];
 }
 
 // The scope a chart click carries into /admin/activity. Board wins over space

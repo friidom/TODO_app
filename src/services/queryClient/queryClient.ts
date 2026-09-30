@@ -1,5 +1,6 @@
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 
+import i18n from "@/components/i18n";
 import { toast } from "@/stores/toasts";
 import { retryQuery } from "./retryPolicy";
 
@@ -16,9 +17,10 @@ declare module "@tanstack/react-query" {
   }
 }
 
-const FALLBACK_MESSAGE = "Something went wrong. Please try again.";
-
 function messageOf(error: unknown): string {
+  // fetch rejects with a TypeError when the request never got an answer
+  if (error instanceof TypeError) return i18n.t("apiErrors.network");
+
   if (error instanceof Error && error.message) return error.message;
 
   if (typeof error === "object" && error !== null) {
@@ -27,7 +29,7 @@ function messageOf(error: unknown): string {
     if (typeof message === "string" && message) return message;
   }
 
-  return FALLBACK_MESSAGE;
+  return i18n.t("apiErrors.code.unknown");
 }
 
 const mutationCache = new MutationCache({

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 import { ArrowLeftIcon, ShieldIcon } from "lucide-react";
 import { Link, NavLink } from "react-router";
@@ -23,6 +24,8 @@ export default function AdminShell({
   busy?: boolean;
   children: ReactNode;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div className="bg-canvas min-h-dvh">
       <header className="border-hairline bg-surface/80 sticky top-0 z-10 border-b backdrop-blur">
@@ -36,7 +39,7 @@ export default function AdminShell({
               className="text-ink-3 hover:text-ink hover:bg-wash rounded-control text-mini -ml-1.5 flex items-center gap-1.5 px-1.5 py-1 transition-colors"
             >
               <ArrowLeftIcon className="size-3.5 shrink-0" />
-              Back to boards
+              {t("admin.backToBoards")}
             </Link>
 
             <span className="text-ink-3/50 text-mini" aria-hidden>
@@ -45,7 +48,7 @@ export default function AdminShell({
 
             <span className="text-ink-3 text-mini flex items-center gap-1.5">
               <ShieldIcon className="size-3.5 shrink-0" />
-              Superadmin
+              {t("sidebar.superadmin")}
             </span>
 
             {breadcrumb}
@@ -64,7 +67,7 @@ export default function AdminShell({
                     still in flight must not read as a finished answer. */}
                 {busy && (
                   <span className="text-brand shrink-0" role="status">
-                    updating…
+                    {t("admin.updating")}
                   </span>
                 )}
               </p>
@@ -75,7 +78,7 @@ export default function AdminShell({
           </div>
 
           <nav
-            aria-label="Superadmin sections"
+            aria-label={t("admin.sectionsLabel")}
             className="-mb-px flex gap-0.5 overflow-x-auto"
           >
             {adminSections().map((section) => (

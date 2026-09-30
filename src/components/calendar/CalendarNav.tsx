@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 
 import {
@@ -21,6 +22,7 @@ export default function CalendarNav({
   locale?: string;
   offscreen: number;
 }) {
+  const { t } = useTranslation();
   const label =
     view.layout === "month"
       ? monthLabel(view.anchor, locale)
@@ -33,7 +35,9 @@ export default function CalendarNav({
           type="button"
           onClick={() => view.step(-1)}
           aria-label={
-            view.layout === "month" ? "Previous month" : "Previous week"
+            view.layout === "month"
+              ? t("dates.previousMonth")
+              : t("calendar.previousWeek")
           }
           className={cn(HEADER_CONTROL, "w-9 justify-center px-0")}
         >
@@ -43,7 +47,11 @@ export default function CalendarNav({
         <button
           type="button"
           onClick={() => view.step(1)}
-          aria-label={view.layout === "month" ? "Next month" : "Next week"}
+          aria-label={
+            view.layout === "month"
+              ? t("dates.nextMonth")
+              : t("calendar.nextWeek")
+          }
           className={cn(HEADER_CONTROL, "w-9 justify-center px-0")}
         >
           <ChevronRightIcon className="size-4" />
@@ -57,7 +65,7 @@ export default function CalendarNav({
         disabled={view.isCurrent}
         className={HEADER_CONTROL}
       >
-        Today
+        {t("time.today")}
       </button>
 
       <h2 className="text-ink min-w-0 text-sm font-semibold tracking-tight">
@@ -65,7 +73,9 @@ export default function CalendarNav({
       </h2>
 
       {offscreen > 0 && (
-        <span className="text-ink-3 text-xs">{offscreen} not in view</span>
+        <span className="text-ink-3 text-xs">
+          {t("calendar.notInView", { count: offscreen })}
+        </span>
       )}
 
       <div className="border-hairline bg-surface rounded-control ml-auto flex h-9 shrink-0 items-center gap-0.5 border p-0.5">
@@ -86,7 +96,7 @@ export default function CalendarNav({
                   : "text-ink-3 hover:text-ink hover:bg-ink/[0.06]",
               )}
             >
-              {layout}
+              {t(`calendar.layout.${layout}`)}
             </button>
           );
         })}

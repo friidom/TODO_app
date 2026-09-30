@@ -41,10 +41,10 @@ describe("filter registry", () => {
     expect(filterDefinitions().map((f) => f.id)).toEqual([...FILTER_IDS]);
   });
 
-  it("has a definition keyed by its own id, with a label", () => {
+  it("has a definition keyed by its own id, with a label key", () => {
     for (const id of FILTER_IDS) {
       expect(FILTER_DEFINITIONS[id].id).toBe(id);
-      expect(FILTER_DEFINITIONS[id].label.length).toBeGreaterThan(0);
+      expect(FILTER_DEFINITIONS[id].labelKey.length).toBeGreaterThan(0);
     }
   });
 
@@ -70,12 +70,18 @@ describe("filter predicates", () => {
     expect(
       keep("my-open", todo({ id: "b", assignee_id: ME, status_id: DONE })),
     ).toBe(false);
-    expect(keep("my-open", todo({ id: "c", assignee_id: "someone" }))).toBe(false);
+    expect(keep("my-open", todo({ id: "c", assignee_id: "someone" }))).toBe(
+      false,
+    );
   });
 
   it("reported by me: the creator, not the assignee", () => {
-    expect(keep("reported-by-me", todo({ id: "a", creator_id: ME }))).toBe(true);
-    expect(keep("reported-by-me", todo({ id: "b", assignee_id: ME }))).toBe(false);
+    expect(keep("reported-by-me", todo({ id: "a", creator_id: ME }))).toBe(
+      true,
+    );
+    expect(keep("reported-by-me", todo({ id: "b", assignee_id: ME }))).toBe(
+      false,
+    );
   });
 
   it("all work keeps everything, having no condition", () => {
@@ -105,16 +111,27 @@ describe("filter predicates", () => {
   // so a reopened card stops being "resolved recently".
   it("resolved recently reads completed_at", () => {
     expect(
-      keep("resolved-recently", todo({ id: "a", completed_at: "2026-09-02T00:00:00.000Z" })),
+      keep(
+        "resolved-recently",
+        todo({ id: "a", completed_at: "2026-09-02T00:00:00.000Z" }),
+      ),
     ).toBe(true);
-    expect(keep("resolved-recently", todo({ id: "b", status_id: DONE }))).toBe(false);
+    expect(keep("resolved-recently", todo({ id: "b", status_id: DONE }))).toBe(
+      false,
+    );
   });
 
   it("keeps nothing personal when there is no signed-in user", () => {
-    const anonymous: FilterContext = { userId: undefined, doneStatusIds: new Set() };
+    const anonymous: FilterContext = {
+      userId: undefined,
+      doneStatusIds: new Set(),
+    };
 
     expect(
-      FILTER_DEFINITIONS["my-open"].match?.(todo({ id: "a", assignee_id: null }), anonymous),
+      FILTER_DEFINITIONS["my-open"].match?.(
+        todo({ id: "a", assignee_id: null }),
+        anonymous,
+      ),
     ).toBe(false);
     expect(
       FILTER_DEFINITIONS["reported-by-me"].match?.(

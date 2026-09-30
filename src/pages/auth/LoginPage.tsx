@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect } from "react";
 import { Link, useLocation, useSearchParams } from "react-router";
 
@@ -16,6 +17,7 @@ export default function LoginPage() {
   // set by useUpdatePassword after a reset, so the bounce back doesn't read as a failure
   const justReset = searchParams.get("reset") === "1";
 
+  const { t } = useTranslation();
   const oauthError = oauthErrorMessage(searchParams.get("error"));
 
   const link = searchParams.get("link");
@@ -43,32 +45,32 @@ export default function LoginPage() {
 
   function subtitle() {
     if (linking) {
-      return "An account already exists for that email address. Sign in to connect your new sign-in method to it.";
+      return t("auth.linkingSubtitle");
     }
 
     if (oauthError !== null) return oauthError;
 
     if (unconfirmed) {
-      return "Confirm your email address first — check your inbox for the link we sent.";
+      return t("auth.unconfirmedSubtitle");
     }
 
-    if (justReset) return "Your password has been updated. Sign in with the new one.";
+    if (justReset) return t("auth.resetSubtitle");
 
-    return "Sign in to pick up where your board left off.";
+    return t("auth.loginSubtitle");
   }
 
   return (
     <AuthShell
-      title={linking ? "Confirm it's you" : "Welcome back"}
+      title={linking ? t("auth.confirmItsYou") : t("auth.welcomeBack")}
       subtitle={subtitle()}
       footer={
         <>
-          Don't have an account?{" "}
+          {t("auth.noAccount")}{" "}
           <Link
             to={{ pathname: "/register", search: location.search }}
             className="text-ink hover:text-brand font-medium transition-colors"
           >
-            Create one
+            {t("auth.createOne")}
           </Link>
         </>
       }

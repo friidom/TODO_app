@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { ClockIcon, HistoryIcon } from "lucide-react";
 import { useId, useMemo, useState } from "react";
 
@@ -20,10 +21,10 @@ import { useBoardMembers } from "@/services/members/useBoardMembers";
 import { cn } from "@/utils/cn";
 
 const TABS = [
-  { key: "all", label: "All" },
-  { key: "comments", label: "Comments" },
-  { key: "history", label: "History" },
-  { key: "worklog", label: "Work log" },
+  { key: "all", labelKey: "taskActivity.all" },
+  { key: "comments", labelKey: "taskActivity.comments" },
+  { key: "history", labelKey: "taskActivity.history" },
+  { key: "worklog", labelKey: "taskActivity.worklog" },
 ] as const;
 
 type ActivityTab = (typeof TABS)[number]["key"];
@@ -36,20 +37,21 @@ export default function ActivitySection({
   todoId: string;
   boardId: string;
 }) {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<ActivityTab>("all");
   const { user } = useAuth();
   const id = useId();
 
   return (
     <section>
-      <SectionHeader title="Activity" />
+      <SectionHeader title={t("board.activity")} />
 
       <div
         role="tablist"
-        aria-label="Activity"
+        aria-label={t("board.activity")}
         className="border-hairline mb-5 flex items-stretch gap-4 border-b"
       >
-        {TABS.map(({ key, label }) => {
+        {TABS.map(({ key, labelKey }) => {
           const selected = tab === key;
 
           return (
@@ -68,7 +70,7 @@ export default function ActivitySection({
                   : "text-ink-3 hover:text-ink hover:border-hairline border-transparent",
               )}
             >
-              {label}
+              {t(labelKey)}
             </button>
           );
         })}
@@ -91,7 +93,7 @@ export default function ActivitySection({
 
         {tab === "worklog" && (
           <EmptyLine icon={ClockIcon}>
-            <span>Work log isn't available yet.</span>
+            <span>{t("taskActivity.worklogUnavailable")}</span>
           </EmptyLine>
         )}
       </div>
@@ -109,6 +111,7 @@ function AllFeed({
   boardId: string;
   currentUserId: string | undefined;
 }) {
+  const { t } = useTranslation();
   const { data: comments, isPending: commentsPending } = useComments(todoId);
   const { data: activities, isPending: activitiesPending } = useTodoActivities(
     todoId,
@@ -144,7 +147,7 @@ function AllFeed({
         </div>
       ) : entries.length === 0 ? (
         <EmptyLine icon={HistoryIcon}>
-          <span>Nothing here yet.</span>
+          <span>{t("taskActivity.empty")}</span>
         </EmptyLine>
       ) : (
         <ol className="space-y-4">

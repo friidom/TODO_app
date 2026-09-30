@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useDroppable } from "@dnd-kit/core";
 import { ArrowDown } from "lucide-react";
 
@@ -52,6 +53,7 @@ function StatusDropZone({
   allowed: boolean;
   active: boolean;
 }) {
+  const { t } = useTranslation();
   const { setNodeRef } = useDroppable({
     id: `status-zone:${columnId}:${statusId}`,
     data: { type: "status-zone", columnId, index, statusId },
@@ -73,7 +75,7 @@ function StatusDropZone({
       )}
     >
       <span className="text-meta font-medium">
-        {allowed ? "Transition to" : "No transition to"}
+        {allowed ? t("kanban.transitionTo") : t("kanban.noTransitionTo")}
       </span>
 
       <ArrowDown className="size-3.5 shrink-0" />

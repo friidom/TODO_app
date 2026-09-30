@@ -37,7 +37,7 @@ describe("limitBreach", () => {
 
   it("warns as soon as anything lands when the maximum is zero", () => {
     expect(limitBreach(column(null, 0), 1)).toBe(
-      "1 work items in In Review. Maximum is 0.",
+      "1 work item in In Review. Maximum is 0.",
     );
   });
 

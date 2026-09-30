@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import {
   ChevronLeftIcon,
@@ -33,6 +34,7 @@ export default function DatePanel({
   onSelect: (day: string) => void;
   onClear: () => void;
 }) {
+  const { t } = useTranslation();
   const today = todayISO();
 
   const [view, setView] = useState(() => {
@@ -77,7 +79,7 @@ export default function DatePanel({
             className="text-ink-3 hover:bg-wash-strong hover:text-ink focus-visible:ring-brand rounded-control text-mini ml-auto flex h-6 items-center gap-1 px-1.5 font-medium transition-colors outline-none focus-visible:ring-2"
           >
             <XIcon className="size-3" />
-            Clear
+            {t("common.clear")}
           </button>
         )}
       </div>
@@ -99,7 +101,7 @@ export default function DatePanel({
       <div className="mb-1 flex items-center justify-between">
         <IconButton
           tooltip={false}
-          label="Previous month"
+          label={t("dates.previousMonth")}
           onClick={() => setView((v) => shiftMonth(v.year, v.month, -1))}
         >
           <ChevronLeftIcon />
@@ -111,7 +113,7 @@ export default function DatePanel({
 
         <IconButton
           tooltip={false}
-          label="Next month"
+          label={t("dates.nextMonth")}
           onClick={() => setView((v) => shiftMonth(v.year, v.month, 1))}
         >
           <ChevronRightIcon />

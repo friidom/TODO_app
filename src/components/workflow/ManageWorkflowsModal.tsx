@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useMemo, useState, type KeyboardEvent } from "react";
 import { TriangleAlertIcon } from "lucide-react";
 
@@ -60,7 +61,6 @@ import WorkflowToolbar, {
   type NewStatus,
 } from "./WorkflowToolbar";
 
-const TITLE = "Manage workflow";
 const WIDTH = "w-[calc(100vw-2rem)]";
 
 export default function ManageWorkflowsModal({
@@ -68,6 +68,7 @@ export default function ManageWorkflowsModal({
 }: {
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const workflow = useWorkflow();
   const todos = useTodos();
 
@@ -82,16 +83,20 @@ export default function ManageWorkflowsModal({
   }
 
   return (
-    <Modal title={TITLE} onClose={onClose} width="w-[420px]">
-      <h2 className={DIALOG_TITLE}>{TITLE}</h2>
+    <Modal
+      title={t("workflow.manageTitle")}
+      onClose={onClose}
+      width="w-[420px]"
+    >
+      <h2 className={DIALOG_TITLE}>{t("workflow.manageTitle")}</h2>
 
       <p
         role={workflow.isError || todos.isError ? "alert" : "status"}
         className="text-ink-3 text-meta grid min-h-48 place-items-center"
       >
         {workflow.isError || todos.isError
-          ? "The workflow could not be loaded."
-          : "Loading workflow..."}
+          ? t("workflow.loadFailed")
+          : t("workflow.loading")}
       </p>
     </Modal>
   );
@@ -130,6 +135,7 @@ function ManageWorkflowsDialog({
   todos: Todo[];
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const boardId = useBoardId();
   const { data: board } = useBoard(boardId);
   const [base, setBase] = useState(() => draftOf(model));
@@ -191,9 +197,9 @@ function ManageWorkflowsDialog({
   const broken = brokenMigrations(draft);
   const stale = model.version !== base.version && !publish.isPending;
   const publishBlocked = stale
-    ? "Someone else published first. Start over from the latest to publish."
+    ? t("workflow.blockedStale")
     : broken.length > 0
-      ? "Work from a deleted status points at a hidden one. Show that status first."
+      ? t("workflow.blockedBroken")
       : null;
 
   const current: Selection =
@@ -248,7 +254,7 @@ function ManageWorkflowsDialog({
       (latest) => (latest.version === published.version ? published : null),
       {
         onSuccess: () => {
-          toast.success("Workflow published");
+          toast.success(t("workflow.published"));
           onClose();
         },
       },
@@ -308,10 +314,14 @@ function ManageWorkflowsDialog({
     }
   }
 
-  const boardTitle = board?.title ?? "This board";
+  const boardTitle = board?.title ?? t("workflow.thisBoard");
 
   return (
-    <Modal title={TITLE} onClose={requestClose} width={WIDTH}>
+    <Modal
+      title={t("workflow.manageTitle")}
+      onClose={requestClose}
+      width={WIDTH}
+    >
       <div
         onKeyDown={onKeyDown}
         className="relative flex h-[calc(100dvh-4.5rem)] flex-col"
@@ -338,13 +348,13 @@ function ManageWorkflowsDialog({
         {confirm && (
           <div
             role="alertdialog"
-            aria-label="Unpublished changes"
+            aria-label={t("workflow.unpublishedChanges")}
             className="border-status-red/30 bg-status-red/5 rounded-control mt-3 flex flex-wrap items-center gap-2 border px-3 py-2"
           >
             <p className="text-ink-2 text-meta mr-auto">
               {confirm === "close"
-                ? `Close without publishing? Your ${changes.length} unpublished ${changes.length === 1 ? "change is" : "changes are"} lost.`
-                : `Discard ${changes.length} unpublished ${changes.length === 1 ? "change" : "changes"}? You can still undo this.`}
+                ? t("workflow.closeQuestion", { count: changes.length })
+                : t("workflow.discardCountQuestion", { count: changes.length })}
             </p>
 
             <button
@@ -353,7 +363,7 @@ function ManageWorkflowsDialog({
               onClick={() => setConfirm(null)}
               className={cn(DIALOG_CANCEL, "h-8")}
             >
-              Keep editing
+              {t("workflow.keepEditing")}
             </button>
 
             <button
@@ -361,7 +371,9 @@ function ManageWorkflowsDialog({
               onClick={confirm === "close" ? onClose : discard}
               className={cn(DIALOG_DANGER, "h-8")}
             >
-              {confirm === "close" ? "Close without publishing" : "Discard"}
+              {confirm === "close"
+                ? t("workflow.closeWithoutPublishing")
+                : t("workflow.discard")}
             </button>
           </div>
         )}
@@ -374,14 +386,13 @@ function ManageWorkflowsDialog({
             <TriangleAlertIcon className="text-status-orange mt-0.5 size-4 shrink-0" />
 
             <span>
-              Someone published a change to this workflow while you were
-              editing.
+              {t("workflow.staleNotice")}
               <button
                 type="button"
                 onClick={startOver}
                 className="text-brand ml-1.5 font-medium underline-offset-2 hover:underline"
               >
-                Start over from the latest
+                {t("workflow.startOver")}
               </button>
             </span>
           </p>
@@ -435,7 +446,7 @@ function ManageWorkflowsDialog({
           </div>
 
           <aside
-            aria-label="Details"
+            aria-label={t("workflow.details")}
             className="border-hairline rounded-surface bg-surface flex min-h-0 flex-col overflow-hidden border max-lg:max-h-96"
           >
             <WorkflowInspector
@@ -462,8 +473,8 @@ function ManageWorkflowsDialog({
                   ?.name ?? "";
 
               return warning.kind === "no-way-out"
-                ? `Work in ${name} can't move anywhere.`
-                : `Nothing leads to ${name}.`;
+                ? t("workflow.warnNoWayOut", { name })
+                : t("workflow.warnUnreachable", { name });
             })}
             pending={publish.isPending}
             error={publish.error?.message ?? null}
@@ -477,14 +488,17 @@ function ManageWorkflowsDialog({
 }
 
 function EmptyWorkflow() {
+  const { t } = useTranslation();
+
   return (
     <div className="border-hairline rounded-surface bg-wash grid flex-1 place-items-center border border-dashed p-8 text-center">
       <div>
-        <p className="text-ink text-meta font-medium">No statuses yet</p>
+        <p className="text-ink text-meta font-medium">
+          {t("workflow.noStatuses")}
+        </p>
 
         <p className="text-ink-3 text-mini mx-auto mt-1 max-w-72">
-          A workflow needs at least one status before work can move through it.
-          Start with Add status above.
+          {t("workflow.noStatusesHint")}
         </p>
       </div>
     </div>

@@ -11,14 +11,14 @@ const GRID_LINES = [0, 0.5, 1];
 const SERIES = [
   {
     key: "created",
-    label: "Created",
+    labelKey: "fields.created",
     tone: "text-brand",
     dot: "bg-brand",
     fill: "url(#summary-trend-created)",
   },
   {
     key: "updated",
-    label: "Updated",
+    labelKey: "fields.updated",
     tone: "text-status-blue",
     dot: "bg-status-blue",
     fill: "url(#summary-trend-updated)",
@@ -32,7 +32,7 @@ export default function TrendsChart({
   points: TrendPoint[];
   className?: string;
 }) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const peak = trendPeak(points);
   const step = points.length === 0 ? 0 : 100 / points.length;
 
@@ -44,8 +44,8 @@ export default function TrendsChart({
 
   return (
     <SummaryCard
-      title="Activity trends"
-      hint="Items created, and items whose most recent change fell on that day"
+      title={t("summary.trends")}
+      hint={t("summary.trendsHint")}
       className={className}
       action={
         <div className="flex items-center gap-3">
@@ -55,14 +55,14 @@ export default function TrendsChart({
               className="text-ink-3 text-mini flex items-center gap-1.5"
             >
               <span className={`size-1.5 rounded-full ${series.dot}`} />
-              {series.label}
+              {t(series.labelKey)}
             </span>
           ))}
         </div>
       }
     >
       {points.length === 0 ? (
-        <WidgetEmpty>Nothing to chart yet.</WidgetEmpty>
+        <WidgetEmpty>{t("summary.trendsEmpty")}</WidgetEmpty>
       ) : (
         <div className="flex gap-2.5 px-3.5 pb-3">
           {/* HTML, not SVG text — inherits the page font and stays upright inside the stretched viewBox */}
@@ -77,11 +77,11 @@ export default function TrendsChart({
               viewBox={`0 0 100 ${PLOT_HEIGHT}`}
               preserveAspectRatio="none"
               role="img"
-              aria-label={SERIES.map(
-                (series) =>
-                  `${series.label} per day: ${points
-                    .map((point) => point[series.key])
-                    .join(", ")}`,
+              aria-label={SERIES.map((series) =>
+                t("summary.perDay", {
+                  name: t(series.labelKey),
+                  values: points.map((point) => point[series.key]).join(", "),
+                }),
               ).join(". ")}
               className="h-28 w-full"
             >

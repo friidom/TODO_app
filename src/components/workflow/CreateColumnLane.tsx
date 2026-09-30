@@ -40,8 +40,8 @@ export default function CreateColumnLane({
     >
       {creating ? (
         <NameInput
-          label="New column name"
-          placeholder="Column name"
+          label={t("workflow.newColumnName")}
+          placeholder={t("column.name")}
           validate={(name) =>
             statusNameTaken(draft, name)
               ? t("workflow.statusNameTaken", { name })
@@ -74,7 +74,7 @@ export default function CreateColumnLane({
           className={ADD_BUTTON}
         >
           <PlusIcon />
-          Create column
+          {t("column.createTitle")}
         </button>
       )}
     </div>

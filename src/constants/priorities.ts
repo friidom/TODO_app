@@ -1,3 +1,4 @@
+import i18n from "@/components/i18n";
 import {
   ChevronDownIcon,
   ChevronUpIcon,
@@ -12,31 +13,41 @@ import {
 export const PRIORITIES = {
   highest: {
     icon: ChevronsUpIcon,
-    label: "Highest",
+    get label() {
+      return i18n.t("priority.highest");
+    },
     tone: "text-status-red",
     chip: "bg-status-red/15 text-status-red hover:bg-status-red/25",
   },
   high: {
     icon: ChevronUpIcon,
-    label: "High",
+    get label() {
+      return i18n.t("priority.high");
+    },
     tone: "text-status-red",
     chip: "bg-status-red/15 text-status-red hover:bg-status-red/25",
   },
   medium: {
     icon: EqualIcon,
-    label: "Medium",
+    get label() {
+      return i18n.t("priority.medium");
+    },
     tone: "text-status-orange",
     chip: "bg-status-orange/15 text-status-orange hover:bg-status-orange/25",
   },
   low: {
     icon: ChevronDownIcon,
-    label: "Low",
+    get label() {
+      return i18n.t("priority.low");
+    },
     tone: "text-status-blue",
     chip: "bg-status-blue/15 text-status-blue hover:bg-status-blue/25",
   },
   lowest: {
     icon: ChevronsDownIcon,
-    label: "Lowest",
+    get label() {
+      return i18n.t("priority.lowest");
+    },
     tone: "text-status-blue",
     chip: "bg-status-blue/15 text-status-blue hover:bg-status-blue/25",
   },

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useCallback, useMemo } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 
@@ -75,6 +76,7 @@ const BOARD_COLUMN_KEYS = [
 ] as const;
 
 export default function AdminLeaderboardsPage() {
+  const { t } = useTranslation();
   const { period } = useAdminPeriod();
   const { scope, setScope } = useAdminScope();
   const view = useLeaderboardView();
@@ -87,9 +89,9 @@ export default function AdminLeaderboardsPage() {
     () =>
       (boards.data?.boards ?? []).map((board) => ({
         id: board.id,
-        label: board.title ?? "Untitled board",
+        label: board.title ?? t("common.untitledBoard"),
       })),
-    [boards.data],
+    [boards.data, t],
   );
 
   const spaceOptions = useMemo(
@@ -105,11 +107,11 @@ export default function AdminLeaderboardsPage() {
 
   return (
     <AdminShell
-      title="Leaderboards"
+      title={t("admin.sections.leaderboards")}
       hint={
         window
-          ? `Performance across the organisation · ${rangeLabel(window.from, window.to)}`
-          : "Performance across the organisation"
+          ? `${t("admin.leaders.hint")} · ${rangeLabel(window.from, window.to)}`
+          : t("admin.leaders.hint")
       }
       busy={people.isFetching || boards.isFetching}
       actions={
@@ -125,7 +127,7 @@ export default function AdminLeaderboardsPage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div
             role="group"
-            aria-label="Leaderboard"
+            aria-label={t("admin.leaders.label")}
             className="border-hairline bg-surface rounded-control inline-flex h-9 items-center gap-0.5 border p-0.5"
           >
             {LEADERBOARD_MODES.map((mode) => (
@@ -148,7 +150,7 @@ export default function AdminLeaderboardsPage() {
 
           <div
             role="group"
-            aria-label="Order by"
+            aria-label={t("admin.leaders.orderBy")}
             className="flex flex-wrap gap-1"
           >
             {metricsFor(view.mode).map((metric) => (
@@ -171,7 +173,7 @@ export default function AdminLeaderboardsPage() {
         </div>
 
         {active.error ? (
-          <AdminEmpty>That did not load. Try again.</AdminEmpty>
+          <AdminEmpty>{t("admin.loadFailedRetry")}</AdminEmpty>
         ) : view.mode === "people" ? (
           people.data === undefined ? (
             <AdminSkeleton />
@@ -194,11 +196,7 @@ export default function AdminLeaderboardsPage() {
           />
         )}
 
-        <p className="text-ink-3 text-mini">
-          Ordered by one named metric at a time. The number in the first column
-          is the position under that ordering and nothing else — there is no
-          combined score, and each figure stands on its own.
-        </p>
+        <p className="text-ink-3 text-mini">{t("admin.leaders.explainer")}</p>
       </div>
     </AdminShell>
   );
@@ -263,18 +261,19 @@ function PeopleTable({
   onSort: (next: string) => void;
   period: string;
 }) {
+  const { t } = useTranslation();
   const ordered = useMemo(() => sortUsers(rows, sort), [rows, sort]);
   const peaks = usePeaks(ordered, PEOPLE_COLUMN_KEYS);
   const numeric = PEOPLE_COLUMN_KEYS;
 
   return (
-    <AdminGrid columns={PEOPLE_COLUMNS} label="People, ordered by one metric">
+    <AdminGrid columns={PEOPLE_COLUMNS} label={t("admin.leaders.peopleLabel")}>
       <AdminRow header>
         <AdminCell header align="right">
-          <span className="sr-only">Position</span>
+          <span className="sr-only">{t("admin.leaders.position")}</span>
           <span aria-hidden>#</span>
         </AdminCell>
-        <AdminCell header>Developer</AdminCell>
+        <AdminCell header>{t("admin.columns.developer")}</AdminCell>
         {numeric.map((key) => (
           <AdminCell key={key} header align="right">
             <SortButton active={sort === key} onClick={() => onSort(key)}>
@@ -293,7 +292,7 @@ function PeopleTable({
       </AdminRow>
 
       {ordered.length === 0 ? (
-        <AdminEmpty>No developers yet.</AdminEmpty>
+        <AdminEmpty>{t("admin.noDevelopers")}</AdminEmpty>
       ) : (
         ordered.map((row, index) => (
           <AdminRow key={row.id}>
@@ -331,7 +330,7 @@ function PeopleTable({
               </span>
               <span
                 className="text-ink-3 text-micro ml-1.5"
-                title="completed points / target points"
+                title={t("admin.pointsOverTarget")}
               >
                 {dash(row.completed_points)} / {dash(row.target_points)}
               </span>
@@ -354,16 +353,17 @@ function BoardTable({
   onSort: (next: string) => void;
   period: string;
 }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const ordered = useMemo(() => sortBoards(rows, sort), [rows, sort]);
   const peaks = usePeaks(ordered, BOARD_COLUMN_KEYS);
   const numeric = BOARD_COLUMN_KEYS;
 
   return (
-    <AdminGrid columns={BOARD_COLUMNS} label="Boards, ordered by one metric">
+    <AdminGrid columns={BOARD_COLUMNS} label={t("admin.leaders.boardsLabel")}>
       <AdminRow header>
         <AdminCell header align="right">
-          <span className="sr-only">Position</span>
+          <span className="sr-only">{t("admin.leaders.position")}</span>
           <span aria-hidden>#</span>
         </AdminCell>
         <AdminCell header>
@@ -371,7 +371,7 @@ function BoardTable({
             {BOARD_SORT_LABELS.title}
           </SortButton>
         </AdminCell>
-        <AdminCell header>Owner</AdminCell>
+        <AdminCell header>{t("roles.owner")}</AdminCell>
         {numeric.map((key) => (
           <AdminCell key={key} header align="right">
             <SortButton active={sort === key} onClick={() => onSort(key)}>
@@ -382,7 +382,7 @@ function BoardTable({
       </AdminRow>
 
       {ordered.length === 0 ? (
-        <AdminEmpty>No boards yet.</AdminEmpty>
+        <AdminEmpty>{t("sidebar.noBoardsYet")}</AdminEmpty>
       ) : (
         ordered.map((row, index) => (
           <AdminRow
@@ -395,7 +395,7 @@ function BoardTable({
 
             <AdminCell>
               <span className="text-ink truncate font-medium">
-                {row.title ?? "Untitled board"}
+                {row.title ?? t("common.untitledBoard")}
               </span>
             </AdminCell>
 

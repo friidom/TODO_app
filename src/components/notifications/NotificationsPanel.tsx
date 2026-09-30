@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import {
@@ -42,6 +43,7 @@ export default function NotificationsPanel({
   const [tab, setTab] = useState<NotificationTab>("all");
 
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { data: notifications = [], isLoading, error } = useNotifications();
   const markRead = useMarkRead();
 
@@ -74,7 +76,9 @@ export default function NotificationsPanel({
   return (
     <div className="flex max-h-[min(34rem,calc(100dvh-6rem))] w-[min(26rem,calc(100vw-2rem))] flex-col">
       <div className="flex items-center gap-2 px-4 pt-3 pb-2">
-        <h2 className="text-ink text-sm font-semibold">Notifications</h2>
+        <h2 className="text-ink text-sm font-semibold">
+          {t("notifications.title")}
+        </h2>
 
         {unread > 0 && (
           <span className="bg-brand text-brand-fg text-micro rounded-full px-1.5 leading-4 font-semibold tabular-nums">
@@ -90,11 +94,15 @@ export default function NotificationsPanel({
               className="text-ink-3 hover:text-ink hover:bg-wash-strong focus-visible:ring-brand text-mini rounded-control flex h-7 items-center gap-1 px-2 font-medium transition-colors outline-none focus-visible:ring-2"
             >
               <CheckCheckIcon className="size-3.5" />
-              Mark all read
+              {t("notifications.markAllRead")}
             </button>
           )}
 
-          <IconButton label="Close notifications" size="xs" onClick={onClose}>
+          <IconButton
+            label={t("notifications.close")}
+            size="xs"
+            onClick={onClose}
+          >
             <XIcon />
           </IconButton>
         </div>
@@ -102,7 +110,7 @@ export default function NotificationsPanel({
 
       <div
         role="tablist"
-        aria-label="Filter notifications"
+        aria-label={t("notifications.filterLabel")}
         className="border-hairline flex shrink-0 gap-1 border-b px-3"
       >
         {NOTIFICATION_TABS.map((value) => {
@@ -152,20 +160,24 @@ export default function NotificationsPanel({
         ) : error ? (
           <State
             icon={CircleAlertIcon}
-            title="Couldn't load notifications"
+            title={t("notifications.loadFailed")}
             hint={error.message}
             tone="error"
           />
         ) : rows.length === 0 ? (
           <State
             icon={BellIcon}
-            title={tab === "all" ? "You're all caught up" : "Nothing here"}
+            title={
+              tab === "all"
+                ? t("notifications.caughtUp")
+                : t("sidebar.nothingHere")
+            }
             hint={
               tab === "invite"
-                ? "Board invitations addressed to you show up here."
+                ? t("notifications.emptyInvite")
                 : tab === "assigned"
-                  ? "When someone assigns you a task, you'll see it here."
-                  : "Invitations and task assignments will appear here."
+                  ? t("notifications.emptyAssigned")
+                  : t("notifications.emptyAll")
             }
           />
         ) : (
@@ -210,6 +222,7 @@ function Row({
   onMarkRead: () => void;
   onAccepted: (boardId: string) => void;
 }) {
+  const { t, i18n } = useTranslation();
   const { title, detail } = notificationText(notification);
   const unread = isUnread(notification);
 
@@ -255,7 +268,9 @@ function Row({
               <span aria-hidden>·</span>
               <time
                 dateTime={notification.created_at}
-                title={new Date(notification.created_at).toLocaleString()}
+                title={new Date(notification.created_at).toLocaleString(
+                  i18n.language,
+                )}
                 className="shrink-0"
               >
                 {relativeTime(notification.created_at)}
@@ -269,13 +284,13 @@ function Row({
           {unread && (
             <>
               <span
-                aria-label="Unread"
+                aria-label={t("notifications.unread")}
                 className="bg-brand col-start-1 row-start-1 size-2 rounded-full transition-opacity duration-150 group-focus-within:opacity-0 group-hover:opacity-0"
               />
 
               <button
                 type="button"
-                aria-label="Mark as read"
+                aria-label={t("notifications.markRead")}
                 onClick={onMarkRead}
                 className="text-ink-3 hover:text-ink hover:bg-wash-strong focus-visible:ring-brand rounded-control pointer-events-none col-start-1 row-start-1 grid size-6 place-items-center opacity-0 transition-opacity duration-150 outline-none group-focus-within:pointer-events-auto group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:opacity-100 focus-visible:ring-2"
               >

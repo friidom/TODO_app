@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { MessageSquareIcon } from "lucide-react";
 
@@ -41,6 +42,7 @@ export default function CommentThread({
   // ActivitySection's Comments tab already says "Comments" above this, so it passes true to skip the redundant heading
   hideHeading?: boolean;
 }) {
+  const { t } = useTranslation();
   const boardId = useBoardId();
 
   const { data: comments, isPending, error } = useComments(todoId);
@@ -52,7 +54,10 @@ export default function CommentThread({
   return (
     <section>
       {!hideHeading && (
-        <SectionHeader title="Comments" count={count > 0 ? count : null} />
+        <SectionHeader
+          title={t("taskActivity.comments")}
+          count={count > 0 ? count : null}
+        />
       )}
 
       {isPending ? (
@@ -68,14 +73,12 @@ export default function CommentThread({
           ))}
         </div>
       ) : error ? (
-        <p className="text-status-red text-meta">
-          Could not load this discussion.
-        </p>
+        <p className="text-status-red text-meta">{t("comments.loadFailed")}</p>
       ) : count === 0 ? (
         <EmptyLine icon={MessageSquareIcon}>
           <span>
-            No comments yet.
-            {canComment && " Start the discussion below."}
+            {t("comments.empty")}
+            {canComment && ` ${t("comments.startBelow")}`}
           </span>
         </EmptyLine>
       ) : (
@@ -109,6 +112,7 @@ export function CommentRow({
   author: BoardMember | undefined;
   todoId: string;
 }) {
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const { role } = usePermissions();
 
@@ -150,12 +154,12 @@ export function CommentRow({
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
           <span className="text-ink text-sm font-medium">
-            {author ? memberName(author) : "Former member"}
+            {author ? memberName(author) : t("members.former")}
           </span>
 
           <time
             dateTime={comment.created_at}
-            title={new Date(comment.created_at).toLocaleString()}
+            title={new Date(comment.created_at).toLocaleString(i18n.language)}
             className="text-ink-3 text-xs"
           >
             {relativeTime(comment.created_at)}
@@ -163,10 +167,12 @@ export function CommentRow({
 
           {isEdited(comment) && (
             <span
-              title={`Edited ${relativeTime(comment.updated_at)}`}
+              title={t("comments.editedAgo", {
+                when: relativeTime(comment.updated_at),
+              })}
               className="text-ink-3 text-xs"
             >
-              (edited)
+              {t("comments.edited")}
             </span>
           )}
         </div>
@@ -189,7 +195,7 @@ export function CommentRow({
               }}
               rows={3}
               autoFocus
-              aria-label="Edit comment"
+              aria-label={t("comments.editLabel")}
               className={cn(
                 TEXT_FIELD,
                 "rounded-card w-full resize-y px-3 py-2 text-sm leading-relaxed",
@@ -206,7 +212,7 @@ export function CommentRow({
                 }
                 className={cn(DIALOG_CONFIRM, "h-7 px-2.5 text-xs")}
               >
-                {update.isPending ? "Saving…" : "Save"}
+                {update.isPending ? t("common.saving") : t("common.save")}
               </button>
 
               <button
@@ -214,7 +220,7 @@ export function CommentRow({
                 onClick={() => setDraft(null)}
                 className={cn(INLINE_ACTION, "py-1 text-xs")}
               >
-                Cancel
+                {t("common.cancel")}
               </button>
             </div>
           </div>
@@ -232,7 +238,7 @@ export function CommentRow({
                     onClick={() => setDraft(comment.content)}
                     className={INLINE_ACTION}
                   >
-                    Edit
+                    {t("common.edit")}
                   </button>
                 )}
 
@@ -240,7 +246,7 @@ export function CommentRow({
                   (confirmingDelete ? (
                     <span className="flex items-center gap-1">
                       <span className="text-ink-3 px-1.5">
-                        Delete this comment?
+                        {t("comments.deleteQuestion")}
                       </span>
 
                       <button
@@ -251,7 +257,9 @@ export function CommentRow({
                         disabled={remove.isPending}
                         className={INLINE_ACTION_DANGER}
                       >
-                        {remove.isPending ? "Deleting…" : "Delete"}
+                        {remove.isPending
+                          ? t("common.deleting")
+                          : t("common.delete")}
                       </button>
 
                       <button
@@ -259,7 +267,7 @@ export function CommentRow({
                         onClick={() => setConfirmingDelete(false)}
                         className={INLINE_ACTION}
                       >
-                        Keep
+                        {t("common.keep")}
                       </button>
                     </span>
                   ) : (
@@ -271,7 +279,7 @@ export function CommentRow({
                         "hover:text-status-red hover:bg-status-red/10",
                       )}
                     >
-                      Delete
+                      {t("common.delete")}
                     </button>
                   ))}
               </div>
@@ -281,8 +289,8 @@ export function CommentRow({
 
         {(update.isError || remove.isError) && !editing && (
           <p className="text-status-red mt-1 text-xs">
-            {update.isError ? "That edit did not save." : null}
-            {remove.isError ? "That comment was not deleted." : null}
+            {update.isError ? t("comments.editFailed") : null}
+            {remove.isError ? t("comments.deleteFailed") : null}
           </p>
         )}
       </div>
@@ -298,6 +306,7 @@ export function Composer({
   todoId: string;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const [draft, setDraft] = useState("");
   const add = useAddComment();
   const { canComment } = usePermissions();
@@ -326,8 +335,8 @@ export function Composer({
           }
         }}
         rows={2}
-        placeholder="Add a comment…"
-        aria-label="Add a comment"
+        placeholder={t("comments.addPlaceholder")}
+        aria-label={t("comments.addLabel")}
         className={cn(
           TEXT_FIELD,
           "rounded-card field-sizing-content max-h-72 min-h-16 w-full resize-y px-3 py-2.5 text-sm leading-relaxed",
@@ -341,11 +350,11 @@ export function Composer({
           disabled={value === null || add.isPending}
           className={cn(DIALOG_CONFIRM, "h-8 px-3 text-xs")}
         >
-          {add.isPending ? "Posting…" : "Comment"}
+          {add.isPending ? t("comments.posting") : t("comments.comment")}
         </button>
 
         <span className="text-ink-3 text-mini hidden sm:inline">
-          ⌘↵ to post
+          {t("comments.shortcut")}
         </span>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, NavLink, useLocation } from "react-router";
 import {
   ChevronRightIcon,
@@ -51,6 +52,7 @@ type Dialog =
   | null;
 
 export default function BoardsSection() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { data: boards = [], isPending } = useBoards();
   const { data: spaces = [] } = useSpaces();
@@ -74,7 +76,7 @@ export default function BoardsSection() {
     <>
       <SidebarGroup>
         <SectionLabel
-          label="Spaces"
+          label={t("sidebar.spaces")}
           open={sectionOpen}
           onToggle={() => setSectionOpen((open) => !open)}
         />
@@ -88,7 +90,7 @@ export default function BoardsSection() {
           {isPending && (
             <SidebarMenuItem>
               <span className="text-ink-3 text-meta flex h-8 items-center px-2">
-                Loading…
+                {t("common.loading")}
               </span>
             </SidebarMenuItem>
           )}
@@ -96,7 +98,7 @@ export default function BoardsSection() {
           {!isPending && boards.length === 0 && spaces.length === 0 && (
             <SidebarMenuItem>
               <span className="text-ink-3 text-meta flex h-8 items-center px-2">
-                No boards yet
+                {t("sidebar.noBoardsYet")}
               </span>
             </SidebarMenuItem>
           )}
@@ -125,7 +127,7 @@ export default function BoardsSection() {
               className="text-ink-3"
             >
               <PlusIcon />
-              <span>New board</span>
+              <span>{t("sidebar.newBoard")}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
 
@@ -135,7 +137,7 @@ export default function BoardsSection() {
               className="text-ink-3"
             >
               <FolderPlusIcon />
-              <span>Create space</span>
+              <span>{t("sidebar.createSpace")}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
 
@@ -145,7 +147,7 @@ export default function BoardsSection() {
               className="text-ink-3"
             >
               <Settings2Icon />
-              <span>Manage boards</span>
+              <span>{t("sidebar.manageBoards")}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -192,10 +194,11 @@ function SpaceRow({
   onToggle: () => void;
   onDialog: (dialog: Dialog) => void;
 }) {
-  const title = space?.title ?? "Unfiled";
+  const { t } = useTranslation();
+  const title = space?.title ?? t("common.unfiled");
   const newBoardLabel = space
-    ? `New board in ${space.title}`
-    : "New board, unfiled";
+    ? t("sidebar.newBoardIn", { space: space.title })
+    : t("sidebar.newBoardUnfiled");
 
   return (
     <>
@@ -203,7 +206,9 @@ function SpaceRow({
         <SidebarMenuButton
           onClick={onToggle}
           aria-expanded={!collapsed}
-          aria-label={`${collapsed ? "Expand" : "Collapse"} ${title}`}
+          aria-label={t(collapsed ? "sidebar.expand" : "sidebar.collapse", {
+            name: title,
+          })}
           className={cn(
             "font-semibold",
             space ? "coarse:pr-18 pr-14" : "coarse:pr-10 pr-8",
@@ -242,7 +247,10 @@ function SpaceRow({
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
-                  <IconButton size="xs" label={`${space.title} options`} />
+                  <IconButton
+                    size="xs"
+                    label={t("common.optionsFor", { name: space.title })}
+                  />
                 }
               >
                 <MoreHorizontalIcon />
@@ -253,7 +261,7 @@ function SpaceRow({
                   onClick={() => onDialog({ kind: "rename-space", space })}
                 >
                   <PencilIcon />
-                  Rename space
+                  {t("sidebar.renameSpace")}
                 </DropdownMenuItem>
 
                 <DropdownMenuSeparator />
@@ -269,7 +277,7 @@ function SpaceRow({
                   }
                 >
                   <Trash2Icon />
-                  Delete space
+                  {t("sidebar.deleteSpace")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -283,7 +291,7 @@ function SpaceRow({
             {boards.length === 0 ? (
               <SidebarMenuItem>
                 <span className="text-ink-3 text-meta flex h-8 items-center pl-8">
-                  {space ? "No boards" : "Nothing here"}
+                  {space ? t("sidebar.noBoards") : t("sidebar.nothingHere")}
                 </span>
               </SidebarMenuItem>
             ) : (
@@ -312,6 +320,7 @@ function BoardRow({
   owned: boolean;
   onDialog: (dialog: Dialog) => void;
 }) {
+  const { t } = useTranslation();
   const location = useLocation();
 
   const to = `/boards/${board.id}`;
@@ -329,7 +338,7 @@ function BoardRow({
         className={cn("pl-8", owned && "coarse:pr-10 pr-8")}
       >
         <KanbanIcon />
-        <span>{board.title || "Untitled board"}</span>
+        <span>{board.title || t("common.untitledBoard")}</span>
       </SidebarMenuButton>
 
       {owned && (
@@ -339,7 +348,9 @@ function BoardRow({
               render={
                 <IconButton
                   size="xs"
-                  label={`${board.title ?? "Board"} options`}
+                  label={t("common.optionsFor", {
+                    name: board.title || t("sidebar.board"),
+                  })}
                 />
               }
             >
@@ -351,7 +362,7 @@ function BoardRow({
                 render={<Link to={boardSettingsPath(board.id, "details")} />}
               >
                 <SettingsIcon />
-                Board settings
+                {t("sidebar.boardSettings")}
               </DropdownMenuItem>
 
               <DropdownMenuSeparator />
@@ -361,7 +372,7 @@ function BoardRow({
                 onClick={() => onDialog({ kind: "delete-board", board })}
               >
                 <Trash2Icon />
-                Delete board
+                {t("sidebar.deleteBoard")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

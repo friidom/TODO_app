@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import i18n from "@/components/i18n";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 
@@ -17,8 +19,20 @@ const GRID = [0, 0.5, 1];
 const LABEL_SLOTS = 10;
 
 const SERIES = [
-  { key: "created_todos", label: "Created", tone: "text-status-orange" },
-  { key: "completed_todos", label: "Completed", tone: "text-status-green" },
+  {
+    key: "created_todos",
+    get label() {
+      return i18n.t("fields.created");
+    },
+    tone: "text-status-orange",
+  },
+  {
+    key: "completed_todos",
+    get label() {
+      return i18n.t("fields.completed");
+    },
+    tone: "text-status-green",
+  },
 ] as const;
 
 type SeriesKey = (typeof SERIES)[number]["key"];
@@ -36,6 +50,7 @@ export default function DualSeries({
   scopeQuery?: string;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
 
@@ -85,8 +100,11 @@ export default function DualSeries({
 
   return (
     <SummaryCard
-      title="Created vs completed"
-      hint={`${dash(totals("created_todos"))} in, ${dash(totals("completed_todos"))} out over this window`}
+      title={t("admin.dual.title")}
+      hint={t("admin.dual.hint", {
+        created: dash(totals("created_todos")),
+        completed: dash(totals("completed_todos")),
+      })}
       className={className}
       action={
         <ChartLegend
@@ -97,9 +115,7 @@ export default function DualSeries({
       }
     >
       {points.length === 0 ? (
-        <WidgetEmpty>
-          Nothing was created or completed in this window.
-        </WidgetEmpty>
+        <WidgetEmpty>{t("admin.dual.empty")}</WidgetEmpty>
       ) : (
         <ChartFrame
           axis={[dash(peak), dash(Math.round(peak / 2)), "0"]}
@@ -208,13 +224,13 @@ export default function DualSeries({
           <div
             {...hover.surface}
             role="slider"
-            aria-label="Bucket"
+            aria-label={t("admin.bucket")}
             aria-valuemin={0}
             aria-valuemax={Math.max(0, points.length - 1)}
             aria-valuenow={hover.index ?? 0}
             aria-valuetext={
               hover.index === null
-                ? "none"
+                ? t("common.none")
                 : bucketLabel(points[hover.index]!.bucket, bucket)
             }
             onClick={() => hover.index !== null && drill(hover.index)}
@@ -236,7 +252,7 @@ export default function DualSeries({
                 muted: hidden.has(series.key),
               }))}
               footer={{
-                label: "Net change",
+                label: t("admin.dual.net"),
                 value: `${net > 0 ? "+" : ""}${net}`,
               }}
             />
@@ -246,7 +262,7 @@ export default function DualSeries({
 
       {points.length > 0 && (
         <p className="text-ink-3 text-mini px-3.5 pb-3">
-          Click a point to open the activity for that range.
+          {t("admin.clickPoint")}
         </p>
       )}
     </SummaryCard>

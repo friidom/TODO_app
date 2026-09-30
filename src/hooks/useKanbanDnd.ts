@@ -31,6 +31,10 @@ export type DropType = "column" | "column-gap" | "todo-gap" | "status-zone";
 
 const COLUMN_HOVER_DISTANCE = 80;
 
+// dnd-kit's default edge zone is 20% of each scroll container: on a board wider than the screen that covers
+// the outer columns whole, so hovering one scrolls it out from under the cursor
+const AUTO_SCROLL = { threshold: { x: 0.05, y: 0.1 } };
+
 const EMPTY_INDICATOR: TodoIndicator = { columnId: null, index: 0 };
 
 function distanceToRect(rect: ClientRect, x: number, y: number) {
@@ -273,9 +277,10 @@ export default function useKanbanDnd() {
         (container) => typeOf(container) === "column",
       );
 
+      // horizontal only: a column is as tall as its cards, and the empty lane below it must still accept a drop
       const column = pickNearest(
         columns,
-        (rect) => distanceToRect(rect, x, y),
+        (rect) => Math.max(rect.left - x, 0, x - rect.right),
         COLUMN_HOVER_DISTANCE,
       );
 
@@ -362,6 +367,7 @@ export default function useKanbanDnd() {
 
   return {
     sensors,
+    autoScroll: AUTO_SCROLL,
     collisionDetection,
     handleDragOver,
 

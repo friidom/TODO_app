@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Fragment, useState } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import {
@@ -39,6 +40,7 @@ export default function SprintSection({
   onDelete: (sprint: Sprint) => void;
 }) {
   const { sprint, items } = section;
+  const { t } = useTranslation();
   const { canEditTodos } = usePermissions();
 
   const [collapsed, setCollapsed] = useState(false);
@@ -72,7 +74,9 @@ export default function SprintSection({
           type="button"
           onClick={() => setCollapsed((open) => !open)}
           aria-expanded={!collapsed}
-          aria-label={`${collapsed ? "Expand" : "Collapse"} ${sprint.name}`}
+          aria-label={t(collapsed ? "sidebar.expand" : "sidebar.collapse", {
+            name: sprint.name,
+          })}
           className="text-ink-3 hover:text-ink hover:bg-ink/10 mt-0.5 grid size-5 shrink-0 place-items-center rounded transition-colors"
         >
           {collapsed ? (
@@ -90,7 +94,7 @@ export default function SprintSection({
 
             {sprint.state === "active" && (
               <span className="bg-status-green/15 text-status-green text-micro shrink-0 rounded px-1.5 py-0.5 font-semibold tracking-wide uppercase">
-                Active
+                {t("sprint.active")}
               </span>
             )}
 
@@ -98,8 +102,8 @@ export default function SprintSection({
               <button
                 type="button"
                 onClick={() => onEdit(sprint)}
-                aria-label="Edit sprint"
-                title="Edit sprint"
+                aria-label={t("backlog.editSprint")}
+                title={t("backlog.editSprint")}
                 className="text-ink-3 hover:text-ink hover:bg-ink/10 grid size-5 shrink-0 place-items-center rounded transition-colors"
               >
                 <PencilIcon className="size-3" />
@@ -111,8 +115,8 @@ export default function SprintSection({
               <button
                 type="button"
                 onClick={() => onDelete(sprint)}
-                aria-label="Delete sprint"
-                title="Delete sprint"
+                aria-label={t("backlog.deleteSprint")}
+                title={t("backlog.deleteSprint")}
                 className="text-ink-3 hover:text-status-red hover:bg-status-red/10 grid size-5 shrink-0 place-items-center rounded transition-colors"
               >
                 <Trash2Icon className="size-3" />
@@ -129,9 +133,7 @@ export default function SprintSection({
               </span>
             )}
 
-            <span>
-              {items.length} {items.length === 1 ? "item" : "items"}
-            </span>
+            <span>{t("list.itemCount", { count: items.length })}</span>
 
             {sprint.goal && (
               <span className="min-w-0 truncate italic" title={sprint.goal}>
@@ -145,7 +147,19 @@ export default function SprintSection({
           {points.total > 0 && (
             <span
               className="flex items-center gap-1.5 font-semibold tabular-nums"
-              title={`${points.todo} To Do · ${points.inProgress} In Progress · ${points.done} Done — ${points.completed} of ${points.total} points done${points.unestimated ? `, ${points.unestimated} unestimated` : ""}`}
+              title={`${t("backlog.pointsSummary", {
+                todo: points.todo,
+                inProgress: points.inProgress,
+                done: points.done,
+                completed: points.completed,
+                total: points.total,
+              })}${
+                points.unestimated
+                  ? t("backlog.pointsUnestimated", {
+                      count: points.unestimated,
+                    })
+                  : ""
+              }`}
             >
               <span className="text-ink-3">{points.todo}</span>
               <span className="text-status-blue">{points.inProgress}</span>
@@ -160,7 +174,9 @@ export default function SprintSection({
               disabled={startSprint.isPending}
               className="border-hairline text-ink-2 hover:bg-ink/[0.06] rounded-control h-7 border px-2.5 text-xs font-medium transition-colors disabled:opacity-60"
             >
-              {startSprint.isPending ? "Starting…" : "Start sprint"}
+              {startSprint.isPending
+                ? t("backlog.starting")
+                : t("backlog.startSprint")}
             </button>
           )}
 
@@ -170,7 +186,7 @@ export default function SprintSection({
               onClick={() => onComplete(sprint)}
               className="border-hairline text-ink-2 hover:bg-ink/[0.06] rounded-control h-7 border px-2.5 text-xs font-medium transition-colors"
             >
-              Complete sprint
+              {t("sprint.complete")}
             </button>
           )}
         </div>
@@ -227,7 +243,7 @@ export default function SprintSection({
                     }
                   }}
                   onBlur={submitNewItem}
-                  placeholder="What needs doing?"
+                  placeholder={t("list.newItemPlaceholder")}
                   className="border-hairline text-ink placeholder:text-ink-3 focus:border-brand/60 focus:ring-brand/25 rounded-control min-w-0 flex-1 border bg-transparent px-2.5 py-1.5 text-sm outline-none focus:ring-2"
                 />
               </div>
@@ -241,13 +257,13 @@ export default function SprintSection({
                 )}
               >
                 <PlusIcon className="size-3.5" />
-                Create item
+                {t("backlog.createItem")}
               </button>
             ))}
 
           {items.length === 0 && !adding && (
             <p className="text-ink-3 px-3 pb-2 text-xs">
-              Nothing planned into this sprint yet.
+              {t("backlog.sprintEmpty")}
             </p>
           )}
         </div>

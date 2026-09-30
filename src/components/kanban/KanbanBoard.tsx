@@ -1,10 +1,11 @@
+import { useTranslation } from "react-i18next";
 import { Fragment, useMemo, useState } from "react";
 
 import { DndContext, type DataRef, type UniqueIdentifier } from "@dnd-kit/core";
 import { CircleAlertIcon, RocketIcon } from "lucide-react";
 
 import {
-  SCREEN_READER_INSTRUCTIONS,
+  screenReaderInstructions,
   announceCancelled,
   announceDropped,
   announceMovedOver,
@@ -45,6 +46,7 @@ import { columnTitle } from "@/constants/columns";
 import { taskKey } from "@/utils/taskKey";
 
 export default function KanbanBoard() {
+  const { t } = useTranslation();
   const boardId = useBoardId();
   const view = useBoardView();
 
@@ -72,6 +74,7 @@ export default function KanbanBoard() {
 
   const {
     sensors,
+    autoScroll,
     collisionDetection,
     handleDragOver,
     activeTodo,
@@ -113,6 +116,9 @@ export default function KanbanBoard() {
             { statuses: workflow.statuses, members },
           )
         : [],
+    // t: groupTodos names the fallback lanes in the current language, so a
+    // language switch must regroup
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       swimlanes,
       todos,
@@ -121,6 +127,7 @@ export default function KanbanBoard() {
       view.group,
       workflow.statuses,
       members,
+      t,
     ],
   );
 
@@ -163,7 +170,7 @@ export default function KanbanBoard() {
       <div className="grid h-full place-items-center">
         <EmptyState
           icon={CircleAlertIcon}
-          title="Couldn't load this board"
+          title={t("board.loadFailed")}
           hint={error.message}
         />
       </div>
@@ -173,13 +180,14 @@ export default function KanbanBoard() {
   function labelOf(id: UniqueIdentifier, type: string | undefined) {
     if (type === "column") {
       return (
-        columnTitle(orderedColumns.find((c) => c.id === id)?.title) || "column"
+        columnTitle(orderedColumns.find((c) => c.id === id)?.title) ||
+        t("dnd.column")
       );
     }
 
     const todo = all.find((it) => it.id === id);
 
-    if (!todo) return "item";
+    if (!todo) return t("dnd.item");
 
     return itemLabel(taskKey(keyPrefix, todo.board_key), todo.title);
   }
@@ -196,12 +204,17 @@ export default function KanbanBoard() {
     }
 
     const column = orderedColumns.find((c) => c.id === data.columnId);
-    const title = columnTitle(column?.title) || "this column";
+    const title = columnTitle(column?.title) || t("dnd.thisColumn");
 
-    if (data.type === "column") return `${title}, which is empty`;
+    if (data.type === "column") return t("dnd.emptyColumn", { column: title });
 
     if (data.type === "status-zone") {
-      return `${workflow.statusById.get(data.statusId ?? "")?.name ?? "a status"} in ${title}`;
+      return t("dnd.statusIn", {
+        status:
+          workflow.statusById.get(data.statusId ?? "")?.name ??
+          t("dnd.aStatus"),
+        column: title,
+      });
     }
 
     const gaps = (todosByColumn[data.columnId ?? ""]?.length ?? 0) + 1;
@@ -212,9 +225,10 @@ export default function KanbanBoard() {
   return (
     <DndContext
       sensors={sensors}
+      autoScroll={autoScroll}
       collisionDetection={collisionDetection}
       accessibility={{
-        screenReaderInstructions: { draggable: SCREEN_READER_INSTRUCTIONS },
+        screenReaderInstructions: { draggable: screenReaderInstructions() },
         announcements: {
           onDragStart: ({ active }) =>
             announcePickedUp(
@@ -383,13 +397,15 @@ export default function KanbanBoard() {
 // Only rendered when the Sprints feature is on — with it off, a column is the
 // whole rule again and the board is never empty for this reason.
 function NoActiveSprint({ onGoToBacklog }: { onGoToBacklog: () => void }) {
+  const { t } = useTranslation();
+
   return (
     <div className="grid min-h-0 flex-1 place-items-center">
       <EmptyState
         icon={RocketIcon}
-        title="No active sprint"
-        hint="Start a sprint to see work on this board."
-        action={{ label: "Go to Backlog", run: onGoToBacklog }}
+        title={t("sprint.noneActive")}
+        hint={t("sprint.noneActiveHint")}
+        action={{ label: t("sprint.goToBacklog"), run: onGoToBacklog }}
       />
     </div>
   );

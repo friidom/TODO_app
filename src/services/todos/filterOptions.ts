@@ -1,5 +1,6 @@
+import i18n from "@/components/i18n";
 import { PRIORITIES, PRIORITY_OPTIONS } from "@/constants/priorities";
-import { WORK_TYPE_OPTIONS } from "@/constants/workTypes";
+import { WORK_TYPE_LABELS, WORK_TYPE_OPTIONS } from "@/constants/workTypes";
 import { memberName } from "@/components/members/memberLabels";
 import type { BoardMember } from "@/services/members/membersApi";
 import type { IStatus } from "@/types/data";
@@ -30,8 +31,8 @@ export function filterOptions(
   switch (category) {
     case "assignee":
       return [
-        { value: ME, label: "Assigned to me" },
-        { value: UNSET, label: "Unassigned" },
+        { value: ME, label: i18n.t("members.assignedToMe") },
+        { value: UNSET, label: i18n.t("members.unassigned") },
         // exclude self — already covered by "Assigned to me" above
         ...members
           .filter((member) => member.id !== currentUserId)
@@ -46,7 +47,10 @@ export function filterOptions(
       }));
 
     case "type":
-      return WORK_TYPE_OPTIONS.map((type) => ({ value: type, label: type }));
+      return WORK_TYPE_OPTIONS.map((type) => ({
+        value: type,
+        label: WORK_TYPE_LABELS[type],
+      }));
 
     case "priority":
       return [
@@ -54,7 +58,7 @@ export function filterOptions(
           value: priority,
           label: PRIORITIES[priority].label,
         })),
-        { value: UNSET, label: "No priority" },
+        { value: UNSET, label: i18n.t("priority.none") },
       ];
 
     case "due":

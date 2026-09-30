@@ -1,11 +1,11 @@
+import { roleLabel } from "@/components/members/roleStyles";
 import { PRIORITIES, type Priority } from "@/constants/priorities";
+import { WORK_TYPE_LABELS, type WorkType } from "@/constants/workTypes";
 import type { Activity } from "@/types/data";
 import { formatDue } from "@/utils/dueDate";
 
 // Pure text formatting for one activity row — reads only the trigger's snapshotted payload, never the
 // live database, so it can still render a sentence about a card or column that's since been deleted.
-
-const FORMER = "a former member";
 
 export type ActivityDetail = {
   label: string;
@@ -60,29 +60,37 @@ export function num(payload: Activity["payload"], key: string): number | null {
   return typeof value === "number" ? value : null;
 }
 
-function itemLabel(activity: Activity, keyPrefix: string): string {
+type T = ActivityContext["t"];
+
+function itemLabel(activity: Activity, keyPrefix: string, t: T): string {
   const boardKey = num(activity.payload, "board_key");
   const title = str(activity.payload, "title");
 
   if (boardKey !== null) return `${keyPrefix}-${boardKey}`;
 
-  return title ?? "a work item";
+  return title ?? t("activity.aWorkItem");
 }
 
-function personLabel(id: string | null, names: Record<string, string>): string {
-  if (id === null) return "nobody";
+function personLabel(
+  id: string | null,
+  names: Record<string, string>,
+  t: T,
+): string {
+  if (id === null) return t("activity.nobody");
 
-  return names[id] ?? FORMER;
+  return names[id] ?? t("activity.formerMember");
 }
 
 // Unrecognised values fall through as themselves rather than being dropped — a row from a newer build still says something true.
-function priorityDetail(value: string | null): ActivityDetail {
-  if (value === null) return { label: "Priority", value: "None" };
+function priorityDetail(value: string | null, t: T): ActivityDetail {
+  const label = t("fields.priority");
+
+  if (value === null) return { label, value: t("common.none") };
 
   const meta = PRIORITIES[value as Priority];
 
   return {
-    label: "Priority",
+    label,
     value: meta?.label ?? value,
     tone: meta?.tone,
   };
@@ -92,7 +100,7 @@ export function describeActivity(
   activity: Activity,
   { keyPrefix, names, liveTaskIds, t }: ActivityContext,
 ): ActivityLine {
-  const item = itemLabel(activity, keyPrefix);
+  const item = itemLabel(activity, keyPrefix, t);
 
   const taskId =
     activity.entity_type === "todo" &&
@@ -103,10 +111,14 @@ export function describeActivity(
 
   switch (`${activity.entity_type}.${activity.action}`) {
     case "todo.created":
-      return { text: `created ${item}`, taskId, detail: null };
+      return { text: t("activity.created", { item }), taskId, detail: null };
 
     case "todo.deleted":
-      return { text: `deleted ${item}`, taskId: null, detail: null };
+      return {
+        text: t("activity.deleted", { item }),
+        taskId: null,
+        detail: null,
+      };
 
     case "todo.moved": {
       const from = str(activity.payload, "from");
@@ -114,14 +126,19 @@ export function describeActivity(
 
       // Uncoloured — the trigger snapshots the status's name, not its id, so there's no category to look up.
       const detail: ActivityDetail | null = to
-        ? { label: "Status", value: to }
+        ? { label: t("fields.status"), value: to }
         : null;
 
       if (from && to)
-        return { text: `moved ${item} from ${from} to ${to}`, taskId, detail };
-      if (to) return { text: `moved ${item} to ${to}`, taskId, detail };
+        return {
+          text: t("activity.movedFromTo", { item, from, to }),
+          taskId,
+          detail,
+        };
+      if (to)
+        return { text: t("activity.movedTo", { item, to }), taskId, detail };
 
-      return { text: `moved ${item}`, taskId, detail: null };
+      return { text: t("activity.moved", { item }), taskId, detail: null };
     }
 
     case "todo.assigned": {
@@ -129,18 +146,21 @@ export function describeActivity(
 
       if (to === null) {
         return {
-          text: `unassigned ${item}`,
+          text: t("activity.unassigned", { item }),
           taskId,
-          detail: { label: "Assignee", value: "Unassigned" },
+          detail: {
+            label: t("fields.assignee"),
+            value: t("members.unassigned"),
+          },
         };
       }
 
-      const who = personLabel(to, names);
+      const who = personLabel(to, names, t);
 
       return {
-        text: `assigned ${item} to ${who}`,
+        text: t("activity.assigned", { item, who }),
         taskId,
-        detail: { label: "Assignee", value: who },
+        detail: { label: t("fields.assignee"), value: who },
       };
     }
 
@@ -148,18 +168,22 @@ export function describeActivity(
       const to = str(activity.payload, "to");
 
       if (to)
-        return { text: `renamed ${item} to “${to}”`, taskId, detail: null };
+        return {
+          text: t("activity.renamedTo", { item, to }),
+          taskId,
+          detail: null,
+        };
 
-      return { text: `renamed ${item}`, taskId, detail: null };
+      return { text: t("activity.renamed", { item }), taskId, detail: null };
     }
 
     case "todo.priority_changed": {
       const to = str(activity.payload, "to");
 
       return {
-        text: `changed the priority of ${item}`,
+        text: t("activity.priorityChanged", { item }),
         taskId,
-        detail: priorityDetail(to),
+        detail: priorityDetail(to, t),
       };
     }
 
@@ -167,9 +191,14 @@ export function describeActivity(
       const to = str(activity.payload, "to");
 
       return {
-        text: to ? `rescheduled ${item}` : `cleared the due date on ${item}`,
+        text: to
+          ? t("activity.rescheduled", { item })
+          : t("activity.dueCleared", { item }),
         taskId,
-        detail: { label: "Due", value: to ? formatDue(to) : "None" },
+        detail: {
+          label: t("activity.due"),
+          value: to ? formatDue(to) : t("common.none"),
+        },
       };
     }
 
@@ -177,17 +206,22 @@ export function describeActivity(
       const to = str(activity.payload, "to");
 
       return {
-        text: `changed the type of ${item}`,
+        text: t("activity.typeChanged", { item }),
         taskId,
         // Uncoloured — a red Bug chip beside a red Highest-priority chip would read as one signal, not two.
-        detail: to ? { label: "Type", value: to } : null,
+        detail: to
+          ? {
+              label: t("activity.type"),
+              value: WORK_TYPE_LABELS[to as WorkType] ?? to,
+            }
+          : null,
       };
     }
 
     case "todo.description_changed":
       // No detail chip — description is unbounded free text, nothing compact to render a diff in.
       return {
-        text: `changed the description of ${item}`,
+        text: t("activity.descriptionChanged", { item }),
         taskId,
         detail: null,
       };
@@ -196,25 +230,44 @@ export function describeActivity(
       const to = num(activity.payload, "to");
 
       return {
-        text: `changed the estimate of ${item}`,
+        text: t("activity.estimateChanged", { item }),
         taskId,
-        detail: { label: "Estimate", value: to === null ? "None" : String(to) },
+        detail: {
+          label: t("fields.estimate"),
+          value: to === null ? t("common.none") : String(to),
+        },
       };
     }
 
     case "todo.subtask_added":
       // item names the subtask; entity_id/taskId is the parent, whose history this row belongs to.
-      return { text: `added subtask ${item}`, taskId, detail: null };
+      return {
+        text: t("activity.subtaskAdded", { item }),
+        taskId,
+        detail: null,
+      };
 
     case "todo.subtask_removed":
-      return { text: `removed subtask ${item}`, taskId, detail: null };
+      return {
+        text: t("activity.subtaskRemoved", { item }),
+        taskId,
+        detail: null,
+      };
 
     case "todo.task_added_to_epic":
       // Same asymmetry as subtask_added: item is the task, taskId is the epic.
-      return { text: `added ${item} to this epic`, taskId, detail: null };
+      return {
+        text: t("activity.addedToEpic", { item }),
+        taskId,
+        detail: null,
+      };
 
     case "todo.task_removed_from_epic":
-      return { text: `removed ${item} from this epic`, taskId, detail: null };
+      return {
+        text: t("activity.removedFromEpic", { item }),
+        taskId,
+        detail: null,
+      };
 
     case "todo.parent_changed": {
       const to = str(activity.payload, "to");
@@ -226,8 +279,8 @@ export function describeActivity(
         return {
           text:
             fromType === "Epic"
-              ? `removed ${item} from its epic`
-              : `made ${item} a top-level work item`,
+              ? t("activity.removedFromItsEpic", { item })
+              : t("activity.madeTopLevel", { item }),
           taskId,
           detail: null,
         };
@@ -239,20 +292,30 @@ export function describeActivity(
         const toKey = num(activity.payload, "to_key");
 
         return {
-          text: `assigned ${item} to ${toKey !== null ? `${keyPrefix}-${toKey}` : "an epic"}`,
+          text: t("activity.assigned", {
+            item,
+            who:
+              toKey !== null ? `${keyPrefix}-${toKey}` : t("activity.anEpic"),
+          }),
           taskId,
           detail: null,
         };
       }
 
-      return { text: `made ${item} a subtask`, taskId, detail: null };
+      return {
+        text: t("activity.madeSubtask", { item }),
+        taskId,
+        detail: null,
+      };
     }
 
     case "column.created": {
       const title = str(activity.payload, "title");
 
       return {
-        text: `created the column ${title ?? "a column"}`,
+        text: title
+          ? t("activity.columnCreated", { name: title })
+          : t("activity.columnCreatedUnnamed"),
         taskId: null,
         detail: null,
       };
@@ -262,7 +325,9 @@ export function describeActivity(
       const title = str(activity.payload, "title");
 
       return {
-        text: `deleted the column ${title ?? "a column"}`,
+        text: title
+          ? t("activity.columnDeleted", { name: title })
+          : t("activity.columnDeletedUnnamed"),
         taskId: null,
         detail: null,
       };
@@ -274,13 +339,17 @@ export function describeActivity(
 
       if (from && to) {
         return {
-          text: `renamed the column ${from} to ${to}`,
+          text: t("activity.columnRenamed", { from, to }),
           taskId: null,
           detail: null,
         };
       }
 
-      return { text: `renamed a column`, taskId: null, detail: null };
+      return {
+        text: t("activity.columnRenamedUnnamed"),
+        taskId: null,
+        detail: null,
+      };
     }
 
     case "status.created": {
@@ -323,10 +392,15 @@ export function describeActivity(
 
     case "member.added": {
       const role = str(activity.payload, "role");
-      const who = personLabel(activity.entity_id, names);
+      const who = personLabel(activity.entity_id, names, t);
 
       return {
-        text: role ? `added ${who} as ${role}` : `added ${who}`,
+        text: role
+          ? t("activity.memberAddedAs", {
+              who,
+              role: roleLabel(role).toLowerCase(),
+            })
+          : t("activity.memberAdded", { who }),
         taskId: null,
         detail: null,
       };
@@ -334,24 +408,35 @@ export function describeActivity(
 
     case "member.removed":
       return {
-        text: `removed ${personLabel(activity.entity_id, names)}`,
+        text: t("activity.memberRemoved", {
+          who: personLabel(activity.entity_id, names, t),
+        }),
         taskId: null,
         detail: null,
       };
 
     case "member.role_changed": {
       const to = str(activity.payload, "to");
-      const who = personLabel(activity.entity_id, names);
+      const who = personLabel(activity.entity_id, names, t);
+      const role = to === null ? null : roleLabel(to).toLowerCase();
 
       return {
-        text: to ? `made ${who} ${to}` : `changed ${who}'s role`,
+        text:
+          role !== null
+            ? t("activity.roleMade", { who, role })
+            : t("activity.roleChanged", { who }),
         taskId: null,
-        detail: to ? { label: "Role", value: to } : null,
+        detail:
+          role !== null ? { label: t("activity.role"), value: role } : null,
       };
     }
 
     default:
       // Only reachable if a later migration adds an event type this build doesn't know about.
-      return { text: `changed something`, taskId: null, detail: null };
+      return {
+        text: t("activity.changedSomething"),
+        taskId: null,
+        detail: null,
+      };
   }
 }

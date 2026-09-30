@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 
 import AdminShell from "@/components/admin/AdminShell";
@@ -34,6 +35,7 @@ import { taskKey } from "@/utils/taskKey";
 const RECENT = 8;
 
 export default function AdminDashboardPage() {
+  const { t } = useTranslation();
   const { period } = useAdminPeriod();
   const { taskId, openTask, closeTask } = useOpenTask();
 
@@ -52,16 +54,19 @@ export default function AdminDashboardPage() {
 
   return (
     <AdminShell
-      title="System overview"
+      title={t("admin.dashboard.title")}
       hint={
         data
-          ? `${rangeLabel(data.from, data.to)} · buckets in ${data.timezone}`
-          : "Everything, everywhere"
+          ? t("admin.dashboard.hint", {
+              range: rangeLabel(data.from, data.to),
+              timezone: data.timezone,
+            })
+          : t("admin.dashboard.hintLoading")
       }
       busy={isFetching}
     >
       {error ? (
-        <AdminEmpty>That did not load. Try again.</AdminEmpty>
+        <AdminEmpty>{t("admin.loadFailedRetry")}</AdminEmpty>
       ) : !data ? (
         <AdminSkeleton />
       ) : (
@@ -107,37 +112,42 @@ function RecentActivity({
   onOpen: (todoId: string) => void;
   loading: boolean;
 }) {
+  const { t } = useTranslation();
+
   return (
     <section className="flex flex-col gap-2">
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="text-ink text-xs font-semibold tracking-tight">
-          Recent activity
+          {t("admin.recentActivity")}
         </h2>
 
         <Link
           to={`/admin/activity?period=${period}`}
           className="text-ink-3 hover:text-brand text-mini transition-colors"
         >
-          See all →
+          {t("admin.seeAll")}
         </Link>
       </div>
 
       {loading ? (
         <AdminSkeleton rows={RECENT} />
       ) : (
-        <AdminGrid columns={RECENT_COLUMNS} label="Recent activity system-wide">
+        <AdminGrid
+          columns={RECENT_COLUMNS}
+          label={t("admin.dashboard.recentLabel")}
+        >
           <AdminRow header>
-            <AdminCell header>Developer</AdminCell>
-            <AdminCell header>Action</AdminCell>
-            <AdminCell header>Item</AdminCell>
-            <AdminCell header>Board</AdminCell>
+            <AdminCell header>{t("admin.columns.developer")}</AdminCell>
+            <AdminCell header>{t("admin.columns.action")}</AdminCell>
+            <AdminCell header>{t("admin.columns.item")}</AdminCell>
+            <AdminCell header>{t("sidebar.board")}</AdminCell>
             <AdminCell header align="right">
-              When
+              {t("admin.columns.when")}
             </AdminCell>
           </AdminRow>
 
           {rows.length === 0 ? (
-            <AdminEmpty>Nothing happened in this window.</AdminEmpty>
+            <AdminEmpty>{t("admin.nothingHappened")}</AdminEmpty>
           ) : (
             rows.map((entry) => (
               <AdminRow
@@ -150,7 +160,7 @@ function RecentActivity({
               >
                 <AdminCell>
                   <span className="text-ink truncate">
-                    {entry.actor_username ?? "Unknown"}
+                    {entry.actor_username ?? t("admin.unknown")}
                   </span>
                 </AdminCell>
 
@@ -167,7 +177,7 @@ function RecentActivity({
                     </span>
                   )}
                   <span className="text-ink-2 truncate">
-                    {entry.title ?? `Untitled ${entry.entity_type}`}
+                    {entry.title ?? t("common.untitled")}
                   </span>
                 </AdminCell>
 

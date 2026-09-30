@@ -1,8 +1,10 @@
+import { useTranslation } from "react-i18next";
 import SummaryCard, {
   DistributionRow,
   WidgetEmpty,
 } from "@/components/summary/SummaryCard";
 import { agingRows, totalOf } from "@/services/admin/flow";
+import { dayRangeLabel } from "@/services/admin/format";
 import type { AgingBucket } from "@/services/admin/types";
 
 const TONES: Record<string, string> = {
@@ -22,28 +24,29 @@ export default function AgingBuckets({
   note?: string;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const rows = agingRows(buckets);
   const total = totalOf(buckets);
 
   return (
     <SummaryCard
-      title="WIP aging"
-      hint="How long the work now in progress has been in progress"
+      title={t("admin.aging.title")}
+      hint={t("admin.aging.hint")}
       className={className}
       action={
         <span className="text-ink-3 text-mini tabular-nums">
-          {total} in flight
+          {t("admin.aging.inFlight", { count: total })}
         </span>
       }
     >
       {buckets.length === 0 || total === 0 ? (
-        <WidgetEmpty>Nothing is in progress right now.</WidgetEmpty>
+        <WidgetEmpty>{t("admin.aging.empty")}</WidgetEmpty>
       ) : (
         <div className="flex flex-col gap-2 px-3.5 pb-3">
           {rows.map(({ bucket, percent, share }) => (
             <DistributionRow
               key={bucket.key}
-              label={bucket.label}
+              label={dayRangeLabel(bucket.label)}
               count={bucket.count}
               percent={percent}
               share={share}

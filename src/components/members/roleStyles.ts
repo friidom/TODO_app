@@ -1,3 +1,5 @@
+import i18n from "@/components/i18n";
+
 // keyed off a plain string since the column is a checked text field, not an enum
 export const ROLE_STYLES: Record<string, string> = {
   owner: "bg-brand-soft text-brand",
@@ -13,5 +15,7 @@ export function roleStyle(role: string) {
 }
 
 export function roleLabel(role: string) {
-  return role.charAt(0).toUpperCase() + role.slice(1);
+  return i18n.t(`roles.${role}`, {
+    defaultValue: role.charAt(0).toUpperCase() + role.slice(1),
+  });
 }

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { CornerDownLeft } from "lucide-react";
 import { useEffect, useState, type RefObject } from "react";
 
@@ -39,6 +40,7 @@ export default function TodoCreateForm({
   className,
   ref,
 }: Props) {
+  const { t } = useTranslation();
   const [ready, setReady] = useState(!skeleton);
   const [assigneeId, setAssigneeId] = useState<string | null>(null);
   const [dueDate, setDueDate] = useState<string | null>(null);
@@ -79,10 +81,10 @@ export default function TodoCreateForm({
     <div ref={ref} className={cn(CARD, className)}>
       <input
         autoFocus
-        aria-label="Work item title"
+        aria-label={t("kanban.itemTitle")}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="What needs to be done?"
+        placeholder={t("kanban.itemPlaceholder")}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             e.preventDefault();
@@ -107,7 +109,7 @@ export default function TodoCreateForm({
         />
 
         <IconButton
-          label="Create work item"
+          label={t("list.createItem")}
           tooltipSide="top"
           disabled={!canSubmit}
           onClick={submit}

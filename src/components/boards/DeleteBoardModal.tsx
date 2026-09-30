@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 
@@ -24,6 +25,7 @@ export default function DeleteBoardModal({
   board: IBoard;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [typed, setTyped] = useState("");
   const navigate = useNavigate();
   const { boardId } = useParams();
@@ -49,20 +51,19 @@ export default function DeleteBoardModal({
   }
 
   return (
-    <Modal title="Delete board" onClose={onClose} width="w-[480px]">
+    <Modal title={t("sidebar.deleteBoard")} onClose={onClose} width="w-[480px]">
       <form onSubmit={handleSubmit}>
-        <h2 className={`${DIALOG_TITLE} mb-3`}>Delete this board?</h2>
+        <h2 className={`${DIALOG_TITLE} mb-3`}>{t("boards.deleteQuestion")}</h2>
 
         <p className={`${DIALOG_BODY} mb-5`}>
-          <span className="text-ink font-semibold">{label}</span> and everything
-          in it — every column, every work item, every membership and every
-          pending invitation — is deleted for everyone on it. This cannot be
-          undone.
+          <span className="text-ink font-semibold">{label}</span>{" "}
+          {t("boards.deleteBody")}
         </p>
 
         <label htmlFor="board-confirm" className={DIALOG_LABEL}>
-          Type <span className="text-ink font-semibold">{label}</span> to
-          confirm
+          {t("boards.typePrefix")}{" "}
+          <span className="text-ink font-semibold">{label}</span>{" "}
+          {t("boards.typeSuffix")}
         </label>
 
         <input
@@ -83,7 +84,7 @@ export default function DeleteBoardModal({
 
         <div className={DIALOG_ACTIONS}>
           <button type="button" onClick={onClose} className={DIALOG_CANCEL}>
-            Cancel
+            {t("common.cancel")}
           </button>
 
           <button
@@ -91,7 +92,9 @@ export default function DeleteBoardModal({
             disabled={!matches || deleteBoard.isPending}
             className={DIALOG_DANGER}
           >
-            {deleteBoard.isPending ? "Deleting..." : "Delete board"}
+            {deleteBoard.isPending
+              ? t("common.deleting")
+              : t("sidebar.deleteBoard")}
           </button>
         </div>
       </form>

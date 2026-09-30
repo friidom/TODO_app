@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Component, type ReactNode } from "react";
 
 interface Props {
@@ -30,10 +31,12 @@ export default class ErrorBoundary extends Component<Props, State> {
 }
 
 function ErrorPanel({ error, onRetry }: { error: Error; onRetry: () => void }) {
+  const { t } = useTranslation();
+
   return (
     <div className="border-destructive/40 bg-destructive/5 rounded-lg border p-3">
       <p className="text-destructive text-sm font-medium">
-        Something broke here.
+        {t("errors.somethingBroke")}
       </p>
 
       <p className="text-muted-foreground mt-1 text-xs wrap-break-word">
@@ -45,7 +48,7 @@ function ErrorPanel({ error, onRetry }: { error: Error; onRetry: () => void }) {
         onClick={onRetry}
         className="border-destructive/40 text-destructive hover:bg-destructive/10 mt-3 cursor-pointer rounded border px-2 py-1 text-xs font-medium transition"
       >
-        Try again
+        {t("common.tryAgain")}
       </button>
     </div>
   );

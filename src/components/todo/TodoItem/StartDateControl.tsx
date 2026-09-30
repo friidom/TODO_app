@@ -38,12 +38,14 @@ export default function StartDateControl({
   variant?: "cell";
 }) {
   const { mounted, close, triggerProps, panelProps } = useCardPopover();
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const selected = startDate ? toCalendarDay(startDate) : null;
   const label = startDate
-    ? `Starts ${formatDue(startDate, todayISO(), i18n.language)}`
-    : "Set a start date";
+    ? t("dates.startsOn", {
+        date: formatDue(startDate, todayISO(), i18n.language),
+      })
+    : t("dates.setStart");
   const cell = variant === "cell";
 
   function commit(day: string | null) {
@@ -80,7 +82,7 @@ export default function StartDateControl({
               </span>
             </>
           ) : (
-            "None"
+            t("common.none")
           )
         ) : (
           <>
@@ -91,7 +93,7 @@ export default function StartDateControl({
             />
             {startDate
               ? formatDue(startDate, todayISO(), i18n.language)
-              : showLabel && "None"}
+              : showLabel && t("common.none")}
           </>
         )}
       </button>
@@ -101,11 +103,11 @@ export default function StartDateControl({
           <div
             {...panelProps}
             role="dialog"
-            aria-label="Start date"
+            aria-label={t("fields.startDate")}
             className={cn(POPOVER_PANEL, "z-50 w-[268px] p-3")}
           >
             <DatePanel
-              title="Start date"
+              title={t("fields.startDate")}
               icon={PlayIcon}
               accent="text-brand"
               selected={selected}

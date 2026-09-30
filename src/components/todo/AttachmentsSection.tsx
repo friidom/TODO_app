@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useMemo, useRef, useState } from "react";
 import { FloatingPortal } from "@floating-ui/react";
 import {
@@ -74,6 +75,7 @@ export default function AttachmentsSection({ todoId }: { todoId: string }) {
     isFetching,
   } = useAttachments(todoId);
 
+  const { t } = useTranslation();
   const { canAttach, role } = usePermissions();
   const { user } = useAuth();
 
@@ -116,7 +118,9 @@ export default function AttachmentsSection({ todoId }: { todoId: string }) {
         {
           key,
           file,
-          error: `Larger than ${formatBytes(MAX_ATTACHMENT_BYTES)}.`,
+          error: t("attachments.tooLarge", {
+            size: formatBytes(MAX_ATTACHMENT_BYTES),
+          }),
         },
       ]);
 
@@ -136,7 +140,15 @@ export default function AttachmentsSection({ todoId }: { todoId: string }) {
         onError: (uploadError) =>
           setPending((old) =>
             old.map((row) =>
-              row.key === key ? { ...row, error: messageOf(uploadError) } : row,
+              row.key === key
+                ? {
+                    ...row,
+                    error: messageOf(
+                      uploadError,
+                      t("attachments.uploadFailed"),
+                    ),
+                  }
+                : row,
             ),
           ),
       },
@@ -161,13 +173,13 @@ export default function AttachmentsSection({ todoId }: { todoId: string }) {
   return (
     <section>
       <SectionHeader
-        title="Attachments"
+        title={t("attachments.title")}
         // Total count, not the filtered subset — a heading that shrinks with the tab would look like lost files.
         count={count > 0 ? count : null}
         collapse={{
           collapsed,
           onToggle: () => setCollapsed((open) => !open),
-          noun: "attachments",
+          noun: t("attachments.title"),
         }}
         actions={
           <>
@@ -178,7 +190,7 @@ export default function AttachmentsSection({ todoId }: { todoId: string }) {
             {canAttach && (
               <>
                 <IconButton
-                  label="Add attachment"
+                  label={t("attachments.add")}
                   onClick={() => fileInput.current?.click()}
                 >
                   <PlusIcon />
@@ -239,7 +251,7 @@ export default function AttachmentsSection({ todoId }: { todoId: string }) {
               <CircleAlertIcon className="text-status-red size-4 shrink-0" />
 
               <span className="text-ink-2 min-w-0 flex-1">
-                {messageOf(error, "Could not load attachments.")}
+                {messageOf(error, t("attachments.loadFailed"))}
               </span>
 
               <button
@@ -254,21 +266,21 @@ export default function AttachmentsSection({ todoId }: { todoId: string }) {
                 <RotateCwIcon
                   className={cn("size-3.5", isFetching && "animate-spin")}
                 />
-                Retry
+                {t("common.retry")}
               </button>
             </div>
           ) : nothingAtAll ? (
             <EmptyLine icon={PaperclipIcon}>
               <span>
-                No attachments yet.
-                {canAttach && " Add a file with the + above."}
+                {t("attachments.none")}
+                {canAttach && ` ${t("attachments.addHint")}`}
               </span>
             </EmptyLine>
           ) : emptyTab ? (
             <EmptyLine icon={PaperclipIcon}>
               <span>
                 {filter === "all"
-                  ? "No attachments yet."
+                  ? t("attachments.none")
                   : EMPTY_FILTER_LABELS[filter]}
               </span>
 
@@ -277,7 +289,7 @@ export default function AttachmentsSection({ todoId }: { todoId: string }) {
                 onClick={() => setFilter("all")}
                 className={cn(INLINE_ACTION_BRAND, "text-xs")}
               >
-                Show all {count}
+                {t("review.showAll", { count })}
               </button>
             </EmptyLine>
           ) : view === "grid" ? (
@@ -292,7 +304,11 @@ export default function AttachmentsSection({ todoId }: { todoId: string }) {
               ))}
             </ul>
           ) : (
-            <div role="table" aria-label="Attachments" className={TABLE}>
+            <div
+              role="table"
+              aria-label={t("attachments.title")}
+              className={TABLE}
+            >
               <AttachmentTableHeader />
 
               {visible.map((attachment) => (
@@ -320,7 +336,7 @@ export default function AttachmentsSection({ todoId }: { todoId: string }) {
           {view === "grid" && pending.length > 0 && (
             <div
               role="table"
-              aria-label="Uploading"
+              aria-label={t("attachments.uploading")}
               className={cn(TABLE, "mt-2")}
             >
               {pending.map((row) => (
@@ -360,10 +376,12 @@ function FilterTabs({
   counts: Record<AttachmentFilter, number>;
   onChange: (next: AttachmentFilter) => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div
       role="tablist"
-      aria-label="Filter attachments by type"
+      aria-label={t("attachments.filterLabel")}
       className={cn(SEGMENTED, "min-w-0 shrink overflow-x-auto")}
     >
       {ATTACHMENT_FILTERS.map((key) => {
@@ -411,12 +429,13 @@ function SectionMenu({
   deleteCount: number;
   onDeleteAll: () => void;
 }) {
+  const { t } = useTranslation();
   const { mounted, close, triggerProps, panelProps } = useCardPopover();
 
   return (
     <>
       <IconButton
-        label="Attachment actions"
+        label={t("attachments.actions")}
         aria-haspopup="menu"
         {...triggerProps}
       >
@@ -428,13 +447,15 @@ function SectionMenu({
           <div
             {...panelProps}
             role="menu"
-            aria-label="Attachment actions"
+            aria-label={t("attachments.actions")}
             className={cn(POPOVER_PANEL, "z-[70] w-56")}
           >
             <MenuItem
               icon={view === "list" ? LayoutGridIcon : ListIcon}
               label={
-                view === "list" ? "Switch to grid view" : "Switch to list view"
+                view === "list"
+                  ? t("attachments.gridView")
+                  : t("attachments.listView")
               }
               onClick={() => {
                 onToggleView();
@@ -446,7 +467,7 @@ function SectionMenu({
 
             <MenuItem
               icon={DownloadIcon}
-              label="Download all"
+              label={t("attachments.downloadAll")}
               badge={downloadCount}
               busy={downloading}
               disabled={downloadCount === 0}
@@ -459,7 +480,7 @@ function SectionMenu({
             {deleteCount > 0 && (
               <MenuItem
                 icon={Trash2Icon}
-                label="Delete all"
+                label={t("attachments.deleteAll")}
                 badge={deleteCount}
                 danger
                 onClick={() => {
@@ -487,6 +508,8 @@ function ConfirmDeleteAll({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div
       className="border-status-red/30 bg-status-red/[0.06] rounded-card mb-2 flex flex-wrap items-center gap-1 border px-3 py-2 text-xs"
@@ -500,8 +523,7 @@ function ConfirmDeleteAll({
       <CircleAlertIcon className="text-status-red size-4 shrink-0" />
 
       <span className="text-ink-2 text-meta mx-1 min-w-0 flex-1">
-        Delete {count} {count === 1 ? "attachment" : "attachments"}? The files
-        are removed from storage and cannot be restored.
+        {t("attachments.deleteAllConfirm", { count })}
       </span>
 
       <button
@@ -511,20 +533,17 @@ function ConfirmDeleteAll({
         disabled={busy}
         className={INLINE_ACTION_DANGER}
       >
-        {busy ? "Deleting…" : "Delete all"}
+        {busy ? t("common.deleting") : t("attachments.deleteAll")}
       </button>
 
       <button type="button" onClick={onCancel} className={INLINE_ACTION}>
-        Cancel
+        {t("common.cancel")}
       </button>
     </div>
   );
 }
 
-function messageOf(
-  error: unknown,
-  fallback = "Upload failed. Please try again.",
-) {
+function messageOf(error: unknown, fallback: string) {
   if (error instanceof Error && error.message) return error.message;
 
   return fallback;

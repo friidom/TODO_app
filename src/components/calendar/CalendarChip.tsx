@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useDraggable } from "@dnd-kit/core";
 
 import { memberInitial, memberName } from "@/components/members/memberLabels";
@@ -24,6 +25,7 @@ export default function CalendarChip({
   onOpen: () => void;
   overlay?: boolean;
 }) {
+  const { t } = useTranslation();
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: todo.id,
     disabled: !draggable || overlay,
@@ -75,7 +77,9 @@ export default function CalendarChip({
       )}
 
       <span className="text-ink text-mini min-w-0 flex-1 truncate">
-        {todo.title || <span className="text-ink-3/60">Untitled</span>}
+        {todo.title || (
+          <span className="text-ink-3/60">{t("common.untitled")}</span>
+        )}
       </span>
 
       {PriorityIcon && (

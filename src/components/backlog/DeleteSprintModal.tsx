@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
 
 import Modal from "@/components/ui/Modal";
@@ -21,6 +22,7 @@ export default function DeleteSprintModal({
   sprint: Sprint;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const { data: todos = [] } = useTodos();
   const deleteSprint = useDeleteSprint();
 
@@ -33,14 +35,16 @@ export default function DeleteSprintModal({
   }
 
   return (
-    <Modal title="Delete sprint" onClose={onClose}>
+    <Modal title={t("backlog.deleteSprint")} onClose={onClose}>
       <form onSubmit={handleSubmit}>
-        <h2 className={DIALOG_TITLE}>Delete “{sprint.name}”?</h2>
+        <h2 className={DIALOG_TITLE}>
+          {t("workflow.deleteQuestion", { name: sprint.name })}
+        </h2>
 
         <p className={`${DIALOG_BODY} mt-1.5`}>
           {items.length > 0
-            ? `${items.length} ${items.length === 1 ? "item returns" : "items return"} to the Backlog. No work is deleted — only the sprint itself.`
-            : "This sprint is empty. Only the sprint itself is deleted."}
+            ? t("backlog.deleteReturns", { count: items.length })
+            : t("backlog.deleteEmpty")}
         </p>
 
         {deleteSprint.error && (
@@ -51,7 +55,7 @@ export default function DeleteSprintModal({
 
         <div className={DIALOG_ACTIONS}>
           <button type="button" onClick={onClose} className={DIALOG_CANCEL}>
-            Cancel
+            {t("common.cancel")}
           </button>
 
           <button
@@ -62,7 +66,9 @@ export default function DeleteSprintModal({
             {deleteSprint.isPending && (
               <Loader2 className="size-3.5 animate-spin" />
             )}
-            {deleteSprint.isPending ? "Deleting…" : "Delete sprint"}
+            {deleteSprint.isPending
+              ? t("common.deleting")
+              : t("backlog.deleteSprint")}
           </button>
         </div>
       </form>

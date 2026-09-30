@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import { CheckIcon, ChevronDown, CopyIcon, X } from "lucide-react";
 
@@ -44,6 +45,7 @@ export default function InvitePeopleModal({
 }
 
 function InviteDialog({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
   const boardId = useBoardId();
 
   const { canManageMembers: canInvite, canManageAdmins: canInviteAdmins } =
@@ -86,9 +88,6 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
     INVITE_ROLE_OPTIONS.find((option) => option.value === role) ??
     INVITE_ROLE_OPTIONS[0];
 
-  const expiryOption =
-    EXPIRY_OPTIONS.find((option) => option.value === days) ?? EXPIRY_OPTIONS[1];
-
   return (
     <div
       onMouseDown={(e) => {
@@ -100,29 +99,26 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
         onSubmit={handleSubmit}
         role="dialog"
         aria-modal="true"
-        aria-label="Invite people"
-        className="border-hairline bg-surface rounded-surface max-h-full w-[560px] max-w-full overflow-y-auto border p-5 shadow-e3 sm:p-6"
+        aria-label={t("invites.title")}
+        className="border-hairline bg-surface rounded-surface shadow-e3 max-h-full w-[560px] max-w-full overflow-y-auto border p-5 sm:p-6"
       >
         <div className="mb-1 flex items-start justify-between gap-4">
-          <h2 className="text-ink text-xl font-bold">Invite people</h2>
+          <h2 className="text-ink text-xl font-bold">{t("invites.title")}</h2>
 
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t("common.close")}
             className="text-ink-2 hover:bg-ink/10 -mt-1 shrink-0 rounded p-1"
           >
             <X size={20} />
           </button>
         </div>
 
-        <p className="text-ink-2 mb-6 text-sm">
-          Create a link and share it. Whoever opens it joins this board with the
-          role you choose.
-        </p>
+        <p className="text-ink-2 mb-6 text-sm">{t("invites.intro")}</p>
 
         <label className="text-ink mb-1.5 block text-sm font-medium">
-          Names or emails
+          {t("invites.namesOrEmails")}
         </label>
 
         <InviteeCombobox
@@ -135,12 +131,12 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
         <div className="mb-6 grid grid-cols-2 gap-3">
           <div>
             <label className="text-ink mb-1.5 block text-sm font-medium">
-              Role
+              {t("activity.role")}
             </label>
 
             <DropdownMenu>
               <DropdownMenuTrigger className="border-hairline focus-visible:border-brand focus-visible:ring-brand data-[popup-open]:border-brand flex w-full items-center gap-2 rounded-lg border bg-transparent px-3 py-2.5 text-left text-sm outline-none focus-visible:ring-1">
-                <span className="truncate">{roleOption.label}</span>
+                <span className="truncate">{t(roleOption.labelKey)}</span>
                 <ChevronDown
                   size={16}
                   className="text-ink-2 ml-auto shrink-0"
@@ -163,11 +159,13 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
                         disabled={blocked}
                       >
                         <span className="flex flex-col">
-                          <span className="font-medium">{option.label}</span>
+                          <span className="font-medium">
+                            {t(option.labelKey)}
+                          </span>
                           <span className="text-ink-3 text-xs">
                             {blocked
-                              ? "Only the board owner can invite admins."
-                              : option.description}
+                              ? t("invites.ownerOnlyAdmins")
+                              : t(option.descriptionKey)}
                           </span>
                         </span>
                       </DropdownMenuRadioItem>
@@ -180,12 +178,14 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
 
           <div>
             <label className="text-ink mb-1.5 block text-sm font-medium">
-              Link expires
+              {t("invites.linkExpires")}
             </label>
 
             <DropdownMenu>
               <DropdownMenuTrigger className="border-hairline focus-visible:border-brand focus-visible:ring-brand data-[popup-open]:border-brand flex w-full items-center gap-2 rounded-lg border bg-transparent px-3 py-2.5 text-left text-sm outline-none focus-visible:ring-1">
-                <span className="truncate">{expiryOption.label}</span>
+                <span className="truncate">
+                  {t("invites.days", { count: days })}
+                </span>
                 <ChevronDown
                   size={16}
                   className="text-ink-2 ml-auto shrink-0"
@@ -198,11 +198,8 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
                   onValueChange={(next) => setDays(Number(next))}
                 >
                   {EXPIRY_OPTIONS.map((option) => (
-                    <DropdownMenuRadioItem
-                      key={option.value}
-                      value={String(option.value)}
-                    >
-                      {option.label}
+                    <DropdownMenuRadioItem key={option} value={String(option)}>
+                      {t("invites.days", { count: option })}
                     </DropdownMenuRadioItem>
                   ))}
                 </DropdownMenuRadioGroup>
@@ -226,13 +223,15 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
         >
           {createInvite.isPending
             ? invitee
-              ? "Sending invite..."
-              : "Creating link..."
+              ? t("invites.sending")
+              : t("invites.creatingLink")
             : invitee
-              ? `Invite ${invitee.full_name || invitee.username || invitee.email}`
+              ? t("invites.inviteNamed", {
+                  name: invitee.full_name || invitee.username || invitee.email,
+                })
               : created
-                ? "Create another link"
-                : "Create invite link"}
+                ? t("invites.createAnother")
+                : t("invites.createLink")}
         </button>
 
         <PendingInvites boardId={boardId} canInvite={canInvite} />
@@ -243,7 +242,7 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
             onClick={onClose}
             className="text-ink hover:bg-ink/10 rounded-lg px-4 py-2 text-sm"
           >
-            Done
+            {t("common.done")}
           </button>
         </div>
       </form>
@@ -252,11 +251,13 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
 }
 
 function CreatedLink({ invite }: { invite: CreatedInvite }) {
+  const { t } = useTranslation();
+
   return (
     <div className="border-brand/30 bg-brand-soft/40 mb-4 rounded-lg border p-3">
       <p className="text-ink mb-2 flex items-center gap-1.5 text-xs font-medium">
         <CheckIcon className="text-status-green size-3.5" />
-        Link created. It works once, for one person.
+        {t("invites.linkCreated")}
       </p>
 
       <div className="flex items-center gap-2">
@@ -274,7 +275,7 @@ function CreatedLink({ invite }: { invite: CreatedInvite }) {
           className="bg-brand text-brand-fg hover:bg-brand/90 flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium"
         >
           <CopyIcon className="size-3.5" />
-          Copy link
+          {t("invites.copyLink")}
         </button>
       </div>
     </div>
@@ -294,11 +295,12 @@ function PendingInvites({
     isPending,
     error,
   } = usePendingInvites(boardId, canInvite);
+  const { t } = useTranslation();
 
   return (
     <section className="mt-7">
       <h3 className="text-ink mb-2 text-sm font-semibold">
-        Pending invitations
+        {t("invites.pending")}
       </h3>
 
       {isPending ? (
@@ -309,12 +311,11 @@ function PendingInvites({
         </div>
       ) : error ? (
         <p className="border-status-red/30 text-status-red rounded-lg border border-dashed px-3 py-3 text-xs">
-          Could not load pending invitations.
+          {t("invites.pendingLoadFailed")}
         </p>
       ) : invites.length === 0 ? (
         <p className="border-hairline text-ink-3 rounded-lg border border-dashed px-3 py-3 text-xs">
-          No pending invitations. Links you create appear here until they are
-          used or they expire.
+          {t("invites.pendingEmpty")}
         </p>
       ) : (
         <ul className="border-hairline bg-surface/40 overflow-hidden rounded-lg border">

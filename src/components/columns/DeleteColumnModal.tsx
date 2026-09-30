@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { ArrowRight, ChevronDown, X } from "lucide-react";
 
@@ -55,6 +56,7 @@ function DeleteColumnDialog({
   destinations: IColumn[];
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [target, setTarget] = useState(destinations[0].id);
 
   const deleteColumn = useDeleteColumn();
@@ -86,11 +88,11 @@ function DeleteColumnDialog({
         <div className="mb-5 flex items-start justify-between gap-4">
           <h2 className={`${DIALOG_TITLE} flex items-center gap-2.5`}>
             <DangerDiamond />
-            Move work from {columnTitle(column.title)} column
+            {t("column.deleteTitle", { name: columnTitle(column.title) })}
           </h2>
 
           <IconButton
-            label="Close"
+            label={t("common.close")}
             size="md"
             tooltip={false}
             onClick={onClose}
@@ -101,14 +103,13 @@ function DeleteColumnDialog({
         </div>
 
         <p className={`${DIALOG_BODY} mb-6`}>
-          Select a new home for any work with the &quot;
-          {columnTitle(column.title)}&quot; status.
+          {t("column.deleteBody", { name: columnTitle(column.title) })}
         </p>
 
         <div className="grid grid-cols-1 gap-y-4 sm:grid-cols-[1fr_auto_1fr] sm:items-end sm:gap-x-5 sm:gap-y-0">
           <div className="min-w-0">
             <p className="text-ink text-meta mb-2 font-semibold">
-              This status will be deleted
+              {t("column.statusWillBeDeleted")}
             </p>
 
             <CategoryPill
@@ -126,7 +127,7 @@ function DeleteColumnDialog({
 
           <div className="min-w-0">
             <p className="text-ink text-meta mb-2 font-semibold">
-              Work will be moved to
+              {t("column.workMovedTo")}
             </p>
 
             <DropdownMenu>
@@ -167,7 +168,7 @@ function DeleteColumnDialog({
 
         <div className={DIALOG_ACTIONS}>
           <button type="button" onClick={onClose} className={DIALOG_CANCEL}>
-            Cancel
+            {t("common.cancel")}
           </button>
 
           <button
@@ -175,7 +176,7 @@ function DeleteColumnDialog({
             disabled={deleteColumn.isPending}
             className={DIALOG_DANGER}
           >
-            {deleteColumn.isPending ? "Deleting..." : "Delete"}
+            {deleteColumn.isPending ? t("common.deleting") : t("common.delete")}
           </button>
         </div>
       </form>

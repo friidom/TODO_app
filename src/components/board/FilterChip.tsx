@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { FloatingPortal } from "@floating-ui/react";
 import { ChevronDownIcon, SearchIcon } from "lucide-react";
 
@@ -33,6 +34,7 @@ export default function FilterChip({
   category: FilterCategory;
   collapse?: string;
 }) {
+  const { t } = useTranslation();
   const { open, mounted, close, triggerProps, panelProps } = useFilterPopover();
 
   const count = view.filters[category].length;
@@ -43,7 +45,11 @@ export default function FilterChip({
     <>
       <ToolbarButton
         {...triggerProps}
-        label={count ? `${name} filter — ${count} selected` : `${name} filter`}
+        label={
+          count
+            ? t("filter.chipSelected", { name, count })
+            : t("filter.chip", { name })
+        }
         text={TOOLBAR_LABELS[category]}
         collapse={collapse}
         icon={<Icon className="size-4 @6xl:hidden" />}
@@ -64,7 +70,7 @@ export default function FilterChip({
           <div
             {...panelProps}
             role="dialog"
-            aria-label={`Filter by ${name.toLowerCase()}`}
+            aria-label={t("filter.by", { name })}
             className={cn(
               POPOVER_PANEL,
               "z-50 flex w-[min(18rem,calc(100vw-2rem))] flex-col overflow-hidden p-0",
@@ -88,6 +94,7 @@ function FilterPanel({
   category: FilterCategory;
   onDone: () => void;
 }) {
+  const { t } = useTranslation();
   const boardId = useBoardId();
   const { user } = useAuth();
   const { data: statuses = [] } = useStatuses();
@@ -116,8 +123,8 @@ function FilterPanel({
             autoFocus
             value={needle}
             onChange={(e) => setNeedle(e.target.value)}
-            placeholder={`Search ${name.toLowerCase()}…`}
-            aria-label={`Search ${name}`}
+            placeholder={t("filter.searchPlaceholder", { name })}
+            aria-label={t("filter.search", { name })}
             className="text-ink placeholder:text-ink-3 text-meta min-w-0 flex-1 bg-transparent outline-none"
           />
         </div>
@@ -128,7 +135,7 @@ function FilterPanel({
       >
         {shown.length === 0 ? (
           <p className="text-ink-3 text-meta px-2 py-6 text-center">
-            Nothing matches “{needle.trim()}”.
+            {t("common.nothingMatches", { query: needle.trim() })}
           </p>
         ) : (
           shown.map((option, index) => (
@@ -156,7 +163,7 @@ function FilterPanel({
             "text-ink-3 enabled:hover:bg-wash-strong enabled:hover:text-ink disabled:opacity-40",
           )}
         >
-          Clear
+          {t("common.clear")}
         </button>
 
         <button
@@ -167,7 +174,7 @@ function FilterPanel({
             "bg-brand text-brand-fg hover:bg-brand/90 active:bg-brand/80 focus-visible:ring-offset-elevated ml-auto px-3 focus-visible:ring-offset-2",
           )}
         >
-          Done
+          {t("common.done")}
         </button>
       </div>
     </>

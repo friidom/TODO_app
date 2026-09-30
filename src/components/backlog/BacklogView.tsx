@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Fragment, useMemo, useState } from "react";
 import {
   DndContext,
@@ -18,7 +19,10 @@ import { useKeyPrefix } from "@/hooks/useKeyPrefix";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useVisibleTodos } from "@/hooks/useVisibleTodos";
 import { useWorkflow } from "@/services/workflow/useWorkflow";
-import { EMPTY_WORKFLOW, type WorkflowModel } from "@/services/workflow/statuses";
+import {
+  EMPTY_WORKFLOW,
+  type WorkflowModel,
+} from "@/services/workflow/statuses";
 import { buildBacklogBoard } from "@/services/todos/backlog";
 import { useAddBacklogItem } from "@/services/todos/useAddBacklogItem";
 import { useSprints } from "@/services/sprints/useSprints";
@@ -36,6 +40,7 @@ import DeleteSprintModal from "./DeleteSprintModal";
 // The ungrouped list is its own component (BacklogUnplannedSection) because useDroppable needs DndContext's
 // React context — calling it directly here, in the component whose JSX creates <DndContext>, silently registers nothing.
 export default function BacklogView() {
+  const { t } = useTranslation();
   const view = useBoardView();
   const { todos, isLoading, error } = useVisibleTodos();
   const { data: sprints = [], isLoading: sprintsLoading } = useSprints();
@@ -128,7 +133,7 @@ export default function BacklogView() {
             className="border-hairline text-ink-2 hover:bg-ink/6 rounded-control mb-4 flex h-8 w-fit shrink-0 items-center gap-1.5 border px-3 text-xs font-medium transition-colors"
           >
             <PlusIcon className="size-3.5" />
-            Create sprint
+            {t("backlog.createSprint")}
           </button>
         )}
 
@@ -138,12 +143,12 @@ export default function BacklogView() {
             board.unplanned.length === 0 && (
               <EmptyState
                 icon={LayersIcon}
-                title="Nothing planned yet"
-                hint="The Backlog is where work waits before a sprint picks it up. Create a sprint, or add items and plan them later."
+                title={t("backlog.emptyTitle")}
+                hint={t("backlog.emptyHint")}
                 action={
                   canEditTodos
                     ? {
-                        label: "Create sprint",
+                        label: t("backlog.createSprint"),
                         run: () => setCreatingSprint(true),
                       }
                     : undefined
@@ -214,7 +219,7 @@ export default function BacklogView() {
       <DragOverlay dropAnimation={null} adjustScale={false}>
         {activeTodo && OverlayIcon && (
           // matches TodoCard's overlay styling so a lifted item reads the same everywhere
-          <div className="bg-elevated border-hairline rounded-card text-ink flex max-w-xs cursor-grabbing items-center gap-1.5 border px-3 py-2 text-sm font-medium opacity-70 shadow-e3">
+          <div className="bg-elevated border-hairline rounded-card text-ink shadow-e3 flex max-w-xs cursor-grabbing items-center gap-1.5 border px-3 py-2 text-sm font-medium opacity-70">
             <OverlayIcon
               className={cn("size-3.5 shrink-0", overlayType!.tone)}
             />
@@ -225,7 +230,9 @@ export default function BacklogView() {
               </span>
             )}
 
-            <span className="truncate">{activeTodo.title || "Untitled"}</span>
+            <span className="truncate">
+              {activeTodo.title || t("common.untitled")}
+            </span>
           </div>
         )}
       </DragOverlay>
@@ -258,6 +265,7 @@ function BacklogUnplannedSection({
   onCancelAdding: () => void;
   onSubmit: () => void;
 }) {
+  const { t } = useTranslation();
   const { setNodeRef, isOver } = useDroppable({
     id: "backlog-section:none",
     data: { type: "backlog-section", sectionKey: null },
@@ -270,10 +278,9 @@ function BacklogUnplannedSection({
   return (
     <section className="border-hairline rounded-card overflow-hidden border">
       <header className="px-3 py-2.5">
-        <h3 className="text-ink text-sm font-semibold">Backlog</h3>
+        <h3 className="text-ink text-sm font-semibold">{t("views.backlog")}</h3>
         <p className="text-ink-3 text-mini mt-0.5">
-          {items.length} {items.length === 1 ? "item" : "items"} not yet on a
-          Sprint
+          {t("backlog.unplannedCount", { count: items.length })}
         </p>
       </header>
 
@@ -319,7 +326,7 @@ function BacklogUnplannedSection({
                   if (e.key === "Escape") onCancelAdding();
                 }}
                 onBlur={onSubmit}
-                placeholder="What needs doing?"
+                placeholder={t("list.newItemPlaceholder")}
                 className="border-hairline text-ink placeholder:text-ink-3 focus:border-brand/60 focus:ring-brand/25 rounded-control min-w-0 flex-1 border bg-transparent px-2.5 py-1.5 text-sm outline-none focus:ring-2"
               />
             </div>
@@ -330,14 +337,13 @@ function BacklogUnplannedSection({
               className="text-ink-3 hover:bg-ink/[0.035] hover:text-ink-2 flex w-full items-center gap-1.5 px-3 py-2 text-left text-xs font-medium transition-colors"
             >
               <PlusIcon className="size-3.5" />
-              Create item
+              {t("backlog.createItem")}
             </button>
           ))}
 
         {items.length === 0 && !adding && (
           <p className="text-ink-3 px-3 pb-2 text-xs">
-            Nothing unplanned — everything real is either on a Sprint or on the
-            Board already.
+            {t("backlog.nothingUnplanned")}
           </p>
         )}
       </div>

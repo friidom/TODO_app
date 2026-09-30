@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  SCREEN_READER_INSTRUCTIONS,
+  screenReaderInstructions,
   announceCancelled,
   announceDropped,
   announceMovedOver,
@@ -70,9 +70,9 @@ describe("announcements", () => {
   });
 
   it("names all three keys in the focus instructions", () => {
-    expect(SCREEN_READER_INSTRUCTIONS).toContain("space");
-    expect(SCREEN_READER_INSTRUCTIONS).toContain("arrow keys");
-    expect(SCREEN_READER_INSTRUCTIONS).toContain("escape");
+    expect(screenReaderInstructions()).toContain("space");
+    expect(screenReaderInstructions()).toContain("arrow keys");
+    expect(screenReaderInstructions()).toContain("escape");
   });
 });
 

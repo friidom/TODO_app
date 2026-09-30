@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { Link } from "react-router";
 import { Loader2, MailCheckIcon } from "lucide-react";
@@ -10,6 +11,7 @@ import { validateEmail } from "@/utils/validation";
 
 // Success message is identical whether or not the address exists — otherwise this screen is an account-existence oracle.
 export default function ForgotPasswordPage() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string>();
 
@@ -31,9 +33,9 @@ export default function ForgotPasswordPage() {
   if (request.isSuccess) {
     return (
       <AuthShell
-        title="Check your email"
-        subtitle="If an account exists for that address, a reset link is on its way."
-        footer={<Link to="/login">Back to sign in</Link>}
+        title={t("auth.checkEmail")}
+        subtitle={t("auth.resetSentSubtitle")}
+        footer={<Link to="/login">{t("auth.backToSignIn")}</Link>}
       >
         <div className="flex flex-col items-center gap-3 py-2 text-center">
           <span className="bg-brand-soft text-brand grid size-11 place-items-center rounded-full">
@@ -41,9 +43,9 @@ export default function ForgotPasswordPage() {
           </span>
 
           <p className="text-ink-2 text-sm leading-relaxed">
-            Open the link in{" "}
-            <span className="text-ink font-medium">{email.trim()}</span> to set
-            a new password. It expires in an hour.
+            {t("auth.resetSentPrefix")}{" "}
+            <span className="text-ink font-medium">{email.trim()}</span>{" "}
+            {t("auth.resetSentSuffix")}
           </p>
 
           <button
@@ -51,7 +53,7 @@ export default function ForgotPasswordPage() {
             onClick={() => request.reset()}
             className="text-ink-3 hover:text-ink focus-visible:ring-brand rounded text-xs transition-colors outline-none focus-visible:ring-2"
           >
-            Use a different address
+            {t("auth.differentAddress")}
           </button>
         </div>
       </AuthShell>
@@ -60,16 +62,16 @@ export default function ForgotPasswordPage() {
 
   return (
     <AuthShell
-      title="Reset your password"
-      subtitle="We'll email you a link to set a new one."
-      footer={<Link to="/login">Back to sign in</Link>}
+      title={t("auth.resetTitle")}
+      subtitle={t("auth.resetSubtitleForm")}
+      footer={<Link to="/login">{t("auth.backToSignIn")}</Link>}
     >
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
         <AuthField
           id="forgot-email"
-          label="Email"
+          label={t("auth.email")}
           type="email"
-          placeholder="you@company.com"
+          placeholder={t("auth.emailPlaceholder")}
           autoComplete="email"
           value={email}
           error={error}
@@ -98,10 +100,10 @@ export default function ForgotPasswordPage() {
           {request.isPending ? (
             <>
               <Loader2 className="size-4 animate-spin" />
-              Sending…
+              {t("auth.sending")}
             </>
           ) : (
-            "Send reset link"
+            t("auth.sendResetLink")
           )}
         </button>
       </form>

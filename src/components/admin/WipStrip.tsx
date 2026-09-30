@@ -1,5 +1,7 @@
+import { useTranslation } from "react-i18next";
 import SummaryCard, { WidgetEmpty } from "@/components/summary/SummaryCard";
 import { proportionOf, wipTotal } from "@/services/admin/flow";
+import { wipLabel } from "@/services/admin/format";
 import type { WipSlice } from "@/services/admin/types";
 import { cn } from "@/utils/cn";
 
@@ -20,33 +22,36 @@ export default function WipStrip({
   scopeHint?: string;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const total = wipTotal(slices);
   const present = slices.filter((slice) => slice.count > 0);
 
   return (
     <SummaryCard
-      title="Work in progress"
-      hint={scopeHint ?? "Every open card, by the stage it is sitting at"}
+      title={t("admin.wip.title")}
+      hint={scopeHint ?? t("admin.wip.hint")}
       className={className}
       action={
-        <span className="text-ink-3 text-mini tabular-nums">{total} open</span>
+        <span className="text-ink-3 text-mini tabular-nums">
+          {t("summary.open", { count: total })}
+        </span>
       }
     >
       {total === 0 ? (
-        <WidgetEmpty>Nothing is open right now.</WidgetEmpty>
+        <WidgetEmpty>{t("admin.wip.empty")}</WidgetEmpty>
       ) : (
         <div className="px-3.5 pb-3.5">
           <div
             className="bg-ink/[0.06] flex h-2.5 overflow-hidden rounded-full"
             role="img"
             aria-label={slices
-              .map((slice) => `${slice.label}: ${slice.count}`)
+              .map((slice) => `${wipLabel(slice)}: ${slice.count}`)
               .join(", ")}
           >
             {present.map((slice) => (
               <span
                 key={slice.key}
-                title={`${slice.label} — ${slice.count}`}
+                title={`${wipLabel(slice)} — ${slice.count}`}
                 style={{ width: `${proportionOf(slice.count, total)}%` }}
                 className={cn(
                   "h-full first:rounded-l-full last:rounded-r-full",
@@ -69,7 +74,7 @@ export default function WipStrip({
                       TONES[slice.category],
                     )}
                   />
-                  {slice.label}
+                  {wipLabel(slice)}
                 </dt>
                 <dd className="text-ink mt-0.5 text-sm font-medium tabular-nums">
                   {slice.count}

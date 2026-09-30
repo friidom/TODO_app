@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { type ReactNode } from "react";
 import { FloatingPortal } from "@floating-ui/react";
 import {
@@ -39,13 +40,14 @@ export default function TodoMenu({
     hostsPopovers: true,
   });
 
+  const { t } = useTranslation();
   const { openTask } = useOpenTask();
   const patch = useTodoPatch(todo);
   const deleteTodo = useDeleteTodo();
 
   return (
     <>
-      <IconButton size="xs" label="Card actions" {...triggerProps}>
+      <IconButton size="xs" label={t("card.actions")} {...triggerProps}>
         <MoreHorizontal />
       </IconButton>
 
@@ -54,7 +56,7 @@ export default function TodoMenu({
           <div
             {...panelProps}
             role="menu"
-            aria-label="Card actions"
+            aria-label={t("card.actions")}
             className={cn(POPOVER_PANEL, "z-50 w-60")}
           >
             <button
@@ -67,7 +69,7 @@ export default function TodoMenu({
               className={MENU_ITEM}
             >
               <PanelRightOpenIcon />
-              Open details
+              {t("list.openDetails")}
             </button>
 
             <button
@@ -80,16 +82,16 @@ export default function TodoMenu({
               className={MENU_ITEM}
             >
               <PencilIcon />
-              Rename
+              {t("common.rename")}
             </button>
 
             <div className={MENU_SEPARATOR} />
 
-            <Field label="Status">
+            <Field label={t("fields.status")}>
               <StatusControl todoId={todo.id} statusId={todo.status_id} />
             </Field>
 
-            <Field label="Work type">
+            <Field label={t("fields.workType")}>
               <WorkTypeControl
                 value={todo.type}
                 onChange={(type) => patch({ type })}
@@ -97,7 +99,7 @@ export default function TodoMenu({
               />
             </Field>
 
-            <Field label="Priority">
+            <Field label={t("fields.priority")}>
               <PriorityControl
                 value={todo.priority}
                 onChange={(priority) => patch({ priority })}
@@ -106,7 +108,7 @@ export default function TodoMenu({
               />
             </Field>
 
-            <Field label="Due date">
+            <Field label={t("fields.dueDate")}>
               <DueDateControl
                 value={todo.due_date}
                 onChange={(due_date) => patch({ due_date })}
@@ -114,7 +116,7 @@ export default function TodoMenu({
               />
             </Field>
 
-            <Field label="Assignee">
+            <Field label={t("fields.assignee")}>
               <AssigneeControl
                 boardId={todo.board_id}
                 value={todo.assignee_id}
@@ -135,7 +137,7 @@ export default function TodoMenu({
               className={MENU_ITEM_DANGER}
             >
               <Trash2Icon />
-              Delete
+              {t("common.delete")}
             </button>
           </div>
         </FloatingPortal>

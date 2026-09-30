@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { HEADER_CONTROL_ACTIVE } from "@/components/board/headerControl";
 import {
   FOR_YOU_TABS,
@@ -16,11 +17,13 @@ export default function ForYouTabs({
   counts?: Partial<Record<ForYouTab, number>>;
   onChange: (tab: ForYouTab) => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div
       role="tablist"
-      aria-label="Filter your work"
-      className="-mx-5 overflow-x-auto px-5 md:mx-0 md:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      aria-label={t("forYou.filterLabel")}
+      className="-mx-5 [scrollbar-width:none] overflow-x-auto px-5 md:mx-0 md:px-0 [&::-webkit-scrollbar]:hidden"
     >
       <div className="border-hairline bg-surface rounded-control inline-flex h-9 items-center gap-0.5 border p-0.5">
         {FOR_YOU_TABS.map((tab) => {
@@ -47,7 +50,7 @@ export default function ForYouTabs({
               {count > 0 && (
                 <span
                   className={cn(
-                    "rounded px-1 text-micro leading-4 font-semibold tabular-nums",
+                    "text-micro rounded px-1 leading-4 font-semibold tabular-nums",
                     selected
                       ? "bg-brand text-brand-fg"
                       : "bg-ink/[0.08] text-ink-3",

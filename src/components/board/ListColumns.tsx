@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { FloatingPortal } from "@floating-ui/react";
 import {
   CheckIcon,
@@ -29,6 +30,7 @@ import { cn } from "@/utils/cn";
 // A popover rather than DropdownMenu: a roving-tabindex menu would swallow the
 // Space and arrow keys the grips use to lift and move a column.
 export default function ListColumns() {
+  const { t } = useTranslation();
   const { open, mounted, triggerProps, panelProps } = useCardPopover();
 
   const sprintsEnabled = useSprintsEnabled();
@@ -55,7 +57,7 @@ export default function ListColumns() {
     <>
       <IconButton
         {...triggerProps}
-        label={`Columns — ${shown.length} shown`}
+        label={t("list.columnsShown", { count: shown.length })}
         size="sm"
         active={customised}
         aria-expanded={open}
@@ -69,29 +71,29 @@ export default function ListColumns() {
           <div
             {...panelProps}
             role="dialog"
-            aria-label="Columns"
+            aria-label={t("list.columns")}
             className="border-hairline bg-elevated rounded-card shadow-e2 z-50 flex max-h-[70vh] w-64 flex-col border p-1"
           >
             <div className="flex items-center gap-2 px-2 py-1.5">
               <p className="text-ink-3 text-mini flex-1 font-semibold tracking-wide uppercase">
-                Columns
+                {t("list.columns")}
               </p>
 
               {customised && (
                 <button
                   type="button"
                   onClick={() => boardId && reset(boardId)}
-                  title="Default columns, order and widths"
+                  title={t("list.resetColumnsHint")}
                   className="text-ink-3 hover:text-ink text-mini flex items-center gap-1 rounded transition-colors"
                 >
                   <RotateCcwIcon className="size-3" />
-                  Reset
+                  {t("common.reset")}
                 </button>
               )}
             </div>
 
             <p className="text-ink-3/70 text-mini px-2 pb-1.5">
-              Drag to reorder. Top to bottom here is left to right in the table.
+              {t("list.columnsHint")}
             </p>
 
             <ReorderContext
@@ -157,6 +159,7 @@ function ColumnRow({
   visible: boolean;
   onToggle: () => void;
 }) {
+  const { t } = useTranslation();
   const locked = id === PINNED_COLUMN;
   const label = LIST_COLUMNS[id].label;
 
@@ -180,7 +183,7 @@ function ColumnRow({
       {visible && !locked ? (
         <span
           {...handleProps}
-          aria-label={`Reorder ${label}`}
+          aria-label={t("dnd.reorder", { name: label })}
           className="text-ink-3 hover:text-ink focus-visible:ring-brand grid h-7 w-5 shrink-0 cursor-grab touch-none place-items-center rounded outline-none focus-visible:ring-2"
         >
           <GripVerticalIcon className="size-3.5" />
@@ -195,11 +198,7 @@ function ColumnRow({
         aria-checked={visible}
         aria-disabled={locked}
         onClick={locked ? undefined : onToggle}
-        title={
-          locked
-            ? "The work item column always shows first — it names the row"
-            : undefined
-        }
+        title={locked ? t("list.lockedColumnHint") : undefined}
         className={cn(
           "rounded-control focus-visible:bg-ink/10 flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-sm transition-colors outline-none",
           locked ? "cursor-default" : "hover:bg-ink/10",
@@ -220,7 +219,7 @@ function ColumnRow({
 
         {locked && (
           <LockIcon
-            aria-label="Locked"
+            aria-label={t("list.locked")}
             className="text-ink-3/60 size-3 shrink-0"
           />
         )}

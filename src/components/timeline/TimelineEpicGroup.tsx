@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 
 import type { DragTarget } from "@/hooks/useTimelineDrag";
@@ -147,6 +148,7 @@ function EpicRail({
   collapsed: boolean;
   onToggleCollapse: (() => void) | null;
 }) {
+  const { t } = useTranslation();
   const type = workTypeOf(epic.type);
   const TypeIcon = type.icon;
   const key = taskKey(keyPrefix, epic.board_key);
@@ -158,7 +160,9 @@ function EpicRail({
           type="button"
           onClick={onToggleCollapse}
           aria-expanded={!collapsed}
-          aria-label={`${collapsed ? "Expand" : "Collapse"} ${epic.title ?? "epic"}`}
+          aria-label={t(collapsed ? "sidebar.expand" : "sidebar.collapse", {
+            name: epic.title ?? t("timeline.epic"),
+          })}
           className="text-ink-3 hover:text-ink hover:bg-ink/10 grid size-5 shrink-0 place-items-center rounded transition-colors"
         >
           {collapsed ? (
@@ -186,13 +190,18 @@ function EpicRail({
         )}
 
         <span className="text-ink min-w-0 flex-1 truncate text-xs font-semibold">
-          {epic.title || <span className="text-ink-3/60">Untitled</span>}
+          {epic.title || (
+            <span className="text-ink-3/60">{t("common.untitled")}</span>
+          )}
         </span>
       </button>
 
       {progress.total > 0 && (
         <span
-          title={`${progress.done} of ${progress.total} tasks done`}
+          title={t("timeline.tasksDone", {
+            done: progress.done,
+            count: progress.total,
+          })}
           className="text-ink-3 text-micro shrink-0 font-medium tabular-nums"
         >
           {progress.done}/{progress.total}

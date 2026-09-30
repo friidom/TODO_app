@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Fragment, type ReactNode } from "react";
 
 import BoardActions from "@/components/board/BoardActions";
@@ -29,6 +30,7 @@ const GROUP = "toolbar";
 // group/sort are gated per view in the registry — Summary can't do either, a chart of counts has no order.
 // The List keeps its column picker in its own header and its Create in its own footer, as Jira does, so neither is here.
 export default function ViewToolbar({ view }: { view: BoardView }) {
+  const { t } = useTranslation();
   const { canGroup, canSort } = capabilitiesOf(view.mode);
 
   const order = useToolbarControls((state) => state.order);
@@ -109,7 +111,7 @@ export default function ViewToolbar({ view }: { view: BoardView }) {
             onClick={view.clearFilters}
             className="text-ink-3 hover:text-ink focus-visible:ring-brand shrink-0 rounded px-1 text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-2"
           >
-            Clear filters
+            {t("view.clearFilters")}
           </button>
         )}
 

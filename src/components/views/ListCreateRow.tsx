@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useRef, useState } from "react";
 import { PlusIcon } from "lucide-react";
 
@@ -17,6 +18,7 @@ export default function ListCreateRow({
   statusId: string | undefined;
   disabled: boolean;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -47,7 +49,7 @@ export default function ListCreateRow({
         className="text-ink-2 hover:bg-wash-strong hover:text-ink focus-visible:ring-brand flex h-8 items-center gap-1.5 rounded px-2 text-sm font-medium transition-colors outline-none focus-visible:ring-2 disabled:cursor-default disabled:opacity-50"
       >
         <PlusIcon className="size-4" />
-        Create
+        {t("common.create")}
       </button>
     );
   }
@@ -71,7 +73,7 @@ export default function ListCreateRow({
       <button
         type="submit"
         disabled={!statusId || title.trim() === ""}
-        aria-label="Create work item"
+        aria-label={t("list.createItem")}
         className="bg-brand text-brand-fg hover:bg-brand/90 grid size-5 shrink-0 place-items-center rounded-[5px] transition-colors disabled:opacity-40"
       >
         <PlusIcon className="size-3.5" />
@@ -89,8 +91,8 @@ export default function ListCreateRow({
           setTitle("");
           setOpen(false);
         }}
-        aria-label="New work item title"
-        placeholder="What needs doing?"
+        aria-label={t("list.newItemTitle")}
+        placeholder={t("list.newItemPlaceholder")}
         className="placeholder:text-ink-3 min-w-0 flex-1 bg-transparent text-sm outline-none"
       />
     </form>

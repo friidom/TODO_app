@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  LOCALE,
   NO_VALUE,
+  adminLocale,
   actionLabel,
   barWidth,
   binLabel,
@@ -38,7 +38,7 @@ describe("bucketLabel", () => {
   // spelling of the month.
   it("reads a midnight bucket as UTC, so a label cannot land on the previous day", () => {
     const expected = new Date(Date.UTC(2026, 8, 20)).toLocaleDateString(
-      LOCALE,
+      adminLocale(),
       {
         day: "numeric",
         month: "short",
@@ -50,11 +50,14 @@ describe("bucketLabel", () => {
   });
 
   it("labels a month bucket by its month and year", () => {
-    const expected = new Date(Date.UTC(2026, 0, 1)).toLocaleDateString(LOCALE, {
-      month: "short",
-      year: "2-digit",
-      timeZone: "UTC",
-    });
+    const expected = new Date(Date.UTC(2026, 0, 1)).toLocaleDateString(
+      adminLocale(),
+      {
+        month: "short",
+        year: "2-digit",
+        timeZone: "UTC",
+      },
+    );
 
     expect(bucketLabel("2026-01-01T00:00:00", "month")).toBe(expected);
   });

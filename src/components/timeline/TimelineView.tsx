@@ -35,7 +35,7 @@ import TimelineNav from "./TimelineNav";
 export default function TimelineView() {
   const view = useBoardView();
   const timeline = useTimelineView();
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const { todos, isLoading, error } = useVisibleTodos();
   const { data: workflow = EMPTY_WORKFLOW } = useWorkflow();
@@ -160,12 +160,12 @@ export default function TimelineView() {
             ? null
             : totalDated > 0
               ? {
-                  title: "Nothing scheduled in this range",
-                  hint: `${totalDated} dated ${totalDated === 1 ? "item is" : "items are"} outside it. Page through the dates, or jump back to today.`,
+                  title: t("timeline.emptyRangeTitle"),
+                  hint: t("timeline.emptyRangeHint", { count: totalDated }),
                 }
               : {
-                  title: "No epics have dates yet",
-                  hint: "Create an epic below, or open one and set a start date, a due date, or both.",
+                  title: t("timeline.noEpicsTitle"),
+                  hint: t("timeline.noEpicsHint"),
                 }
         }
       />

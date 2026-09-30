@@ -1,13 +1,14 @@
+import i18n, { translated } from "@/components/i18n";
 import type { AdminBoard, AdminUser } from "./types";
 
 export const LEADERBOARD_MODES = ["people", "boards"] as const;
 
 export type LeaderboardMode = (typeof LEADERBOARD_MODES)[number];
 
-export const LEADERBOARD_MODE_LABELS: Record<LeaderboardMode, string> = {
-  people: "People",
-  boards: "Boards",
-};
+export const LEADERBOARD_MODE_LABELS = translated<LeaderboardMode>({
+  people: "admin.modes.people",
+  boards: "boards.title",
+});
 
 export function isLeaderboardMode(value: unknown): value is LeaderboardMode {
   return (
@@ -51,16 +52,16 @@ export const BOARD_SORT_KEYS = [
 
 export type BoardSortKey = (typeof BOARD_SORT_KEYS)[number];
 
-export const BOARD_SORT_LABELS: Record<BoardSortKey, string> = {
-  title: "Board",
-  completed_todos: "Completed",
-  completed_points: "Points",
-  median_cycle_days: "Cycle",
-  comments: "Comments",
-  activities: "Activity",
-  open_todos: "Open",
-  members: "Members",
-};
+export const BOARD_SORT_LABELS = translated<BoardSortKey>({
+  title: "sidebar.board",
+  completed_todos: "fields.completed",
+  completed_points: "admin.columns.points",
+  median_cycle_days: "admin.columns.cycle",
+  comments: "taskActivity.comments",
+  activities: "board.activity",
+  open_todos: "admin.columns.open",
+  members: "board.members",
+});
 
 export const DEFAULT_BOARD_SORT: BoardSortKey = "completed_todos";
 
@@ -103,61 +104,105 @@ export interface LeaderboardMetric {
 export const PEOPLE_METRICS: LeaderboardMetric[] = [
   {
     key: "completed_todos",
-    label: "Most completed",
-    hint: "Tasks finished in this window",
+    get label() {
+      return i18n.t("admin.leaders.mostCompleted");
+    },
+    get hint() {
+      return i18n.t("admin.leaders.completedHint");
+    },
   },
   {
     key: "completed_points",
-    label: "Highest throughput",
-    hint: "Estimate points finished in this window",
+    get label() {
+      return i18n.t("admin.leaders.throughput");
+    },
+    get hint() {
+      return i18n.t("admin.leaders.throughputHint");
+    },
   },
   {
     key: "activities",
-    label: "Most active",
-    hint: "Recorded events across every board",
+    get label() {
+      return i18n.t("admin.leaders.mostActive");
+    },
+    get hint() {
+      return i18n.t("admin.leaders.activeHint");
+    },
   },
   {
     key: "median_cycle_days",
-    label: "Fastest median cycle",
-    hint: "Started to done, median — shortest first",
+    get label() {
+      return i18n.t("admin.leaders.fastestCycle");
+    },
+    get hint() {
+      return i18n.t("admin.leaders.cycleHint");
+    },
   },
   {
     key: "comments",
-    label: "Most discussion",
-    hint: "Comments written in this window",
+    get label() {
+      return i18n.t("admin.leaders.mostDiscussion");
+    },
+    get hint() {
+      return i18n.t("admin.leaders.discussionHint");
+    },
   },
   {
     key: "boards",
-    label: "Broadest reach",
-    hint: "Boards this person is a member of",
+    get label() {
+      return i18n.t("admin.leaders.reach");
+    },
+    get hint() {
+      return i18n.t("admin.leaders.reachHint");
+    },
   },
   {
     key: "performance",
-    label: "Against target",
-    hint: "Completed points over the configured target",
+    get label() {
+      return i18n.t("admin.leaders.againstTarget");
+    },
+    get hint() {
+      return i18n.t("admin.leaders.targetHint");
+    },
   },
 ];
 
 export const BOARD_METRICS: LeaderboardMetric[] = [
   {
     key: "completed_todos",
-    label: "Most completed",
-    hint: "Tasks finished in this window",
+    get label() {
+      return i18n.t("admin.leaders.mostCompleted");
+    },
+    get hint() {
+      return i18n.t("admin.leaders.completedHint");
+    },
   },
   {
     key: "completed_points",
-    label: "Highest throughput",
-    hint: "Estimate points finished in this window",
+    get label() {
+      return i18n.t("admin.leaders.throughput");
+    },
+    get hint() {
+      return i18n.t("admin.leaders.throughputHint");
+    },
   },
   {
     key: "activities",
-    label: "Most active",
-    hint: "Recorded events on the board",
+    get label() {
+      return i18n.t("admin.leaders.mostActive");
+    },
+    get hint() {
+      return i18n.t("admin.leaders.activeBoardHint");
+    },
   },
   {
     key: "median_cycle_days",
-    label: "Fastest median cycle",
-    hint: "Started to done, median — shortest first",
+    get label() {
+      return i18n.t("admin.leaders.fastestCycle");
+    },
+    get hint() {
+      return i18n.t("admin.leaders.cycleHint");
+    },
   },
 ];
 

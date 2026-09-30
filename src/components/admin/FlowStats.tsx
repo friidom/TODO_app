@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import SummaryCard, { WidgetEmpty } from "@/components/summary/SummaryCard";
 import { hasDurations } from "@/services/admin/flow";
 import { formatDuration } from "@/services/admin/format";
@@ -14,23 +15,32 @@ export default function FlowStats({
   note?: string;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const rows = [
-    { key: "cycle", label: "Cycle", hint: "Started to done", stats: cycle },
-    { key: "lead", label: "Lead", hint: "Created to done", stats: lead },
+    {
+      key: "cycle",
+      label: t("admin.flowStats.cycle"),
+      hint: t("admin.flowStats.cycleHint"),
+      stats: cycle,
+    },
+    {
+      key: "lead",
+      label: t("admin.flowStats.lead"),
+      hint: t("admin.flowStats.leadHint"),
+      stats: lead,
+    },
   ];
 
   const anything = hasDurations(cycle) || hasDurations(lead);
 
   return (
     <SummaryCard
-      title="Flow time"
-      hint="How long work takes, and how much of it we can say that about"
+      title={t("admin.flowStats.title")}
+      hint={t("admin.flowStats.hint")}
       className={className}
     >
       {!anything ? (
-        <WidgetEmpty>
-          Nothing finished in this window with a measurable duration.
-        </WidgetEmpty>
+        <WidgetEmpty>{t("admin.noDurations")}</WidgetEmpty>
       ) : (
         <div className="flex flex-col gap-3 px-3.5 pb-3.5">
           {rows.map((row) => (
@@ -45,15 +55,21 @@ export default function FlowStats({
               </div>
 
               <dl className="mt-1.5 flex gap-4">
-                <Figure label="median" value={row.stats.median_days} lead />
+                <Figure
+                  label={t("admin.median")}
+                  value={row.stats.median_days}
+                  lead
+                />
                 <Figure label="p75" value={row.stats.p75_days} />
                 <Figure label="p90" value={row.stats.p90_days} />
               </dl>
 
               <p className="text-ink-3 text-micro mt-1 tabular-nums">
-                {row.stats.n} measured
+                {t("admin.flowStats.measured", { count: row.stats.n })}
                 {row.stats.unmeasured > 0 &&
-                  ` · ${row.stats.unmeasured} without a start date`}
+                  ` · ${t("admin.flowStats.unmeasured", {
+                    count: row.stats.unmeasured,
+                  })}`}
               </p>
             </div>
           ))}

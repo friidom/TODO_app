@@ -371,7 +371,7 @@ export default function WorkflowDiagram({
     >
       <svg
         role="group"
-        aria-label="Workflow diagram"
+        aria-label={t("workflow.diagramLabel")}
         onPointerDown={(event) => {
           if (event.target === event.currentTarget) startPan(event);
         }}
@@ -439,8 +439,14 @@ export default function WorkflowDiagram({
             const startNode = route.reversed ? edge.to : edge.from;
             const endNode = route.reversed ? edge.from : edge.to;
             const label = edge.twoWay
-              ? `Transitions between ${nameOf(edge.from)} and ${nameOf(edge.to)}`
-              : `Transition ${nameOf(edge.from)} to ${nameOf(edge.to)}`;
+              ? t("workflow.edgeTwoWay", {
+                  from: nameOf(edge.from),
+                  to: nameOf(edge.to),
+                })
+              : t("workflow.edgeOneWay", {
+                  from: nameOf(edge.from),
+                  to: nameOf(edge.to),
+                });
 
             return (
               <g
@@ -509,8 +515,11 @@ export default function WorkflowDiagram({
             >
               <button
                 type="button"
-                aria-label={`Remove transition ${nameOf(chosen.from)} to ${nameOf(chosen.to)}`}
-                title="Remove transition"
+                aria-label={t("workflow.removeTransition", {
+                  from: nameOf(chosen.from),
+                  to: nameOf(chosen.to),
+                })}
+                title={t("workflow.removeTransitionShort")}
                 onClick={(event) => {
                   event.stopPropagation();
                   onRemoveEdge(chosen.from, chosen.to);
@@ -549,9 +558,9 @@ export default function WorkflowDiagram({
             const candidate = linking !== null && linking.from !== status.id;
             const tag =
               chosen?.from === status.id
-                ? "From"
+                ? t("workflow.from")
                 : chosen?.to === status.id
-                  ? "To"
+                  ? t("workflow.to")
                   : null;
             const column = draft.columns.find(
               (it) => it.id === status.column_id,
@@ -613,7 +622,7 @@ export default function WorkflowDiagram({
                       <span className="text-ink text-mini flex min-w-0 items-center gap-1 font-semibold tracking-wide uppercase">
                         {status.is_hidden && (
                           <EyeOffIcon
-                            aria-label="Hidden"
+                            aria-label={t("workflow.hidden")}
                             className="size-3 shrink-0"
                           />
                         )}
@@ -622,7 +631,7 @@ export default function WorkflowDiagram({
 
                         {flagged.has(status.id) && (
                           <TriangleAlertIcon
-                            aria-label="Needs attention"
+                            aria-label={t("workflow.needsAttention")}
                             className="text-status-orange ml-auto size-3 shrink-0"
                           />
                         )}
@@ -631,7 +640,7 @@ export default function WorkflowDiagram({
                       <span className="text-ink-3 text-micro truncate">
                         {t(categoryLabelKey(status.category))}
                         {!column
-                          ? " · Not on the board"
+                          ? ` · ${t("workflow.notOnBoard")}`
                           : column.title.toLowerCase() !==
                               status.name.toLowerCase()
                             ? ` · ${column.title}`
@@ -650,7 +659,7 @@ export default function WorkflowDiagram({
                     className="overflow-visible"
                   >
                     <span
-                      title="Every other status can move here"
+                      title={t("workflow.everyOtherCanMoveHere")}
                       className={cn(
                         "text-micro ml-auto grid h-[18px] w-fit place-items-center rounded-full px-1.5 font-semibold whitespace-nowrap",
                         focus && focus !== status.id
@@ -658,7 +667,7 @@ export default function WorkflowDiagram({
                           : "bg-ink text-canvas",
                       )}
                     >
-                      From any
+                      {t("workflow.fromAny")}
                     </span>
                   </foreignObject>
                 )}
@@ -694,7 +703,7 @@ export default function WorkflowDiagram({
                     onPointerDown={(event) => startLink(event, status.id)}
                     className="peer cursor-crosshair"
                   >
-                    <title>Drag onto another status to add a transition</title>
+                    <title>{t("workflow.dragToConnect")}</title>
                   </circle>
 
                   <circle
@@ -715,29 +724,29 @@ export default function WorkflowDiagram({
         <div className="bg-surface/85 rounded-control text-ink-3 text-mini hidden px-2 py-1 backdrop-blur-sm lg:block">
           {focus ? (
             <span className="flex items-center gap-3">
-              <Legend dashed={false}>can move to</Legend>
-              <Legend dashed>can arrive from</Legend>
+              <Legend dashed={false}>{t("workflow.legendMoveTo")}</Legend>
+              <Legend dashed>{t("workflow.legendArriveFrom")}</Legend>
               {anyTargets.size > 0 && (
                 <span className="flex items-center gap-1">
                   <span className="bg-brand text-brand-fg rounded-full px-1.5 font-semibold">
-                    From any
+                    {t("workflow.fromAny")}
                   </span>
-                  every status can move there
+                  {t("workflow.legendFromAny")}
                 </span>
               )}
             </span>
           ) : chosen ? (
-            "Delete or Backspace removes the selected transition · Esc clears the selection"
+            t("workflow.hintSelected")
           ) : crowded ? (
-            "Hover or select a status to see its transitions · drag the dot on its right edge onto another status to connect"
+            t("workflow.hintCrowded")
           ) : (
-            "Drag a status to arrange it · drag the dot on its right edge onto another status to connect"
+            t("workflow.hintDefault")
           )}
         </div>
 
         <div className="border-hairline bg-surface rounded-control shadow-e2 pointer-events-auto ml-auto flex items-center gap-0.5 border p-0.5">
           <CanvasButton
-            label="Auto-layout"
+            label={t("workflow.autoLayout")}
             onClick={() => {
               onAutoLayout();
               requestAnimationFrame(fit);
@@ -746,14 +755,14 @@ export default function WorkflowDiagram({
             <SparklesIcon />
           </CanvasButton>
 
-          <CanvasButton label="Fit to screen" onClick={fit}>
+          <CanvasButton label={t("workflow.fit")} onClick={fit}>
             <MaximizeIcon />
           </CanvasButton>
 
           <span aria-hidden className="bg-hairline mx-0.5 h-5 w-px" />
 
           <CanvasButton
-            label="Zoom out"
+            label={t("workflow.zoomOut")}
             disabled={view.zoom <= MIN_ZOOM}
             onClick={() => step(1 / ZOOM_STEP)}
           >
@@ -765,7 +774,7 @@ export default function WorkflowDiagram({
           </span>
 
           <CanvasButton
-            label="Zoom in"
+            label={t("workflow.zoomIn")}
             disabled={view.zoom >= MAX_ZOOM}
             onClick={() => step(ZOOM_STEP)}
           >

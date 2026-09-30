@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { CheckIcon, LinkIcon, Link2OffIcon } from "lucide-react";
 import { FloatingPortal } from "@floating-ui/react";
 
@@ -31,14 +32,17 @@ export default function EpicParentControl({
 }) {
   const { mounted, close, triggerProps, panelProps } = useCardPopover();
   const { epics } = useEpics();
+  const { t } = useTranslation();
   const keyPrefix = useKeyPrefix();
 
   const epic = epics.find((candidate) => candidate.id === epicId) ?? null;
   const key = epic ? taskKey(keyPrefix, epic.board_key) : null;
 
   const label = epic
-    ? `Parent: ${key ?? epic.title ?? "an epic"}`
-    : "No parent epic";
+    ? t("epicParent.parent", {
+        name: key ?? epic.title ?? t("activity.anEpic"),
+      })
+    : t("epicParent.none");
 
   return (
     <>
@@ -64,17 +68,19 @@ export default function EpicParentControl({
             <>
               {key && <span className="text-ink-3 shrink-0">{key}</span>}
               <span className="min-w-0 truncate">
-                {epic.title || "Untitled"}
+                {epic.title || t("common.untitled")}
               </span>
             </>
           ) : (
-            "None"
+            t("common.none")
           )
         ) : (
           <>
             <LinkIcon className="size-3 shrink-0" />
             <span className="min-w-0 truncate">
-              {epic ? (key ?? epic.title ?? "Untitled") : "None"}
+              {epic
+                ? (key ?? epic.title ?? t("common.untitled"))
+                : t("common.none")}
             </span>
           </>
         )}
@@ -85,14 +91,14 @@ export default function EpicParentControl({
           <div
             {...panelProps}
             role="menu"
-            aria-label="Parent epic"
+            aria-label={t("epicParent.label")}
             className={cn(POPOVER_PANEL, "z-50 max-h-64 w-56 overflow-y-auto")}
           >
-            <p className={MENU_LABEL}>Epic</p>
+            <p className={MENU_LABEL}>{t("workType.epic")}</p>
 
             {epics.length === 0 ? (
               <p className="text-ink-3 text-meta px-2 py-2">
-                No epics on this board yet.
+                {t("epicParent.noEpics")}
               </p>
             ) : (
               <ul>
@@ -116,7 +122,7 @@ export default function EpicParentControl({
                               {candidateKey}{" "}
                             </span>
                           )}
-                          {candidate.title || "Untitled"}
+                          {candidate.title || t("common.untitled")}
                         </span>
 
                         {selected && (
@@ -142,7 +148,7 @@ export default function EpicParentControl({
                   className={MENU_ITEM}
                 >
                   <Link2OffIcon />
-                  Remove parent
+                  {t("epicParent.remove")}
                 </button>
               </>
             )}

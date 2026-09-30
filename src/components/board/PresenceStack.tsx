@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { memberInitial, memberName } from "@/components/members/memberLabels";
 import { useBoardId } from "@/hooks/useBoardId";
@@ -15,6 +16,7 @@ export default function PresenceStack({
   className?: string;
 }) {
   const boardId = useBoardId();
+  const { t } = useTranslation();
   const { data: members = [] } = useBoardMembers(boardId);
 
   if (viewers.length === 0) return null;
@@ -29,13 +31,13 @@ export default function PresenceStack({
   const rest = present.length - shown.length;
 
   const names = present
-    .map(({ member }) => (member ? memberName(member) : "Someone"))
+    .map(({ member }) => (member ? memberName(member) : t("presence.someone")))
     .join(", ");
 
   return (
     <div
-      title={`${names} ${present.length === 1 ? "is" : "are"} on this board now`}
-      aria-label={`${present.length} ${present.length === 1 ? "person" : "people"} on this board now`}
+      title={t("presence.names", { names, count: present.length })}
+      aria-label={t("presence.count", { count: present.length })}
       className={cn(
         "border-hairline bg-surface rounded-control flex h-8 shrink-0 items-center gap-1.5 border pr-2 pl-2",
         className,

@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 import MemberStack from "@/components/board/MemberStack";
 import PresenceStack from "@/components/board/PresenceStack";
 import { ICON_BUTTON } from "@/components/ui/controlChrome";
@@ -34,6 +36,7 @@ export default function BoardIdentity({
   // derived from the work items, not boards.updated_at — that column only moves on a rename/re-file
   lastActivity: string | null;
 }) {
+  const { t } = useTranslation();
   const { data: spaces = [] } = useSpaces();
   const { openPanel } = usePanel();
 
@@ -47,39 +50,42 @@ export default function BoardIdentity({
         <TooltipTrigger
           render={<SidebarTrigger className={SIDEBAR_TRIGGER} />}
         />
-        <TooltipContent side="bottom">Toggle sidebar</TooltipContent>
+        <TooltipContent side="bottom">{t("sidebar.toggle")}</TooltipContent>
       </Tooltip>
 
       <div className="flex min-w-0 flex-1 items-baseline gap-2">
         <span className="text-meta text-ink-3 hidden max-w-48 min-w-0 shrink-[2] items-baseline gap-2 @md:flex">
-          <span className="truncate">{space ? space.title : "Unfiled"}</span>
+          <span className="truncate">
+            {space ? space.title : t("common.unfiled")}
+          </span>
           <span aria-hidden className="text-ink-3/60">
             /
           </span>
         </span>
 
         <h1 className="text-ink min-w-0 truncate text-lg font-semibold tracking-tight md:text-xl">
-          {board.title || "Untitled board"}
+          {board.title || t("common.untitledBoard")}
         </h1>
 
         <p className="text-mini text-ink-3 ml-1 hidden shrink-0 items-baseline gap-1.5 whitespace-nowrap @3xl:flex">
-          <span>
-            {columnCount} {columnCount === 1 ? "column" : "columns"}
-          </span>
+          <span>{t("board.columnCount", { count: columnCount })}</span>
 
           <span aria-hidden>·</span>
 
           {/* both numbers while filtered, so it doesn't quietly look like a small board */}
           <span className={cn(narrowed && "text-brand font-medium")}>
             {narrowed
-              ? `${visibleCount} of ${todoCount} tasks`
-              : `${todoCount} ${todoCount === 1 ? "task" : "tasks"}`}
+              ? t("board.visibleOfTasks", {
+                  visible: visibleCount,
+                  count: todoCount,
+                })
+              : t("board.taskCount", { count: todoCount })}
           </span>
 
           {lastActivity && (
             <>
               <span aria-hidden>·</span>
-              <span>Updated {lastActivity}</span>
+              <span>{t("board.updated", { when: lastActivity })}</span>
             </>
           )}
         </p>

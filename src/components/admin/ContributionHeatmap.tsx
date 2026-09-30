@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useMemo } from "react";
 
 import SummaryCard, { WidgetEmpty } from "@/components/summary/SummaryCard";
@@ -21,7 +22,15 @@ const LEVELS = [
   "bg-brand",
 ];
 
-const WEEKDAYS = ["", "Mon", "", "Wed", "", "Fri", ""];
+const WEEKDAYS = [
+  "",
+  "admin.weekday.mon",
+  "",
+  "admin.weekday.wed",
+  "",
+  "admin.weekday.fri",
+  "",
+];
 
 export default function ContributionHeatmap({
   from,
@@ -34,6 +43,7 @@ export default function ContributionHeatmap({
   cells: HeatmapCell[];
   className?: string;
 }) {
+  const { t } = useTranslation();
   const weeks = useMemo(() => heatmapWeeks(from, to, cells), [from, to, cells]);
   const max = useMemo(() => heatmapMax(cells), [cells]);
   const total = useMemo(
@@ -43,18 +53,18 @@ export default function ContributionHeatmap({
 
   return (
     <SummaryCard
-      title="Completed tasks over the year"
-      hint={`${total} task${total === 1 ? "" : "s"} · a fixed 12-month window, whatever period is selected`}
+      title={t("admin.heatmap.title")}
+      hint={t("admin.heatmap.hint", { count: total })}
       className={className}
     >
       {weeks.length === 0 ? (
-        <WidgetEmpty>Nothing completed yet.</WidgetEmpty>
+        <WidgetEmpty>{t("admin.heatmap.empty")}</WidgetEmpty>
       ) : (
         <div className="flex gap-1.5 overflow-x-auto px-3.5 pb-3.5">
           <div className="text-ink-3/70 text-micro flex shrink-0 flex-col gap-0.75 pt-px">
             {WEEKDAYS.map((day, index) => (
               <span key={index} className="h-2.75 leading-2.75">
-                {day}
+                {day && t(day)}
               </span>
             ))}
           </div>

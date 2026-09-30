@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import i18n from "@/components/i18n";
 import { useState } from "react";
 
 import ChartFrame from "@/components/admin/chart/ChartFrame";
@@ -14,7 +16,13 @@ import type { DurationBin, DurationStats } from "@/services/admin/types";
 import { cn } from "@/utils/cn";
 
 const MARKERS = [
-  { key: "p50", label: "Median", read: (s: DurationStats) => s.median_days },
+  {
+    key: "p50",
+    get label() {
+      return i18n.t("admin.median");
+    },
+    read: (s: DurationStats) => s.median_days,
+  },
   { key: "p75", label: "P75", read: (s: DurationStats) => s.p75_days },
   { key: "p90", label: "P90", read: (s: DurationStats) => s.p90_days },
 ] as const;
@@ -35,6 +43,7 @@ export default function Histogram({
   className?: string;
 }) {
   const [selected, setSelected] = useState<number | null>(null);
+  const { t } = useTranslation();
   const hover = useChartHover(bins.length, (index) =>
     setSelected((current) => (current === index ? null : index)),
   );
@@ -62,9 +71,7 @@ export default function Histogram({
       }
     >
       {bins.length === 0 || total === 0 ? (
-        <WidgetEmpty>
-          Nothing finished in this window with a measurable duration.
-        </WidgetEmpty>
+        <WidgetEmpty>{t("admin.noDurations")}</WidgetEmpty>
       ) : (
         <>
           <ChartFrame
@@ -120,12 +127,12 @@ export default function Histogram({
             <div
               {...hover.surface}
               role="slider"
-              aria-label="Cycle time bucket"
+              aria-label={t("admin.histogram.bucket")}
               aria-valuemin={0}
               aria-valuemax={Math.max(0, bins.length - 1)}
               aria-valuenow={active ?? 0}
               aria-valuetext={
-                active === null ? "none" : binLabel(bins[active]!)
+                active === null ? t("common.none") : binLabel(bins[active]!)
               }
               onClick={() =>
                 hover.index !== null &&
@@ -140,16 +147,18 @@ export default function Histogram({
               <ChartTooltip
                 index={hover.index}
                 count={bins.length}
-                title={`${binLabel(bins[hover.index]!)} cycle time`}
+                title={t("admin.histogram.tooltip", {
+                  bin: binLabel(bins[hover.index]!),
+                })}
                 rows={[
                   {
                     key: "count",
-                    label: "Tasks",
+                    label: t("admin.columns.tasks"),
                     value: dash(bins[hover.index]!.count),
                   },
                   {
                     key: "share",
-                    label: "Of completed",
+                    label: t("admin.histogram.ofCompleted"),
                     value: `${proportionOf(bins[hover.index]!.count, total).toFixed(1)}%`,
                     muted: true,
                   },
@@ -160,8 +169,15 @@ export default function Histogram({
 
           <p className="text-ink-3 text-mini px-3.5 pb-3">
             {selected === null
-              ? (note ?? "Click a bar to focus a segment of the distribution.")
-              : `Focused on ${binLabel(bins[selected]!)} — ${bins[selected]!.count} of ${total} completed tasks (${proportionOf(bins[selected]!.count, total).toFixed(1)}%).`}
+              ? (note ?? t("admin.histogram.clickBar"))
+              : t("admin.histogram.focused", {
+                  bin: binLabel(bins[selected]!),
+                  count: bins[selected]!.count,
+                  total,
+                  percent: proportionOf(bins[selected]!.count, total).toFixed(
+                    1,
+                  ),
+                })}
           </p>
         </>
       )}

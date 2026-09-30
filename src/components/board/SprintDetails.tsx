@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { FloatingPortal } from "@floating-ui/react";
 import { CalendarRangeIcon, GaugeIcon, TargetIcon } from "lucide-react";
 
@@ -16,6 +17,7 @@ export default function SprintDetails({ sprint }: { sprint: Sprint }) {
     placement: "bottom-end",
   });
 
+  const { t } = useTranslation();
   const { data: todos = [] } = useTodos();
   const { data: statuses = [] } = useStatuses();
 
@@ -46,7 +48,7 @@ export default function SprintDetails({ sprint }: { sprint: Sprint }) {
   return (
     <>
       <IconButton
-        label="Sprint details"
+        label={t("sprint.details")}
         size="toolbar"
         {...triggerProps}
         className="border-ink/15 hover:bg-wash-strong size-8 rounded-md bg-transparent"
@@ -59,7 +61,7 @@ export default function SprintDetails({ sprint }: { sprint: Sprint }) {
           <div
             {...panelProps}
             role="dialog"
-            aria-label="Sprint details"
+            aria-label={t("sprint.details")}
             className={cn(POPOVER_PANEL, "z-50 w-72 p-0")}
           >
             <div className="border-hairline border-b px-3 py-2.5">
@@ -69,7 +71,7 @@ export default function SprintDetails({ sprint }: { sprint: Sprint }) {
                 </p>
 
                 <span className="bg-status-green/15 text-status-green text-micro shrink-0 rounded px-1.5 py-0.5 font-semibold tracking-wide uppercase">
-                  Active
+                  {t("sprint.active")}
                 </span>
               </div>
 
@@ -96,7 +98,7 @@ export default function SprintDetails({ sprint }: { sprint: Sprint }) {
                           ? formatDue(sprint.end_date, today)
                           : "?"
                       }`
-                    : "No dates set"}
+                    : t("sprint.noDates")}
                 </span>
 
                 {left !== null && (
@@ -107,10 +109,10 @@ export default function SprintDetails({ sprint }: { sprint: Sprint }) {
                     )}
                   >
                     {left < 0
-                      ? `${Math.abs(left)}d overdue`
+                      ? t("sprint.daysOverdue", { count: Math.abs(left) })
                       : left === 0
-                        ? "ends today"
-                        : `${left}d left`}
+                        ? t("sprint.endsToday")
+                        : t("sprint.daysLeft", { count: left })}
                   </span>
                 )}
               </div>
@@ -118,7 +120,7 @@ export default function SprintDetails({ sprint }: { sprint: Sprint }) {
               <div>
                 <div className="text-ink-2 text-mini mb-1 flex items-baseline justify-between">
                   <span>
-                    {done} of {items.length} done
+                    {t("sprint.doneOf", { done, count: items.length })}
                   </span>
 
                   <span className="text-ink-3 tabular-nums">{complete}%</span>
@@ -129,7 +131,7 @@ export default function SprintDetails({ sprint }: { sprint: Sprint }) {
                   aria-valuenow={complete}
                   aria-valuemin={0}
                   aria-valuemax={100}
-                  aria-label="Sprint progress"
+                  aria-label={t("sprint.progress")}
                   className="bg-wash-strong h-1.5 overflow-hidden rounded-full"
                 >
                   <div
@@ -140,15 +142,18 @@ export default function SprintDetails({ sprint }: { sprint: Sprint }) {
               </div>
 
               <dl className="grid grid-cols-3 gap-2 text-center">
-                <Stat label="To do" value={todo} />
-                <Stat label="In progress" value={working} />
-                <Stat label="Done" value={done} />
+                <Stat label={t("columnCategory.todo")} value={todo} />
+                <Stat label={t("columnCategory.in_progress")} value={working} />
+                <Stat label={t("columnCategory.done")} value={done} />
               </dl>
 
               <dl className="border-hairline grid grid-cols-3 gap-2 border-t pt-2.5 text-center">
-                <Stat label="Points" value={points.total} />
-                <Stat label="Completed" value={points.completed} />
-                <Stat label="Unestimated" value={points.unestimated} />
+                <Stat label={t("sprint.points")} value={points.total} />
+                <Stat label={t("fields.completed")} value={points.completed} />
+                <Stat
+                  label={t("sprint.unestimated")}
+                  value={points.unestimated}
+                />
               </dl>
             </div>
           </div>

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { MoreHorizontal } from "lucide-react";
 
@@ -25,6 +26,7 @@ import {
 
 // renders nothing at all when the actor can't act on this member — no disabled trigger, just absent (owner's row, always)
 export default function MemberActions({ member }: { member: BoardMember }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [confirmingRemove, setConfirmingRemove] = useState(false);
 
@@ -50,7 +52,9 @@ export default function MemberActions({ member }: { member: BoardMember }) {
       }}
     >
       <DropdownMenuTrigger
-        aria-label={`Manage ${member.username ?? "member"}`}
+        aria-label={t("members.manage", {
+          name: member.username ?? t("members.member"),
+        })}
         className="text-ink-3 hover:bg-ink/10 hover:text-ink focus-visible:ring-brand shrink-0 rounded p-1 outline-none focus-visible:ring-2"
       >
         <MoreHorizontal size={15} />
@@ -66,7 +70,7 @@ export default function MemberActions({ member }: { member: BoardMember }) {
             close();
           }}
         >
-          <DropdownMenuLabel>Role</DropdownMenuLabel>
+          <DropdownMenuLabel>{t("activity.role")}</DropdownMenuLabel>
           {options.map((option) => (
             <DropdownMenuRadioItem key={option} value={option}>
               {roleLabel(option)}
@@ -84,7 +88,7 @@ export default function MemberActions({ member }: { member: BoardMember }) {
             }}
             className="text-status-red font-medium"
           >
-            Confirm remove
+            {t("members.confirmRemove")}
           </DropdownMenuItem>
         ) : (
           <DropdownMenuItem
@@ -92,7 +96,7 @@ export default function MemberActions({ member }: { member: BoardMember }) {
             onClick={() => setConfirmingRemove(true)}
             className="text-status-red"
           >
-            Remove from board
+            {t("members.remove")}
           </DropdownMenuItem>
         )}
       </DropdownMenuContent>

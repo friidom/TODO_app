@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { LayersIcon, PlusIcon } from "lucide-react";
 
@@ -40,6 +41,7 @@ const TASK_GRID =
 
 // Never mounted alongside SubtasksSection — TaskDetailModal renders exactly one, decided by useTodoHierarchy.
 export default function EpicTasksSection({ epic }: { epic: Todo }) {
+  const { t } = useTranslation();
   const { tasks, isPending } = useEpicTasks(epic.id);
   const { canEditTodos } = usePermissions();
 
@@ -49,17 +51,17 @@ export default function EpicTasksSection({ epic }: { epic: Todo }) {
   return (
     <section>
       <SectionHeader
-        title="Tasks"
+        title={t("epic.tasks")}
         count={tasks.length > 0 ? tasks.length : null}
         collapse={{
           collapsed,
           onToggle: () => setCollapsed((open) => !open),
-          noun: "tasks",
+          noun: t("epic.tasks"),
         }}
         actions={
           canEditTodos && (
             <IconButton
-              label="Add task to this epic"
+              label={t("epic.addTask")}
               aria-expanded={adding}
               onClick={() => {
                 setCollapsed(false);
@@ -91,29 +93,29 @@ export default function EpicTasksSection({ epic }: { epic: Todo }) {
           ) : tasks.length === 0 && !adding ? (
             <EmptyLine icon={LayersIcon}>
               <span>
-                No tasks in this epic yet.
-                {canEditTodos && " Add one with the + above."}
+                {t("epic.empty")}
+                {canEditTodos && ` ${t("epic.emptyHint")}`}
               </span>
             </EmptyLine>
           ) : (
             tasks.length > 0 && (
               <div
                 role="table"
-                aria-label="Tasks in this epic"
+                aria-label={t("epic.tasksLabel")}
                 className={cn(TABLE, adding && "mt-3")}
               >
                 <div role="row" className={cn(TASK_GRID, TABLE_HEAD)}>
-                  <span role="columnheader">Work</span>
+                  <span role="columnheader">{t("fields.work")}</span>
                   <span role="columnheader">
-                    <span className="sr-only">Title</span>
+                    <span className="sr-only">{t("fields.title")}</span>
                   </span>
                   <span role="columnheader">
-                    <span className="sr-only">Priority</span>
+                    <span className="sr-only">{t("fields.priority")}</span>
                   </span>
                   <span role="columnheader">
-                    <span className="sr-only">Assignee</span>
+                    <span className="sr-only">{t("fields.assignee")}</span>
                   </span>
-                  <span role="columnheader">Status</span>
+                  <span role="columnheader">{t("fields.status")}</span>
                 </div>
 
                 {tasks.map((task) => (
@@ -129,6 +131,7 @@ export default function EpicTasksSection({ epic }: { epic: Todo }) {
 }
 
 function EpicTaskRow({ task }: { task: Todo }) {
+  const { t } = useTranslation();
   const { openTask } = useOpenTask();
   const patch = useTodoPatch(task);
   const { canEditTodos } = usePermissions();
@@ -143,7 +146,7 @@ function EpicTaskRow({ task }: { task: Todo }) {
           <button
             type="button"
             onClick={() => openTask(task.id)}
-            title={`Open ${key}`}
+            title={t("list.open", { key })}
             className="text-ink-3 hover:text-brand focus-visible:ring-brand text-mini block truncate rounded font-medium tabular-nums transition-colors outline-none focus-visible:ring-2"
           >
             {key}
@@ -160,7 +163,9 @@ function EpicTaskRow({ task }: { task: Todo }) {
           title={task.title ?? undefined}
           className="text-ink hover:text-brand focus-visible:ring-brand text-meta block w-full truncate rounded text-left font-medium transition-colors outline-none focus-visible:ring-2"
         >
-          {task.title || <span className="text-ink-3">Untitled</span>}
+          {task.title || (
+            <span className="text-ink-3">{t("common.untitled")}</span>
+          )}
         </button>
       </div>
 
@@ -196,19 +201,20 @@ function AddEpicTaskPanel({
   onDone: () => void;
   hasRows: boolean;
 }) {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<"new" | "existing">("new");
 
   return (
     <div className={cn(hasRows ? "mt-2" : "mt-0")}>
       <div
         role="group"
-        aria-label="Add a new or an existing task"
+        aria-label={t("epic.addMode")}
         className={cn(SEGMENTED, "mb-2 w-fit")}
       >
         {(
           [
-            ["new", "New task"],
-            ["existing", "Existing task"],
+            ["new", "epic.newTask"],
+            ["existing", "epic.existingTask"],
           ] as const
         ).map(([key, label]) => (
           <button
@@ -221,7 +227,7 @@ function AddEpicTaskPanel({
               mode === key ? SEGMENT_ACTIVE : SEGMENT_IDLE,
             )}
           >
-            {label}
+            {t(label)}
           </button>
         ))}
       </div>
@@ -237,6 +243,7 @@ function AddEpicTaskPanel({
 
 // Goes through useAddTodo, not useAddSubtask — a Task under an Epic is a real board card, unlike a Subtask.
 function NewEpicTaskRow({ epic, onDone }: { epic: Todo; onDone: () => void }) {
+  const { t } = useTranslation();
   const [title, setTitle] = useState("");
   const { data: statuses = [] } = useStatuses();
   const add = useAddTodo();
@@ -276,8 +283,8 @@ function NewEpicTaskRow({ epic, onDone }: { epic: Todo; onDone: () => void }) {
           }
         }}
         onBlur={submit}
-        placeholder="What needs doing?"
-        aria-label="New task title"
+        placeholder={t("list.newItemPlaceholder")}
+        aria-label={t("epic.newTaskTitle")}
         className={cn(
           TEXT_FIELD,
           "rounded-control h-8 min-w-0 flex-1 px-2.5 text-sm",
@@ -289,7 +296,7 @@ function NewEpicTaskRow({ epic, onDone }: { epic: Todo; onDone: () => void }) {
         onMouseDown={onDone}
         className={cn(INLINE_ACTION, "py-1 text-xs")}
       >
-        Done
+        {t("common.done")}
       </button>
     </div>
   );
@@ -302,6 +309,7 @@ function ExistingTaskPicker({
   epic: Todo;
   onDone: () => void;
 }) {
+  const { t } = useTranslation();
   const { data: todos = [] } = useTodos();
   const keyPrefix = useKeyPrefix();
   const update = useUpdateTodo();
@@ -325,7 +333,7 @@ function ExistingTaskPicker({
     >
       {candidates.length === 0 ? (
         <p className="text-ink-3 text-meta px-2 py-2.5">
-          No other tasks are available to add.
+          {t("epic.noCandidates")}
         </p>
       ) : (
         <ul>
@@ -352,7 +360,7 @@ function ExistingTaskPicker({
                     </span>
                   )}
                   <span className="min-w-0 flex-1 truncate">
-                    {candidate.title || "Untitled"}
+                    {candidate.title || t("common.untitled")}
                   </span>
                 </button>
               </li>

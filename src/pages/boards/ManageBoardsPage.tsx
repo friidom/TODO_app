@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { ArrowLeftIcon, KanbanIcon, SearchIcon } from "lucide-react";
@@ -22,6 +23,7 @@ const COLUMNS = "minmax(0,2fr) 5rem minmax(0,1fr) 6rem 7rem";
 // A list, not an admin panel: no archive, no trash, no templates. Everything on
 // it comes from useBoards()/useSpaces(), which the sidebar already loads.
 export default function ManageBoardsPage() {
+  const { t } = useTranslation();
   const { data: boards, isLoading } = useBoards();
   const { data: spaces = [] } = useSpaces();
   const { user } = useAuth();
@@ -60,7 +62,7 @@ export default function ManageBoardsPage() {
           className="border-hairline text-ink-2 hover:bg-elevated hover:text-ink focus-visible:ring-brand rounded-control text-meta flex h-8 items-center gap-1.5 border px-2.5 transition-colors outline-none focus-visible:ring-2"
         >
           <ArrowLeftIcon className="size-3.5 shrink-0" />
-          Back
+          {t("common.back")}
         </Link>
       </header>
 
@@ -68,7 +70,7 @@ export default function ManageBoardsPage() {
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-ink mr-auto text-base font-semibold tracking-tight">
-              Manage boards
+              {t("sidebar.manageBoards")}
             </h1>
 
             <div className="relative w-full sm:w-64">
@@ -76,8 +78,8 @@ export default function ManageBoardsPage() {
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search boards"
-                aria-label="Search boards"
+                placeholder={t("boards.search")}
+                aria-label={t("boards.search")}
                 className={cn(FIELD_INPUT, "pl-8")}
               />
             </div>
@@ -88,25 +90,25 @@ export default function ManageBoardsPage() {
           ) : rows.length === 0 ? (
             <AdminEmpty>
               {query.trim() ? (
-                `Nothing matches “${query.trim()}”.`
+                t("common.nothingMatches", { query: query.trim() })
               ) : (
                 <EmptyState
                   icon={KanbanIcon}
-                  title="No boards yet"
-                  hint="Create one from the sidebar to get started."
+                  title={t("sidebar.noBoardsYet")}
+                  hint={t("boards.emptyHint")}
                   size="sm"
                 />
               )}
             </AdminEmpty>
           ) : (
-            <AdminGrid columns={COLUMNS} label="Boards">
+            <AdminGrid columns={COLUMNS} label={t("boards.title")}>
               <AdminRow header>
-                <AdminCell header>Name</AdminCell>
-                <AdminCell header>Key</AdminCell>
-                <AdminCell header>Space</AdminCell>
-                <AdminCell header>Role</AdminCell>
+                <AdminCell header>{t("common.name")}</AdminCell>
+                <AdminCell header>{t("boards.key")}</AdminCell>
+                <AdminCell header>{t("boards.space")}</AdminCell>
+                <AdminCell header>{t("activity.role")}</AdminCell>
                 <AdminCell header align="right">
-                  Updated
+                  {t("fields.updated")}
                 </AdminCell>
               </AdminRow>
 
@@ -119,7 +121,7 @@ export default function ManageBoardsPage() {
                     <span className="flex min-w-0 items-center gap-2">
                       <KanbanIcon className="text-ink-3 size-3.5 shrink-0" />
                       <span className="truncate font-medium">
-                        {board.title || "Untitled board"}
+                        {board.title || t("common.untitledBoard")}
                       </span>
                     </span>
                   </AdminCell>
@@ -133,8 +135,8 @@ export default function ManageBoardsPage() {
                   <AdminCell>
                     <span className="text-ink-3 truncate">
                       {board.space_id
-                        ? (spaceById.get(board.space_id) ?? "Unfiled")
-                        : "Unfiled"}
+                        ? (spaceById.get(board.space_id) ?? t("common.unfiled"))
+                        : t("common.unfiled")}
                     </span>
                   </AdminCell>
 
@@ -142,7 +144,9 @@ export default function ManageBoardsPage() {
                       one role answerable without N member fetches is ownership. */}
                   <AdminCell>
                     <span className="text-ink-3">
-                      {board.owner_id === user?.id ? "Owner" : "Member"}
+                      {board.owner_id === user?.id
+                        ? t("roles.owner")
+                        : t("boards.member")}
                     </span>
                   </AdminCell>
 

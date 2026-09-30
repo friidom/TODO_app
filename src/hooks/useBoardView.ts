@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router";
 
@@ -84,6 +85,7 @@ function readOne<T extends string>(
 }
 
 export function useBoardView(): BoardView {
+  const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const boardId = useBoardId();
@@ -273,8 +275,8 @@ export function useBoardView(): BoardView {
       !dndDisabled || !canReorder
         ? null
         : sort !== "manual"
-          ? `Sorted by ${SORT_LABELS[sort]}`
-          : `Grouped by ${GROUP_LABELS[group]}`,
+          ? t("view.sortedBy", { name: SORT_LABELS[sort] })
+          : t("view.groupedBy", { name: GROUP_LABELS[group] }),
     setMode,
     setDefaultMode,
     toggleFilter,

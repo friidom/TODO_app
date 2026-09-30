@@ -42,7 +42,7 @@ describe("describeHistoryChange — moved (Status)", () => {
     );
 
     expect(change).toEqual({
-      verb: "changed",
+      verb: "changed the",
       field: "Status",
       from: "To Do",
       to: "In Progress",
@@ -65,7 +65,7 @@ describe("describeHistoryChange — assigned (Assignee)", () => {
     );
 
     expect(change).toEqual({
-      verb: "changed",
+      verb: "changed the",
       field: "Assignee",
       from: "Alice",
       to: "Bob",
@@ -100,7 +100,7 @@ describe("describeHistoryChange — retitled (Title)", () => {
     );
 
     expect(change).toEqual({
-      verb: "changed",
+      verb: "changed the",
       field: "Title",
       from: "Old title",
       to: "New title",
@@ -136,7 +136,7 @@ describe("describeHistoryChange — priority_changed (Priority)", () => {
     );
 
     expect(change).toEqual({
-      verb: "changed",
+      verb: "changed the",
       field: "Priority",
       from: "Medium",
       to: "Highest",
@@ -183,7 +183,7 @@ describe("describeHistoryChange — type_changed (Work type)", () => {
     );
 
     expect(change).toEqual({
-      verb: "changed",
+      verb: "changed the",
       field: "Work type",
       from: "Task",
       to: "Bug",
@@ -199,7 +199,7 @@ describe("describeHistoryChange — description_changed", () => {
     );
 
     expect(change).toEqual({
-      verb: "changed",
+      verb: "changed the",
       field: "Description",
       from: null,
       to: null,
@@ -215,7 +215,7 @@ describe("describeHistoryChange — estimate_changed (Story point estimate)", ()
     );
 
     expect(change).toEqual({
-      verb: "changed",
+      verb: "changed the",
       field: "Story point estimate",
       from: "3",
       to: "5",
@@ -351,7 +351,7 @@ describe("describeHistoryChange — epics (M28-A)", () => {
     );
 
     expect(change).toEqual({
-      verb: "changed",
+      verb: "changed the",
       field: "Parent",
       from: "None",
       to: "#5",
@@ -370,7 +370,7 @@ describe("describeHistoryChange — epics (M28-A)", () => {
     );
 
     expect(change).toEqual({
-      verb: "changed",
+      verb: "changed the",
       field: "Parent",
       from: "#5",
       to: "None",

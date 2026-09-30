@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   useMemo,
   useRef,
@@ -52,7 +53,6 @@ import WorkflowLane from "./WorkflowLane";
 import { SELECT, workItems } from "./workflowChrome";
 import { columnOfLane, withReorderMove } from "./workflowMove";
 
-const TITLE = "Configure columns";
 const WIDTH = "w-[min(1400px,calc(100vw-2rem))]";
 
 export default function ConfigureColumnsModal({
@@ -60,6 +60,7 @@ export default function ConfigureColumnsModal({
 }: {
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const workflow = useWorkflow();
   const todos = useTodos();
 
@@ -76,14 +77,14 @@ export default function ConfigureColumnsModal({
   const failed = workflow.isError || todos.isError;
 
   return (
-    <Modal title={TITLE} onClose={onClose} width={WIDTH}>
-      <h2 className={DIALOG_TITLE}>{TITLE}</h2>
+    <Modal title={t("board.configureColumns")} onClose={onClose} width={WIDTH}>
+      <h2 className={DIALOG_TITLE}>{t("board.configureColumns")}</h2>
 
       <p
         role={failed ? "alert" : "status"}
         className="text-ink-3 text-meta grid min-h-48 place-items-center"
       >
-        {failed ? "The workflow could not be loaded." : "Loading workflow..."}
+        {failed ? t("workflow.loadFailed") : t("workflow.loading")}
       </p>
     </Modal>
   );
@@ -98,6 +99,7 @@ function ConfigureColumnsDialog({
   todos: Todo[];
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [base, setBase] = useState(() => draftOf(model));
   const [draft, setDraft] = useState(base);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
@@ -140,9 +142,7 @@ function ConfigureColumnsDialog({
     );
 
     if (stranded) {
-      setBlocked(
-        `“${stranded.name}” still holds work items, so it has to stay on a column. Delete it and choose where its work goes, or move the work first.`,
-      );
+      setBlocked(stranded.name);
 
       return false;
     }
@@ -183,17 +183,17 @@ function ConfigureColumnsDialog({
   function describe(id: string): string {
     const lane = columnOfLane(id);
 
-    if (lane && lane.columnId === null) return "Unmapped statuses";
+    if (lane && lane.columnId === null) return t("workflow.unmappedStatuses");
 
     const column = draft.columns.find(
       (it) => it.id === (lane ? lane.columnId : id),
     );
 
-    if (column) return `${column.title} column`;
+    if (column) return t("workflow.columnNamed", { name: column.title });
 
     const status = draft.statuses.find((it) => it.id === id);
 
-    return status ? `${status.name} status` : id;
+    return status ? t("workflow.statusNamed", { name: status.name }) : id;
   }
 
   function renderOverlay(activeId: string) {
@@ -244,13 +244,17 @@ function ConfigureColumnsDialog({
   }
 
   return (
-    <Modal title={TITLE} onClose={requestClose} width={WIDTH}>
+    <Modal
+      title={t("board.configureColumns")}
+      onClose={requestClose}
+      width={WIDTH}
+    >
       <div className="flex max-h-[calc(100dvh-4.5rem-2px)] flex-col">
         <div className="mb-3 flex items-start justify-between gap-4">
-          <h2 className={DIALOG_TITLE}>{TITLE}</h2>
+          <h2 className={DIALOG_TITLE}>{t("board.configureColumns")}</h2>
 
           <IconButton
-            label="Close"
+            label={t("common.close")}
             size="md"
             tooltip={false}
             onClick={requestClose}
@@ -263,26 +267,22 @@ function ConfigureColumnsDialog({
         <p className="text-ink-3 text-meta mb-3 flex items-start gap-2">
           <InfoIcon className="text-ink-3 mt-0.5 size-4 shrink-0" />
 
-          <span>
-            Unmapped statuses sit outside the board. Drag one into a column to
-            show it there, or back out to take it off. A column can show several
-            statuses, and columns can be dragged to reorder. Changes apply once
-            you publish.
-          </span>
+          <span>{t("workflow.configureHint")}</span>
         </p>
 
-        {blocked && <Notice>{blocked}</Notice>}
+        {blocked !== null && (
+          <Notice>{t("workflow.strandedOnColumn", { name: blocked })}</Notice>
+        )}
 
         {stale && (
           <Notice>
-            Someone published a change to this workflow while you were editing,
-            so publishing this version would be refused.
+            {t("workflow.staleRefused")}
             <button
               type="button"
               onClick={startOver}
               className="text-brand ml-1.5 font-medium underline-offset-2 hover:underline"
             >
-              Start over from the latest
+              {t("workflow.startOver")}
             </button>
           </Notice>
         )}
@@ -347,7 +347,7 @@ function ConfigureColumnsDialog({
           {confirmDiscard ? (
             <>
               <p className="text-ink-2 text-meta mr-auto">
-                Discard your unpublished changes?
+                {t("workflow.discardQuestion")}
               </p>
 
               <button
@@ -356,23 +356,23 @@ function ConfigureColumnsDialog({
                 onClick={() => setConfirmDiscard(false)}
                 className={DIALOG_CANCEL}
               >
-                Keep editing
+                {t("workflow.keepEditing")}
               </button>
 
               <button type="button" onClick={onClose} className={DIALOG_DANGER}>
-                Discard
+                {t("workflow.discard")}
               </button>
             </>
           ) : (
             <>
               {broken.length > 0 && (
                 <p className="text-status-red text-meta mr-auto">
-                  Choose where the work above goes before publishing.
+                  {t("workflow.chooseBeforePublish")}
                 </p>
               )}
 
               <button type="button" onClick={onClose} className={DIALOG_CANCEL}>
-                Cancel
+                {t("common.cancel")}
               </button>
 
               <button
@@ -383,7 +383,9 @@ function ConfigureColumnsDialog({
                 onClick={handlePublish}
                 className={DIALOG_CONFIRM}
               >
-                {publish.isPending ? "Publishing..." : "Publish"}
+                {publish.isPending
+                  ? t("workflow.publishing")
+                  : t("workflow.publish")}
               </button>
             </>
           )}
@@ -437,6 +439,7 @@ function BrokenTarget({
   counts: ReadonlyMap<string, number>;
   edit: (change: WorkflowEdit) => boolean;
 }) {
+  const { t } = useTranslation();
   const status = draft.statuses.find((it) => it.id === to);
   const name =
     status?.name ?? base.statuses.find((it) => it.id === to)?.name ?? null;
@@ -448,17 +451,22 @@ function BrokenTarget({
   return (
     <Notice>
       <span className="mb-2 block">
-        {workItems(count)} from a deleted status were set to move to{" "}
-        {name ? `“${name}”` : "a status"}, which{" "}
-        {status ? "is now hidden" : "was deleted"}.{" "}
+        {t(
+          status
+            ? "workflow.brokenHidden"
+            : name
+              ? "workflow.brokenDeleted"
+              : "workflow.brokenDeletedUnnamed",
+          { items: workItems(count), name },
+        )}{" "}
         {options.length
-          ? "Choose where they go instead."
-          : "Show or add a status for them to move to."}
+          ? t("workflow.brokenChoose")
+          : t("workflow.brokenShowOrAdd")}
       </span>
 
       {options.length > 0 && (
         <select
-          aria-label="Move them to"
+          aria-label={t("workflow.moveThemTo")}
           value=""
           onChange={(e) =>
             edit((next) => withMigrationsRetargeted(next, to, e.target.value))
@@ -466,7 +474,7 @@ function BrokenTarget({
           className={cn(SELECT, "bg-elevated max-w-64")}
         >
           <option value="" disabled>
-            Move them to...
+            {t("workflow.moveThemToEllipsis")}
           </option>
 
           {options.map((option) => (

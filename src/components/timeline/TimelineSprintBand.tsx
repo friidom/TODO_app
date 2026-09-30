@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { LayersIcon } from "lucide-react";
 
 import type { TimelineScale } from "@/services/views/timeline";
@@ -55,10 +56,14 @@ export default function TimelineSprintBand({
 }
 
 function BandRail({ labelled }: { labelled: boolean }) {
+  const { t } = useTranslation();
+
   return (
     <div className="border-hairline bg-surface sticky left-0 z-10 flex w-40 shrink-0 items-center border-r px-3 md:w-60">
       {labelled && (
-        <span className="text-ink-2 text-xs font-semibold">Sprints</span>
+        <span className="text-ink-2 text-xs font-semibold">
+          {t("timeline.sprints")}
+        </span>
       )}
     </div>
   );

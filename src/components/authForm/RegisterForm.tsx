@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { Check, Loader2, X as XIcon } from "lucide-react";
 
@@ -22,6 +23,7 @@ import {
 } from "@/utils/validation";
 
 export default function RegisterForm() {
+  const { t } = useTranslation();
   const register = useRegister();
   const [searchParams] = useSearchParams();
 
@@ -37,16 +39,15 @@ export default function RegisterForm() {
     return (
       <div className="text-center">
         <p className="text-ink mb-2 text-base font-semibold">
-          Check your email
+          {t("auth.checkEmail")}
         </p>
 
         <p className="text-ink-2 text-sm leading-relaxed">
-          We sent a confirmation link to{" "}
+          {t("auth.confirmSentPrefix")}{" "}
           <span className="text-ink font-medium">
             {register.variables?.email}
           </span>
-          . Open it to finish setting up your account — you will not be able to
-          sign in until you do.
+          {t("auth.confirmSentSuffix")}
         </p>
       </div>
     );
@@ -78,7 +79,7 @@ export default function RegisterForm() {
 
     // last check before committing — the DB unique constraint is what actually guarantees this, this just closes most of the window
     if (!fieldErrors.username && availability.status === "taken") {
-      fieldErrors.username = "That username is already taken.";
+      fieldErrors.username = t("auth.usernameTaken");
     }
 
     setErrors(fieldErrors);
@@ -97,9 +98,9 @@ export default function RegisterForm() {
       <div>
         <AuthField
           id="register-username"
-          label="Username"
+          label={t("auth.username")}
           type="text"
-          placeholder="ada_lovelace"
+          placeholder={t("auth.usernamePlaceholder")}
           autoComplete="username"
           value={username}
           error={errors.username}
@@ -115,9 +116,9 @@ export default function RegisterForm() {
 
       <AuthField
         id="register-email"
-        label="Email"
+        label={t("auth.email")}
         type="email"
-        placeholder="you@company.com"
+        placeholder={t("auth.emailPlaceholder")}
         autoComplete="email"
         value={email}
         error={errors.email}
@@ -130,12 +131,12 @@ export default function RegisterForm() {
 
       <PasswordInput
         id="register-password"
-        label="Password"
+        label={t("auth.password")}
         placeholder="••••••••"
         autoComplete="new-password"
         value={password}
         error={errors.password}
-        hint={`At least ${PASSWORD_MIN_LENGTH} characters.`}
+        hint={t("auth.atLeast", { count: PASSWORD_MIN_LENGTH })}
         disabled={register.isPending}
         onChange={(value) => {
           setPassword(value);
@@ -145,7 +146,7 @@ export default function RegisterForm() {
 
       <PasswordInput
         id="register-confirm-password"
-        label="Confirm password"
+        label={t("auth.confirmPassword")}
         autoComplete="new-password"
         value={confirmPassword}
         error={errors.confirmPassword}
@@ -173,10 +174,10 @@ export default function RegisterForm() {
         {register.isPending ? (
           <>
             <Loader2 className="size-4 animate-spin" />
-            Creating account…
+            {t("auth.creatingAccount")}
           </>
         ) : (
-          "Create account"
+          t("auth.createAccount")
         )}
       </button>
 
@@ -195,13 +196,15 @@ function UsernameStatusLine({
 }: {
   availability: UsernameAvailability;
 }) {
+  const { t } = useTranslation();
+
   if (availability.status === "idle") return null;
 
   if (availability.status === "checking") {
     return (
       <p className="text-ink-3 mt-1.5 flex items-center gap-1.5 text-xs">
         <Loader2 size={12} className="animate-spin" />
-        Checking availability…
+        {t("auth.checkingAvailability")}
       </p>
     );
   }
@@ -216,7 +219,7 @@ function UsernameStatusLine({
     return (
       <p className="text-status-green mt-1.5 flex items-center gap-1.5 text-xs">
         <Check size={12} />
-        That username is available.
+        {t("auth.usernameAvailable")}
       </p>
     );
   }
@@ -225,14 +228,12 @@ function UsernameStatusLine({
     return (
       <p className="text-ink-2 mt-1.5 flex items-center gap-1.5 text-xs">
         <XIcon size={12} />
-        That username is already taken.
+        {t("auth.usernameTaken")}
       </p>
     );
   }
 
   return (
-    <p className="text-ink-3 mt-1.5 text-xs">
-      Could not check that username right now.
-    </p>
+    <p className="text-ink-3 mt-1.5 text-xs">{t("auth.usernameCheckFailed")}</p>
   );
 }

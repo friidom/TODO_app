@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 
 import AdminShell from "@/components/admin/AdminShell";
@@ -11,19 +12,20 @@ import type { KpiTarget } from "@/services/admin/types";
 import { relativeTime } from "@/utils/relativeTime";
 
 export default function AdminKpiPage() {
+  const { t } = useTranslation();
   const { data, isFetching, error } = useAdminKpi();
 
   const targets = data?.targets ?? [];
 
   return (
     <AdminShell
-      title="KPI settings"
-      hint="Targets are data, not defaults in code. Every number here is editable."
+      title={t("admin.sections.kpi")}
+      hint={t("admin.kpi.hint")}
       showPeriod={false}
       busy={isFetching}
     >
       {error ? (
-        <AdminEmpty>That did not load. Try again.</AdminEmpty>
+        <AdminEmpty>{t("admin.loadFailedRetry")}</AdminEmpty>
       ) : !data ? (
         <AdminSkeleton rows={4} />
       ) : (
@@ -36,10 +38,7 @@ export default function AdminKpiPage() {
 
       <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <p className="text-ink-3 max-w-prose text-xs">
-          A developer with no level has no target, shows “—” rather than 0%, and
-          is left out of KPI aggregates rather than counted as zero. Levels are
-          assigned on a developer’s own page. Factual metrics — completed tasks,
-          points, comments, activity — never depend on anything configured here.
+          {t("admin.kpi.explainer")}
         </p>
 
         <AuditLog />
@@ -49,6 +48,7 @@ export default function AdminKpiPage() {
 }
 
 function TargetCard({ target }: { target: KpiTarget }) {
+  const { t } = useTranslation();
   const save = useSaveKpiTarget();
   const [daily, setDaily] = useState(String(target.daily_points));
   const [weekly, setWeekly] = useState(String(target.weekly_points));
@@ -61,11 +61,16 @@ function TargetCard({ target }: { target: KpiTarget }) {
 
   return (
     <SummaryCard
-      title={capitalise(target.seniority)}
+      title={t(`admin.seniority.${target.seniority}`, {
+        defaultValue: capitalise(target.seniority),
+      })}
       hint={
         target.updated_by_username
-          ? `Set by ${target.updated_by_username} ${relativeTime(target.updated_at)}`
-          : "Seeded, never edited"
+          ? t("admin.kpi.setBy", {
+              name: target.updated_by_username,
+              when: relativeTime(target.updated_at),
+            })
+          : t("admin.kpi.seeded")
       }
     >
       <form
@@ -82,8 +87,16 @@ function TargetCard({ target }: { target: KpiTarget }) {
           });
         }}
       >
-        <Field label="Points per day" value={daily} onChange={setDaily} />
-        <Field label="Points per week" value={weekly} onChange={setWeekly} />
+        <Field
+          label={t("admin.kpi.perDay")}
+          value={daily}
+          onChange={setDaily}
+        />
+        <Field
+          label={t("admin.kpi.perWeek")}
+          value={weekly}
+          onChange={setWeekly}
+        />
 
         <div className="flex items-center gap-2">
           <Button
@@ -91,12 +104,12 @@ function TargetCard({ target }: { target: KpiTarget }) {
             size="sm"
             disabled={!dirty || !valid || save.isPending}
           >
-            {save.isPending ? "Saving…" : "Save"}
+            {save.isPending ? t("common.saving") : t("common.save")}
           </Button>
 
           {!valid && (
             <span className="text-status-red text-mini">
-              Must be zero or more.
+              {t("admin.kpi.nonNegative")}
             </span>
           )}
         </div>

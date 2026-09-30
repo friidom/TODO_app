@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import BoardSettingsShell, {
   Row,
   Section,
@@ -19,19 +20,20 @@ export default function BoardSettingsFeaturesPage() {
 }
 
 function Features({ board }: { board: IBoard }) {
+  const { t } = useTranslation();
   const updateBoard = useUpdateBoard();
 
   // No local state and no Save button: useUpdateBoard patches both board caches
   // optimistically and rolls back on failure, so the switch is the setting
   // rather than a draft of it. A rejected write toasts through the MutationCache.
   return (
-    <Section title="Planning">
+    <Section title={t("boardSettings.planning")}>
       <Row
-        label="Sprints"
-        hint="Plan work in fixed time periods. The board then shows the running sprint's work, and the Backlog is where you plan it."
+        label={t("boardSettings.sprints")}
+        hint={t("boardSettings.sprintsHint")}
       >
         <Toggle
-          label="Sprints"
+          label={t("boardSettings.sprints")}
           checked={board.sprints_enabled}
           busy={updateBoard.isPending}
           onChange={(sprints_enabled) =>
@@ -41,11 +43,11 @@ function Features({ board }: { board: IBoard }) {
       </Row>
 
       <Row
-        label="Workflow"
-        hint="Cards move To do → In progress → In review → Done in order. Turn off to let a card move between any two columns."
+        label={t("workflow.workflow")}
+        hint={t("boardSettings.workflowHint")}
       >
         <Toggle
-          label="Workflow"
+          label={t("workflow.workflow")}
           checked={board.workflow_enabled}
           busy={updateBoard.isPending}
           onChange={(workflow_enabled) =>
@@ -86,7 +88,7 @@ function Toggle({
     >
       <span
         className={
-          "size-3.5 rounded-full bg-white shadow-e1 transition-transform " +
+          "shadow-e1 size-3.5 rounded-full bg-white transition-transform " +
           (checked ? "translate-x-4.5" : "translate-x-1")
         }
       />

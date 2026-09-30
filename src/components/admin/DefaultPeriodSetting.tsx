@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 
 import {
@@ -12,12 +13,13 @@ import {
 } from "@/services/admin/preferences";
 
 export default function DefaultPeriodSetting() {
+  const { t } = useTranslation();
   const [period, setPeriod] = useState<AdminPeriod>(() => readDefaultPeriod());
 
   return (
     <select
       value={period}
-      aria-label="Default reporting period"
+      aria-label={t("profile.defaultPeriod")}
       onChange={(event) => {
         const next = event.target.value as AdminPeriod;
 

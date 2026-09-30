@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 
@@ -28,6 +29,7 @@ export default function BoardFormModal({
   canFile?: boolean;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { data: spaces = [] } = useSpaces();
 
@@ -80,14 +82,17 @@ export default function BoardFormModal({
   }
 
   return (
-    <Modal title={board ? "Board settings" : "Create board"} onClose={onClose}>
+    <Modal
+      title={board ? t("sidebar.boardSettings") : t("boards.create")}
+      onClose={onClose}
+    >
       <form onSubmit={handleSubmit}>
         <h2 className={`${DIALOG_TITLE} mb-5`}>
-          {board ? "Board settings" : "Create board"}
+          {board ? t("sidebar.boardSettings") : t("boards.create")}
         </h2>
 
         <label htmlFor="board-title" className={DIALOG_LABEL}>
-          Name
+          {t("common.name")}
         </label>
 
         <input
@@ -96,11 +101,12 @@ export default function BoardFormModal({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           className={`${FIELD_INPUT} mb-5`}
-          placeholder="Board name..."
+          placeholder={t("boards.namePlaceholder")}
         />
 
         <label htmlFor="board-description" className={DIALOG_LABEL}>
-          Description <span className="text-ink-3 font-normal">(optional)</span>
+          {t("task.description")}{" "}
+          <span className="text-ink-3 font-normal">{t("common.optional")}</span>
         </label>
 
         <textarea
@@ -109,13 +115,13 @@ export default function BoardFormModal({
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           className={`${FIELD_INPUT} mb-5 resize-none`}
-          placeholder="What is this board for?"
+          placeholder={t("boards.descriptionPlaceholder")}
         />
 
         {canFile && (
           <>
             <label htmlFor="board-space" className={DIALOG_LABEL}>
-              Space
+              {t("boards.space")}
             </label>
 
             <select
@@ -124,7 +130,7 @@ export default function BoardFormModal({
               onChange={(e) => setSpace(e.target.value)}
               className={`${FIELD_INPUT} mb-2`}
             >
-              <option value="">No space</option>
+              <option value="">{t("boards.noSpace")}</option>
               {spaces.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.title}
@@ -132,10 +138,7 @@ export default function BoardFormModal({
               ))}
             </select>
 
-            <p className="text-ink-3 mb-6 text-xs">
-              Filing only — it does not change who can see this board, and the
-              board&rsquo;s task keys never change.
-            </p>
+            <p className="text-ink-3 mb-6 text-xs">{t("boards.filingHint")}</p>
           </>
         )}
 
@@ -147,7 +150,7 @@ export default function BoardFormModal({
 
         <div className={DIALOG_ACTIONS}>
           <button type="button" onClick={onClose} className={DIALOG_CANCEL}>
-            Cancel
+            {t("common.cancel")}
           </button>
 
           <button
@@ -157,11 +160,11 @@ export default function BoardFormModal({
           >
             {mutation.isPending
               ? board
-                ? "Saving..."
-                : "Creating..."
+                ? t("common.saving")
+                : t("common.creating")
               : board
-                ? "Save"
-                : "Create"}
+                ? t("common.save")
+                : t("common.create")}
           </button>
         </div>
       </form>

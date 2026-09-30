@@ -1,3 +1,5 @@
+import { localizeApiMessage } from "./errorMessage";
+
 const baseUrl = import.meta.env.VITE_API_URL;
 
 // Exported so the socket can derive its origin from the same value rather
@@ -49,7 +51,9 @@ export function setSessionEndedHandler(handler: Handler): void {
 }
 
 const channel =
-  typeof BroadcastChannel === "undefined" ? null : new BroadcastChannel("kan:auth");
+  typeof BroadcastChannel === "undefined"
+    ? null
+    : new BroadcastChannel("kan:auth");
 
 interface AuthMessage {
   type: "refreshed" | "signed-out";
@@ -96,7 +100,10 @@ async function postRefresh(): Promise<boolean> {
   if (typeof body.accessToken !== "string") return false;
 
   setAccessToken(body.accessToken);
-  channel?.postMessage({ type: "refreshed", accessToken: body.accessToken } satisfies AuthMessage);
+  channel?.postMessage({
+    type: "refreshed",
+    accessToken: body.accessToken,
+  } satisfies AuthMessage);
 
   return true;
 }
@@ -144,7 +151,8 @@ function send(path: string, options: RequestOptions): Promise<Response> {
   // it, so naming the type here would make the body unparseable.
   const form = options.body instanceof FormData;
 
-  if (options.body !== undefined && !form) headers["content-type"] = "application/json";
+  if (options.body !== undefined && !form)
+    headers["content-type"] = "application/json";
 
   if (!options.anonymous && accessToken !== null) {
     headers.authorization = `Bearer ${accessToken}`;
@@ -166,10 +174,13 @@ function send(path: string, options: RequestOptions): Promise<Response> {
 
 async function toApiError(response: Response): Promise<ApiError> {
   let code = "unknown";
-  let message = response.statusText || `Request failed with status ${response.status}`;
+  let message =
+    response.statusText || `Request failed with status ${response.status}`;
 
   try {
-    const body = (await response.json()) as { error?: { code?: string; message?: string } };
+    const body = (await response.json()) as {
+      error?: { code?: string; message?: string };
+    };
 
     if (body.error) {
       code = body.error.code ?? code;
@@ -179,10 +190,13 @@ async function toApiError(response: Response): Promise<ApiError> {
     // A proxy or a crash can answer with something that is not our error shape.
   }
 
-  return new ApiError(response.status, code, message);
+  return new ApiError(response.status, code, localizeApiMessage(code, message));
 }
 
-async function sendAuthorized(path: string, options: RequestOptions): Promise<Response> {
+async function sendAuthorized(
+  path: string,
+  options: RequestOptions,
+): Promise<Response> {
   let response = await send(path, options);
 
   if (response.status === 401 && !options.anonymous) {
@@ -202,7 +216,10 @@ async function sendAuthorized(path: string, options: RequestOptions): Promise<Re
   return response;
 }
 
-export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+export async function request<T>(
+  path: string,
+  options: RequestOptions = {},
+): Promise<T> {
   const response = await sendAuthorized(path, options);
 
   if (response.status === 204) return undefined as T;
@@ -215,11 +232,16 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 // The bytes of a response rather than its JSON — an attachment is read through
 // the same authorized path as everything else, and the token is in memory, so
 // an <img src> or a bare link could never fetch one.
-export async function requestBlob(path: string, options: RequestOptions = {}): Promise<Blob> {
+export async function requestBlob(
+  path: string,
+  options: RequestOptions = {},
+): Promise<Blob> {
   return (await sendAuthorized(path, options)).blob();
 }
 
-export function toQuery(params: Record<string, string | number | undefined | null>): string {
+export function toQuery(
+  params: Record<string, string | number | undefined | null>,
+): string {
   const search = new URLSearchParams();
 
   for (const [key, value] of Object.entries(params)) {
@@ -232,7 +254,8 @@ export function toQuery(params: Record<string, string | number | undefined | nul
 }
 
 export const api = {
-  get: <T>(path: string, options?: RequestOptions) => request<T>(path, { ...options }),
+  get: <T>(path: string, options?: RequestOptions) =>
+    request<T>(path, { ...options }),
   post: <T>(path: string, body?: unknown, options?: RequestOptions) =>
     request<T>(path, { ...options, method: "POST", body }),
   patch: <T>(path: string, body?: unknown, options?: RequestOptions) =>
@@ -241,5 +264,6 @@ export const api = {
     request<T>(path, { ...options, method: "PUT", body }),
   del: <T>(path: string, body?: unknown, options?: RequestOptions) =>
     request<T>(path, { ...options, method: "DELETE", body }),
-  blob: (path: string, options?: RequestOptions) => requestBlob(path, { ...options }),
+  blob: (path: string, options?: RequestOptions) =>
+    requestBlob(path, { ...options }),
 };

@@ -1,3 +1,4 @@
+import { translated } from "@/components/i18n";
 import { fileExtension, fileKind } from "./fileMeta";
 import type { Attachment } from "@/types/data";
 
@@ -14,20 +15,20 @@ export type AttachmentFilter = (typeof ATTACHMENT_FILTERS)[number];
 
 export type AttachmentCategory = Exclude<AttachmentFilter, "all">;
 
-export const FILTER_LABELS: Record<AttachmentFilter, string> = {
-  all: "All",
-  images: "Images",
-  documents: "Documents",
-  videos: "Videos",
-  other: "Other",
-};
+export const FILTER_LABELS = translated<AttachmentFilter>({
+  all: "attachments.filter.all",
+  images: "attachments.filter.images",
+  documents: "attachments.filter.documents",
+  videos: "attachments.filter.videos",
+  other: "attachments.filter.other",
+});
 
-export const EMPTY_FILTER_LABELS: Record<AttachmentCategory, string> = {
-  images: "No images attached.",
-  documents: "No documents attached.",
-  videos: "No videos attached.",
-  other: "No other files attached.",
-};
+export const EMPTY_FILTER_LABELS = translated<AttachmentCategory>({
+  images: "attachments.empty.images",
+  documents: "attachments.empty.documents",
+  videos: "attachments.empty.videos",
+  other: "attachments.empty.other",
+});
 
 // Listed, not pattern-matched on "application/vnd." — that prefix also covers fonts and archives.
 const DOCUMENT_MIMES = new Set([

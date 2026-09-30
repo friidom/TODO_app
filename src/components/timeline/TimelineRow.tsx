@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { memo } from "react";
 
 import { categoryOf } from "@/constants/columns";
@@ -52,6 +53,7 @@ const TimelineRow = memo(function TimelineRow({
   onGrab: (event: React.PointerEvent, target: DragTarget) => void;
   rail?: React.ReactNode;
 }) {
+  const { t } = useTranslation();
   const { todo } = item;
 
   const range = draft ?? { start: item.start, end: item.end };
@@ -66,9 +68,17 @@ const TimelineRow = memo(function TimelineRow({
       )) ||
     place;
 
+  const name = todo.title ?? t("common.untitled");
   const label = item.isPoint
-    ? `${todo.title ?? "Untitled"} — ${formatDue(range.start, today, locale)}`
-    : `${todo.title ?? "Untitled"} — ${formatDue(range.start, today, locale)} to ${formatDue(range.end, today, locale)}`;
+    ? t("timeline.barPoint", {
+        name,
+        date: formatDue(range.start, today, locale),
+      })
+    : t("timeline.barRange", {
+        name,
+        start: formatDue(range.start, today, locale),
+        end: formatDue(range.end, today, locale),
+      });
 
   const open = () => onOpenTask(todo.id);
 
@@ -165,6 +175,7 @@ export function RowRail({
   hint?: string;
   indent?: boolean;
 }) {
+  const { t } = useTranslation();
   const type = workTypeOf(todo.type);
   const TypeIcon = type.icon;
 
@@ -193,7 +204,9 @@ export function RowRail({
       )}
 
       <span className="text-ink min-w-0 flex-1 truncate text-xs">
-        {todo.title || <span className="text-ink-3/60">Untitled</span>}
+        {todo.title || (
+          <span className="text-ink-3/60">{t("common.untitled")}</span>
+        )}
       </span>
 
       {hint ? (

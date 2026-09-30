@@ -183,6 +183,12 @@ describe("dropChoices", () => {
   it("is null when a hidden status leaves only one place to land", () => {
     expect(dropChoices(MODEL.statuses, "col-todo", () => true)).toBeNull();
   });
+
+  it("still names a lone status the gate refuses", () => {
+    expect(dropChoices(MODEL.statuses, "col-todo", () => false)).toEqual([
+      { status: MODEL.statusById.get("open"), allowed: false },
+    ]);
+  });
 });
 
 describe("selectableStatuses", () => {

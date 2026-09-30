@@ -1,3 +1,5 @@
+import i18n from "@/components/i18n";
+
 // due_date is timestamptz, not date, but the product only ever means a day — everything here works in UTC calendar days
 // so a card due midnight UTC on the 13th doesn't read as the 12th for anyone west of Greenwich.
 
@@ -32,7 +34,10 @@ export function dueStatus(
 }
 
 // always shows the year — used on the timeline drag readout, where a drag can straddle new year's and ambiguity is the bug
-export function formatDayFull(value: string, locale?: string): string {
+export function formatDayFull(
+  value: string,
+  locale: string = i18n.language,
+): string {
   const day = toCalendarDay(value);
   const [year, month, date] = day.split("-").map(Number);
 
@@ -49,7 +54,7 @@ export function formatDayFull(value: string, locale?: string): string {
 export function formatDue(
   value: string,
   today: string = todayISO(),
-  locale?: string,
+  locale: string = i18n.language,
 ): string {
   const day = toCalendarDay(value);
   const [year, month, date] = day.split("-").map(Number);

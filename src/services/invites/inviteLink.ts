@@ -1,3 +1,5 @@
+import i18n from "@/components/i18n";
+
 // origin is passed in, not read from window, so this stays pure and testable
 export function inviteUrl(token: string, origin: string): string {
   return `${origin.replace(/\/+$/, "")}/invite/${token}`;
@@ -14,11 +16,11 @@ export function expiresLabel(
 ): string {
   const days = daysBetween(now, new Date(expiresAt));
 
-  if (days < 0) return "Expired";
-  if (days === 0) return "Expires today";
-  if (days === 1) return "Expires tomorrow";
+  if (days < 0) return i18n.t("invites.expired");
+  if (days === 0) return i18n.t("invites.expiresToday");
+  if (days === 1) return i18n.t("invites.expiresTomorrow");
 
-  return `Expires in ${days} days`;
+  return i18n.t("invites.expiresIn", { count: days });
 }
 
 // whole calendar days, not a millisecond division — a 23:00 invite expiring in "7 days" is 6.96 by the clock, which floors wrong

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 
 import SummaryCard, {
@@ -17,6 +18,7 @@ export default function BoardLoad({
   period: string;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const ranked = [...boards]
     .sort((a, b) => b.completed_todos - a.completed_todos)
     .slice(0, TOP);
@@ -29,12 +31,15 @@ export default function BoardLoad({
 
   return (
     <SummaryCard
-      title="Which boards carry the work"
-      hint={`Completed tasks · top ${Math.min(TOP, ranked.length)} of ${boards.length}`}
+      title={t("admin.boardLoad.title")}
+      hint={t("admin.topOf", {
+        top: Math.min(TOP, ranked.length),
+        total: boards.length,
+      })}
       className={className}
     >
       {ranked.length === 0 ? (
-        <WidgetEmpty>No boards yet.</WidgetEmpty>
+        <WidgetEmpty>{t("sidebar.noBoardsYet")}</WidgetEmpty>
       ) : (
         <div className="flex flex-col gap-2 px-3.5 pt-1 pb-3.5">
           {ranked.map((board) => (
@@ -45,7 +50,7 @@ export default function BoardLoad({
                   to={`/admin/boards/${board.id}?period=${period}`}
                   className="hover:text-brand min-w-0 truncate transition-colors"
                 >
-                  {board.title ?? "Untitled board"}
+                  {board.title ?? t("common.untitledBoard")}
                 </Link>
               }
               count={board.completed_todos}
@@ -53,7 +58,7 @@ export default function BoardLoad({
               share={total === 0 ? 0 : (board.completed_todos / total) * 100}
               barClassName="bg-brand"
               labelClassName="flex-[0_0_11rem]"
-              title={board.title ?? "Untitled board"}
+              title={board.title ?? t("common.untitledBoard")}
             />
           ))}
         </div>

@@ -43,7 +43,7 @@ export default function UnmappedLane({
   return (
     <section
       ref={setNodeRef}
-      aria-label="Unmapped statuses"
+      aria-label={t("workflow.unmappedStatuses")}
       className={cn(
         "rounded-surface bg-wash relative flex min-h-56 shrink-0 flex-col border border-dashed transition-colors",
         LANE_WIDTH,
@@ -52,16 +52,19 @@ export default function UnmappedLane({
     >
       <header className="flex h-11 shrink-0 items-center gap-2 px-3 select-none">
         <span className="text-ink-2 text-mini truncate font-semibold tracking-wide uppercase">
-          Unmapped statuses
+          {t("workflow.unmappedStatuses")}
         </span>
 
-        <span className={COUNT_CHIP} aria-label={`${statuses.length} statuses`}>
+        <span
+          className={COUNT_CHIP}
+          aria-label={t("workflow.statusCount", { count: statuses.length })}
+        >
           {statuses.length}
         </span>
       </header>
 
       <p className="text-ink-3 text-mini px-3 pb-2 leading-snug">
-        Not shown on the board. Drag a status into a column to use it.
+        {t("workflow.unmappedHintShort")}
       </p>
 
       <ul className="flex flex-col gap-1.5 px-2">
@@ -80,8 +83,8 @@ export default function UnmappedLane({
       <div className="mt-auto px-2 pt-1.5 pb-2">
         {adding ? (
           <NameInput
-            label="New status name"
-            placeholder="Status name"
+            label={t("workflow.newStatusName")}
+            placeholder={t("workflow.statusName")}
             validate={(name) =>
               statusNameTaken(draft, name)
                 ? t("workflow.statusNameTaken", { name })
@@ -112,7 +115,7 @@ export default function UnmappedLane({
             className={ADD_BUTTON}
           >
             <PlusIcon />
-            Add status
+            {t("workflow.addStatus")}
           </button>
         )}
       </div>

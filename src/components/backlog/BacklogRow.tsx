@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { memo, useEffect, useMemo, useRef } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { useQueryClient } from "@tanstack/react-query";
@@ -97,6 +98,7 @@ const BacklogRowContent = memo(function BacklogRowContent({
   setNodeRef: (element: HTMLElement | null) => void;
   handleProps: Record<string, unknown>;
 }) {
+  const { t } = useTranslation();
   const { openTask } = useOpenTask();
   const { canEditTodos } = usePermissions();
   const patch = useTodoPatch(todo);
@@ -155,7 +157,9 @@ const BacklogRowContent = memo(function BacklogRowContent({
           title={todo.title ?? undefined}
           className="text-ink hover:text-brand focus-visible:ring-brand text-meta block min-w-0 flex-1 truncate rounded text-left font-medium transition-colors outline-none focus-visible:ring-2"
         >
-          {todo.title || <span className="text-ink-3/60">Untitled</span>}
+          {todo.title || (
+            <span className="text-ink-3/60">{t("common.untitled")}</span>
+          )}
         </button>
       </div>
 

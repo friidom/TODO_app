@@ -1,3 +1,5 @@
+import i18n from "@/components/i18n";
+
 // Board Settings declared as values, the shape services/views/registry.ts and
 // services/admin/registry.ts already use. The nav renders this list and a test
 // pins it, so a section cannot be added to one and forgotten in the other.
@@ -21,13 +23,21 @@ export const BOARD_SETTINGS_SECTION_DEFINITIONS: Record<
 > = {
   details: {
     section: "details",
-    label: "Details",
-    hint: "Name, key and where this board is filed.",
+    get label() {
+      return i18n.t("boardSettings.details");
+    },
+    get hint() {
+      return i18n.t("boardSettings.detailsHint");
+    },
   },
   features: {
     section: "features",
-    label: "Features",
-    hint: "Turn parts of the board on and off.",
+    get label() {
+      return i18n.t("boardSettings.features");
+    },
+    get hint() {
+      return i18n.t("boardSettings.featuresHint");
+    },
   },
 };
 

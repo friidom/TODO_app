@@ -38,11 +38,15 @@ export default function WorkflowTable({
         <thead className="bg-wash text-ink-2 border-hairline border-b">
           <tr>
             <th className="w-8" />
-            <th className={HEAD}>Status</th>
-            <th className={HEAD}>Category</th>
-            <th className={HEAD}>Column</th>
-            <th className={cn(HEAD, "w-28 text-right")}>Can move to</th>
-            <th className={cn(HEAD, "w-32 text-right")}>Can arrive from</th>
+            <th className={HEAD}>{t("fields.status")}</th>
+            <th className={HEAD}>{t("workflow.category")}</th>
+            <th className={HEAD}>{t("workflow.column")}</th>
+            <th className={cn(HEAD, "w-28 text-right")}>
+              {t("workflow.canMoveTo")}
+            </th>
+            <th className={cn(HEAD, "w-32 text-right")}>
+              {t("workflow.canArriveFrom")}
+            </th>
           </tr>
         </thead>
 
@@ -73,7 +77,12 @@ export default function WorkflowTable({
                   <button
                     type="button"
                     aria-expanded={expanded}
-                    aria-label={`${expanded ? "Collapse" : "Expand"} ${status.name} transitions`}
+                    aria-label={t(
+                      expanded
+                        ? "workflow.collapseTransitions"
+                        : "workflow.expandTransitions",
+                      { name: status.name },
+                    )}
                     onClick={(event) => {
                       event.stopPropagation();
                       setOpen(expanded ? null : status.id);
@@ -114,7 +123,7 @@ export default function WorkflowTable({
                   {status.column_id ? (
                     (columnTitle.get(status.column_id) ?? "")
                   ) : (
-                    <span className="text-ink-3">Unmapped</span>
+                    <span className="text-ink-3">{t("workflow.unmapped")}</span>
                   )}
                 </td>
 

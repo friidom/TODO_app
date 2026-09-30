@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useMemo } from "react";
 import {
   CalendarClockIcon,
@@ -41,6 +42,7 @@ const ACTIVITY_PREVIEW = 5;
 const DUE_SOON_LIMIT = 6;
 
 export default function SummaryView() {
+  const { t } = useTranslation();
   const boardId = useBoardId();
   const view = useBoardView();
   const { openPanel } = usePanel();
@@ -95,37 +97,41 @@ export default function SummaryView() {
       <div className="flex flex-col gap-3">
         {/* gap-px + bg-hairline, not divide-x — divide-* skips the first child, which draws a mid-row rule once the grid wraps to 3 cols */}
         <div className="border-hairline bg-hairline rounded-card grid grid-cols-2 gap-px overflow-hidden border sm:grid-cols-3 xl:grid-cols-6">
-          <Metric icon={LayoutListIcon} label="Total" value={stats.total} />
+          <Metric
+            icon={LayoutListIcon}
+            label={t("summary.total")}
+            value={stats.total}
+          />
 
           <Metric
             icon={CircleDotIcon}
-            label="In progress"
+            label={t("columnCategory.in_progress")}
             value={stats.inProgress}
             tone="blue"
           />
 
           <Metric
             icon={CircleCheckIcon}
-            label="Completed"
+            label={t("fields.completed")}
             value={stats.done}
             tone="green"
           />
 
           <Metric
             icon={PlusIcon}
-            label={`Created · ${WINDOW_DAYS}d`}
+            label={t("summary.createdWindow", { days: WINDOW_DAYS })}
             value={recent.created}
           />
 
           <Metric
             icon={PencilLineIcon}
-            label={`Updated · ${WINDOW_DAYS}d`}
+            label={t("summary.updatedWindow", { days: WINDOW_DAYS })}
             value={recent.updated}
           />
 
           <Metric
             icon={CalendarClockIcon}
-            label={`Due soon · ${WINDOW_DAYS}d`}
+            label={t("summary.dueSoonWindow", { days: WINDOW_DAYS })}
             value={recent.dueSoon}
             // amber only when nonzero — a permanently colored zero trains people to ignore it
             tone={recent.dueSoon > 0 ? "orange" : undefined}
@@ -149,14 +155,14 @@ export default function SummaryView() {
 
           <div className="flex min-w-0 flex-col gap-3 lg:col-span-5">
             <SummaryCard
-              title="Activity feed"
+              title={t("summary.activityFeed")}
               action={
                 <button
                   type="button"
                   onClick={() => openPanel("activity")}
                   className="text-brand hover:bg-brand-soft focus-visible:ring-brand rounded-control px-2 py-0.5 text-xs font-medium transition-colors outline-none focus-visible:ring-2"
                 >
-                  View all
+                  {t("summary.viewAll")}
                 </button>
               }
             >
@@ -176,8 +182,7 @@ export default function SummaryView() {
 
         {view.filterCount > 0 || view.query.trim() !== "" ? (
           <p className="text-ink-3 text-center text-xs">
-            These figures describe the {todos.length}{" "}
-            {todos.length === 1 ? "item" : "items"} matching the current filter.
+            {t("summary.filteredNote", { count: todos.length })}
           </p>
         ) : null}
       </div>

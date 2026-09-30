@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 
@@ -11,7 +12,10 @@ import {
   DIALOG_TITLE,
 } from "@/components/ui/dialogChrome";
 import { FIELD_INPUT } from "@/components/ui/fieldInput";
-import { useCreateSprint, useUpdateSprint } from "@/services/sprints/useSprints";
+import {
+  useCreateSprint,
+  useUpdateSprint,
+} from "@/services/sprints/useSprints";
 import type { Sprint } from "@/types/data";
 import { fromCalendarDay, toCalendarDay } from "@/utils/dueDate";
 
@@ -23,6 +27,7 @@ export default function CreateSprintModal({
   sprint?: Sprint;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [name, setName] = useState(sprint?.name ?? "");
   const [goal, setGoal] = useState(sprint?.goal ?? "");
   const [startDate, setStartDate] = useState(
@@ -61,14 +66,17 @@ export default function CreateSprintModal({
   }
 
   return (
-    <Modal title={sprint ? "Edit sprint" : "Create sprint"} onClose={onClose}>
+    <Modal
+      title={sprint ? t("backlog.editSprint") : t("backlog.createSprint")}
+      onClose={onClose}
+    >
       <form onSubmit={handleSubmit}>
         <h2 className={DIALOG_TITLE}>
-          {sprint ? "Edit sprint" : "Create sprint"}
+          {sprint ? t("backlog.editSprint") : t("backlog.createSprint")}
         </h2>
 
         <label htmlFor="sprint-name" className={`${DIALOG_LABEL} mt-5`}>
-          Name
+          {t("common.name")}
         </label>
 
         <input
@@ -77,11 +85,11 @@ export default function CreateSprintModal({
           value={name}
           onChange={(e) => setName(e.target.value)}
           className={FIELD_INPUT}
-          placeholder="Sprint 1"
+          placeholder={t("backlog.sprintNamePlaceholder")}
         />
 
         <label htmlFor="sprint-goal" className={`${DIALOG_LABEL} mt-4`}>
-          Goal
+          {t("backlog.goal")}
         </label>
 
         <textarea
@@ -90,13 +98,13 @@ export default function CreateSprintModal({
           onChange={(e) => setGoal(e.target.value)}
           rows={2}
           className={`${FIELD_INPUT} resize-none`}
-          placeholder="What does finishing this sprint mean?"
+          placeholder={t("backlog.goalPlaceholder")}
         />
 
         <div className="mt-4 grid grid-cols-2 gap-3">
           <div>
             <label htmlFor="sprint-start" className={DIALOG_LABEL}>
-              Start date
+              {t("fields.startDate")}
             </label>
 
             <input
@@ -110,7 +118,7 @@ export default function CreateSprintModal({
 
           <div>
             <label htmlFor="sprint-end" className={DIALOG_LABEL}>
-              End date
+              {t("backlog.endDate")}
             </label>
 
             <input
@@ -125,7 +133,7 @@ export default function CreateSprintModal({
 
         {inverted && (
           <p className={`${DIALOG_ERROR} mt-3`}>
-            The end date can't be before the start date.
+            {t("backlog.endBeforeStart")}
           </p>
         )}
 
@@ -137,7 +145,7 @@ export default function CreateSprintModal({
 
         <div className={DIALOG_ACTIONS}>
           <button type="button" onClick={onClose} className={DIALOG_CANCEL}>
-            Cancel
+            {t("common.cancel")}
           </button>
 
           <button
@@ -145,14 +153,16 @@ export default function CreateSprintModal({
             disabled={!trimmed || inverted || mutation.isPending}
             className={DIALOG_CONFIRM}
           >
-            {mutation.isPending && <Loader2 className="size-3.5 animate-spin" />}
+            {mutation.isPending && (
+              <Loader2 className="size-3.5 animate-spin" />
+            )}
             {mutation.isPending
               ? sprint
-                ? "Saving…"
-                : "Creating…"
+                ? t("common.saving")
+                : t("common.creating")
               : sprint
-                ? "Save"
-                : "Create sprint"}
+                ? t("common.save")
+                : t("backlog.createSprint")}
           </button>
         </div>
       </form>

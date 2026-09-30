@@ -1,4 +1,9 @@
-import { workTypeOf } from "@/constants/workTypes";
+import { useTranslation } from "react-i18next";
+import {
+  WORK_TYPE_LABELS,
+  toWorkType,
+  workTypeOf,
+} from "@/constants/workTypes";
 import type { FeedItem } from "@/services/forYou/feed";
 import { cn } from "@/utils/cn";
 import { relativeTime } from "@/utils/relativeTime";
@@ -19,12 +24,17 @@ export default function FeedRow({
   initial: string;
   onOpen: () => void;
 }) {
+  const { t } = useTranslation();
   const { todo } = item;
 
   const type = workTypeOf(todo.type);
   const TypeIcon = type.icon;
 
-  const meta = [todo.type, item.key, item.boardName].filter(Boolean);
+  const meta = [
+    todo.type ? WORK_TYPE_LABELS[toWorkType(todo.type)] : null,
+    item.key,
+    item.boardName,
+  ].filter(Boolean);
 
   return (
     <li>
@@ -43,11 +53,13 @@ export default function FeedRow({
         </span>
 
         <span className="min-w-0 flex-1">
-          <span className="text-ink block truncate text-meta font-medium">
-            {todo.title || <span className="text-ink-3/70">Untitled</span>}
+          <span className="text-ink text-meta block truncate font-medium">
+            {todo.title || (
+              <span className="text-ink-3/70">{t("common.untitled")}</span>
+            )}
           </span>
 
-          <span className="text-ink-3 mt-0.5 block truncate text-mini">
+          <span className="text-ink-3 text-mini mt-0.5 block truncate">
             {meta.join(" · ")}
           </span>
         </span>
@@ -61,7 +73,7 @@ export default function FeedRow({
                 className="hidden size-6 rounded-full object-cover sm:block"
               />
             ) : (
-              <span className="bg-brand-soft text-brand hidden size-6 place-items-center rounded-full text-micro font-semibold sm:grid">
+              <span className="bg-brand-soft text-brand text-micro hidden size-6 place-items-center rounded-full font-semibold sm:grid">
                 {initial}
               </span>
             ))}
@@ -71,7 +83,6 @@ export default function FeedRow({
           </span>
         </span>
       </button>
-
     </li>
   );
 }
