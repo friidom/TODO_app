@@ -16,14 +16,17 @@ import ListColumns from "@/components/board/ListColumns";
 import DropLine from "@/components/dnd/DropLine";
 import { useReorderItem } from "@/components/dnd/reorderDnd";
 import type { BoardView } from "@/hooks/useBoardView";
+import { useBoardId } from "@/hooks/useBoardId";
 import {
   MAX_COLUMN_WIDTH,
   PINNED_COLUMN,
   SELECT_COLUMN_WIDTH,
+  clampListColumnWidth,
+  listColumnWidth,
   minListColumnWidth,
   type ListColumnDef,
 } from "@/services/views/listColumns";
-import { useListColumns } from "@/stores/listColumns";
+import { useListColumnWidths, useListColumns } from "@/stores/listColumns";
 import { cn } from "@/utils/cn";
 import ListCheckbox from "./ListCheckbox";
 import { LIST_COLUMN_GROUP } from "./listReorder";
@@ -240,15 +243,19 @@ function HeadCell({
 
 const KEY_STEP = 16;
 
-// Drags the column's right edge. The width is previewed live and remembered on
-// release; the elastic work column reads the result as its floor.
+// Drags the column's right edge; the elastic work column reads the result as
+// its floor. While dragging, the width goes straight onto the <col> and the
+// table's min-width once a frame, and reaches the store only on release: a
+// store write per pointer move re-rendered the header and ran every row's memo
+// check, which a list of thousands feels.
 function ResizeHandle({ column }: { column: ListColumnDef }) {
-  const stored = useListColumns((state) => state.widths[column.id]);
-  const previewWidth = useListColumns((state) => state.previewWidth);
+  const boardId = useBoardId();
+  const widths = useListColumnWidths(boardId);
   const setWidth = useListColumns((state) => state.setWidth);
   const resetWidth = useListColumns((state) => state.resetWidth);
 
-  const [resizing, setResizing] = useState(false);
+  // The guide's height while dragging: it runs down the whole table.
+  const [guide, setGuide] = useState<number | null>(null);
 
   // Measured rather than read from the store: the elastic column's rendered
   // width is its share of the slack, not its stored floor.
@@ -256,30 +263,62 @@ function ResizeHandle({ column }: { column: ListColumnDef }) {
     handle.parentElement?.getBoundingClientRect().width ?? column.width;
 
   function onPointerDown(event: ReactPointerEvent<HTMLSpanElement>) {
-    if (event.button !== 0) return;
+    const handle = event.currentTarget;
+    const table = handle.closest("table");
+
+    if (event.button !== 0 || !boardId || !table) return;
 
     event.preventDefault();
 
-    const handle = event.currentTarget;
+    const col = table.querySelector<HTMLElement>(
+      `col[data-column="${column.id}"]`,
+    );
     const start = measure(handle);
     const origin = event.clientX;
+    const floor = listColumnWidth(column, widths);
+    const tableFloor = parseFloat(table.style.minWidth) || 0;
+    const body = document.body.style;
+    const previous = { cursor: body.cursor, userSelect: body.userSelect };
     let width = start;
+    let moved = false;
+    let frame = 0;
 
-    handle.setPointerCapture(event.pointerId);
-    setResizing(true);
-
-    const move = (moved: PointerEvent) => {
-      width = start + moved.clientX - origin;
-      previewWidth(column.id, width);
+    const paint = (next: number) => {
+      if (col && !column.elastic) col.style.width = `${next}px`;
+      table.style.minWidth = `${tableFloor + next - floor}px`;
     };
 
-    const end = () => {
+    const move = (event: PointerEvent) => {
+      width = clampListColumnWidth(column.id, start + event.clientX - origin);
+      moved = true;
+
+      if (!frame) {
+        frame = requestAnimationFrame(() => {
+          frame = 0;
+          paint(width);
+        });
+      }
+    };
+
+    const end = (event: PointerEvent) => {
       handle.removeEventListener("pointermove", move);
       handle.removeEventListener("pointerup", end);
       handle.removeEventListener("pointercancel", end);
-      setResizing(false);
-      setWidth(column.id, width);
+      cancelAnimationFrame(frame);
+      body.cursor = previous.cursor;
+      body.userSelect = previous.userSelect;
+      setGuide(null);
+
+      if (!moved) return;
+
+      if (event.type === "pointercancel") paint(floor);
+      else setWidth(boardId, column.id, width);
     };
+
+    handle.setPointerCapture(event.pointerId);
+    body.cursor = "col-resize";
+    body.userSelect = "none";
+    setGuide(table.getBoundingClientRect().height);
 
     handle.addEventListener("pointermove", move);
     handle.addEventListener("pointerup", end);
@@ -294,10 +333,10 @@ function ResizeHandle({ column }: { column: ListColumnDef }) {
           ? -KEY_STEP
           : 0;
 
-    if (!step) return;
+    if (!step || !boardId) return;
 
     event.preventDefault();
-    setWidth(column.id, measure(event.currentTarget) + step);
+    setWidth(boardId, column.id, measure(event.currentTarget) + step);
   }
 
   return (
@@ -305,7 +344,7 @@ function ResizeHandle({ column }: { column: ListColumnDef }) {
       role="separator"
       aria-orientation="vertical"
       aria-label={`Resize ${column.label}`}
-      aria-valuenow={Math.round(stored ?? column.width)}
+      aria-valuenow={Math.round(listColumnWidth(column, widths))}
       aria-valuemin={minListColumnWidth(column.id)}
       aria-valuemax={MAX_COLUMN_WIDTH}
       tabIndex={0}
@@ -313,14 +352,22 @@ function ResizeHandle({ column }: { column: ListColumnDef }) {
       title="Drag to resize, double-click to reset"
       onPointerDown={onPointerDown}
       onKeyDown={onKeyDown}
-      onDoubleClick={() => resetWidth(column.id)}
+      onDoubleClick={() => boardId && resetWidth(boardId, column.id)}
       onClick={(event) => event.stopPropagation()}
       className={cn(
-        "absolute inset-y-0 right-0 z-10 w-2 cursor-col-resize touch-none outline-none",
+        "absolute inset-y-0 right-0 z-10 w-2.5 cursor-col-resize touch-none outline-none",
         "after:absolute after:inset-y-2 after:right-0 after:w-0.5 after:rounded-full after:transition-colors",
-        "hover:after:bg-brand focus-visible:after:bg-brand",
-        resizing && "after:bg-brand",
+        "group-hover/th:after:bg-ink-3/30 hover:after:bg-brand focus-visible:after:bg-brand",
+        guide !== null && "after:bg-brand",
       )}
-    />
+    >
+      {guide !== null && (
+        <span
+          aria-hidden
+          style={{ height: guide }}
+          className="bg-brand pointer-events-none absolute top-0 right-0 w-0.5"
+        />
+      )}
+    </span>
   );
 }

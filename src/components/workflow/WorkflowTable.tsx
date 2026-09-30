@@ -41,8 +41,8 @@ export default function WorkflowTable({
             <th className={HEAD}>Status</th>
             <th className={HEAD}>Category</th>
             <th className={HEAD}>Column</th>
-            <th className={cn(HEAD, "w-24 text-right")}>Moves to</th>
-            <th className={cn(HEAD, "w-28 text-right")}>Reached from</th>
+            <th className={cn(HEAD, "w-28 text-right")}>Can move to</th>
+            <th className={cn(HEAD, "w-32 text-right")}>Can arrive from</th>
           </tr>
         </thead>
 
@@ -144,6 +144,9 @@ export default function WorkflowTable({
                       draft={draft}
                       statusId={status.id}
                       edit={edit}
+                      onSelectEdge={(from, to) =>
+                        onSelect({ kind: "edge", from, to })
+                      }
                     />
                   </td>
                 </tr>

@@ -135,18 +135,19 @@ export default function KanbanBoard() {
 
   const { moveColumn } = useColumnReorder(orderedColumns);
 
-  const { onDragEnd, sourceId, destinationId, transition } = useBoardDragEnd({
-    todos: all,
-    visibleByColumn: todosByColumn,
-    orderedColumns,
-    workflow,
-    activeTodo,
-    activeColumn,
-    indicator,
-    columnIndicator,
-    resetDrag,
-    moveColumn,
-  });
+  const { onDragEnd, sourceId, destinationId, transition, choicesIn } =
+    useBoardDragEnd({
+      todos: all,
+      visibleByColumn: todosByColumn,
+      orderedColumns,
+      workflow,
+      activeTodo,
+      activeColumn,
+      indicator,
+      columnIndicator,
+      resetDrag,
+      moveColumn,
+    });
 
   function toggleCollapsed(id: string) {
     setCollapsed((open) =>
@@ -185,7 +186,8 @@ export default function KanbanBoard() {
 
   function positionOf(over: { id: UniqueIdentifier; data: DataRef } | null) {
     const data = over?.data.current as
-      { type?: string; columnId?: string; index?: number } | undefined;
+      | { type?: string; columnId?: string; index?: number; statusId?: string }
+      | undefined;
 
     if (!data) return null;
 
@@ -197,6 +199,10 @@ export default function KanbanBoard() {
     const title = columnTitle(column?.title) || "this column";
 
     if (data.type === "column") return `${title}, which is empty`;
+
+    if (data.type === "status-zone") {
+      return `${workflow.statusById.get(data.statusId ?? "")?.name ?? "a status"} in ${title}`;
+    }
 
     const gaps = (todosByColumn[data.columnId ?? ""]?.length ?? 0) + 1;
 
@@ -320,6 +326,7 @@ export default function KanbanBoard() {
                       transition={
                         column.id === destinationId ? transition : null
                       }
+                      choices={choicesIn(column.id)}
                     />
                   )}
                 </Fragment>

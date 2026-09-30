@@ -36,7 +36,7 @@ import {
   resolveListColumns,
   tableMinWidth,
 } from "@/services/views/listColumns";
-import { useListColumns } from "@/stores/listColumns";
+import { useListColumnWidths, useListColumns } from "@/stores/listColumns";
 import type { IStatus, Todo } from "@/types/data";
 import { cn } from "@/utils/cn";
 import ListCreateRow from "./ListCreateRow";
@@ -74,7 +74,7 @@ export default function ListView() {
   const { openTask } = useOpenTask();
 
   const columnIds = useListColumns((state) => state.columns);
-  const widths = useListColumns((state) => state.widths);
+  const widths = useListColumnWidths(boardId);
   const moveColumn = useListColumns((state) => state.move);
 
   const visibleColumns = useMemo(
@@ -280,6 +280,7 @@ export default function ListView() {
                   {visibleColumns.map((column) => (
                     <col
                       key={column.id}
+                      data-column={column.id}
                       style={
                         column.elastic
                           ? undefined

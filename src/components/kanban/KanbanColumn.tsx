@@ -7,8 +7,13 @@ import React, { useCallback, useState, useRef, useEffect } from "react";
 import { useAddTodo } from "@/services/todos/useAddTodo";
 import { useSubtaskProgressByParent } from "@/services/todos/useSubtasks";
 import { useStatuses } from "@/services/workflow/useWorkflow";
-import { columnCategory, entryStatus } from "@/services/workflow/statuses";
+import {
+  columnCategory,
+  entryStatus,
+  type DropChoice,
+} from "@/services/workflow/statuses";
 import DropZone from "./DropZone";
+import StatusDropZones from "./StatusDropZones";
 import TodoCreateForm, { type CreateDraft } from "./TodoCreateForm";
 import ColumnHeader, { type TransitionPill } from "../columns/ColumnHeader";
 import {
@@ -32,6 +37,8 @@ interface Props {
   dragHandleProps?: Record<string, unknown>;
   isDragSource?: boolean;
   transition?: { from: TransitionPill; to: TransitionPill } | null;
+  // set while a card from another column is dragged and this column has more than one status to land in
+  choices?: DropChoice[] | null;
   // view sort or swimlanes on — nothing can be picked up, so no drop indicators either
   dragDisabled?: boolean;
   // read from the board, not useDndContext per gap — keeps ~200 gaps out of the drag's render path
@@ -59,6 +66,7 @@ export default function KanbanColumn({
   dragHandleProps,
   isDragSource = false,
   transition = null,
+  choices = null,
   dragDisabled = false,
   dragging = false,
   exactOrder = true,
@@ -191,7 +199,7 @@ export default function KanbanColumn({
         "rounded-surface border-hairline bg-surface relative flex shrink-0 flex-col overflow-hidden border transition-shadow duration-150",
         COLUMN_WIDTH,
         // height comes from the flex row, not a hardcoded pixel sum, so it survives changes to the bars above the board
-        lane ? "h-fit" : "h-fit max-h-full",
+        lane ? "h-fit" : choices ? "h-full" : "h-fit max-h-full",
         // tint as a gradient layer over bg-surface, not a translucent bg that would let the canvas show through
         transition &&
           "ring-brand/60 from-brand/10 to-brand/10 bg-linear-to-b ring-2 ring-inset",
@@ -238,6 +246,8 @@ export default function KanbanColumn({
           "min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-2",
           // with gaps on, the first and last DropZone already pad the list by their own height
           dragDisabled && "py-2.5",
+          // not unmounted, so the cards keep their scroll position under the zones
+          choices && "invisible",
         )}
       >
         {/* a card that throws only costs this column its list, not the rest of the board */}
@@ -307,7 +317,7 @@ export default function KanbanColumn({
       </div>
 
       {!lane && canCreate && (
-        <div className="shrink-0 px-2 pb-2">
+        <div className={cn("shrink-0 px-2 pb-2", choices && "invisible")}>
           <button
             type="button"
             onClick={() => openAt(todos.length)}
@@ -317,6 +327,14 @@ export default function KanbanColumn({
             Create
           </button>
         </div>
+      )}
+
+      {choices && (
+        <StatusDropZones
+          columnId={id}
+          choices={choices}
+          activeStatusId={isIndicatorHere ? indicator.statusId : undefined}
+        />
       )}
     </div>
   );

@@ -288,9 +288,15 @@ export function writeListColumns(ids: readonly ListColumnId[]): void {
 // widths existed still reads as it was written.
 const WIDTHS_KEY = "list:column-widths";
 
-export function readListColumnWidths(): ListColumnWidths {
+// Per board, because a board's titles and fields are what a width is fitted
+// to. A board with no widths of its own reads the ones stored before widths
+// were per board, so nobody's resized columns reset on upgrade.
+export function readListColumnWidths(boardId?: string): ListColumnWidths {
   try {
-    const stored = localStorage.getItem(WIDTHS_KEY);
+    const own = boardId
+      ? localStorage.getItem(`${WIDTHS_KEY}:${boardId}`)
+      : null;
+    const stored = own ?? localStorage.getItem(WIDTHS_KEY);
 
     return stored === null ? {} : normalizeListColumnWidths(JSON.parse(stored));
   } catch {
@@ -298,12 +304,25 @@ export function readListColumnWidths(): ListColumnWidths {
   }
 }
 
-export function writeListColumnWidths(widths: ListColumnWidths): void {
+export function writeListColumnWidths(
+  widths: ListColumnWidths,
+  boardId?: string,
+): void {
   try {
     const repaired = normalizeListColumnWidths(widths);
 
-    if (Object.keys(repaired).length === 0) localStorage.removeItem(WIDTHS_KEY);
-    else localStorage.setItem(WIDTHS_KEY, JSON.stringify(repaired));
+    // A board keeps even an empty set, so resetting it to the defaults does
+    // not bring the shared widths back.
+    if (boardId) {
+      localStorage.setItem(
+        `${WIDTHS_KEY}:${boardId}`,
+        JSON.stringify(repaired),
+      );
+    } else if (Object.keys(repaired).length === 0) {
+      localStorage.removeItem(WIDTHS_KEY);
+    } else {
+      localStorage.setItem(WIDTHS_KEY, JSON.stringify(repaired));
+    }
   } catch {
     // see writeListColumns
   }

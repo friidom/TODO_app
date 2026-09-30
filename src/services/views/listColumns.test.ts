@@ -16,10 +16,12 @@ import {
   withListColumnWidth,
   normalizeListColumns,
   offeredListColumns,
+  readListColumnWidths,
   readListColumns,
   resolveListColumns,
   tableMinWidth,
   toggleListColumn,
+  writeListColumnWidths,
   writeListColumns,
   type ListColumnId,
 } from "./listColumns";
@@ -276,5 +278,50 @@ describe("storage", () => {
     store["list:columns"] = JSON.stringify(["status", "labels", "status"]);
 
     expect(readListColumns()).toEqual(["work", "status"]);
+  });
+
+  it("keeps widths per board, starting a board from the shared ones", () => {
+    store["list:column-widths"] = JSON.stringify({ status: 250 });
+
+    expect(readListColumnWidths("board-a")).toEqual({ status: 250 });
+
+    writeListColumnWidths({ status: 300 }, "board-a");
+
+    expect(readListColumnWidths("board-a")).toEqual({ status: 300 });
+    expect(readListColumnWidths("board-b")).toEqual({ status: 250 });
+    expect(readListColumnWidths()).toEqual({ status: 250 });
+  });
+
+  it("keeps a board reset to the defaults reset, rather than falling back", () => {
+    store["list:column-widths"] = JSON.stringify({ status: 250 });
+
+    writeListColumnWidths({}, "board-a");
+
+    expect(readListColumnWidths("board-a")).toEqual({});
+  });
+
+  it("repairs a board's stored widths and survives unreadable storage", () => {
+    store["list:column-widths:board-a"] = JSON.stringify({
+      status: 10,
+      bogus: 90,
+    });
+
+    expect(readListColumnWidths("board-a")).toEqual({
+      status: MIN_COLUMN_WIDTH,
+    });
+
+    vi.stubGlobal("localStorage", {
+      getItem: () => {
+        throw new Error("blocked");
+      },
+      setItem: () => {
+        throw new Error("blocked");
+      },
+    });
+
+    expect(readListColumnWidths("board-a")).toEqual({});
+    expect(() =>
+      writeListColumnWidths({ status: 300 }, "board-a"),
+    ).not.toThrow();
   });
 });

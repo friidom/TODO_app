@@ -7,6 +7,7 @@ import { useTodoDrop } from "@/services/todos/useTodoDrop";
 import { useWorkflowGate } from "@/services/todos/useWorkflowGate";
 import {
   columnIdOf,
+  dropChoices,
   entryStatus,
   type WorkflowModel,
 } from "@/services/workflow/statuses";
@@ -61,12 +62,21 @@ export function useBoardDragEnd({
     ? columnIdOf(activeTodo, workflow.statusById)
     : null;
 
+  const reachable = (status: IStatus) =>
+    gate.allows(sourceStatus?.id, status.id);
+
   // The status a card lands in when it enters a column it is not already in:
-  // the first visible one the workflow lets it reach from where it is.
-  const landingIn = (columnId: string): IStatus | null =>
-    entryStatus(workflow.statuses, columnId, (status) =>
-      gate.allows(sourceStatus?.id, status.id),
-    );
+  // the one whose zone it was dropped on, otherwise the first visible one the
+  // workflow lets it reach from where it is.
+  const landingIn = (columnId: string, statusId?: string): IStatus | null =>
+    statusId
+      ? (workflow.statusById.get(statusId) ?? null)
+      : entryStatus(workflow.statuses, columnId, reachable);
+
+  const choicesIn = (columnId: string) =>
+    activeTodo && columnId !== sourceId
+      ? dropChoices(workflow.statuses, columnId, reachable)
+      : null;
 
   const onDragEnd = ({ active }: DragEndEvent) => {
     // ---- column reorder ----------------------------------------------------
@@ -93,7 +103,7 @@ export function useBoardDragEnd({
       const target =
         columnId === sourceId && sourceStatus
           ? sourceStatus
-          : landingIn(columnId);
+          : landingIn(columnId, indicator.statusId);
 
       if (target === null) {
         toast.error(t("workflow.noStatusToReceive"));
@@ -122,13 +132,16 @@ export function useBoardDragEnd({
         flashDone(activeTodo.id);
       }
 
+      const visible = visibleByColumn[columnId] ?? [];
+
       // translates the visible gap into the stored-array index — see dropIndex.ts for why they differ
       const index = resolveDropIndex(
         todos
           .filter((todo) => columnIdOf(todo, workflow.statusById) === columnId)
           .sort(byRank),
-        visibleByColumn[columnId] ?? [],
-        indicator.index,
+        visible,
+        // a status zone covers the column's cards, so it names no gap: append
+        indicator.statusId ? visible.length : indicator.index,
         activeTodo.id,
       );
 
@@ -150,7 +163,9 @@ export function useBoardDragEnd({
   // The pills the destination header swaps to while a card hovers over it:
   // the status it would leave and the one it would land in.
   const landing =
-    crossColumn && destinationId ? landingIn(destinationId) : null;
+    crossColumn && destinationId
+      ? landingIn(destinationId, indicator.statusId)
+      : null;
 
   const transition =
     crossColumn && landing
@@ -162,5 +177,5 @@ export function useBoardDragEnd({
         }
       : null;
 
-  return { onDragEnd, sourceId, destinationId, transition };
+  return { onDragEnd, sourceId, destinationId, transition, choicesIn };
 }

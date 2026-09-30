@@ -113,6 +113,12 @@ export function columnCategory(
   );
 }
 
+function placeableStatuses(statuses: IStatus[], columnId: string): IStatus[] {
+  return statusesInColumn(statuses, columnId).filter(
+    (status) => !status.is_hidden,
+  );
+}
+
 // Where a card lands when it enters a column it is not already in: the first
 // visible status there that `accepts` (the workflow gate), or the first visible
 // one if it accepts none, so the gate can then say why the move is refused.
@@ -122,11 +128,29 @@ export function entryStatus(
   columnId: string,
   accepts: (status: IStatus) => boolean = () => true,
 ): IStatus | null {
-  const visible = statusesInColumn(statuses, columnId).filter(
-    (status) => !status.is_hidden,
-  );
+  const visible = placeableStatuses(statuses, columnId);
 
   return visible.find(accepts) ?? visible[0] ?? null;
+}
+
+export interface DropChoice {
+  status: IStatus;
+  allowed: boolean;
+}
+
+// The statuses a card dropped into this column chooses between, each flagged
+// with whether `accepts` (the workflow gate) lets it go there. null when there
+// is no choice to make, and the card takes entryStatus directly.
+export function dropChoices(
+  statuses: IStatus[],
+  columnId: string,
+  accepts: (status: IStatus) => boolean,
+): DropChoice[] | null {
+  const visible = placeableStatuses(statuses, columnId);
+
+  if (visible.length < 2) return null;
+
+  return visible.map((status) => ({ status, allowed: accepts(status) }));
 }
 
 // What a card may be moved to: every visible mapped status, plus the one it is in even

@@ -1,58 +1,67 @@
-import { useMemo, useState, type ReactNode } from "react";
-import {
-  ArrowRightIcon,
-  NetworkIcon,
-  PlusIcon,
-  SplineIcon,
-  TableIcon,
-  Trash2Icon,
-  TriangleAlertIcon,
-  XIcon,
-} from "lucide-react";
-import { useTranslation } from "react-i18next";
+import { useMemo, useState, type KeyboardEvent } from "react";
+import { TriangleAlertIcon } from "lucide-react";
 
-import IconButton from "@/components/ui/IconButton";
 import Modal from "@/components/ui/Modal";
 import {
   DIALOG_CANCEL,
-  DIALOG_CONFIRM,
   DIALOG_DANGER,
   DIALOG_ERROR,
   DIALOG_TITLE,
 } from "@/components/ui/dialogChrome";
+import { useBoardId } from "@/hooks/useBoardId";
+import { useBoard } from "@/services/boards/useBoard";
 import { useTodos } from "@/services/todos/useTodos";
-import { defaultLayout, type Point } from "@/services/workflow/diagramLayout";
+import {
+  autoLayout,
+  displayEdges,
+  placeNew,
+  type Point,
+} from "@/services/workflow/diagramLayout";
+import {
+  mergePositions,
+  readPositions,
+  writePositions,
+} from "@/services/workflow/diagramPositions";
 import {
   brokenMigrations,
   draftOf,
   hasEdge,
-  sameWorkflow,
-  statusNameTaken,
   withStatusAdded,
   withTransitionAdded,
   withTransitionRemoved,
   type WorkflowDraft,
 } from "@/services/workflow/draft";
+import {
+  draftChanges,
+  workflowWarnings,
+} from "@/services/workflow/draftChanges";
+import {
+  pushed,
+  redone,
+  startHistory,
+  undone,
+} from "@/services/workflow/draftHistory";
 import type { WorkflowModel } from "@/services/workflow/statuses";
 import {
   usePublishWorkflow,
   type WorkflowEdit,
 } from "@/services/workflow/usePublishWorkflow";
 import { useWorkflow } from "@/services/workflow/useWorkflow";
+import { toast } from "@/stores/toasts";
 import type { Todo } from "@/types/data";
 import { cn } from "@/utils/cn";
 
-import NameInput from "./NameInput";
-import StatusInspector from "./StatusInspector";
-import StatusLozenge from "./StatusLozenge";
+import PublishReview from "./PublishReview";
 import WorkflowDiagram, { type Selection } from "./WorkflowDiagram";
+import WorkflowInspector from "./WorkflowInspector";
 import WorkflowTable from "./WorkflowTable";
-import { SELECT } from "./workflowChrome";
+import WorkflowToolbar, {
+  type EditorMode,
+  type NewStatus,
+} from "./WorkflowToolbar";
 
 const TITLE = "Manage workflow";
-const WIDTH = "w-[min(1400px,calc(100vw-2rem))]";
-
-type Mode = "diagram" | "text";
+const WIDTH = "w-[calc(100vw-2rem)]";
 
 export default function ManageWorkflowsModal({
   onClose,
@@ -73,7 +82,7 @@ export default function ManageWorkflowsModal({
   }
 
   return (
-    <Modal title={TITLE} onClose={onClose} width={WIDTH}>
+    <Modal title={TITLE} onClose={onClose} width="w-[420px]">
       <h2 className={DIALOG_TITLE}>{TITLE}</h2>
 
       <p
@@ -88,6 +97,30 @@ export default function ManageWorkflowsModal({
   );
 }
 
+function edgesOf(draft: WorkflowDraft) {
+  return displayEdges(
+    draft.statuses.map((status) => status.id),
+    draft.transitions,
+  );
+}
+
+function initialPositions(boardId: string | undefined, draft: WorkflowDraft) {
+  return mergePositions(
+    draft.statuses.map((status) => status.id),
+    readPositions(boardId),
+    autoLayout(draft.statuses, edgesOf(draft).edges),
+  );
+}
+
+function typing(event: KeyboardEvent): boolean {
+  const target = event.target as HTMLElement;
+
+  return (
+    target.isContentEditable ||
+    ["INPUT", "SELECT", "TEXTAREA"].includes(target.tagName)
+  );
+}
+
 function ManageWorkflowsDialog({
   model,
   todos,
@@ -97,19 +130,20 @@ function ManageWorkflowsDialog({
   todos: Todo[];
   onClose: () => void;
 }) {
+  const boardId = useBoardId();
+  const { data: board } = useBoard(boardId);
   const [base, setBase] = useState(() => draftOf(model));
-  const [draft, setDraft] = useState(base);
-  const [mode, setMode] = useState<Mode>("diagram");
+  const [history, setHistory] = useState(() => startHistory(base));
+  const [mode, setMode] = useState<EditorMode>("diagram");
   const [selection, setSelection] = useState<Selection>(null);
   const [positions, setPositions] = useState(() =>
-    defaultLayout(base.statuses),
+    initialPositions(boardId, base),
   );
-  const [adding, setAdding] = useState(false);
-  const [connecting, setConnecting] = useState(false);
-  const [confirmDiscard, setConfirmDiscard] = useState(false);
-  const { t } = useTranslation();
+  const [confirm, setConfirm] = useState<"discard" | "close" | null>(null);
+  const [reviewing, setReviewing] = useState(false);
 
   const publish = usePublishWorkflow();
+  const draft = history.present;
 
   const counts = useMemo(() => {
     const byStatus = new Map<string, number>();
@@ -128,14 +162,39 @@ function ManageWorkflowsDialog({
     [base],
   );
 
-  const layout = useMemo(
-    () => ({ ...defaultLayout(draft.statuses), ...positions }),
-    [draft.statuses, positions],
+  const shown = useMemo(() => edgesOf(draft), [draft]);
+
+  // A status an undo brought back, or one added elsewhere since the editor
+  // opened, has no position yet; it gets the auto layout's, clear of the rest.
+  const layout = useMemo(() => {
+    const ids = draft.statuses.map((status) => status.id);
+    const missing = ids.some((id) => !positions[id]);
+
+    return mergePositions(
+      ids,
+      positions,
+      missing ? autoLayout(draft.statuses, shown.edges) : {},
+    );
+  }, [draft.statuses, positions, shown.edges]);
+
+  const changes = useMemo(
+    () => draftChanges(base, draft, counts),
+    [base, draft, counts],
+  );
+  const warnings = useMemo(() => workflowWarnings(draft), [draft]);
+  const flagged = useMemo(
+    () => new Set(warnings.map((warning) => warning.statusId)),
+    [warnings],
   );
 
-  const dirty = !sameWorkflow(base, draft);
+  const dirty = changes.length > 0;
   const broken = brokenMigrations(draft);
   const stale = model.version !== base.version && !publish.isPending;
+  const publishBlocked = stale
+    ? "Someone else published first. Start over from the latest to publish."
+    : broken.length > 0
+      ? "Work from a deleted status points at a hidden one. Show that status first."
+      : null;
 
   const current: Selection =
     selection?.kind === "status" &&
@@ -149,23 +208,36 @@ function ManageWorkflowsDialog({
   function edit(change: WorkflowEdit): boolean {
     const next = change(draft);
 
-    if (next) setDraft(next);
+    if (next) setHistory((previous) => pushed(previous, next));
 
     return next !== null;
   }
 
+  function place(id: string, at: Point) {
+    const next = { ...layout, [id]: at };
+
+    setPositions(next);
+    writePositions(boardId, next);
+  }
+
   function requestClose() {
-    if (confirmDiscard) setConfirmDiscard(false);
-    else if (dirty) setConfirmDiscard(true);
+    if (reviewing) setReviewing(false);
+    else if (confirm) setConfirm(null);
+    else if (dirty) setConfirm("close");
     else onClose();
+  }
+
+  function discard() {
+    setHistory((previous) => pushed(previous, base));
+    setConfirm(null);
   }
 
   function startOver() {
     const latest = draftOf(model);
 
     setBase(latest);
-    setDraft(latest);
-    setPositions(defaultLayout(latest.statuses));
+    setHistory(startHistory(latest));
+    setPositions(initialPositions(boardId, latest));
     setSelection(null);
   }
 
@@ -174,124 +246,124 @@ function ManageWorkflowsDialog({
 
     publish.mutate(
       (latest) => (latest.version === published.version ? published : null),
-      { onSuccess: onClose },
+      {
+        onSuccess: () => {
+          toast.success("Workflow published");
+          onClose();
+        },
+      },
     );
   }
 
-  function addStatus(name: string) {
+  function addStatus({ name, category, columnId }: NewStatus) {
     const id = crypto.randomUUID();
+    const next = withStatusAdded(draft, { id, columnId, name, category });
 
-    if (
-      edit((next) =>
-        withStatusAdded(next, { id, columnId: null, name, category: "todo" }),
-      )
-    ) {
-      setSelection({ kind: "status", id });
+    if (!next) return;
+
+    setHistory((previous) => pushed(previous, next));
+
+    const fallback = autoLayout(next.statuses, edgesOf(next).edges)[id];
+
+    place(
+      id,
+      placeNew(layout, draft.statuses, category, fallback ?? { x: 0, y: 0 }),
+    );
+    setSelection({ kind: "status", id });
+  }
+
+  function connect(from: string, to: string) {
+    if (!hasEdge(draft, from, to)) {
+      edit((next) => withTransitionAdded(next, from, to));
     }
 
-    setAdding(false);
+    setSelection({ kind: "edge", from, to });
   }
+
+  function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (reviewing || event.defaultPrevented || typing(event)) return;
+
+    const mod = event.metaKey || event.ctrlKey;
+    const key = event.key.toLowerCase();
+
+    if (mod && key === "z") {
+      event.preventDefault();
+      setHistory((previous) =>
+        event.shiftKey ? redone(previous) : undone(previous),
+      );
+    } else if (mod && key === "y") {
+      event.preventDefault();
+      setHistory(redone);
+    } else if (event.key === "Escape" && current && !confirm) {
+      // marks it for Modal: the first Escape clears the selection, the next one closes
+      event.preventDefault();
+      setSelection(null);
+    } else if (
+      (event.key === "Delete" || event.key === "Backspace") &&
+      current?.kind === "edge"
+    ) {
+      event.preventDefault();
+      edit((next) => withTransitionRemoved(next, current.from, current.to));
+      setSelection(null);
+    }
+  }
+
+  const boardTitle = board?.title ?? "This board";
 
   return (
     <Modal title={TITLE} onClose={requestClose} width={WIDTH}>
-      <div className="flex h-[min(54rem,calc(100dvh-5rem))] flex-col">
-        <header className="flex items-start justify-between gap-4 pb-3">
-          <div className="min-w-0">
-            <h2 className={DIALOG_TITLE}>{TITLE}</h2>
+      <div
+        onKeyDown={onKeyDown}
+        className="relative flex h-[calc(100dvh-4.5rem)] flex-col"
+      >
+        <WorkflowToolbar
+          boardTitle={boardTitle}
+          draft={draft}
+          selectedStatusId={current?.kind === "status" ? current.id : null}
+          changeCount={changes.length}
+          canUndo={history.past.length > 0}
+          canRedo={history.future.length > 0}
+          publishBlocked={publishBlocked}
+          mode={mode}
+          onMode={setMode}
+          onAddStatus={addStatus}
+          onAddTransition={connect}
+          onUndo={() => setHistory(undone)}
+          onRedo={() => setHistory(redone)}
+          onDiscard={() => setConfirm("discard")}
+          onPublish={() => setReviewing(true)}
+          onClose={requestClose}
+        />
 
-            <p className="text-ink-3 text-meta mt-0.5">
-              Statuses are the steps; transitions are the moves between them. A
-              move with no transition is refused. Changes apply once you
-              publish.
-            </p>
-          </div>
-
-          <IconButton
-            label="Close"
-            size="md"
-            tooltip={false}
-            onClick={requestClose}
-            className="-mt-1 shrink-0"
-          >
-            <XIcon />
-          </IconButton>
-        </header>
-
-        <div className="border-hairline flex flex-wrap items-center gap-2 border-y py-2">
+        {confirm && (
           <div
-            role="tablist"
-            aria-label="Workflow view"
-            className="border-hairline rounded-control flex border p-0.5"
+            role="alertdialog"
+            aria-label="Unpublished changes"
+            className="border-status-red/30 bg-status-red/5 rounded-control mt-3 flex flex-wrap items-center gap-2 border px-3 py-2"
           >
-            <ModeTab
-              active={mode === "diagram"}
-              onClick={() => setMode("diagram")}
-              icon={<NetworkIcon />}
-              label="Diagram"
-            />
+            <p className="text-ink-2 text-meta mr-auto">
+              {confirm === "close"
+                ? `Close without publishing? Your ${changes.length} unpublished ${changes.length === 1 ? "change is" : "changes are"} lost.`
+                : `Discard ${changes.length} unpublished ${changes.length === 1 ? "change" : "changes"}? You can still undo this.`}
+            </p>
 
-            <ModeTab
-              active={mode === "text"}
-              onClick={() => setMode("text")}
-              icon={<TableIcon />}
-              label="Text"
-            />
-          </div>
-
-          <span aria-hidden className="bg-hairline mx-1 h-6 w-px" />
-
-          {adding ? (
-            <NameInput
-              label="New status name"
-              placeholder="Status name"
-              validate={(name) =>
-                statusNameTaken(draft, name)
-                  ? t("workflow.statusNameTaken", { name })
-                  : null
-              }
-              onSubmit={addStatus}
-              onCancel={() => setAdding(false)}
-            />
-          ) : (
-            <BarButton
-              onClick={() => {
-                setAdding(true);
-                setConnecting(false);
-              }}
-              icon={<PlusIcon />}
+            <button
+              type="button"
+              autoFocus
+              onClick={() => setConfirm(null)}
+              className={cn(DIALOG_CANCEL, "h-8")}
             >
-              Add status
-            </BarButton>
-          )}
+              Keep editing
+            </button>
 
-          <BarButton
-            active={connecting}
-            disabled={draft.statuses.length < 2}
-            onClick={() => {
-              setConnecting((open) => !open);
-              setAdding(false);
-            }}
-            icon={<SplineIcon />}
-          >
-            Add transition
-          </BarButton>
-
-          <p className="text-ink-3 text-mini ml-auto tabular-nums">
-            {draft.statuses.length} statuses · {draft.transitions.length}{" "}
-            transitions
-          </p>
-        </div>
-
-        {connecting && (
-          <TransitionComposer
-            draft={draft}
-            onAdd={(from, to) => {
-              edit((next) => withTransitionAdded(next, from, to));
-              setSelection({ kind: "edge", from, to });
-              setConnecting(false);
-            }}
-            onCancel={() => setConnecting(false)}
-          />
+            <button
+              type="button"
+              onClick={confirm === "close" ? onClose : discard}
+              className={cn(DIALOG_DANGER, "h-8")}
+            >
+              {confirm === "close" ? "Close without publishing" : "Discard"}
+            </button>
+          </div>
         )}
 
         {stale && (
@@ -315,23 +387,40 @@ function ManageWorkflowsDialog({
           </p>
         )}
 
-        <div className="grid min-h-0 flex-1 gap-3 pt-3 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        {publish.error && !reviewing && (
+          <p role="alert" className={DIALOG_ERROR}>
+            {publish.error.message}
+          </p>
+        )}
+
+        <div className="grid min-h-0 flex-1 gap-3 pt-3 lg:grid-cols-[minmax(0,1fr)_21rem]">
           <div className="flex min-h-0 min-w-0 flex-col">
             {draft.statuses.length === 0 ? (
-              <EmptyWorkflow onAdd={() => setAdding(true)} />
+              <EmptyWorkflow />
             ) : mode === "diagram" ? (
               <WorkflowDiagram
                 draft={draft}
                 layout={layout}
-                onMove={(id, at: Point) =>
-                  setPositions((previous) => ({ ...previous, [id]: at }))
-                }
-                onAutoArrange={() =>
-                  setPositions(defaultLayout(draft.statuses))
-                }
+                edges={shown.edges}
+                anyTargets={shown.anyTargets}
+                flagged={flagged}
                 selection={current}
                 onSelect={setSelection}
-                edit={edit}
+                onMove={(id, at) =>
+                  setPositions((previous) => ({ ...previous, [id]: at }))
+                }
+                onMoveEnd={() => writePositions(boardId, layout)}
+                onAutoLayout={() => {
+                  const next = autoLayout(draft.statuses, shown.edges);
+
+                  setPositions(next);
+                  writePositions(boardId, next);
+                }}
+                onConnect={connect}
+                onRemoveEdge={(from, to) => {
+                  edit((next) => withTransitionRemoved(next, from, to));
+                  setSelection(null);
+                }}
               />
             ) : (
               <div className="min-h-0 flex-1 overflow-auto">
@@ -347,214 +436,47 @@ function ManageWorkflowsDialog({
 
           <aside
             aria-label="Details"
-            className="border-hairline rounded-surface bg-surface flex min-h-0 flex-col overflow-y-auto border max-lg:max-h-80"
+            className="border-hairline rounded-surface bg-surface flex min-h-0 flex-col overflow-hidden border max-lg:max-h-96"
           >
-            <Details
+            <WorkflowInspector
               draft={draft}
               selection={current}
               counts={counts}
               storedIds={storedIds}
+              anyTargets={shown.anyTargets}
+              warnings={warnings}
+              enforced={board?.workflow_enabled ?? true}
               edit={edit}
-              onClear={() => setSelection(null)}
+              onSelect={setSelection}
             />
           </aside>
         </div>
 
-        {publish.error && !confirmDiscard && (
-          <p role="alert" className={DIALOG_ERROR}>
-            {publish.error.message}
-          </p>
+        {reviewing && (
+          <PublishReview
+            boardTitle={boardTitle}
+            changes={changes}
+            warnings={warnings.map((warning) => {
+              const name =
+                draft.statuses.find((status) => status.id === warning.statusId)
+                  ?.name ?? "";
+
+              return warning.kind === "no-way-out"
+                ? `Work in ${name} can't move anywhere.`
+                : `Nothing leads to ${name}.`;
+            })}
+            pending={publish.isPending}
+            error={publish.error?.message ?? null}
+            onBack={() => setReviewing(false)}
+            onPublish={handlePublish}
+          />
         )}
-
-        <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
-          {confirmDiscard ? (
-            <>
-              <p className="text-ink-2 text-meta mr-auto">
-                Discard your unpublished changes?
-              </p>
-
-              <button
-                type="button"
-                autoFocus
-                onClick={() => setConfirmDiscard(false)}
-                className={DIALOG_CANCEL}
-              >
-                Keep editing
-              </button>
-
-              <button type="button" onClick={onClose} className={DIALOG_DANGER}>
-                Discard
-              </button>
-            </>
-          ) : (
-            <>
-              {broken.length > 0 && (
-                <p className="text-status-red text-meta mr-auto">
-                  Work from a deleted status points at a hidden one. Show that
-                  status before publishing.
-                </p>
-              )}
-
-              <button type="button" onClick={onClose} className={DIALOG_CANCEL}>
-                Cancel
-              </button>
-
-              <button
-                type="button"
-                disabled={
-                  !dirty || broken.length > 0 || stale || publish.isPending
-                }
-                onClick={handlePublish}
-                className={DIALOG_CONFIRM}
-              >
-                {publish.isPending ? "Publishing..." : "Publish"}
-              </button>
-            </>
-          )}
-        </div>
       </div>
     </Modal>
   );
 }
 
-function ModeTab({
-  active,
-  onClick,
-  icon,
-  label,
-}: {
-  active: boolean;
-  onClick: () => void;
-  icon: ReactNode;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      onClick={onClick}
-      className={cn(
-        "rounded-control text-meta focus-visible:ring-brand flex h-7 items-center gap-1.5 px-2.5 font-medium outline-none focus-visible:ring-2 [&_svg]:size-4",
-        active ? "bg-brand-soft text-brand" : "text-ink-2 hover:bg-wash-strong",
-      )}
-    >
-      {icon}
-      {label}
-    </button>
-  );
-}
-
-function BarButton({
-  onClick,
-  icon,
-  children,
-  active = false,
-  disabled = false,
-}: {
-  onClick: () => void;
-  icon: ReactNode;
-  children: ReactNode;
-  active?: boolean;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-pressed={active}
-      className={cn(
-        "rounded-control text-meta focus-visible:ring-brand flex h-8 items-center gap-1.5 px-2 font-medium transition-colors outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4",
-        active ? "bg-brand-soft text-brand" : "text-ink-2 hover:bg-wash-strong",
-      )}
-    >
-      {icon}
-      {children}
-    </button>
-  );
-}
-
-// Jira's "Add Transition": name both ends up front, rather than making the
-// reader find the source on the canvas and drag from it.
-function TransitionComposer({
-  draft,
-  onAdd,
-  onCancel,
-}: {
-  draft: WorkflowDraft;
-  onAdd: (from: string, to: string) => void;
-  onCancel: () => void;
-}) {
-  const [from, setFrom] = useState(draft.statuses[0]?.id ?? "");
-  const [to, setTo] = useState(draft.statuses[1]?.id ?? "");
-
-  const duplicate = from !== "" && hasEdge(draft, from, to);
-  const invalid = from === "" || to === "" || from === to || duplicate;
-
-  return (
-    <div className="border-hairline bg-wash rounded-surface mt-3 flex flex-wrap items-end gap-2 border p-3">
-      <label className="text-ink-2 text-mini grid min-w-40 flex-1 gap-1 font-medium">
-        From
-        <select
-          value={from}
-          onChange={(event) => setFrom(event.target.value)}
-          className={SELECT}
-        >
-          {draft.statuses.map((status) => (
-            <option key={status.id} value={status.id}>
-              {status.name}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <ArrowRightIcon aria-hidden className="text-ink-3 mb-2 size-4 shrink-0" />
-
-      <label className="text-ink-2 text-mini grid min-w-40 flex-1 gap-1 font-medium">
-        To
-        <select
-          value={to}
-          onChange={(event) => setTo(event.target.value)}
-          className={SELECT}
-        >
-          {draft.statuses.map((status) => (
-            <option key={status.id} value={status.id}>
-              {status.name}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <button
-        type="button"
-        disabled={invalid}
-        onClick={() => onAdd(from, to)}
-        className={cn(DIALOG_CONFIRM, "h-8")}
-      >
-        Add
-      </button>
-
-      <button
-        type="button"
-        onClick={onCancel}
-        className={cn(DIALOG_CANCEL, "h-8")}
-      >
-        Cancel
-      </button>
-
-      {from !== "" && (duplicate || from === to) && (
-        <p role="status" className="text-ink-3 text-mini basis-full">
-          {from === to
-            ? "A status cannot transition to itself."
-            : "That transition already exists."}
-        </p>
-      )}
-    </div>
-  );
-}
-
-function EmptyWorkflow({ onAdd }: { onAdd: () => void }) {
+function EmptyWorkflow() {
   return (
     <div className="border-hairline rounded-surface bg-wash grid flex-1 place-items-center border border-dashed p-8 text-center">
       <div>
@@ -562,132 +484,9 @@ function EmptyWorkflow({ onAdd }: { onAdd: () => void }) {
 
         <p className="text-ink-3 text-mini mx-auto mt-1 max-w-72">
           A workflow needs at least one status before work can move through it.
+          Start with Add status above.
         </p>
-
-        <button
-          type="button"
-          onClick={onAdd}
-          className={cn(DIALOG_CONFIRM, "mt-4")}
-        >
-          <PlusIcon className="size-4" />
-          Add status
-        </button>
       </div>
-    </div>
-  );
-}
-
-function Details({
-  draft,
-  selection,
-  counts,
-  storedIds,
-  edit,
-  onClear,
-}: {
-  draft: WorkflowDraft;
-  selection: Selection;
-  counts: ReadonlyMap<string, number>;
-  storedIds: ReadonlySet<string>;
-  edit: (change: WorkflowEdit) => boolean;
-  onClear: () => void;
-}) {
-  if (selection?.kind === "status") {
-    return (
-      <StatusInspector
-        key={selection.id}
-        draft={draft}
-        statusId={selection.id}
-        counts={counts}
-        storedIds={storedIds}
-        edit={edit}
-        onDeleted={onClear}
-      />
-    );
-  }
-
-  if (selection?.kind === "edge") {
-    const from = draft.statuses.find((it) => it.id === selection.from);
-    const to = draft.statuses.find((it) => it.id === selection.to);
-
-    if (!from || !to) return null;
-
-    return (
-      <div className="flex min-h-0 flex-1 flex-col">
-        <div className="border-hairline border-b px-3 py-2.5">
-          <h3 className="text-ink text-meta font-semibold">Transition</h3>
-
-          <p className="text-ink-3 text-mini mt-0.5">
-            One allowed move. Work can go this way; every other way is refused
-            unless its own transition says otherwise.
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-3 p-3">
-          <Field label="From">
-            <StatusLozenge
-              name={from.name}
-              category={from.category}
-              hidden={from.is_hidden}
-            />
-          </Field>
-
-          <div className="text-ink-3 flex items-center gap-1.5">
-            <ArrowRightIcon aria-hidden className="size-4 rotate-90" />
-            <span className="text-mini">moves to</span>
-          </div>
-
-          <Field label="To">
-            <StatusLozenge
-              name={to.name}
-              category={to.category}
-              hidden={to.is_hidden}
-            />
-          </Field>
-        </div>
-
-        <div className="border-hairline mt-auto border-t p-3">
-          <button
-            type="button"
-            onClick={() => {
-              edit((next) => withTransitionRemoved(next, from.id, to.id));
-              onClear();
-            }}
-            className="text-status-red hover:bg-status-red/10 rounded-control text-meta flex h-8 w-full items-center gap-1.5 px-2 font-medium [&_svg]:size-4"
-          >
-            <Trash2Icon />
-            Remove transition
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col">
-      <div className="border-hairline border-b px-3 py-2.5">
-        <h3 className="text-ink text-meta font-semibold">Details</h3>
-
-        <p className="text-ink-3 text-mini mt-0.5">Nothing selected.</p>
-      </div>
-
-      <div className="text-ink-3 text-mini flex flex-col gap-2 p-3 leading-relaxed">
-        <p>
-          Select a status to rename it, change its category or edit the
-          transitions in and out of it.
-        </p>
-
-        <p>Select an arrow to see the move it allows and remove it.</p>
-      </div>
-    </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="grid gap-1">
-      <span className="text-ink-2 text-mini font-medium">{label}</span>
-      <span className="flex min-w-0">{children}</span>
     </div>
   );
 }

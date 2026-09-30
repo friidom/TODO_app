@@ -11,6 +11,12 @@ export const ADD_BUTTON =
 export const SELECT =
   "border-hairline bg-canvas text-ink focus:border-brand/50 focus:ring-brand/30 rounded-control text-meta h-8 w-full min-w-0 border px-2 outline-none focus:ring-2";
 
+export const MOD_KEY =
+  typeof navigator !== "undefined" &&
+  /Mac|iPhone|iPad/.test(navigator.userAgent)
+    ? "⌘"
+    : "Ctrl+";
+
 export function workItems(count: number): string {
   return `${count} work item${count === 1 ? "" : "s"}`;
 }

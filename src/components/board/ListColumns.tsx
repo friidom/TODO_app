@@ -13,6 +13,7 @@ import { useReorderItem } from "@/components/dnd/reorderDnd";
 import { useCardPopover } from "@/components/todo/TodoItem/useCardPopover";
 import IconButton from "@/components/ui/IconButton";
 import { LIST_COLUMN_GROUP } from "@/components/views/listReorder";
+import { useBoardId } from "@/hooks/useBoardId";
 import { useSprintsEnabled } from "@/hooks/useSprintsEnabled";
 import {
   LIST_COLUMNS,
@@ -22,7 +23,7 @@ import {
   offeredListColumns,
   type ListColumnId,
 } from "@/services/views/listColumns";
-import { useListColumns } from "@/stores/listColumns";
+import { useListColumnWidths, useListColumns } from "@/stores/listColumns";
 import { cn } from "@/utils/cn";
 
 // A popover rather than DropdownMenu: a roving-tabindex menu would swallow the
@@ -33,7 +34,8 @@ export default function ListColumns() {
   const sprintsEnabled = useSprintsEnabled();
 
   const columns = useListColumns((state) => state.columns);
-  const widths = useListColumns((state) => state.widths);
+  const boardId = useBoardId();
+  const widths = useListColumnWidths(boardId);
   const toggle = useListColumns((state) => state.toggle);
   const move = useListColumns((state) => state.move);
   const reset = useListColumns((state) => state.reset);
@@ -78,7 +80,7 @@ export default function ListColumns() {
               {customised && (
                 <button
                   type="button"
-                  onClick={reset}
+                  onClick={() => boardId && reset(boardId)}
                   title="Default columns, order and widths"
                   className="text-ink-3 hover:text-ink text-mini flex items-center gap-1 rounded transition-colors"
                 >

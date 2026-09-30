@@ -550,6 +550,44 @@ export function withTransitionRemoved(
   };
 }
 
+// Moves one end, or both, of an existing transition as a single edit. null when
+// the result would be a self-transition or one that already exists — which is
+// also what reversing a pair that already goes both ways runs into.
+export function withTransitionRetargeted(
+  draft: WorkflowDraft,
+  edge: { from: string; to: string },
+  next: { from: string; to: string },
+): WorkflowDraft | null {
+  if (next.from === edge.from && next.to === edge.to) return null;
+
+  const removed = withTransitionRemoved(draft, edge.from, edge.to);
+
+  return removed && withTransitionAdded(removed, next.from, next.to);
+}
+
+// Jira's "any status" transition, spelled as the edges it stands for: one from
+// every other status that does not already have it.
+export function withTransitionsInto(
+  draft: WorkflowDraft,
+  statusId: string,
+): WorkflowDraft | null {
+  if (!statusIn(draft, statusId)) return null;
+
+  const missing = draft.statuses.filter(
+    (status) => status.id !== statusId && !hasEdge(draft, status.id, statusId),
+  );
+
+  if (missing.length === 0) return null;
+
+  return {
+    ...draft,
+    transitions: [
+      ...draft.transitions,
+      ...missing.map((status) => ({ from: status.id, to: statusId })),
+    ],
+  };
+}
+
 // The API refuses a migration into a status that is not in the publish, or is
 // hidden — either happens when a target is deleted or hidden after the delete
 // that chose it.

@@ -8,6 +8,7 @@ import {
   columnIdOf,
   defaultStatus,
   doneStatusIds,
+  dropChoices,
   entryStatus,
   firstTodoStatus,
   hasTransition,
@@ -166,6 +167,21 @@ describe("entryStatus", () => {
 
     expect(entryStatus(statuses, "col-x")).toBeNull();
     expect(entryStatus(statuses, "col-empty")).toBeNull();
+  });
+});
+
+describe("dropChoices", () => {
+  it("offers every visible status of a column in order, flagged by the gate", () => {
+    const accepts = (it: IStatus) => it.id !== "blocked";
+
+    expect(dropChoices(MODEL.statuses, "col-doing", accepts)).toEqual([
+      { status: MODEL.statusById.get("doing"), allowed: true },
+      { status: MODEL.statusById.get("blocked"), allowed: false },
+    ]);
+  });
+
+  it("is null when a hidden status leaves only one place to land", () => {
+    expect(dropChoices(MODEL.statuses, "col-todo", () => true)).toBeNull();
   });
 });
 

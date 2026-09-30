@@ -24,9 +24,10 @@ import type { IColumn, Todo } from "@/types/data";
 export interface TodoIndicator {
   columnId: string | null;
   index: number;
+  statusId?: string;
 }
 
-export type DropType = "column" | "column-gap" | "todo-gap";
+export type DropType = "column" | "column-gap" | "todo-gap" | "status-zone";
 
 const COLUMN_HOVER_DISTANCE = 80;
 
@@ -180,8 +181,17 @@ const keyboardCoordinates: KeyboardCoordinateGetter = (
     return next ? coordinatesFor(next.id) : undefined;
   }
 
+  const zoned = new Set(
+    containers
+      .filter((container) => typeOf(container) === "status-zone")
+      .map((container) => container.data.current?.columnId),
+  );
+
   const gaps = containers.filter(
-    (container) => typeOf(container) === "todo-gap",
+    (container) =>
+      typeOf(container) === "status-zone" ||
+      (typeOf(container) === "todo-gap" &&
+        !zoned.has(container.data.current?.columnId)),
   );
 
   const from = currentGap(gaps, "y");
@@ -271,11 +281,22 @@ export default function useKanbanDnd() {
 
       if (!column) return [];
 
-      const gaps = droppableContainers.filter(
-        (container) =>
-          typeOf(container) === "todo-gap" &&
-          container.data.current?.columnId === column.container.id,
-      );
+      const inColumn = (type: DropType) =>
+        droppableContainers.filter(
+          (container) =>
+            typeOf(container) === type &&
+            container.data.current?.columnId === column.container.id,
+        );
+
+      const zones = inColumn("status-zone");
+
+      if (zones.length) {
+        return toCollisions(
+          pickNearest(zones, (rect) => distanceToRect(rect, x, y)),
+        );
+      }
+
+      const gaps = inColumn("todo-gap");
 
       // Empty column: fall back to the column itself.
       if (!gaps.length) return toCollisions(column);
@@ -293,7 +314,13 @@ export default function useKanbanDnd() {
 
   const handleDragOver = useCallback((event: DragOverEvent) => {
     const data = event.over?.data.current as
-      { type?: DropType; columnId?: string; index?: number } | undefined;
+      | {
+          type?: DropType;
+          columnId?: string;
+          index?: number;
+          statusId?: string;
+        }
+      | undefined;
 
     if (!data) {
       setIndicator(EMPTY_INDICATOR);
@@ -308,6 +335,15 @@ export default function useKanbanDnd() {
 
     if (data.type === "todo-gap") {
       setIndicator({ columnId: data.columnId ?? null, index: data.index ?? 0 });
+      return;
+    }
+
+    if (data.type === "status-zone") {
+      setIndicator({
+        columnId: data.columnId ?? null,
+        index: 0,
+        statusId: data.statusId,
+      });
       return;
     }
 

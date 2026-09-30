@@ -21,6 +21,8 @@ import {
   withStatusUnmapped,
   withTransitionAdded,
   withTransitionRemoved,
+  withTransitionRetargeted,
+  withTransitionsInto,
   withStatusCategory,
   withStatusDeleted,
   withStatusHidden,
@@ -660,6 +662,52 @@ describe("transitions", () => {
     expect(sameWorkflow(draft, withTransitionAdded(draft, "s-doing", "s-done")!)).toBe(
       false,
     );
+  });
+
+  it("moves either end of a transition in one edit", () => {
+    const draft = withEdges([["s-todo", "s-doing"]]);
+    const next = withTransitionRetargeted(
+      draft,
+      { from: "s-todo", to: "s-doing" },
+      { from: "s-todo", to: "s-done" },
+    )!;
+
+    expect(next.transitions).toEqual([{ from: "s-todo", to: "s-done" }]);
+  });
+
+  it("refuses to retarget onto itself, onto an existing edge or from a missing one", () => {
+    const draft = withEdges([
+      ["s-todo", "s-doing"],
+      ["s-doing", "s-todo"],
+    ]);
+    const edge = { from: "s-todo", to: "s-doing" };
+
+    expect(withTransitionRetargeted(draft, edge, edge)).toBeNull();
+    expect(
+      withTransitionRetargeted(draft, edge, { from: "s-doing", to: "s-todo" }),
+    ).toBeNull();
+    expect(
+      withTransitionRetargeted(draft, edge, { from: "s-todo", to: "s-todo" }),
+    ).toBeNull();
+    expect(
+      withTransitionRetargeted(
+        draft,
+        { from: "s-done", to: "s-todo" },
+        { from: "s-done", to: "s-doing" },
+      ),
+    ).toBeNull();
+  });
+
+  it("lets every other status move into one, adding only the missing edges", () => {
+    const draft = withEdges([["s-todo", "s-done"]]);
+    const next = withTransitionsInto(draft, "s-done")!;
+
+    expect(next.transitions).toEqual([
+      { from: "s-todo", to: "s-done" },
+      { from: "s-doing", to: "s-done" },
+    ]);
+    expect(withTransitionsInto(next, "s-done")).toBeNull();
+    expect(withTransitionsInto(next, "nope")).toBeNull();
   });
 });
 
