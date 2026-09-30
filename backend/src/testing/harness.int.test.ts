@@ -27,7 +27,11 @@ describe("the harness itself", () => {
     const health = await client.get<{ status: string; database: string }>("/health");
 
     expect(health.status).toBe(200);
-    expect(health.body).toEqual({ status: "ok", database: "up" });
+    expect(health.body).toEqual({
+      status: "ok",
+      database: "up",
+      cache: expect.objectContaining({ status: "disabled" }),
+    });
   });
 
   it("routes through /api/v1", async () => {

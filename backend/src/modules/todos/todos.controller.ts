@@ -1,5 +1,7 @@
 import type { RequestHandler } from "express";
 
+import { sendCached } from "../../cache/cache.js";
+import { boardCache } from "../../cache/keys.js";
 import { requireBoard } from "../../middleware/boardAccess.js";
 import { requireActor } from "../../middleware/requireAuth.js";
 import * as todosService from "./todos.service.js";
@@ -11,7 +13,9 @@ import type {
 } from "./todos.schema.js";
 
 export const list: RequestHandler = async (req, res) => {
-  res.json(await todosService.list(requireBoard(req)));
+  const board = requireBoard(req);
+
+  await sendCached(res, boardCache.todos(board.id), () => todosService.list(board));
 };
 
 export const get: RequestHandler = async (req, res) => {

@@ -10,6 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "vite preview",
+    "load:baseline": "k6 run --summary-export=load-tests/results/baseline.json load-tests/baseline.js",
+    "load:smoke": "k6 run --vus 1 --iterations 3 load-tests/baseline.js",
     "security:scan": "npx --yes ecc-agentshield@1.6.0 scan --path .claude --format text",
     "db:types": "supabase gen types typescript --linked > src/types/database.ts"
   },

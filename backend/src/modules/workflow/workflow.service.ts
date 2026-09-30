@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 
+import { invalidateBoard } from "../../cache/keys.js";
 import { prisma } from "../../db/prisma.js";
 import { withActor } from "../../db/withActor.js";
 import { AppError } from "../../lib/errors.js";
@@ -138,6 +139,10 @@ export async function publish(
   // A category change stamps started_at and completed_at on every card in the
   // status, and a migration moves cards, so the cards are refetched with the
   // workflow rather than described.
+  //
+  // board too: claiming the version updates the boards row, and its
+  // updated_at is part of GET /boards/:id.
+  await invalidateBoard(boardId, ["workflow", "todos", "activities", "board"]);
   emitInvalidate(boardId, ["workflow", "todos"]);
 
   return snapshot(boardId);

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { EVERY_BOARD_PART, invalidateBoard } from "../../cache/keys.js";
 import { withActor } from "../../db/withActor.js";
 import { AppError } from "../../lib/errors.js";
 import { emitInvalidate } from "../../realtime/emit.js";
@@ -28,8 +29,8 @@ export async function get(boardId: string): Promise<BoardRow> {
 // of their own board) and that fires log_member_activity, which reads
 // app.actor_id. boards_space_ownership reads it too, and PASSES THROUGH when it
 // is null, so filing into someone else's space would go unchecked.
-export function create(actor: Actor, input: CreateBoardInput): Promise<BoardRow> {
-  return withActor(actor.id, (tx) =>
+export async function create(actor: Actor, input: CreateBoardInput): Promise<BoardRow> {
+  const board = await withActor(actor.id, (tx) =>
     boardsRepo.insert(tx, {
       id: input.id ?? randomUUID(),
       ownerId: actor.id,
@@ -37,6 +38,12 @@ export function create(actor: Actor, input: CreateBoardInput): Promise<BoardRow>
       spaceId: input.space_id ?? null,
     }),
   );
+
+  // The client may mint the id, so a new board clears anything a deleted board
+  // with the same id could still have cached.
+  await invalidateBoard(board.id, EVERY_BOARD_PART);
+
+  return board;
 }
 
 export async function update(
@@ -46,6 +53,7 @@ export async function update(
 ): Promise<BoardRow> {
   const board = await withActor(actor.id, (tx) => boardsRepo.update(tx, boardId, patch));
 
+  await invalidateBoard(boardId, ["board"]);
   emitInvalidate(boardId, ["boards"]);
 
   return board;
@@ -56,6 +64,7 @@ export async function update(
 export async function remove(actor: Actor, boardId: string): Promise<void> {
   await withActor(actor.id, (tx) => boardsRepo.remove(tx, boardId));
 
+  await invalidateBoard(boardId, EVERY_BOARD_PART);
   emitInvalidate(boardId, ["boards"]);
   await closeBoardRoom(boardId);
 }

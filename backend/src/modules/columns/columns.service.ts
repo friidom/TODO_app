@@ -1,3 +1,4 @@
+import { invalidateBoard } from "../../cache/keys.js";
 import { withActor } from "../../db/withActor.js";
 import { AppError } from "../../lib/errors.js";
 import { emitChange } from "../../realtime/emit.js";
@@ -27,6 +28,8 @@ export async function updateLimits(
 
   if (column === null) throw notFound();
 
+  // A column's limits are served as part of the workflow snapshot.
+  await invalidateBoard(board.id, ["workflow", "activities"]);
   emitChange(board.id, "column", "UPDATE", column);
 
   return column;

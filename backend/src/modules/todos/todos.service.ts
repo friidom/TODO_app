@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { invalidateBoard, type BoardCachePart } from "../../cache/keys.js";
 import { withActor } from "../../db/withActor.js";
 import { AppError, uniqueConstraintOf } from "../../lib/errors.js";
 import { rankForAppend } from "../../lib/rank.js";
@@ -16,6 +17,12 @@ import type { CreateTodoInput, MoveTodoInput, UpsertTodoInput } from "./todos.sc
 function notFound(): AppError {
   return new AppError("not_found", "Not found.");
 }
+
+const CARDS_CHANGED: BoardCachePart[] = ["todos", "activities"];
+
+// todos_assign_board_key advances boards.next_key on every insert, and
+// GET /boards/:id returns next_key, so a write that may insert refreshes it.
+const CARD_MAY_BE_INSERTED: BoardCachePart[] = [...CARDS_CHANGED, "board"];
 
 // The id belongs to a row on a board the caller cannot see, so the upsert's
 // where missed and the insert hit the primary key. Reported as a conflict
@@ -189,6 +196,7 @@ export async function create(
       todosRepo.upsert(tx, board.id, input.id ?? randomUUID(), actor.id, write),
     );
 
+    await invalidateBoard(board.id, CARD_MAY_BE_INSERTED);
     emitChange(board.id, "todo", "INSERT", created);
 
     return created;
@@ -216,6 +224,7 @@ export async function upsert(
       todosRepo.upsert(tx, board.id, todoId, actor.id, writeFrom(input)),
     );
 
+    await invalidateBoard(board.id, CARD_MAY_BE_INSERTED);
     emitChange(board.id, "todo", "UPDATE", saved);
 
     return saved;
@@ -229,6 +238,7 @@ export async function remove(actor: Actor, board: BoardContext, todoId: string):
 
   if (removed === 0) throw notFound();
 
+  await invalidateBoard(board.id, CARDS_CHANGED);
   emitDeleted(board.id, "todo", todoId);
   // The card's own removal is precise; what it cascaded is not enumerable
   // from here, so those two scopes are refetched rather than described.
@@ -252,6 +262,8 @@ export async function move(
 
   if (moved === 0) throw notFound();
 
+  await invalidateBoard(board.id, CARDS_CHANGED);
+
   // Re-read rather than echo the input: the emitted payload must be the same
   // projection a GET would return, or a client could receive a shape it could
   // not have selected.
@@ -273,6 +285,7 @@ export async function rebalanceColumn(
     todosRepo.rebalanceColumn(tx, board.id, columnId),
   );
 
+  await invalidateBoard(board.id, CARDS_CHANGED);
   emitInvalidate(board.id, ["todos"]);
 
   return count;

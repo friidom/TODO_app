@@ -1,3 +1,4 @@
+import { invalidateBoard, type BoardCachePart } from "../../cache/keys.js";
 import { withActor } from "../../db/withActor.js";
 import { AppError } from "../../lib/errors.js";
 import { assignableRoles, canActOnMember, type BoardRole } from "../../lib/permissions.js";
@@ -11,6 +12,8 @@ export interface BoardContext {
   id: string;
   role: BoardRole;
 }
+
+const ROSTER_CHANGED: BoardCachePart[] = ["members", "activities"];
 
 function forbidden(message: string): AppError {
   return new AppError("forbidden", message);
@@ -56,6 +59,7 @@ export async function add(
     );
   }
 
+  await invalidateBoard(board.id, ROSTER_CHANGED);
   emitInvalidate(board.id, ["members"]);
 
   return entryFor(board.id, input.user_id);
@@ -90,6 +94,7 @@ export async function setRole(
 
   // No eviction: every board role may read, so a downgrade changes the verbs
   // this person has and not whether they may watch the board.
+  await invalidateBoard(board.id, ROSTER_CHANGED);
   emitInvalidate(board.id, ["members"]);
 
   return entryFor(board.id, userId);
@@ -119,6 +124,7 @@ export async function remove(
   // After the commit, never inside it: a rollback that had already evicted
   // would log someone out of a board they are still a member of.
   await evictFromBoard(board.id, userId);
+  await invalidateBoard(board.id, ROSTER_CHANGED);
   emitInvalidate(board.id, ["members"]);
 }
 
@@ -132,6 +138,7 @@ export async function leave(actor: Actor, board: BoardContext): Promise<void> {
   await withActor(actor.id, (tx) => membersRepo.remove(tx, board.id, actor.id));
 
   await evictFromBoard(board.id, actor.id);
+  await invalidateBoard(board.id, ROSTER_CHANGED);
   emitInvalidate(board.id, ["members"]);
 }
 

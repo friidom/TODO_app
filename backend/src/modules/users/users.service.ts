@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { Prisma } from "@prisma/client";
 import type { Readable } from "node:stream";
 
+import { invalidateBoards } from "../../cache/keys.js";
 import { DEFAULT_BOARD_TITLE, DEFAULT_SPACE_TITLE } from "../../config/constants.js";
 import { avatarStorage } from "../../infrastructure/storage/minio-storage.js";
 import { AppError, uniqueConstraintOf } from "../../lib/errors.js";
@@ -14,6 +15,7 @@ import {
   sniffAvatarMime,
 } from "./users.avatar.js";
 import { suffixedUsername, usernameBase } from "../../lib/username.js";
+import * as boardsRepo from "../boards/boards.repo.js";
 import * as usersRepo from "./users.repo.js";
 import type { UpdateProfileInput } from "./users.schema.js";
 
@@ -78,12 +80,20 @@ export async function profileOf(userId: string): Promise<usersRepo.ProfileRow> {
   return profile;
 }
 
+// Username, full name and avatar are shown on the roster of every board this
+// person belongs to, so each of those cached rosters is now stale.
+async function invalidateRostersOf(userId: string): Promise<void> {
+  await invalidateBoards(await boardsRepo.accessibleBoardIds({ id: userId }), ["members"]);
+}
+
 export async function updateProfile(
   userId: string,
   patch: UpdateProfileInput,
 ): Promise<usersRepo.ProfileRow> {
+  let profile: usersRepo.ProfileRow;
+
   try {
-    return await usersRepo.updateProfile(userId, patch);
+    profile = await usersRepo.updateProfile(userId, patch);
   } catch (error) {
     if (uniqueConstraintOf(error) === "profiles_username_lower_key") {
       throw new AppError("conflict", "That username is already taken.");
@@ -91,6 +101,12 @@ export async function updateProfile(
 
     throw error;
   }
+
+  if (patch.username !== undefined || patch.full_name !== undefined) {
+    await invalidateRostersOf(userId);
+  }
+
+  return profile;
 }
 
 // The previous object is deleted only after the profile already points at the
@@ -128,6 +144,7 @@ export async function setAvatar(
     throw error;
   }
 
+  await invalidateRostersOf(userId);
   await deleteAvatarObject(userId, previous?.avatar_url ?? null);
 
   return profile;
@@ -138,6 +155,7 @@ export async function removeAvatar(userId: string): Promise<usersRepo.ProfileRow
 
   const profile = await usersRepo.setAvatarUrl(userId, null);
 
+  await invalidateRostersOf(userId);
   await deleteAvatarObject(userId, previous?.avatar_url ?? null);
 
   return profile;

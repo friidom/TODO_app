@@ -34,6 +34,23 @@ services:
       retries: 20
     restart: unless-stopped
 
+  redis:
+    image: redis:8-alpine
+    # A cache, not a database: nothing is written to disk, so a restart comes
+    # back empty instead of serving entries whose invalidation it missed while
+    # down, and a full cache evicts the least recently used entry instead of
+    # refusing writes.
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    ports:
+      # Loopback only: this Redis has no password.
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
   minio:
     image: quay.io/minio/minio:latest
     container_name: todo-minio
@@ -81,6 +98,7 @@ services:
       MINIO_SECRET_KEY: minioadmin123
       MINIO_BUCKET: todo-attachments
       MINIO_AVATAR_BUCKET: todo-avatars
+      REDIS_URL: redis://redis:6379
       # tsx bundles chokidar, and chokidar reads these. Windows bind mounts
       # deliver no inotify events into the Linux VM, so without polling an edit
       # is never noticed and the server never restarts.
@@ -107,6 +125,9 @@ services:
       # runs once at boot, so a MinIO that arrives later leaves the avatar and
       # attachment buckets uncreated and every upload failing until a restart.
       minio:
+        condition: service_started
+      # Start order only: the API serves from PostgreSQL until Redis is up.
+      redis:
         condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O- http://localhost:4000/health || exit 1"]

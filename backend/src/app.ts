@@ -4,6 +4,7 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 
+import { cacheHealth } from "./cache/cache.js";
 import { env } from "./config/env.js";
 import { query } from "./db/client.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
@@ -47,9 +48,9 @@ app.get("/health", async (_req: Request, res: Response) => {
   try {
     await query("select 1");
 
-    res.json({ status: "ok", database: "up" });
+    res.json({ status: "ok", database: "up", cache: cacheHealth() });
   } catch {
-    res.status(503).json({ status: "degraded", database: "down" });
+    res.status(503).json({ status: "degraded", database: "down", cache: cacheHealth() });
   }
 });
 

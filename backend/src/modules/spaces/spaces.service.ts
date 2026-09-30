@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { invalidateBoards } from "../../cache/keys.js";
 import { AppError } from "../../lib/errors.js";
 import type { Actor } from "../../types/actor.js";
 import * as spacesRepo from "./spaces.repo.js";
@@ -39,5 +40,11 @@ export async function update(
 // boards.space_id is ON DELETE SET NULL, so the boards filed here are unfiled
 // rather than deleted.
 export async function remove(actor: Actor, spaceId: string): Promise<void> {
+  // Read before the delete: afterwards the set-null has already erased which
+  // boards were filed here, and each of their cached rows still names it.
+  const filed = await spacesRepo.boardIdsIn(actor.id, spaceId);
+
   if ((await spacesRepo.remove(actor.id, spaceId)) === 0) throw notFound();
+
+  await invalidateBoards(filed, ["board"]);
 }

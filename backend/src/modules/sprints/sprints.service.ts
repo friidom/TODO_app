@@ -1,3 +1,4 @@
+import { invalidateBoard, type BoardCachePart } from "../../cache/keys.js";
 import { withActor } from "../../db/withActor.js";
 import { AppError, uniqueConstraintOf } from "../../lib/errors.js";
 import { RANK_GAP } from "../../lib/rank.js";
@@ -11,6 +12,8 @@ import type { CreateSprintInput, UpdateSprintInput } from "./sprints.schema.js";
 function notFound(): AppError {
   return new AppError("not_found", "Not found.");
 }
+
+const SPRINT_AND_ITS_CARDS: BoardCachePart[] = ["sprints", "todos", "activities"];
 
 async function require(board: BoardContext, sprintId: string): Promise<SprintRow> {
   const sprint = await sprintsRepo.findOne(board.id, sprintId);
@@ -42,6 +45,7 @@ export async function create(
     }),
   );
 
+  await invalidateBoard(board.id, ["sprints"]);
   emitInvalidate(board.id, ["sprints"]);
 
   return created;
@@ -59,6 +63,7 @@ export async function update(
 
   if (changed === 0) throw notFound();
 
+  await invalidateBoard(board.id, ["sprints"]);
   emitInvalidate(board.id, ["sprints"]);
 
   return require(board, sprintId);
@@ -77,6 +82,7 @@ export async function remove(
 
   // todos too: the set-null returns every card in it to the Backlog, and how
   // many is not known here.
+  await invalidateBoard(board.id, SPRINT_AND_ITS_CARDS);
   emitInvalidate(board.id, ["sprints", "todos"]);
 }
 
@@ -122,6 +128,7 @@ export async function start(
 
   // Starting bulk-assigns the board's first todo-category status to whatever
   // the sprint holds without one — N rows, so one coarse event, not N.
+  await invalidateBoard(board.id, SPRINT_AND_ITS_CARDS);
   emitInvalidate(board.id, ["sprints", "todos"]);
 
   return require(board, sprintId);
@@ -162,6 +169,7 @@ export async function complete(
     if ((await sprintsRepo.setState(tx, board.id, sprintId, "completed")) === 0) throw notFound();
   });
 
+  await invalidateBoard(board.id, SPRINT_AND_ITS_CARDS);
   emitInvalidate(board.id, ["sprints", "todos"]);
 
   return require(board, sprintId);

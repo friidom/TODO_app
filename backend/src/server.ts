@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 
 import { app } from "./app.js";
+import { connectCache, disconnectCache } from "./cache/cache.js";
 import { describeDatabase, env } from "./config/env.js";
 import { closePool, describeError, ping } from "./db/client.js";
 import { prisma } from "./db/prisma.js";
@@ -12,6 +13,8 @@ import { avatarStorage, minioStorage } from "./infrastructure/storage/minio-stor
 const server = createServer(app);
 
 const io = createRealtimeServer(server);
+
+connectCache();
 
 server.listen(env.PORT, async () => {
   console.log(
@@ -50,6 +53,7 @@ function shutdown(signal: string) {
   // attached to, so it replaces server.close() rather than preceding it —
   // calling both raises ERR_SERVER_NOT_RUNNING.
   io.close(async () => {
+    await disconnectCache();
     // before closePool: Prisma borrows from that pool, so ending it first
     // would pull the connection out from under an in-flight query
     await prisma.$disconnect();

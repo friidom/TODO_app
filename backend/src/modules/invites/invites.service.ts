@@ -1,3 +1,4 @@
+import { invalidateBoard } from "../../cache/keys.js";
 import {
   INVITE_EXPIRY_DEFAULT_DAYS,
   INVITE_EXPIRY_MAX_DAYS,
@@ -132,7 +133,7 @@ export async function accept(
   actor: Actor,
   credential: InviteCredential,
 ): Promise<AcceptResult> {
-  return withActor(actor.id, async (tx) => {
+  const result = await withActor(actor.id, async (tx): Promise<AcceptResult> => {
     const invite = await locate(tx, actor, credential);
 
     // A revoked invite is a deleted row, so a revoked token and one that never
@@ -163,6 +164,12 @@ export async function accept(
 
     return { status: "accepted", board_id: invite.board_id };
   });
+
+  if (result.status === "accepted") {
+    await invalidateBoard(result.board_id, ["members", "activities"]);
+  }
+
+  return result;
 }
 
 export async function decline(actor: Actor, credential: InviteCredential): Promise<void> {

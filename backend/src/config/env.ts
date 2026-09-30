@@ -80,6 +80,14 @@ function timezone(fallback: string) {
     }, "must be an IANA time zone name, such as UTC or Asia/Tashkent");
 }
 
+function isRedisUrl(raw: string): boolean {
+  try {
+    return ["redis:", "rediss:"].includes(new URL(raw).protocol);
+  } catch {
+    return false;
+  }
+}
+
 const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().min(1).max(65535).default(4000),
@@ -96,6 +104,15 @@ const schema = z.object({
   // to anyone holding its url and an attachment never is, so the two must not
   // share a container whose policy could later be widened for one of them.
   MINIO_AVATAR_BUCKET: z.string().min(1).default("todo-avatars"),
+
+  // Optional on purpose: unset, the response cache is off and every read goes
+  // to PostgreSQL. Redis is an optimisation, never something a request needs.
+  REDIS_URL: z
+    .string()
+    .min(1)
+    .refine(isRedisUrl, "expected a URL like redis://localhost:6379")
+    .optional(),
+  CACHE_DEBUG: flag("false"),
 
   JWT_SECRET: z.string().min(32, "must be at least 32 characters — generate one with: openssl rand -base64 48"),
   ACCESS_TOKEN_TTL: duration("15m"),

@@ -1,5 +1,7 @@
 import type { RequestHandler } from "express";
 
+import { sendCached } from "../../cache/cache.js";
+import { boardCache } from "../../cache/keys.js";
 import { requireBoard } from "../../middleware/boardAccess.js";
 import { requireActor } from "../../middleware/requireAuth.js";
 import * as sprintsService from "./sprints.service.js";
@@ -11,7 +13,9 @@ import type {
 } from "./sprints.schema.js";
 
 export const list: RequestHandler = async (req, res) => {
-  res.json(await sprintsService.list(requireBoard(req)));
+  const board = requireBoard(req);
+
+  await sendCached(res, boardCache.sprints(board.id), () => sprintsService.list(board));
 };
 
 export const create: RequestHandler = async (req, res) => {

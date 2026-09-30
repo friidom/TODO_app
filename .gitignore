@@ -32,6 +32,8 @@ backups
 graphify-out
 
 coverage
+load-tests/results/*
+!load-tests/results/.gitkeep
 Thumbs.db
 *.pid
 .playwright-mcp

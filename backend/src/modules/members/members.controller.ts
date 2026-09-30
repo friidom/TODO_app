@@ -1,12 +1,16 @@
 import type { RequestHandler } from "express";
 
+import { sendCached } from "../../cache/cache.js";
+import { boardCache } from "../../cache/keys.js";
 import { requireBoard } from "../../middleware/boardAccess.js";
 import { requireActor } from "../../middleware/requireAuth.js";
 import * as membersService from "./members.service.js";
 import type { AddMemberInput, MemberParams, SetMemberRoleInput } from "./members.schema.js";
 
 export const list: RequestHandler = async (req, res) => {
-  res.json(await membersService.roster(requireBoard(req)));
+  const board = requireBoard(req);
+
+  await sendCached(res, boardCache.members(board.id), () => membersService.roster(board));
 };
 
 export const add: RequestHandler = async (req, res) => {

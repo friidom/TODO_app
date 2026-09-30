@@ -60,6 +60,12 @@ export function update(
     .then((result) => result.count);
 }
 
+export function boardIdsIn(ownerId: string, spaceId: string): Promise<string[]> {
+  return prisma.boards
+    .findMany({ where: { space_id: spaceId, owner_id: ownerId }, select: { id: true } })
+    .then((rows) => rows.map((row) => row.id));
+}
+
 export function remove(ownerId: string, spaceId: string): Promise<number> {
   return prisma.spaces
     .deleteMany({ where: { id: spaceId, owner_id: ownerId } })
