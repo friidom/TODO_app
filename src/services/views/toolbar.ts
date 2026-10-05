@@ -1,12 +1,9 @@
 import { translated } from "@/components/i18n";
+import { FILTER_CATEGORIES } from "@/services/todos/view";
 
 export const TOOLBAR_CONTROL_IDS = [
   "search",
-  "assignee",
-  "status",
-  "priority",
-  "type",
-  "due",
+  "filter",
   "group",
   "sort",
 ] as const;
@@ -15,11 +12,7 @@ export type ToolbarControlId = (typeof TOOLBAR_CONTROL_IDS)[number];
 
 export const TOOLBAR_LABELS = translated<ToolbarControlId>({
   search: "toolbar.search",
-  assignee: "fields.assignee",
-  status: "fields.status",
-  priority: "fields.priority",
-  type: "toolbar.type",
-  due: "toolbar.due",
+  filter: "toolbar.filter",
   group: "toolbar.group",
   sort: "toolbar.sort",
 });
@@ -38,7 +31,12 @@ export function normalizeToolbarControls(
 ): ToolbarControlId[] {
   const order: ToolbarControlId[] = [];
 
-  for (const id of ids) {
+  for (const raw of ids) {
+    // an order saved when each filter was its own chip: the first chip's slot becomes the Filter button's
+    const id = (FILTER_CATEGORIES as readonly unknown[]).includes(raw)
+      ? "filter"
+      : raw;
+
     if (isToolbarControl(id) && !order.includes(id)) order.push(id);
   }
 

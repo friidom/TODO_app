@@ -433,10 +433,9 @@
   },
   "toolbar": {
     "search": "Qidiruv",
-    "type": "Tur",
-    "due": "Muddat",
     "group": "Guruhlash",
-    "sort": "Saralash"
+    "sort": "Saralash",
+    "filter": "Filtr"
   },
   "workType": {
     "task": "Vazifa",
@@ -556,10 +555,15 @@
   },
   "filter": {
     "by": "{{name}} bo'yicha filtrlash",
-    "chip": "{{name}} filtri",
-    "chipSelected": "{{name}} filtri — {{count}} ta tanlangan",
     "search": "{{name}} bo'yicha qidirish",
-    "searchPlaceholder": "{{name}} bo'yicha qidirish…"
+    "searchPlaceholder": "{{name}} bo'yicha qidirish…",
+    "active": "Filtr — {{count}} ta faol",
+    "fields": "Filtr maydonlari",
+    "addField": "Maydon qo'shish",
+    "searchFields": "Maydonlarni qidirish…",
+    "clearAll": "Hammasini tozalash",
+    "clearField": "{{name}} — tozalash",
+    "shownOf": "{{shown}} / {{total}}"
   },
   "list": {
     "collapseAll": "Barcha kichik vazifalarni yig'ish",

@@ -6,6 +6,7 @@ import { useCardPopover } from "@/components/todo/TodoItem/useCardPopover";
 export function useFilterPopover() {
   const { open, mounted, close, triggerProps, panelProps } = useCardPopover({
     placement: "bottom-start",
+    hostsPopovers: true,
   });
 
   const triggerRef = useRef<HTMLButtonElement>(null);

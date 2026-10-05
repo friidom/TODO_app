@@ -67,6 +67,11 @@ export function useCardPopover({
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
 
+      // this listener runs before the nested popover's, so it has to step aside for it to close alone
+      const owner = document.activeElement?.closest("[data-card-popover]");
+
+      if (hostsPopovers && owner && owner !== refs.floating.current) return;
+
       const trigger = refs.reference.current;
 
       if (

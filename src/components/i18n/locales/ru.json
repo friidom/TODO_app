@@ -463,10 +463,9 @@
   },
   "toolbar": {
     "search": "Поиск",
-    "type": "Тип",
-    "due": "Срок",
     "group": "Группировка",
-    "sort": "Сортировка"
+    "sort": "Сортировка",
+    "filter": "Фильтр"
   },
   "workType": {
     "task": "Задача",
@@ -598,10 +597,15 @@
   },
   "filter": {
     "by": "Фильтр: {{name}}",
-    "chip": "Фильтр «{{name}}»",
-    "chipSelected": "Фильтр «{{name}}» — выбрано: {{count}}",
     "search": "Поиск: {{name}}",
-    "searchPlaceholder": "Поиск: {{name}}…"
+    "searchPlaceholder": "Поиск: {{name}}…",
+    "active": "Фильтр — активно: {{count}}",
+    "fields": "Поля фильтра",
+    "addField": "Добавить поле",
+    "searchFields": "Поиск полей…",
+    "clearAll": "Очистить всё",
+    "clearField": "Очистить: {{name}}",
+    "shownOf": "{{shown}} из {{total}}"
   },
   "list": {
     "collapseAll": "Свернуть все подзадачи",

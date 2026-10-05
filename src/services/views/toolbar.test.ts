@@ -22,13 +22,15 @@ describe("the registry", () => {
     }
   });
 
-  it("has a chip for every filter category", () => {
+  it("puts every filter field behind the one Filter button", () => {
     for (const category of FILTER_CATEGORIES) {
-      expect(isToolbarControl(category)).toBe(true);
+      expect(isToolbarControl(category)).toBe(false);
     }
+
+    expect(isToolbarControl("filter")).toBe(true);
   });
 
-  it("opens on the order search, filters, then group and sort", () => {
+  it("opens on the order search, filter, then group and sort", () => {
     expect(TOOLBAR_CONTROL_IDS[0]).toBe("search");
     expect(TOOLBAR_CONTROL_IDS.slice(-2)).toEqual(["group", "sort"]);
     expect(isDefaultToolbarControls([...TOOLBAR_CONTROL_IDS])).toBe(true);
@@ -37,8 +39,8 @@ describe("the registry", () => {
 
 describe("isToolbarControl", () => {
   it("accepts only the declared ids", () => {
-    expect(isToolbarControl("assignee")).toBe(true);
-    expect(isToolbarControl("filter")).toBe(false);
+    expect(isToolbarControl("filter")).toBe(true);
+    expect(isToolbarControl("assignee")).toBe(false);
     expect(isToolbarControl(3)).toBe(false);
     expect(isToolbarControl(null)).toBe(false);
   });
@@ -46,31 +48,22 @@ describe("isToolbarControl", () => {
 
 describe("normalizeToolbarControls", () => {
   it("keeps a complete order as it is", () => {
-    const order: ToolbarControlId[] = [
-      "sort",
-      "group",
-      "due",
-      "type",
-      "priority",
-      "status",
-      "assignee",
-      "search",
-    ];
+    const order: ToolbarControlId[] = ["sort", "group", "filter", "search"];
 
     expect(normalizeToolbarControls(order)).toEqual(order);
   });
 
   it("drops unknown ids and duplicates", () => {
     const order = normalizeToolbarControls([
-      "filter",
-      "status",
+      "bogus",
+      "group",
       "search",
-      "status",
+      "group",
       7,
       null,
     ]);
 
-    expect(order.slice(0, 2)).toEqual(["status", "search"]);
+    expect(order.slice(0, 2)).toEqual(["group", "search"]);
     expect(new Set(order).size).toBe(order.length);
   });
 
@@ -78,13 +71,24 @@ describe("normalizeToolbarControls", () => {
     expect(normalizeToolbarControls(["sort", "search"])).toEqual([
       "sort",
       "search",
-      "assignee",
-      "status",
-      "priority",
-      "type",
-      "due",
+      "filter",
       "group",
     ]);
+  });
+
+  it("puts Filter where the first filter chip of an old order was", () => {
+    expect(
+      normalizeToolbarControls([
+        "sort",
+        "due",
+        "search",
+        "assignee",
+        "group",
+        "status",
+        "type",
+        "priority",
+      ]),
+    ).toEqual(["sort", "filter", "search", "group"]);
   });
 });
 
@@ -92,18 +96,14 @@ describe("moving a control", () => {
   it("is reorder over the stored order, so a hidden control keeps its slot", () => {
     // group and sort are not rendered on Summary, so the drop is named against
     // a visible neighbour and the two hidden ids stay where they were
-    const order = reorder([...TOOLBAR_CONTROL_IDS], "search", "due", "after");
-
-    expect(order).toEqual([
-      "assignee",
-      "status",
-      "priority",
-      "type",
-      "due",
+    const order = reorder(
+      [...TOOLBAR_CONTROL_IDS],
       "search",
-      "group",
-      "sort",
-    ]);
+      "filter",
+      "after",
+    );
+
+    expect(order).toEqual(["filter", "search", "group", "sort"]);
   });
 });
 
@@ -167,17 +167,28 @@ describe("storage", () => {
   });
 
   it("repairs an entry written before a control existed", () => {
-    store["toolbar:controls"] = JSON.stringify(["due", "filter", "search"]);
+    store["toolbar:controls"] = JSON.stringify(["sort", "bogus", "search"]);
 
     expect(readToolbarControls()).toEqual([
-      "due",
+      "sort",
+      "search",
+      "filter",
+      "group",
+    ]);
+  });
+
+  it("reads an entry written while filters were separate chips", () => {
+    store["toolbar:controls"] = JSON.stringify([
       "search",
       "assignee",
       "status",
       "priority",
       "type",
+      "due",
       "group",
       "sort",
     ]);
+
+    expect(readToolbarControls()).toEqual([...TOOLBAR_CONTROL_IDS]);
   });
 });

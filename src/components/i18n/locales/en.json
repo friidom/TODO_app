@@ -433,10 +433,9 @@
   },
   "toolbar": {
     "search": "Search",
-    "type": "Type",
-    "due": "Due",
     "group": "Group",
-    "sort": "Sort"
+    "sort": "Sort",
+    "filter": "Filter"
   },
   "workType": {
     "task": "Task",
@@ -556,10 +555,15 @@
   },
   "filter": {
     "by": "Filter by {{name}}",
-    "chip": "{{name}} filter",
-    "chipSelected": "{{name}} filter — {{count}} selected",
     "search": "Search {{name}}",
-    "searchPlaceholder": "Search {{name}}…"
+    "searchPlaceholder": "Search {{name}}…",
+    "active": "Filter — {{count}} active",
+    "fields": "Filter fields",
+    "addField": "Add field",
+    "searchFields": "Search fields…",
+    "clearAll": "Clear all",
+    "clearField": "Clear {{name}}",
+    "shownOf": "{{shown}} of {{total}}"
   },
   "list": {
     "collapseAll": "Collapse all subtasks",

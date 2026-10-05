@@ -70,10 +70,10 @@ export function filterOptions(
 }
 
 // returns the same array reference when the query is empty, matching filterTodos/searchTodos's convention
-export function matchOptions(
-  options: FilterOption[],
+export function matchOptions<T extends FilterOption>(
+  options: T[],
   query: string,
-): FilterOption[] {
+): T[] {
   const needle = query.trim().replace(/\s+/g, " ").toLowerCase();
 
   if (!needle) return options;

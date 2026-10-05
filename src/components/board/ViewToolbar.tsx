@@ -1,11 +1,10 @@
-import { useTranslation } from "react-i18next";
 import { Fragment, type ReactNode } from "react";
 
 import BoardActions from "@/components/board/BoardActions";
 import BoardGroup from "@/components/board/BoardGroup";
 import BoardSearch from "@/components/board/BoardSearch";
 import BoardSort from "@/components/board/BoardSort";
-import FilterChip from "@/components/board/FilterChip";
+import FilterPopover from "@/components/board/FilterPopover";
 import SprintControls from "@/components/board/SprintControls";
 import ViewOptions from "@/components/board/ViewOptions";
 import DropLine, { DragChip } from "@/components/dnd/DropLine";
@@ -30,7 +29,6 @@ const GROUP = "toolbar";
 // group/sort are gated per view in the registry — Summary can't do either, a chart of counts has no order.
 // The List keeps its column picker in its own header and its Create in its own footer, as Jira does, so neither is here.
 export default function ViewToolbar({ view }: { view: BoardView }) {
-  const { t } = useTranslation();
   const { canGroup, canSort } = capabilitiesOf(view.mode);
 
   const order = useToolbarControls((state) => state.order);
@@ -47,7 +45,7 @@ export default function ViewToolbar({ view }: { view: BoardView }) {
       case "group":
         return (
           canGroup && (
-            <Slot id={id} className="hidden @5xl:flex">
+            <Slot id={id} className="hidden @4xl:flex">
               <BoardGroup view={view} />
             </Slot>
           )
@@ -55,19 +53,15 @@ export default function ViewToolbar({ view }: { view: BoardView }) {
       case "sort":
         return (
           canSort && (
-            <Slot id={id} className="hidden @5xl:flex">
+            <Slot id={id} className="hidden @4xl:flex">
               <BoardSort view={view} />
             </Slot>
           )
         );
-      default:
+      case "filter":
         return (
           <Slot id={id}>
-            <FilterChip
-              view={view}
-              category={id}
-              collapse="hidden @6xl:inline"
-            />
+            <FilterPopover view={view} collapse="hidden @xl:inline" />
           </Slot>
         );
     }
@@ -105,18 +99,8 @@ export default function ViewToolbar({ view }: { view: BoardView }) {
           ))}
         </ReorderContext>
 
-        {view.filterCount > 0 && (
-          <button
-            type="button"
-            onClick={view.clearFilters}
-            className="text-ink-3 hover:text-ink focus-visible:ring-brand shrink-0 rounded px-1 text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-2"
-          >
-            {t("view.clearFilters")}
-          </button>
-        )}
-
         {(canGroup || canSort) && (
-          <ViewOptions view={view} className="@5xl:hidden" />
+          <ViewOptions view={view} className="@4xl:hidden" />
         )}
 
         <div className="ml-auto flex min-w-0 items-center gap-2 @max-md:gap-1.5">
