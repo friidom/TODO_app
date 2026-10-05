@@ -72,11 +72,36 @@ export function findOne(boardId: string): Promise<BoardRow | null> {
   return prisma.boards.findUnique({ where: { id: boardId }, select: BOARD_FIELDS });
 }
 
+// Held until the transaction ends, so two board creations cannot both find the
+// same key free. board_keys_pkey is still the guarantee for writers that skip
+// this, such as the seed scripts.
+export async function lockBoardKeys(tx: Prisma.TransactionClient): Promise<void> {
+  await tx.$executeRaw`select pg_advisory_xact_lock(hashtext('board_keys'))`;
+}
+
+// board_keys rather than boards.key_prefix: a key another board used to hold,
+// or a deleted board's, is taken too.
+export async function boardKeyTaken(tx: Prisma.TransactionClient, key: string): Promise<boolean> {
+  return (await tx.board_keys.count({ where: { key } })) > 0;
+}
+
+// Current and former keys alike. A deleted board's key is still a row, with
+// board_id null, so it resolves to nothing rather than to whoever asks next.
+export async function boardForKey(key: string): Promise<{ id: string; key_prefix: string } | null> {
+  const row = await prisma.board_keys.findUnique({
+    where: { key },
+    select: { boards: { select: { id: true, key_prefix: true } } },
+  });
+
+  return row?.boards ?? null;
+}
+
 export interface BoardInsert {
   id: string;
   ownerId: string;
   title: string;
   spaceId: string | null;
+  keyPrefix: string;
 }
 
 export function insert(tx: Prisma.TransactionClient, board: BoardInsert): Promise<BoardRow> {
@@ -86,6 +111,7 @@ export function insert(tx: Prisma.TransactionClient, board: BoardInsert): Promis
       owner_id: board.ownerId,
       title: board.title,
       space_id: board.spaceId,
+      key_prefix: board.keyPrefix,
     },
     select: BOARD_FIELDS,
   });
@@ -94,7 +120,7 @@ export function insert(tx: Prisma.TransactionClient, board: BoardInsert): Promis
 export type ViewTabEntry = { mode: string; label: string | null; hidden: boolean };
 
 // Fields are named rather than spread: a patch object reaching Prisma intact
-// would let a caller set owner_id, next_key or key_prefix.
+// would let a caller set owner_id or next_key.
 export interface BoardPatch {
   title?: string | null;
   description?: string | null;
@@ -102,6 +128,7 @@ export interface BoardPatch {
   cover_color?: string | null;
   visibility?: "private" | "team";
   space_id?: string | null;
+  key_prefix?: string;
   sprints_enabled?: boolean;
   workflow_enabled?: boolean;
   view_tabs?: ViewTabEntry[] | null;
@@ -121,6 +148,7 @@ export function update(
       ...(patch.cover_color !== undefined && { cover_color: patch.cover_color }),
       ...(patch.visibility !== undefined && { visibility: patch.visibility }),
       ...(patch.space_id !== undefined && { space_id: patch.space_id }),
+      ...(patch.key_prefix !== undefined && { key_prefix: patch.key_prefix }),
       ...(patch.sprints_enabled !== undefined && {
         sprints_enabled: patch.sprints_enabled,
       }),

@@ -2,7 +2,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createBoard } from "./boardsApi";
 import type { IBoard } from "@/types/data";
 import { queryKeys } from "@/services/queryClient/queryKeys";
-import { DEFAULT_KEY_PREFIX } from "@/utils/taskKey";
 
 export function useCreateBoard() {
   const queryClient = useQueryClient();
@@ -40,7 +39,7 @@ export function useCreateBoard() {
         sprints_enabled: true,
         workflow_enabled: true,
         next_key: 1,
-        key_prefix: DEFAULT_KEY_PREFIX,
+        key_prefix: "",
         space_id: spaceId,
         created_at: now,
         updated_at: now,

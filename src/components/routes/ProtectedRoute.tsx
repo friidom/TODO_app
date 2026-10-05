@@ -1,7 +1,8 @@
-import { Navigate, Outlet } from "react-router";
+import { Navigate, Outlet, useLocation } from "react-router";
 import OAuthLinkCompleter from "@/components/auth/OAuthLinkCompleter";
 import { useAuth } from "@/services/auth/useAuth";
 import type { AuthUser } from "@/services/auth/session";
+import { loginPath } from "@/utils/nextPath";
 import Loading from "../loading/LoadingPage";
 
 function isConfirmed(user: AuthUser) {
@@ -12,11 +13,12 @@ function isConfirmed(user: AuthUser) {
 // unverified account when verification is required.
 export default function ProtectedRoute() {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) return <Loading />;
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={loginPath(location)} replace />;
   }
 
   if (!isConfirmed(user)) {

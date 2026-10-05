@@ -9,3 +9,17 @@ export function safeNext(raw: string | null | undefined): string | null {
 
   return raw;
 }
+
+export function loginPath({
+  pathname,
+  search,
+}: {
+  pathname: string;
+  search: string;
+}): string {
+  const next = safeNext(pathname + search);
+
+  return next === null || next === "/"
+    ? "/login"
+    : `/login?next=${encodeURIComponent(next)}`;
+}

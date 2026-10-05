@@ -87,6 +87,13 @@ export async function findOne(boardId: string, todoId: string): Promise<TodoDeta
   return row === null ? null : toRow(row);
 }
 
+export function findByBoardNumber(boardId: string, number: number): Promise<{ id: string } | null> {
+  return prisma.todos.findUnique({
+    where: { board_id_board_key: { board_id: boardId, board_key: number } },
+    select: { id: true },
+  });
+}
+
 // The status the card is in now, for the workflow check. findOne would read the
 // whole detail projection, relations included, to answer one field.
 export function statusOf(

@@ -27,6 +27,10 @@ export async function resetDatabase(): Promise<void> {
   await prisma.boards.deleteMany({});
   await prisma.spaces.deleteMany({});
 
+  // A deleted board's keys stay behind on purpose (0031), so the board delete
+  // above leaves every one of them reserved.
+  await prisma.board_keys.deleteMany({});
+
   await prisma.users.deleteMany({});
 
   // admin_audit_log carries no foreign key to profiles -- deliberately, since

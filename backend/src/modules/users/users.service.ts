@@ -16,6 +16,7 @@ import {
 } from "./users.avatar.js";
 import { suffixedUsername, usernameBase } from "../../lib/username.js";
 import * as boardsRepo from "../boards/boards.repo.js";
+import { allocateBoardKey } from "../boards/boards.service.js";
 import * as workflowRepo from "../workflow/workflow.repo.js";
 import * as usersRepo from "./users.repo.js";
 import type { UpdateProfileInput } from "./users.schema.js";
@@ -64,6 +65,7 @@ export async function provisionUser(
     ownerId: user.id,
     title: DEFAULT_BOARD_TITLE,
     spaceId,
+    keyPrefix: await allocateBoardKey(tx, DEFAULT_BOARD_TITLE),
   });
 
   await workflowRepo.insertDefaultWorkflow(tx, board.id);

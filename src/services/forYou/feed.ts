@@ -1,6 +1,6 @@
 import { translated } from "@/components/i18n";
 import type { IBoard, Todo } from "@/types/data";
-import { DEFAULT_KEY_PREFIX, taskKey } from "@/utils/taskKey";
+import { taskKey } from "@/utils/taskKey";
 
 export interface FeedItem {
   todo: Todo;
@@ -53,7 +53,7 @@ export function toFeedItems(
       todo,
       at,
       boardName: board.title,
-      key: taskKey(board.key_prefix ?? DEFAULT_KEY_PREFIX, todo.board_key),
+      key: taskKey(board.key_prefix, todo.board_key),
     });
   }
 

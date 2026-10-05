@@ -83,7 +83,7 @@ async function part1_sqlStateMapping() {
 
   expect(
     "foreign key violation (board with no such owner)",
-    await captureError((tx) => tx.boards.create({ data: { owner_id: uuid(9), title: "x" } })),
+    await captureError((tx) => tx.boards.create({ data: { owner_id: uuid(9), title: "x", key_prefix: "PROBEERR1" } })),
     "conflict",
     409,
   );
@@ -127,7 +127,7 @@ async function part1_sqlStateMapping() {
       await tx.users.create({ data: { id: uuid(4), email: "owner@example.test", password_hash: "h" } });
       await tx.profiles.create({ data: { id: uuid(4), username: "probe_owner_errs" } });
 
-      const board = await tx.boards.create({ data: { owner_id: uuid(4), title: "probe" } });
+      const board = await tx.boards.create({ data: { owner_id: uuid(4), title: "probe", key_prefix: "PROBEERR2" } });
 
       await tx.board_members.delete({
         where: { board_id_user_id: { board_id: board.id, user_id: uuid(4) } },

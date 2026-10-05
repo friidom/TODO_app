@@ -59,10 +59,15 @@ export function insertSpace(
 
 export function insertBoard(
   tx: Prisma.TransactionClient,
-  board: { ownerId: string; title: string; spaceId: string },
+  board: { ownerId: string; title: string; spaceId: string; keyPrefix: string },
 ): Promise<{ id: string }> {
   return tx.boards.create({
-    data: { owner_id: board.ownerId, title: board.title, space_id: board.spaceId },
+    data: {
+      owner_id: board.ownerId,
+      title: board.title,
+      space_id: board.spaceId,
+      key_prefix: board.keyPrefix,
+    },
     select: { id: true },
   });
 }

@@ -323,6 +323,11 @@
     "reload": "Reload",
     "unknown": "Unknown error"
   },
+  "taskRef": {
+    "notFoundTitle": "Task not found",
+    "notFound": "This task does not exist, or you don't have access to it.",
+    "home": "Go home"
+  },
   "filters": {
     "myOpen": "My open work",
     "reportedByMe": "Reported by me",
@@ -1196,7 +1201,14 @@
     "forbiddenHint": "Board settings are open to admins and the board's owner.",
     "backToBoard": "Back to board",
     "key": "Board key",
-    "keyHint": "Used to label every card on this board. It can't be changed once cards exist.",
+    "keyHint": "Used as the prefix for task IDs, for example {{example}}-123.",
+    "keyWarning": "Changing the board key may affect existing task references and external integrations.",
+    "keyError": {
+      "required": "Enter a board key.",
+      "shape": "Board key must contain only letters and numbers and start with a letter.",
+      "tooShort": "Board key must be at least {{count}} characters.",
+      "tooLong": "Board key must be at most {{count}} characters."
+    },
     "planning": "Planning",
     "sprints": "Sprints",
     "sprintsHint": "Plan work in fixed time periods. The board then shows the running sprint's work, and the Backlog is where you plan it.",
@@ -1251,7 +1263,8 @@
       "too_many_requests": "Too many attempts. Try again later.",
       "internal": "The server ran into a problem. Please try again.",
       "unknown": "Something went wrong. Please try again."
-    }
+    },
+    "boardKeyTaken": "Board key {{key}} is already in use."
   },
   "adminActions": {
     "created": "Created",

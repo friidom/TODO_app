@@ -1,0 +1,25 @@
+{
+  "minLength": 2,
+  "maxLength": 10,
+  "valid": [
+    { "input": "API", "expected": "API" },
+    { "input": "MNH", "expected": "MNH" },
+    { "input": "CORE", "expected": "CORE" },
+    { "input": "WEB2", "expected": "WEB2" },
+    { "input": "  hob  ", "expected": "HOB" },
+    { "input": "ab", "expected": "AB" },
+    { "input": "ABCDEFGHIJ", "expected": "ABCDEFGHIJ" }
+  ],
+  "invalid": [
+    { "input": "", "error": "required" },
+    { "input": "   ", "error": "required" },
+    { "input": "A", "error": "tooShort" },
+    { "input": "ABCDEFGHIJK", "error": "tooLong" },
+    { "input": "my hobbies", "error": "shape" },
+    { "input": "MY-HOBBIES", "error": "shape" },
+    { "input": "hello world", "error": "shape" },
+    { "input": "@#$", "error": "shape" },
+    { "input": "2FA", "error": "shape" },
+    { "input": "МНХ", "error": "shape" }
+  ]
+}

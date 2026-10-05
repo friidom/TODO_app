@@ -15,6 +15,7 @@ import {
 } from "../modules/invites/invites.routes.js";
 import { membersRoutes } from "../modules/members/members.routes.js";
 import { boardSprintsRoutes, sprintsRoutes } from "../modules/sprints/sprints.routes.js";
+import { taskRefsRoutes } from "../modules/taskRefs/taskRefs.routes.js";
 import { boardTodosRoutes, todosRoutes } from "../modules/todos/todos.routes.js";
 import { boardWorkflowRoutes } from "../modules/workflow/workflow.routes.js";
 import { spacesRoutes } from "../modules/spaces/spaces.routes.js";
@@ -41,6 +42,7 @@ apiRouter.use("/spaces", spacesRoutes);
 apiRouter.use("/invites", invitesRoutes);
 apiRouter.use("/columns", columnsRoutes);
 apiRouter.use("/todos", todosRoutes);
+apiRouter.use("/task-refs", taskRefsRoutes);
 apiRouter.use("/sprints", sprintsRoutes);
 apiRouter.use("/comments", commentsRoutes);
 apiRouter.use("/notifications", notificationsRoutes);

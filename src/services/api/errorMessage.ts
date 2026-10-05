@@ -65,6 +65,8 @@ const KNOWN: Record<string, string> = {
 const NO_TRANSITION =
   /^The workflow has no transition from "(.*)" to "(.*)"\.$/;
 
+const BOARD_KEY_TAKEN = /^Board key (.*) is already in use\.$/;
+
 export function localizeApiMessage(code: string, message: string): string {
   const key = KNOWN[message];
 
@@ -78,6 +80,10 @@ export function localizeApiMessage(code: string, message: string): string {
       to: transition[2],
     });
   }
+
+  const keyTaken = BOARD_KEY_TAKEN.exec(message);
+
+  if (keyTaken) return i18n.t("apiErrors.boardKeyTaken", { key: keyTaken[1] });
 
   if (i18n.language.startsWith("en")) return message;
 

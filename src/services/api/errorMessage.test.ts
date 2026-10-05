@@ -25,6 +25,14 @@ describe("localizeApiMessage", () => {
     ).toBe("В рабочем процессе нет перехода из «To Do» в «Done».");
   });
 
+  it("keeps the key inside a taken board key", async () => {
+    await i18n.changeLanguage("ru");
+
+    expect(
+      localizeApiMessage("conflict", "Board key MNH is already in use."),
+    ).toBe("Ключ доски MNH уже используется.");
+  });
+
   it("keeps the server's text in English", () => {
     expect(localizeApiMessage("bad_request", "title: Required")).toBe(
       "title: Required",

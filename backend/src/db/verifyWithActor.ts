@@ -117,7 +117,9 @@ async function part2_realTriggersStampTheActor() {
       //    app.actor_id. Nothing in this script writes to `activities` directly.
       await tx.$executeRaw`select set_config('app.actor_id', ${owner}, true)`;
 
-      const board = await tx.boards.create({ data: { owner_id: owner, title: "withActor probe board" } });
+      const board = await tx.boards.create({
+        data: { owner_id: owner, title: "withActor probe board", key_prefix: "PROBEACT1" },
+      });
 
       const ownerJoin = await tx.activities.findFirst({
         where: { board_id: board.id, entity_type: "member", action: "added", entity_id: owner },
@@ -201,7 +203,9 @@ async function part3_boardDeletion() {
       });
       await tx.profiles.create({ data: { id: member, username: `probe_delm_${member.slice(0, 8)}` } });
 
-      const board = await tx.boards.create({ data: { owner_id: owner, title: "deletion probe" } });
+      const board = await tx.boards.create({
+        data: { owner_id: owner, title: "deletion probe", key_prefix: "PROBEACT2" },
+      });
 
       await tx.board_members.create({ data: { board_id: board.id, user_id: member, role: "editor" } });
 

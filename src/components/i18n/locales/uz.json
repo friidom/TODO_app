@@ -323,6 +323,11 @@
     "reload": "Qayta yuklash",
     "unknown": "Noma'lum xato"
   },
+  "taskRef": {
+    "notFoundTitle": "Vazifa topilmadi",
+    "notFound": "Bunday vazifa mavjud emas yoki unga kirish huquqingiz yo'q.",
+    "home": "Bosh sahifaga"
+  },
   "filters": {
     "myOpen": "Mening ochiq ishlarim",
     "reportedByMe": "Men yaratganlar",
@@ -1196,7 +1201,14 @@
     "forbiddenHint": "Doska sozlamalari administratorlar va doska egasi uchun ochiq.",
     "backToBoard": "Doskaga qaytish",
     "key": "Doska kaliti",
-    "keyHint": "Bu doskadagi har bir kartani belgilash uchun ishlatiladi. Kartalar paydo bo'lgandan keyin uni o'zgartirib bo'lmaydi.",
+    "keyHint": "Vazifa ID'lari uchun prefiks sifatida ishlatiladi, masalan {{example}}-123.",
+    "keyWarning": "Doska kalitini o'zgartirish mavjud vazifa havolalari va tashqi integratsiyalarga ta'sir qilishi mumkin.",
+    "keyError": {
+      "required": "Doska kalitini kiriting.",
+      "shape": "Doska kaliti faqat lotin harflari va raqamlardan iborat bo'lishi va harf bilan boshlanishi kerak.",
+      "tooShort": "Doska kaliti kamida {{count}} belgidan iborat bo'lishi kerak.",
+      "tooLong": "Doska kaliti ko'pi bilan {{count}} belgidan iborat bo'lishi kerak."
+    },
     "planning": "Rejalashtirish",
     "sprints": "Sprintlar",
     "sprintsHint": "Ishlarni belgilangan vaqt oraliqlarida rejalashtiring. Shunda doska joriy sprint ishlarini ko'rsatadi, Backlog esa ularni rejalashtiradigan joy bo'ladi.",
@@ -1251,7 +1263,8 @@
       "too_many_requests": "Urinishlar juda ko'p. Keyinroq qayta urinib ko'ring.",
       "internal": "Serverda muammo yuz berdi. Qayta urinib ko'ring.",
       "unknown": "Nimadir xato ketdi. Qayta urinib ko'ring."
-    }
+    },
+    "boardKeyTaken": "{{key}} doska kaliti allaqachon band."
   },
   "adminActions": {
     "created": "Yaratildi",

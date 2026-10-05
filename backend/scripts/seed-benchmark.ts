@@ -68,9 +68,12 @@ async function main(): Promise<void> {
 
   await run("boards + columns + statuses + members", `
     insert into boards (id, owner_id, title, next_key, key_prefix)
-    select gen_random_uuid(), pool.ids[1 + (i % array_length(pool.ids, 1))], 'Bench board ' || i, 1, 'KAN'
+    select gen_random_uuid(), pool.ids[1 + (i % array_length(pool.ids, 1))], 'Bench board ' || i, 1, 'BB' || i
       from generate_series(1, ${BOARDS}) i
       cross join (select array_agg(id order by id) as ids from users) pool;
+
+    insert into board_keys (key, board_id)
+    select key_prefix, id from boards;
 
     insert into columns (id, board_id, title, position, rank)
     select gen_random_uuid(),

@@ -172,8 +172,8 @@ describe("the task metadata", () => {
     expect(body.todo.lead_days).toBeNull();
   });
 
-  // KAN is only the DEFAULT. AdminActivityPage hardcoded it, which renders the
-  // wrong key on any board whose prefix was changed.
+  // AdminActivityPage once hardcoded KAN, which renders the wrong key on every
+  // board, since each now has its own.
   it("uses the board's own key prefix rather than assuming KAN", async () => {
     await prisma.boards.update({ where: { id: boardId }, data: { key_prefix: "OPS" } });
 

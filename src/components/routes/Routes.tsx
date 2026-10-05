@@ -31,6 +31,7 @@ import {
   ProfilePage,
   RegisterPage,
   ResetPasswordPage,
+  TaskRefPage,
 } from "./lazyPages";
 
 // login/ForYou stay eager since they're the first paint; error pages stay eager since a failed lazy import inside one is a dead end
@@ -76,6 +77,10 @@ export const router = createBrowserRouter([
       {
         path: "/filters/:filterId",
         element: deferred(<FilterPage />),
+      },
+      {
+        path: "/tasks/:ref",
+        element: deferred(<TaskRefPage />),
       },
       {
         path: "/profile",

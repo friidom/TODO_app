@@ -47,6 +47,8 @@ export const queryKeys = {
 
   todo: (todoId: string | undefined) => ["todo", todoId] as const,
 
+  taskRef: (ref: string | undefined) => ["task-ref", ref] as const,
+
   comments: (todoId: string | undefined) => [...COMMENT_ROOT, todoId] as const,
 
   // A realtime DELETE payload is only the primary key, so the thread it belonged to must be found via this prefix.
@@ -90,7 +92,8 @@ export const queryKeys = {
   // once rather than each hook remembering its siblings.
   admin: () => ADMIN_ROOT,
 
-  adminOverview: (period: string) => [...ADMIN_ROOT, "overview", period] as const,
+  adminOverview: (period: string) =>
+    [...ADMIN_ROOT, "overview", period] as const,
 
   adminUsers: (query: string) => [...ADMIN_ROOT, "users", query] as const,
 
@@ -109,7 +112,8 @@ export const queryKeys = {
   // equal filters must be one cache entry, and an object literal is a new
   // identity on every render.
   adminFlow: (query: string) => [...ADMIN_ROOT, "flow", query] as const,
-  adminTodo: (todoId: string | undefined) => [...ADMIN_ROOT, "todo", todoId] as const,
+  adminTodo: (todoId: string | undefined) =>
+    [...ADMIN_ROOT, "todo", todoId] as const,
 
   adminActivityAll: () => [...ADMIN_ROOT, "activity"] as const,
   adminActivity: (query: string) => [...ADMIN_ROOT, "activity", query] as const,

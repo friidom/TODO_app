@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import "dotenv/config";
 import { Client } from "pg";
 
+import { boardKeyBase, suffixedBoardKey } from "../src/lib/boardKey.js";
 import { hashPassword } from "../src/lib/password.js";
 
 // Development-only demo data. It writes through the real schema -- same
@@ -320,6 +321,12 @@ async function main(): Promise<void> {
 
     const args = [`%@${DEMO_DOMAIN}`, DEMO_SUPERADMIN];
 
+    // A deleted board's keys are kept reserved (0031); without this a second
+    // run would find CA taken by the first run's tombstone and seed CA2.
+    await client.query(
+      `delete from board_keys where board_id in (select id from boards where owner_id in ${demo})`,
+      args,
+    );
     await client.query(`delete from boards where owner_id in ${demo}`, args);
     await client.query(`delete from spaces where owner_id in ${demo}`, args);
 
@@ -380,16 +387,36 @@ async function main(): Promise<void> {
     let commentRows = 0;
     let activityRows = 0;
 
+    const takenKeys = new Set(
+      (await client.query<{ key: string }>(`select key from board_keys`)).rows.map((row) => row.key),
+    );
+
     for (const board of BOARDS) {
       const boardId = randomUUID();
       const owner = spaceOwners.get(board.space)!;
       const created = at(between(240, 340), now);
 
+      const base = boardKeyBase(board.title);
+      let keyPrefix = base;
+
+      for (let suffix = 2; takenKeys.has(keyPrefix); suffix += 1) {
+        keyPrefix = suffixedBoardKey(base, suffix);
+      }
+
+      takenKeys.add(keyPrefix);
+
       await client.query(
         `insert into boards (id, owner_id, space_id, title, description, next_key, key_prefix, visibility, created_at, updated_at)
-         values ($1, $2, $3, $4, $5, 1, 'KAN', 'private', $6, $6)`,
-        [boardId, owner.id, spaceIds.get(board.space), board.title, `Work for ${board.title}.`, created],
+         values ($1, $2, $3, $4, $5, 1, $7, 'private', $6, $6)`,
+        [boardId, owner.id, spaceIds.get(board.space), board.title, `Work for ${board.title}.`, created, keyPrefix],
       );
+
+      // boards_reserve_key is off with the other triggers.
+      await client.query(`insert into board_keys (key, board_id, created_at) values ($1, $2, $3)`, [
+        keyPrefix,
+        boardId,
+        created,
+      ]);
 
       const members = shuffled(people).slice(0, between(5, 11));
 

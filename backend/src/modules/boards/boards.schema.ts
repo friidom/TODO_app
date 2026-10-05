@@ -1,6 +1,17 @@
 import { z } from "zod";
 
+import { BOARD_KEY_MESSAGES, boardKeyError, normalizeBoardKey } from "../../lib/boardKey.js";
+
 const title = z.string().trim().min(1).max(120);
+
+const boardKey = z
+  .string()
+  .superRefine((value, ctx) => {
+    const error = boardKeyError(value);
+
+    if (error) ctx.addIssue({ code: "custom", message: BOARD_KEY_MESSAGES[error] });
+  })
+  .transform(normalizeBoardKey);
 const optionalText = (max: number) => z.string().trim().max(max).nullable().optional();
 
 // The client mints board ids so the optimistic row and the stored row are the
@@ -26,8 +37,9 @@ const viewTabs = z
     message: "each view may appear once",
   });
 
-// owner_id, next_key and key_prefix are absent on purpose. Unknown keys are
-// stripped by Zod, so naming only these is what makes them unsettable.
+// owner_id and next_key are absent on purpose. Unknown keys are stripped by
+// Zod, so naming only these is what makes them unsettable. createBoardSchema
+// has no key_prefix either: a new board's key is derived from its title.
 export const updateBoardSchema = z
   .object({
     title: title.nullable().optional(),
@@ -36,6 +48,7 @@ export const updateBoardSchema = z
     cover_color: optionalText(60),
     visibility: z.enum(["private", "team"]).optional(),
     space_id: z.uuid().nullable().optional(),
+    key_prefix: boardKey.optional(),
     // Board Settings > Features. Optional like everything else here, so a
     // toggle does not resend the name and a rename does not resend the toggles.
     sprints_enabled: z.boolean().optional(),

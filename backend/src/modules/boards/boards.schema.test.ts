@@ -72,3 +72,24 @@ describe("updateBoardSchema view_tabs", () => {
     expect(parse({ mode: "list" }).success).toBe(false);
   });
 });
+
+describe("updateBoardSchema key_prefix", () => {
+  it("normalizes to the stored form", () => {
+    expect(updateBoardSchema.parse({ key_prefix: "  hob " })).toEqual({ key_prefix: "HOB" });
+  });
+
+  it.each(["", "my hobbies", "MY-HOBBIES", "@#$", "2FA", "A", "ABCDEFGHIJK"])(
+    "refuses %j",
+    (key_prefix) => {
+      expect(updateBoardSchema.safeParse({ key_prefix }).success).toBe(false);
+    },
+  );
+
+  it("names the rule in the message", () => {
+    const result = updateBoardSchema.safeParse({ key_prefix: "hello world" });
+
+    expect(result.error?.issues[0]?.message).toBe(
+      "Board key must contain only letters and numbers and start with a letter.",
+    );
+  });
+});

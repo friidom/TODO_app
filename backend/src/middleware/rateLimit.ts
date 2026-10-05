@@ -61,6 +61,14 @@ export const usernameAvailableLimiter = limiter({ windowMs: 5 * MINUTE, limit: 6
 
 export const refreshLimiter = limiter({ windowMs: 15 * MINUTE, limit: 120 });
 
+// Keyed by account, so it must run after requireAuth. An IP key would be one
+// bucket for every user behind nginx (see the OAuth limiters below).
+export const taskRefLimiter = limiter({
+  windowMs: MINUTE,
+  limit: 120,
+  keyGenerator: (req: Request) => req.actor?.id ?? "anonymous",
+});
+
 // ALL THREE ARE ONE GLOBAL BUCKET behind nginx, because `trust proxy` is unset
 // (B12-03) and every proxied request presents the same container IP. The limits
 // are therefore sized as "absurd for a whole deployment" rather than "generous

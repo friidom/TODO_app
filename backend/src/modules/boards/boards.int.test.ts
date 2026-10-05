@@ -143,7 +143,7 @@ describe("POST /boards", () => {
     );
 
     expect(response.body.next_key).toBe(1);
-    expect(response.body.key_prefix).toBe("KAN");
+    expect(response.body.key_prefix).toBe("FOR");
   });
 
   it("writes exactly one owner membership, from the trigger and not the service", async () => {
@@ -369,19 +369,18 @@ describe("PATCH /boards/:boardId", () => {
     expect(response.status).toBe(404);
   });
 
-  it("IGNORES owner_id, next_key and key_prefix in the patch", async () => {
+  it("IGNORES owner_id and next_key in the patch", async () => {
     const [alice, mallory] = [await makeUser("alice"), await makeUser("mallory")];
 
     const response = await client.patch<Board>(
       `/api/v1/boards/${alice.boardId}`,
-      { title: "Still mine", owner_id: mallory.id, next_key: 500, key_prefix: "ZZZ" },
+      { title: "Still mine", owner_id: mallory.id, next_key: 500 },
       { token: alice.token },
     );
 
     expect(response.status).toBe(200);
     expect(response.body.owner_id).toBe(alice.id);
     expect(response.body.next_key).toBe(1);
-    expect(response.body.key_prefix).toBe("KAN");
   });
 
   it("rejects a visibility outside the CHECK", async () => {

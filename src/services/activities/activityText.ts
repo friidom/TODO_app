@@ -3,6 +3,7 @@ import { PRIORITIES, type Priority } from "@/constants/priorities";
 import { WORK_TYPE_LABELS, type WorkType } from "@/constants/workTypes";
 import type { Activity } from "@/types/data";
 import { formatDue } from "@/utils/dueDate";
+import { taskKey } from "@/utils/taskKey";
 
 // Pure text formatting for one activity row — reads only the trigger's snapshotted payload, never the
 // live database, so it can still render a sentence about a card or column that's since been deleted.
@@ -66,9 +67,7 @@ function itemLabel(activity: Activity, keyPrefix: string, t: T): string {
   const boardKey = num(activity.payload, "board_key");
   const title = str(activity.payload, "title");
 
-  if (boardKey !== null) return `${keyPrefix}-${boardKey}`;
-
-  return title ?? t("activity.aWorkItem");
+  return taskKey(keyPrefix, boardKey) ?? title ?? t("activity.aWorkItem");
 }
 
 function personLabel(
@@ -294,8 +293,7 @@ export function describeActivity(
         return {
           text: t("activity.assigned", {
             item,
-            who:
-              toKey !== null ? `${keyPrefix}-${toKey}` : t("activity.anEpic"),
+            who: taskKey(keyPrefix, toKey) ?? t("activity.anEpic"),
           }),
           taskId,
           detail: null,

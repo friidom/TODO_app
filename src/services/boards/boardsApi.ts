@@ -1,7 +1,6 @@
 import { ApiError, api } from "@/services/api/client";
 import type { IBoard } from "@/types/data";
 
-// space_id is patchable (moving a board between folders), key_prefix and next_key are not.
 type BoardPatch = Partial<
   Pick<
     IBoard,
@@ -11,6 +10,7 @@ type BoardPatch = Partial<
     | "cover_color"
     | "visibility"
     | "space_id"
+    | "key_prefix"
     // Board Settings > Features (migration 0020).
     | "sprints_enabled"
     | "workflow_enabled"
