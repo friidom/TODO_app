@@ -1,6 +1,11 @@
+import { randomUUID } from "node:crypto";
+
 import type { Prisma } from "@prisma/client";
 
+import { DEFAULT_COLUMNS } from "../../config/constants.js";
 import { prisma } from "../../db/prisma.js";
+import { RANK_GAP } from "../../lib/rank.js";
+import { defaultTransitions } from "../../lib/workflow.js";
 
 const STATUS_FIELDS = {
   id: true,
@@ -211,4 +216,42 @@ export async function transitionExists(
   });
 
   return count > 0;
+}
+
+// One status per default column, carrying the column's title and category:
+// every new board reads exactly as it did before statuses were their own rows.
+export async function insertDefaultWorkflow(
+  tx: Prisma.TransactionClient,
+  boardId: string,
+): Promise<void> {
+  const columns = DEFAULT_COLUMNS.map((column, index) => ({ ...column, id: randomUUID(), index }));
+
+  await tx.columns.createMany({
+    data: columns.map((column) => ({
+      id: column.id,
+      board_id: boardId,
+      title: column.title,
+      position: BigInt(column.index),
+      rank: column.index * RANK_GAP,
+    })),
+  });
+
+  const statuses = columns.map((column) => ({ ...column, statusId: randomUUID() }));
+
+  await tx.statuses.createMany({
+    data: statuses.map((column) => ({
+      id: column.statusId,
+      board_id: boardId,
+      column_id: column.id,
+      name: column.title,
+      category: column.category,
+      rank: RANK_GAP,
+    })),
+  });
+
+  await tx.status_transitions.createMany({
+    data: defaultTransitions(
+      statuses.map((column) => ({ id: column.statusId, category: column.category })),
+    ).map((edge) => ({ board_id: boardId, from_status_id: edge.from, to_status_id: edge.to })),
+  });
 }

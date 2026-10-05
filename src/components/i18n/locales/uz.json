@@ -791,7 +791,12 @@
     "startsOn": "Boshlanishi: {{date}}",
     "setStart": "Boshlanish sanasini belgilash",
     "previousMonth": "Oldingi oy",
-    "nextMonth": "Keyingi oy"
+    "nextMonth": "Keyingi oy",
+    "quickPicks": "Tezkor sanalar",
+    "today": "Bugun",
+    "tomorrow": "Ertaga",
+    "inOneWeek": "+1 hafta",
+    "inTwoWeeks": "+2 hafta"
   },
   "epicParent": {
     "parent": "Ota epik: {{name}}",
@@ -864,7 +869,10 @@
     "endBeforeStart": "Tugash sanasi boshlanish sanasidan oldin bo'lishi mumkin emas.",
     "deleteReturns_one": "{{count}} ta element Backlogga qaytadi. Hech qanday ish o'chirilmaydi — faqat sprintning o'zi.",
     "deleteReturns_other": "{{count}} ta element Backlogga qaytadi. Hech qanday ish o'chirilmaydi — faqat sprintning o'zi.",
-    "deleteEmpty": "Bu sprint bo'sh. Faqat sprintning o'zi o'chiriladi."
+    "deleteEmpty": "Bu sprint bo'sh. Faqat sprintning o'zi o'chiriladi.",
+    "duration": "Davomiyligi",
+    "weeks_one": "{{count}} hafta",
+    "weeks_other": "{{count}} hafta"
   },
   "calendar": {
     "previousWeek": "Oldingi hafta",

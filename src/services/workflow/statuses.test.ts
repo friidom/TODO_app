@@ -16,6 +16,7 @@ import {
   reachableStatusIds,
   selectableStatuses,
   statusesInColumn,
+  subtaskStartStatus,
   toWorkflowModel,
   unmappedStatuses,
   visibleCategories,
@@ -244,6 +245,33 @@ describe("firstTodoStatus", () => {
     expect(
       firstTodoStatus([status("a", "col-x", { is_hidden: true })]),
     ).toBeNull();
+  });
+});
+
+describe("subtaskStartStatus", () => {
+  it("inherits the parent's status", () => {
+    expect(subtaskStartStatus(MODEL.statuses, "doing")?.id).toBe("doing");
+  });
+
+  it("takes the first visible status of the parent's column when the parent's is hidden", () => {
+    expect(subtaskStartStatus(MODEL.statuses, "parked")?.id).toBe("open");
+  });
+
+  it("gives a backlog parent's subtask the status starting a sprint gives the parent", () => {
+    expect(subtaskStartStatus(MODEL.statuses, null)?.id).toBe("open");
+  });
+
+  it("falls back to the first todo status when the parent's column has nothing visible", () => {
+    const statuses = [
+      status("open", "col-todo"),
+      status("retired", "col-old", { category: "done", is_hidden: true }),
+    ];
+
+    expect(subtaskStartStatus(statuses, "retired")?.id).toBe("open");
+  });
+
+  it("is null only when the board has nowhere to put it", () => {
+    expect(subtaskStartStatus([], null)).toBeNull();
   });
 });
 

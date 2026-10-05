@@ -8,9 +8,23 @@ import {
 } from "lucide-react";
 
 import IconButton from "@/components/ui/IconButton";
+import { addDays } from "@/services/views/calendar";
 import { monthGrid, shiftMonth } from "@/utils/calendarGrid";
-import { todayISO } from "@/utils/dueDate";
+import { formatDue, todayISO } from "@/utils/dueDate";
 import { cn } from "@/utils/cn";
+import {
+  SEGMENT,
+  SEGMENT_ACTIVE,
+  SEGMENT_IDLE,
+  SEGMENTED,
+} from "../detailChrome";
+
+const QUICK_PICKS = [
+  ["dates.today", 0],
+  ["dates.tomorrow", 1],
+  ["dates.inOneWeek", 7],
+  ["dates.inTwoWeeks", 14],
+] as const;
 
 // shared by start date and due date — min/max disable days that'd invert the range before the DB constraint has to reject it
 export default function DatePanel({
@@ -95,8 +109,36 @@ export default function DatePanel({
           onSelect(event.target.value)
         }
         aria-label={title}
-        className="border-hairline bg-surface text-ink focus-visible:ring-brand/40 rounded-control mb-3 h-9 w-full border px-2 text-sm outline-none focus-visible:ring-2"
+        className="border-hairline bg-surface text-ink focus-visible:ring-brand/40 rounded-control mb-2 h-9 w-full border px-2 text-sm outline-none focus-visible:ring-2"
       />
+
+      <div
+        role="group"
+        aria-label={t("dates.quickPicks")}
+        className={cn(SEGMENTED, "mb-3")}
+      >
+        {QUICK_PICKS.map(([label, offset]) => {
+          const day = addDays(today, offset);
+
+          return (
+            <button
+              key={label}
+              type="button"
+              disabled={blocked(day)}
+              onClick={() => onSelect(day)}
+              aria-pressed={day === selected}
+              title={formatDue(day, today, locale)}
+              className={cn(
+                SEGMENT,
+                "min-w-0 flex-auto truncate px-1.5 disabled:cursor-not-allowed disabled:opacity-40",
+                day === selected ? SEGMENT_ACTIVE : SEGMENT_IDLE,
+              )}
+            >
+              {t(label)}
+            </button>
+          );
+        })}
+      </div>
 
       <div className="mb-1 flex items-center justify-between">
         <IconButton

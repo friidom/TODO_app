@@ -203,6 +203,24 @@ export function firstTodoStatus(statuses: IStatus[]): IStatus | null {
   );
 }
 
+// A new subtask starts in its parent's status, or the first visible one in the
+// parent's column when that status is hidden. A backlog parent has no status
+// yet, so the subtask takes the one starting a sprint will give the parent.
+export function subtaskStartStatus(
+  statuses: IStatus[],
+  parentStatusId: string | null,
+): IStatus | null {
+  const parent = statuses.find((status) => status.id === parentStatusId);
+
+  if (parent && !parent.is_hidden) return parent;
+
+  const inColumn = parent?.column_id
+    ? entryStatus(statuses, parent.column_id)
+    : null;
+
+  return inColumn ?? firstTodoStatus(statuses);
+}
+
 export function unmappedStatuses(statuses: IStatus[]): IStatus[] {
   return statusesInColumn(statuses, null);
 }

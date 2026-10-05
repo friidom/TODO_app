@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ListTreeIcon, PlusIcon } from "lucide-react";
 
 import SectionHeader, { EmptyLine } from "./SectionHeader";
@@ -21,7 +21,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useTodoPatch } from "@/hooks/useTodoPatch";
 import { useAddSubtask } from "@/services/todos/useAddSubtask";
 import { useSubtasks } from "@/services/todos/useSubtasks";
-import { entryStatus } from "@/services/workflow/statuses";
+import { subtaskStartStatus } from "@/services/workflow/statuses";
 import { useStatuses } from "@/services/workflow/useWorkflow";
 import type { Todo } from "@/types/data";
 import { cn } from "@/utils/cn";
@@ -214,49 +214,53 @@ function AddSubtaskRow({
 }) {
   const { t } = useTranslation();
   const [title, setTitle] = useState("");
+  // a ref so a Done pressed while a save is in flight reaches that save's onSuccess
+  const closeWhenSaved = useRef(false);
   const add = useAddSubtask();
-  const { data: statuses = [] } = useStatuses();
+  const { data: statuses } = useStatuses();
 
   const value = title.trim();
 
-  // A subtask starts in its parent's status — unless that status is hidden,
-  // which new work cannot enter; then the first visible one in its column.
-  const parentStatus = statuses.find(
-    (status) => status.id === parent.status_id,
-  );
-  const startIn =
-    parentStatus && !parentStatus.is_hidden
-      ? parentStatus
-      : parentStatus?.column_id
-        ? entryStatus(statuses, parentStatus.column_id)
-        : null;
+  function submit(close: boolean) {
+    if (add.isPending) {
+      closeWhenSaved.current ||= close;
+      return;
+    }
 
-  function submit() {
     if (value === "") {
       onDone();
       return;
     }
 
-    // no status on the parent means none to inherit — shouldn't happen outside a create in flight
-    if (!startIn) return;
+    // not loaded yet: "no status" here would file an on-board parent's subtask nowhere
+    if (!statuses) return;
 
-    add.mutate({
-      title: value,
-      parentId: parent.id,
-      statusId: startIn.id,
-    });
+    closeWhenSaved.current = close;
 
-    setTitle("");
+    add.mutate(
+      {
+        title: value,
+        parentId: parent.id,
+        statusId: subtaskStartStatus(statuses, parent.status_id)?.id ?? null,
+      },
+      { onSuccess: () => (closeWhenSaved.current ? onDone() : setTitle("")) },
+    );
   }
 
   return (
-    <div className={cn("flex items-center gap-2", hasRows ? "mt-2" : "mt-0")}>
+    <div
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) submit(false);
+      }}
+      className={cn("flex items-center gap-2", hasRows ? "mt-2" : "mt-0")}
+    >
       <input
         value={title}
         autoFocus
+        readOnly={add.isPending}
         onChange={(e) => setTitle(e.target.value)}
         onKeyDown={(event) => {
-          if (event.key === "Enter") submit();
+          if (event.key === "Enter") submit(false);
 
           if (event.key === "Escape") {
             // stop it bubbling to the modal's Escape handler, or this closes the task too
@@ -264,7 +268,6 @@ function AddSubtaskRow({
             onDone();
           }
         }}
-        onBlur={submit}
         placeholder={t("list.newItemPlaceholder")}
         aria-label={t("subtasks.itemTitle")}
         className={cn(
@@ -275,8 +278,9 @@ function AddSubtaskRow({
 
       <button
         type="button"
-        // mousedown, not click — the input's onBlur fires first and unmounts this button
-        onMouseDown={onDone}
+        // keeps focus in the input, so the row's blur cannot submit ahead of this click
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => submit(true)}
         className={cn(INLINE_ACTION, "py-1 text-xs")}
       >
         {t("common.done")}

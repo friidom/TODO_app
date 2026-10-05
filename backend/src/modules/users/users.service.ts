@@ -16,6 +16,7 @@ import {
 } from "./users.avatar.js";
 import { suffixedUsername, usernameBase } from "../../lib/username.js";
 import * as boardsRepo from "../boards/boards.repo.js";
+import * as workflowRepo from "../workflow/workflow.repo.js";
 import * as usersRepo from "./users.repo.js";
 import type { UpdateProfileInput } from "./users.schema.js";
 
@@ -65,7 +66,7 @@ export async function provisionUser(
     spaceId,
   });
 
-  await usersRepo.insertDefaultWorkflow(tx, board.id);
+  await workflowRepo.insertDefaultWorkflow(tx, board.id);
 
   return board.id;
 }

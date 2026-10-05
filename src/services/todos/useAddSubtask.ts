@@ -10,7 +10,7 @@ import { addTodo } from "./todoApi";
 export interface AddSubtaskVars {
   title: string;
   parentId: string;
-  statusId: string;
+  statusId: string | null;
 }
 
 // Separate from useAddTodo on purpose — a subtask has no board position, so none of that mutation's rank/reorder machinery applies.
@@ -93,8 +93,10 @@ export function useAddSubtask() {
     },
   });
 
-  const mutate = (variables: AddSubtaskVars) =>
-    mutation.mutate({ ...variables, id: crypto.randomUUID() });
+  const mutate = (
+    variables: AddSubtaskVars,
+    options?: Parameters<typeof mutation.mutate>[1],
+  ) => mutation.mutate({ ...variables, id: crypto.randomUUID() }, options);
 
   return { ...mutation, mutate };
 }

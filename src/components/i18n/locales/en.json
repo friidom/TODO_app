@@ -791,7 +791,12 @@
     "startsOn": "Starts {{date}}",
     "setStart": "Set a start date",
     "previousMonth": "Previous month",
-    "nextMonth": "Next month"
+    "nextMonth": "Next month",
+    "quickPicks": "Quick dates",
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "inOneWeek": "+1 week",
+    "inTwoWeeks": "+2 weeks"
   },
   "epicParent": {
     "parent": "Parent: {{name}}",
@@ -864,7 +869,10 @@
     "endBeforeStart": "The end date can't be before the start date.",
     "deleteReturns_one": "{{count}} item returns to the Backlog. No work is deleted — only the sprint itself.",
     "deleteReturns_other": "{{count}} items return to the Backlog. No work is deleted — only the sprint itself.",
-    "deleteEmpty": "This sprint is empty. Only the sprint itself is deleted."
+    "deleteEmpty": "This sprint is empty. Only the sprint itself is deleted.",
+    "duration": "Duration",
+    "weeks_one": "{{count}} week",
+    "weeks_other": "{{count}} weeks"
   },
   "calendar": {
     "previousWeek": "Previous week",

@@ -314,6 +314,31 @@ describe("POST /sprints/:sprintId/start", () => {
     expect(row.status_id).toBeNull();
   });
 
+  it("starts on a board made through POST /boards, not only a signup board", async () => {
+    const owner = await makeUser("owner");
+    const board = await client.post<{ id: string }>(
+      "/api/v1/boards",
+      { title: "Fresh" },
+      { token: owner.token },
+    );
+    const sprint = await makeSprint(owner, board.body.id);
+    const todo = await makeTodo(owner, board.body.id, { title: "planned", sprint_id: sprint.id });
+
+    const response = await client.post<Sprint>(`/api/v1/sprints/${sprint.id}/start`, undefined, {
+      token: owner.token,
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body.state).toBe("active");
+
+    const placed = await prisma.todos.findUniqueOrThrow({
+      where: { id: todo.id },
+      select: { statuses: { select: { category: true } } },
+    });
+
+    expect(placed.statuses?.category).toBe("todo");
+  });
+
   it("refuses when the board has no todo-category status", async () => {
     const { actor, boardId } = await setup();
     const sprint = await makeSprint(actor, boardId);

@@ -11,13 +11,21 @@ import {
   DIALOG_LABEL,
   DIALOG_TITLE,
 } from "@/components/ui/dialogChrome";
+import {
+  SEGMENT,
+  SEGMENT_ACTIVE,
+  SEGMENT_IDLE,
+  SEGMENTED,
+} from "@/components/todo/detailChrome";
 import { FIELD_INPUT } from "@/components/ui/fieldInput";
+import { SPRINT_WEEKS, sprintEnd } from "@/services/sprints/duration";
 import {
   useCreateSprint,
   useUpdateSprint,
 } from "@/services/sprints/useSprints";
 import type { Sprint } from "@/types/data";
-import { fromCalendarDay, toCalendarDay } from "@/utils/dueDate";
+import { cn } from "@/utils/cn";
+import { fromCalendarDay, toCalendarDay, todayISO } from "@/utils/dueDate";
 
 // never edits `state` — starting/completing a sprint goes through the start_sprint/complete_sprint RPCs, not this plain update
 export default function CreateSprintModal({
@@ -128,6 +136,45 @@ export default function CreateSprintModal({
               onChange={(e) => setEndDate(e.target.value)}
               className={FIELD_INPUT}
             />
+          </div>
+        </div>
+
+        <div className="mt-2 flex items-center gap-2">
+          <span
+            id="sprint-duration"
+            className="text-ink-3 text-mini font-medium"
+          >
+            {t("backlog.duration")}
+          </span>
+
+          <div
+            role="group"
+            aria-labelledby="sprint-duration"
+            className={SEGMENTED}
+          >
+            {SPRINT_WEEKS.map((weeks) => {
+              const start = startDate || todayISO();
+              const end = sprintEnd(start, weeks);
+              const active = startDate !== "" && endDate === end;
+
+              return (
+                <button
+                  key={weeks}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => {
+                    setStartDate(start);
+                    setEndDate(end);
+                  }}
+                  className={cn(
+                    SEGMENT,
+                    active ? SEGMENT_ACTIVE : SEGMENT_IDLE,
+                  )}
+                >
+                  {t("backlog.weeks", { count: weeks })}
+                </button>
+              );
+            })}
           </div>
         </div>
 

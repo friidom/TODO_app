@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
+import { DEFAULT_COLUMNS } from "../../config/constants.js";
 import { prisma } from "../../db/prisma.js";
 import { disconnect, resetDatabase } from "../../testing/db.js";
 import { addMember, makeUser, type TestUser } from "../../testing/fixtures.js";
@@ -28,6 +29,18 @@ interface Board {
   space_id: string | null;
   next_key: number;
   key_prefix: string;
+}
+
+interface Workflow {
+  columns: { id: string; title: string }[];
+  statuses: {
+    id: string;
+    column_id: string | null;
+    name: string;
+    category: string;
+    is_hidden: boolean;
+  }[];
+  transitions: { from: string; to: string }[];
 }
 
 describe("GET /boards", () => {
@@ -164,6 +177,42 @@ describe("POST /boards", () => {
 
     expect(activities.length).toBeGreaterThan(0);
     for (const row of activities) expect(row.actor_id).toBe(alice.id);
+  });
+
+  it("arrives with the default workflow a signup board gets", async () => {
+    const alice = await makeUser("alice");
+    const created = await client.post<Board>(
+      "/api/v1/boards",
+      { title: "Roadmap" },
+      { token: alice.token },
+    );
+
+    const shapeOf = async (boardId: string) => {
+      const { body } = await client.get<Workflow>(`/api/v1/boards/${boardId}/workflow`, {
+        token: alice.token,
+      });
+      const title = new Map(body.columns.map((column) => [column.id, column.title]));
+      const name = new Map(body.statuses.map((status) => [status.id, status.name]));
+
+      return {
+        columns: body.columns.map((column) => column.title),
+        statuses: body.statuses.map((status) => ({
+          name: status.name,
+          category: status.category,
+          column: title.get(status.column_id!),
+          is_hidden: status.is_hidden,
+        })),
+        transitions: body.transitions.map((edge) => `${name.get(edge.from)}>${name.get(edge.to)}`).sort(),
+      };
+    };
+
+    const fresh = await shapeOf(created.body.id);
+
+    expect(fresh.columns).toEqual(DEFAULT_COLUMNS.map((column) => column.title));
+    expect(fresh.statuses.map((status) => status.category)).toEqual(
+      DEFAULT_COLUMNS.map((column) => column.category),
+    );
+    expect(fresh).toEqual(await shapeOf(alice.boardId));
   });
 
   it("refuses creating a board already filed into someone else's space", async () => {
@@ -550,6 +599,19 @@ describe("client-minted ids, and what they cost", () => {
     expect(
       (await client.get(`/api/v1/boards/${alice.boardId}`, { token: mallory.token })).status,
     ).toBe(404);
+  });
+
+  it("adds no second default workflow to the board whose id was taken", async () => {
+    const [alice, mallory] = [await makeUser("alice"), await makeUser("mallory")];
+    const where = { board_id: alice.boardId };
+    const before = [await prisma.columns.count({ where }), await prisma.statuses.count({ where })];
+
+    await client.post("/api/v1/boards", { id: alice.boardId, title: "retry" }, { token: alice.token });
+    await client.post("/api/v1/boards", { id: alice.boardId, title: "probe" }, { token: mallory.token });
+
+    expect([await prisma.columns.count({ where }), await prisma.statuses.count({ where })]).toEqual(
+      before,
+    );
   });
 });
 

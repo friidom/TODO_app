@@ -33,7 +33,7 @@ export function addTodo({
 }: {
   id: string;
   title: string;
-  status_id: string;
+  status_id: string | null;
   board_id: string;
   assignee_id?: string | null;
   start_date?: string | null;

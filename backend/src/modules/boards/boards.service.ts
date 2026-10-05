@@ -8,6 +8,7 @@ import { closeBoardRoom } from "../../realtime/rooms.js";
 import type { Actor } from "../../types/actor.js";
 import * as boardsRepo from "./boards.repo.js";
 import type { BoardRow } from "./boards.repo.js";
+import * as workflowRepo from "../workflow/workflow.repo.js";
 import type { CreateBoardInput, UpdateBoardInput } from "./boards.schema.js";
 
 export function list(actor: Actor): Promise<BoardRow[]> {
@@ -30,14 +31,18 @@ export async function get(boardId: string): Promise<BoardRow> {
 // app.actor_id. boards_space_ownership reads it too, and PASSES THROUGH when it
 // is null, so filing into someone else's space would go unchecked.
 export async function create(actor: Actor, input: CreateBoardInput): Promise<BoardRow> {
-  const board = await withActor(actor.id, (tx) =>
-    boardsRepo.insert(tx, {
+  const board = await withActor(actor.id, async (tx) => {
+    const inserted = await boardsRepo.insert(tx, {
       id: input.id ?? randomUUID(),
       ownerId: actor.id,
       title: input.title,
       spaceId: input.space_id ?? null,
-    }),
-  );
+    });
+
+    await workflowRepo.insertDefaultWorkflow(tx, inserted.id);
+
+    return inserted;
+  });
 
   // The client may mint the id, so a new board clears anything a deleted board
   // with the same id could still have cached.

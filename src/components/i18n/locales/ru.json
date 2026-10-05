@@ -849,7 +849,12 @@
     "startsOn": "Начало: {{date}}",
     "setStart": "Задать дату начала",
     "previousMonth": "Предыдущий месяц",
-    "nextMonth": "Следующий месяц"
+    "nextMonth": "Следующий месяц",
+    "quickPicks": "Быстрый выбор даты",
+    "today": "Сегодня",
+    "tomorrow": "Завтра",
+    "inOneWeek": "+1 нед.",
+    "inTwoWeeks": "+2 нед."
   },
   "epicParent": {
     "parent": "Родитель: {{name}}",
@@ -932,7 +937,12 @@
     "deleteReturns_few": "{{count}} задачи вернутся в бэклог. Задачи не удаляются — только сам спринт.",
     "deleteReturns_many": "{{count}} задач вернутся в бэклог. Задачи не удаляются — только сам спринт.",
     "deleteReturns_other": "{{count}} задачи вернутся в бэклог. Задачи не удаляются — только сам спринт.",
-    "deleteEmpty": "Этот спринт пуст. Будет удалён только сам спринт."
+    "deleteEmpty": "Этот спринт пуст. Будет удалён только сам спринт.",
+    "duration": "Длительность",
+    "weeks_one": "{{count}} неделя",
+    "weeks_few": "{{count}} недели",
+    "weeks_many": "{{count}} недель",
+    "weeks_other": "{{count}} недели"
   },
   "calendar": {
     "previousWeek": "Предыдущая неделя",
