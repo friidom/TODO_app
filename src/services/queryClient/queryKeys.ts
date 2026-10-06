@@ -10,6 +10,8 @@ const NOTIFICATION_ROOT = ["notifications"] as const;
 
 const ADMIN_ROOT = ["admin"] as const;
 
+const DEVELOPMENT_ROOT = ["development"] as const;
+
 export const queryKeys = {
   // boardId stays required even though it may be undefined — a route param not yet resolved keys a disabled query.
   todos: (boardId: string | undefined) => ["todos", boardId] as const,
@@ -55,6 +57,17 @@ export const queryKeys = {
   commentThreads: () => COMMENT_ROOT,
 
   attachments: (todoId: string | undefined) => ["attachments", todoId] as const,
+
+  gitlabLinks: (boardId: string | undefined) =>
+    ["gitlab-links", boardId] as const,
+
+  // Board before todo, unlike comments: the realtime "development" scope names
+  // a board, and this prefix is then exactly that board's entries.
+  development: (boardId: string | undefined, todoId: string | undefined) =>
+    [...DEVELOPMENT_ROOT, boardId, todoId] as const,
+
+  boardDevelopment: (boardId: string | undefined) =>
+    [...DEVELOPMENT_ROOT, boardId] as const,
 
   forYou: () => FOR_YOU_ROOT,
 

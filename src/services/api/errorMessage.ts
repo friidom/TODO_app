@@ -60,6 +60,17 @@ const KNOWN: Record<string, string> = {
   "That value is not allowed.": "apiErrors.notAllowed",
   "A required field is missing.": "apiErrors.required",
   "That date is not valid.": "apiErrors.badDate",
+  "That GitLab project is already connected to this board.":
+    "gitlab.errors.alreadyConnected",
+  "GitLab integration is not configured on this server.":
+    "gitlab.errors.notConfigured",
+  "project_url: must be an https:// address.": "gitlab.errors.https",
+  "project_url: is not a GitLab project address.": "gitlab.errors.url",
+  "project_url: must name a project, such as group/project.":
+    "gitlab.errors.path",
+  "token: must start with whsec_ — copy the whole signing token from GitLab.":
+    "gitlab.tokenProblem.prefix",
+  "token: is not a GitLab signing token.": "gitlab.errors.token",
 };
 
 const NO_TRANSITION =

@@ -47,6 +47,33 @@ model attachments {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model board_gitlab_projects {
+  id                         String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  board_id                   String                       @db.Uuid
+  instance_url               String
+  project_path               String                       @db.Citext
+  gitlab_project_id          BigInt?
+  project_web_url            String?
+  signing_token_sealed       String?
+  signing_token_set_at       DateTime?                    @db.Timestamptz(6)
+  last_delivery_at           DateTime?                    @db.Timestamptz(6)
+  last_failure_at            DateTime?                    @db.Timestamptz(6)
+  last_failure_reason        String?
+  created_by                 String?                      @db.Uuid
+  created_at                 DateTime                     @default(now()) @db.Timestamptz(6)
+  boards                     boards                       @relation(fields: [board_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  profiles                   profiles?                    @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  todo_gitlab_branches       todo_gitlab_branches[]
+  todo_gitlab_commits        todo_gitlab_commits[]
+  todo_gitlab_merge_requests todo_gitlab_merge_requests[]
+
+  @@unique([id, board_id], map: "board_gitlab_projects_id_board_id_key")
+  @@unique([board_id, instance_url, project_path], map: "board_gitlab_projects_board_path_key")
+  @@unique([board_id, instance_url, gitlab_project_id], map: "board_gitlab_projects_board_project_key")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model board_invites {
   id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   board_id    String    @db.Uuid
@@ -98,6 +125,7 @@ model boards {
   key_prefix       String          @unique
   space_id         String?         @db.Uuid
   activities       activities[]
+  board_gitlab_projects board_gitlab_projects[]
   board_invites    board_invites[]
   board_keys       board_keys[]
   board_members    board_members[]
@@ -278,6 +306,7 @@ model profiles {
   email                                          String?
   activities                                     activities[]
   attachments                                    attachments[]
+  board_gitlab_projects                          board_gitlab_projects[]
   board_invites                                  board_invites[]
   board_members                                  board_members[]
   boards                                         boards[]
@@ -345,6 +374,70 @@ model sprints {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model todo_gitlab_branches {
+  id                    String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  board_id              String                @db.Uuid
+  todo_id               String                @db.Uuid
+  link_id               String                @db.Uuid
+  name                  String
+  matched_ref           String
+  head_sha              String
+  pushed_at             DateTime              @db.Timestamptz(6)
+  deleted_at            DateTime?             @db.Timestamptz(6)
+  created_at            DateTime              @default(now()) @db.Timestamptz(6)
+  todos                 todos                 @relation(fields: [todo_id, board_id], references: [id, board_id], onDelete: Cascade, onUpdate: NoAction, map: "todo_gitlab_branches_todo_fkey")
+  board_gitlab_projects board_gitlab_projects @relation(fields: [link_id, board_id], references: [id, board_id], onDelete: Cascade, onUpdate: NoAction, map: "todo_gitlab_branches_link_fkey")
+
+  @@unique([todo_id, link_id, name], map: "todo_gitlab_branches_key")
+  @@index([link_id, name], map: "todo_gitlab_branches_link_name_idx")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model todo_gitlab_commits {
+  id                    String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  board_id              String                @db.Uuid
+  todo_id               String                @db.Uuid
+  link_id               String                @db.Uuid
+  sha                   String
+  title                 String
+  message               String
+  author_name           String
+  committed_at          DateTime              @db.Timestamptz(6)
+  matched_ref           String
+  created_at            DateTime              @default(now()) @db.Timestamptz(6)
+  todos                 todos                 @relation(fields: [todo_id, board_id], references: [id, board_id], onDelete: Cascade, onUpdate: NoAction, map: "todo_gitlab_commits_todo_fkey")
+  board_gitlab_projects board_gitlab_projects @relation(fields: [link_id, board_id], references: [id, board_id], onDelete: Cascade, onUpdate: NoAction, map: "todo_gitlab_commits_link_fkey")
+
+  @@unique([todo_id, link_id, sha], map: "todo_gitlab_commits_key")
+  @@index([todo_id, committed_at(sort: Desc)], map: "todo_gitlab_commits_todo_committed_idx")
+  @@index([link_id], map: "todo_gitlab_commits_link_idx")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model todo_gitlab_merge_requests {
+  id                    String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  board_id              String                @db.Uuid
+  todo_id               String                @db.Uuid
+  link_id               String                @db.Uuid
+  iid                   Int
+  title                 String
+  state                 String
+  source_branch         String
+  target_branch         String
+  matched_ref           String
+  gitlab_updated_at     DateTime              @db.Timestamptz(6)
+  created_at            DateTime              @default(now()) @db.Timestamptz(6)
+  todos                 todos                 @relation(fields: [todo_id, board_id], references: [id, board_id], onDelete: Cascade, onUpdate: NoAction, map: "todo_gitlab_merge_requests_todo_fkey")
+  board_gitlab_projects board_gitlab_projects @relation(fields: [link_id, board_id], references: [id, board_id], onDelete: Cascade, onUpdate: NoAction, map: "todo_gitlab_merge_requests_link_fkey")
+
+  @@unique([todo_id, link_id, iid], map: "todo_gitlab_merge_requests_key")
+  @@index([link_id, iid], map: "todo_gitlab_merge_requests_link_iid_idx")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model todos {
   id                                    String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   board_id                              String        @db.Uuid
@@ -371,6 +464,9 @@ model todos {
   completed_by                          String?       @db.Uuid
   attachments                           attachments[]
   comments                              comments[]
+  todo_gitlab_branches                  todo_gitlab_branches[]
+  todo_gitlab_commits                   todo_gitlab_commits[]
+  todo_gitlab_merge_requests            todo_gitlab_merge_requests[]
   profiles_todos_assignee_idToprofiles  profiles?     @relation("todos_assignee_idToprofiles", fields: [assignee_id], references: [id], onUpdate: NoAction)
   boards                                boards        @relation(fields: [board_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   profiles_todos_completed_byToprofiles profiles?     @relation("todos_completed_byToprofiles", fields: [completed_by], references: [id], onUpdate: NoAction)

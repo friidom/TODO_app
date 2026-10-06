@@ -1,3 +1,4 @@
+import { partialMatchKey } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
 
 import { queryKeys } from "@/services/queryClient/queryKeys";
@@ -7,18 +8,39 @@ const BOARD = "board-1";
 
 describe("keysForScopes", () => {
   it("maps a scope to the key the hooks already use, not to a second spelling", () => {
-    expect(keysForScopes(["todos"], BOARD)).toEqual([[...queryKeys.todos(BOARD)]]);
-    expect(keysForScopes(["workflow"], BOARD)).toEqual([[...queryKeys.workflow(BOARD)]]);
-    expect(keysForScopes(["sprints"], BOARD)).toEqual([[...queryKeys.sprints(BOARD)]]);
-    expect(keysForScopes(["members"], BOARD)).toEqual([[...queryKeys.members(BOARD)]]);
+    expect(keysForScopes(["todos"], BOARD)).toEqual([
+      [...queryKeys.todos(BOARD)],
+    ]);
+    expect(keysForScopes(["workflow"], BOARD)).toEqual([
+      [...queryKeys.workflow(BOARD)],
+    ]);
+    expect(keysForScopes(["sprints"], BOARD)).toEqual([
+      [...queryKeys.sprints(BOARD)],
+    ]);
+    expect(keysForScopes(["members"], BOARD)).toEqual([
+      [...queryKeys.members(BOARD)],
+    ]);
   });
 
   it("invalidates the whole comment family, because a thread is keyed by todo", () => {
-    expect(keysForScopes(["comments"], BOARD)).toEqual([[...queryKeys.commentThreads()]]);
+    expect(keysForScopes(["comments"], BOARD)).toEqual([
+      [...queryKeys.commentThreads()],
+    ]);
   });
 
   it("invalidates the whole attachment family for the same reason", () => {
     expect(keysForScopes(["attachments"], BOARD)).toEqual([["attachments"]]);
+  });
+
+  it("invalidates every task's development on the board, and no other board's", () => {
+    const [key] = keysForScopes(["development"], BOARD);
+
+    expect(partialMatchKey(queryKeys.development(BOARD, "todo-1"), key)).toBe(
+      true,
+    );
+    expect(
+      partialMatchKey(queryKeys.development("board-2", "todo-1"), key),
+    ).toBe(false);
   });
 
   it("gives the boards scope both the one board and the index", () => {
@@ -40,7 +62,9 @@ describe("keysForScopes", () => {
   });
 
   it("does not repeat a key a scope names twice", () => {
-    expect(keysForScopes(["todos", "todos"], BOARD)).toEqual([[...queryKeys.todos(BOARD)]]);
+    expect(keysForScopes(["todos", "todos"], BOARD)).toEqual([
+      [...queryKeys.todos(BOARD)],
+    ]);
   });
 
   it("carries an undefined board through rather than inventing one", () => {
@@ -54,7 +78,7 @@ describe("keysForScopes", () => {
   it("covers every scope the server can send", () => {
     const keys = keysForScopes(ALL_SCOPES, BOARD);
 
-    expect(keys).toHaveLength(8);
-    expect(new Set(keys.map((key) => JSON.stringify(key))).size).toBe(8);
+    expect(keys).toHaveLength(9);
+    expect(new Set(keys.map((key) => JSON.stringify(key))).size).toBe(9);
   });
 });

@@ -1212,7 +1212,92 @@
     "planning": "Planning",
     "sprints": "Sprints",
     "sprintsHint": "Plan work in fixed time periods. The board then shows the running sprint's work, and the Backlog is where you plan it.",
-    "workflowHint": "Cards move To do → In progress → In review → Done in order. Turn off to let a card move between any two columns."
+    "workflowHint": "Cards move To do → In progress → In review → Done in order. Turn off to let a card move between any two columns.",
+    "integrations": "Integrations",
+    "integrationsHint": "Connect the tools your team works in."
+  },
+  "gitlab": {
+    "title": "GitLab",
+    "hint": "Mention a task's key, such as {{example}}, in a commit message, a branch name or a merge request, and it appears on that task.",
+    "loadFailed": "Could not load this board's GitLab connections.",
+    "empty": "No GitLab project is connected to this board yet.",
+    "projectUrl": "GitLab project",
+    "anotherProject": "Connect another GitLab project",
+    "projectUrlHint": "The project's address, such as https://gitlab.com/group/project.",
+    "projectUrlRequired": "Enter the project's address.",
+    "connect": "Connect",
+    "connecting": "Connecting…",
+    "openProject": "Open {{project}} in GitLab",
+    "status": {
+      "awaitingToken": "Needs signing token",
+      "awaitingDelivery": "Waiting for GitLab",
+      "active": "Active",
+      "failing": "Failing"
+    },
+    "statusDetail": {
+      "awaitingToken": "Add the webhook in GitLab, then save its signing token here.",
+      "awaitingDelivery": "Token saved. Nothing has arrived from GitLab yet — push a commit, or use Test → Push events on the webhook in GitLab.",
+      "active": "Receiving events. Last delivery {{time}}.",
+      "failing": "Last refused delivery {{time}}."
+    },
+    "failure": {
+      "headers": "GitLab's delivery arrived without a signature. Check that the webhook has a signing token.",
+      "signature": "The signature did not match. Paste this webhook's signing token again.",
+      "timestamp": "The delivery was more than 5 minutes old, or a clock is wrong.",
+      "token": "The saved signing token could not be read. Paste it again.",
+      "project": "The delivery came from a different GitLab project. Check that the webhook belongs to this project.",
+      "payload": "GitLab's delivery could not be read.",
+      "unknown": "GitLab's delivery was refused."
+    },
+    "webhookUrl": "Webhook URL",
+    "copy": "Copy",
+    "copied": "Webhook URL copied",
+    "copyFailed": "Could not copy. Select the address and copy it yourself.",
+    "setupTitle": "Add the webhook in GitLab",
+    "setup": {
+      "open": "In GitLab, open {{project}}, then Settings → Webhooks → Add new webhook.",
+      "url": "Paste the webhook URL above into URL. Leave Secret token empty.",
+      "trigger": "Under Trigger, select Push events and Merge request events.",
+      "token": "Select Generate signing token and copy it — GitLab shows it only once. Then select Add webhook.",
+      "save": "Paste the signing token below and save it."
+    },
+    "signingToken": "Signing token",
+    "signingTokenHint": "Starts with whsec_. It is stored encrypted and never shown again.",
+    "tokenSavedAt": "A token was saved {{time}}. Paste a new one to replace it.",
+    "tokenProblem": {
+      "required": "Paste the signing token.",
+      "prefix": "A signing token starts with whsec_. Copy the whole token from GitLab."
+    },
+    "saveToken": "Save token",
+    "replaceToken": "Replace token",
+    "disconnect": "Disconnect",
+    "disconnecting": "Disconnecting…",
+    "disconnectConfirm": "Disconnect {{project}}? Its commits, branches and merge requests are removed from this board's tasks. Delete the webhook in GitLab as well.",
+    "errors": {
+      "alreadyConnected": "That GitLab project is already connected to this board.",
+      "notConfigured": "GitLab integration is not set up on this server yet.",
+      "https": "The project's address must start with https://.",
+      "url": "That is not a GitLab project address.",
+      "path": "The address must name a project, such as group/project.",
+      "token": "That is not a GitLab signing token. Copy the whole token from GitLab."
+    }
+  },
+  "development": {
+    "title": "Development",
+    "mergeRequests": "Merge requests",
+    "branches": "Branches",
+    "commits": "Commits",
+    "none": "Nothing in GitLab mentions this task yet.",
+    "hint": "Put {{key}} in a commit message, a branch name or a merge request title.",
+    "loadFailed": "Could not load this task's commits, branches and merge requests.",
+    "showAll": "Show all {{count}}",
+    "showLess": "Show fewer",
+    "state": {
+      "opened": "Open",
+      "merged": "Merged",
+      "closed": "Closed",
+      "locked": "Locked"
+    }
   },
   "apiErrors": {
     "network": "Could not reach the server. Check your connection and try again.",

@@ -9,6 +9,7 @@ import { env } from "./config/env.js";
 import { query } from "./db/client.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import { redactUrl } from "./lib/redact.js";
+import { gitlabWebhookRoutes } from "./modules/gitlab/gitlab.routes.js";
 import { apiRouter } from "./routes/index.js";
 
 export const app = express();
@@ -18,7 +19,6 @@ app.use(helmet({ contentSecurityPolicy: false }));
 
 // credentials:true forbids origin "*", so the origin stays pinned to one value
 app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
-app.use(express.json());
 app.use(cookieParser());
 // Overrides morgan's built-in :url token, which both "dev" and "combined"
 // print verbatim -- so every OAuth callback would write a live authorization
@@ -41,6 +41,11 @@ morgan.token("referrer", (req) => {
 if (env.NODE_ENV !== "test") {
   app.use(morgan(env.isProduction ? "combined" : "dev"));
 }
+
+// Ahead of express.json, which would consume the body: a GitLab delivery is
+// verified against its exact bytes before anything parses them.
+app.use("/api/v1/integrations/gitlab/webhooks", gitlabWebhookRoutes);
+app.use(express.json());
 
 // Outside /api/v1 on purpose: uptime checks and load balancers should not have
 // to track the API's version prefix.

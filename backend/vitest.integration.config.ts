@@ -44,6 +44,12 @@ export default defineConfig({
       GITHUB_CLIENT_SECRET: "test-github-client-secret",
       APP_URL: "http://frontend.test",
       API_PUBLIC_URL: "http://api.test/api/v1",
+      // Blank, so a tunnel origin in a developer's backend/.env cannot change
+      // the webhook urls these tests assert.
+      WEBHOOK_PUBLIC_ORIGIN: "",
+      // "test-integration-key-32-bytes!!!" — a fixed key, so a sealed token
+      // written by one test can be opened by the assertion that follows it.
+      INTEGRATION_SECRET_KEY: "dGVzdC1pbnRlZ3JhdGlvbi1rZXktMzItYnl0ZXMhISE=",
       MINIO_SECRET_KEY: process.env.MINIO_SECRET_KEY ?? "integration-secret-key",
     },
     hookTimeout: 30_000,

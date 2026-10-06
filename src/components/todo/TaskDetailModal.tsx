@@ -10,6 +10,7 @@ import {
 
 import ActivitySection from "./ActivitySection";
 import AttachmentsSection from "./AttachmentsSection";
+import DevelopmentSection from "./DevelopmentSection";
 import EpicTasksSection from "./EpicTasksSection";
 import ParentLine from "./ParentLine";
 import SectionHeader from "./SectionHeader";
@@ -356,6 +357,12 @@ function Body({
           {hierarchy.canHaveSubtasks && <SubtasksSection todo={todo} />}
 
           {hierarchy.isEpic && <EpicTasksSection epic={todo} />}
+
+          <DevelopmentSection
+            todoId={todo.id}
+            boardId={todo.board_id}
+            taskKey={key}
+          />
 
           <ActivitySection todoId={todo.id} boardId={todo.board_id} />
         </div>

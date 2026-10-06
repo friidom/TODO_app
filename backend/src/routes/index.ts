@@ -8,6 +8,7 @@ import { commentsRoutes } from "../modules/comments/comments.routes.js";
 import { meRoutes } from "../modules/feed/feed.routes.js";
 import { notificationsRoutes } from "../modules/notifications/notifications.routes.js";
 import { boardColumnsRoutes, columnsRoutes } from "../modules/columns/columns.routes.js";
+import { boardGitlabRoutes } from "../modules/gitlab/gitlab.routes.js";
 import {
   boardInviteesRoutes,
   boardInvitesRoutes,
@@ -62,3 +63,4 @@ boardScoped.use("/workflow", boardWorkflowRoutes);
 boardScoped.use("/todos", boardTodosRoutes);
 boardScoped.use("/sprints", boardSprintsRoutes);
 boardScoped.use("/activities", boardActivitiesRoutes);
+boardScoped.use("/integrations/gitlab", boardGitlabRoutes);

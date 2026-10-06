@@ -27,3 +27,31 @@ export function parseTaskRef(raw: string): TaskRef | null {
 export function formatTaskRef(key: string, number: number): string {
   return `${key}-${number}`;
 }
+
+// GitLab's own YouTrack issue pattern, so the references GitLab renders as
+// links are the ones Veylo attaches. parseTaskRef still decides validity.
+const TASK_REF_CANDIDATE = /\b[A-Za-z][A-Za-z0-9_]*-\d+\b/g;
+
+const MAX_TASK_REFS = 50;
+
+export interface TaskRefMatch extends TaskRef {
+  text: string;
+}
+
+export function findTaskRefs(text: string, limit = MAX_TASK_REFS): TaskRefMatch[] {
+  const found = new Map<string, TaskRefMatch>();
+
+  for (const [candidate] of text.matchAll(TASK_REF_CANDIDATE)) {
+    if (found.size >= limit) break;
+
+    const ref = parseTaskRef(candidate);
+
+    if (ref === null) continue;
+
+    const id = formatTaskRef(ref.key, ref.number);
+
+    if (!found.has(id)) found.set(id, { ...ref, text: candidate });
+  }
+
+  return [...found.values()];
+}

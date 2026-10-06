@@ -14,7 +14,11 @@ describe("board settings registry", () => {
   // Pinned so a section added to the nav without a route, or the reverse,
   // fails here instead of rendering a dead link.
   it("declares exactly the sections that are implemented", () => {
-    expect([...BOARD_SETTINGS_SECTIONS]).toEqual(["details", "features"]);
+    expect([...BOARD_SETTINGS_SECTIONS]).toEqual([
+      "details",
+      "features",
+      "integrations",
+    ]);
   });
 
   it("has a definition for every section, keyed by itself", () => {

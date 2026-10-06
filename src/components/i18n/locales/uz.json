@@ -1212,7 +1212,92 @@
     "planning": "Rejalashtirish",
     "sprints": "Sprintlar",
     "sprintsHint": "Ishlarni belgilangan vaqt oraliqlarida rejalashtiring. Shunda doska joriy sprint ishlarini ko'rsatadi, Backlog esa ularni rejalashtiradigan joy bo'ladi.",
-    "workflowHint": "Kartalar tartib bilan ko'chadi: Bajarilishi kerak → Jarayonda → Ko'rib chiqilmoqda → Bajarilgan. Kartani istalgan ikki ustun o'rtasida ko'chirishga ruxsat berish uchun o'chiring."
+    "workflowHint": "Kartalar tartib bilan ko'chadi: Bajarilishi kerak → Jarayonda → Ko'rib chiqilmoqda → Bajarilgan. Kartani istalgan ikki ustun o'rtasida ko'chirishga ruxsat berish uchun o'chiring.",
+    "integrations": "Integratsiyalar",
+    "integrationsHint": "Jamoangiz ishlaydigan vositalarni ulang."
+  },
+  "gitlab": {
+    "title": "GitLab",
+    "hint": "Vazifa kalitini, masalan {{example}}, commit xabarida, branch nomida yoki merge request'da yozing — ular shu vazifada ko'rinadi.",
+    "loadFailed": "Bu doskaning GitLab ulanishlarini yuklab bo'lmadi.",
+    "empty": "Bu doskaga hali birorta GitLab loyihasi ulanmagan.",
+    "projectUrl": "GitLab loyihasi",
+    "anotherProject": "Yana bitta GitLab loyihasini ulash",
+    "projectUrlHint": "Loyiha manzili, masalan https://gitlab.com/group/project.",
+    "projectUrlRequired": "Loyiha manzilini kiriting.",
+    "connect": "Ulash",
+    "connecting": "Ulanmoqda…",
+    "openProject": "{{project}} loyihasini GitLab'da ochish",
+    "status": {
+      "awaitingToken": "Imzo tokeni kerak",
+      "awaitingDelivery": "GitLab kutilmoqda",
+      "active": "Faol",
+      "failing": "Xatolik"
+    },
+    "statusDetail": {
+      "awaitingToken": "GitLab'da webhook qo'shing, so'ng uning imzo tokenini shu yerda saqlang.",
+      "awaitingDelivery": "Token saqlandi. GitLab'dan hali hech narsa kelmadi — commit yuboring yoki GitLab'dagi webhook uchun Test → Push events'ni bosing.",
+      "active": "Hodisalar kelmoqda. Oxirgi yetkazma {{time}}.",
+      "failing": "Oxirgi rad etilgan yetkazma {{time}}."
+    },
+    "failure": {
+      "headers": "GitLab yetkazmasi imzosiz keldi. Webhook'da imzo tokeni borligini tekshiring.",
+      "signature": "Imzo mos kelmadi. Shu webhook'ning imzo tokenini qayta qo'ying.",
+      "timestamp": "Yetkazma 5 daqiqadan eski yoki qaysidir soat noto'g'ri.",
+      "token": "Saqlangan imzo tokenini o'qib bo'lmadi. Uni qayta qo'ying.",
+      "project": "Yetkazma boshqa GitLab loyihasidan keldi. Webhook shu loyihaga tegishli ekanini tekshiring.",
+      "payload": "GitLab yetkazmasini o'qib bo'lmadi.",
+      "unknown": "GitLab yetkazmasi rad etildi."
+    },
+    "webhookUrl": "Webhook URL",
+    "copy": "Nusxalash",
+    "copied": "Webhook URL nusxalandi",
+    "copyFailed": "Nusxalab bo'lmadi. Manzilni belgilab, qo'lda nusxalang.",
+    "setupTitle": "GitLab'da webhook qo'shing",
+    "setup": {
+      "open": "GitLab'da {{project}} loyihasini oching, so'ng Settings → Webhooks → Add new webhook.",
+      "url": "Yuqoridagi webhook URL'ni URL maydoniga qo'ying. Secret token maydonini bo'sh qoldiring.",
+      "trigger": "Trigger bo'limida Push events va Merge request events'ni belgilang.",
+      "token": "Generate signing token'ni bosing va tokenni nusxalang — GitLab uni faqat bir marta ko'rsatadi. So'ng Add webhook'ni bosing.",
+      "save": "Imzo tokenini quyida qo'ying va saqlang."
+    },
+    "signingToken": "Imzo tokeni",
+    "signingTokenHint": "whsec_ bilan boshlanadi. Shifrlangan holda saqlanadi va boshqa hech qachon ko'rsatilmaydi.",
+    "tokenSavedAt": "Token {{time}} saqlangan. Almashtirish uchun yangisini qo'ying.",
+    "tokenProblem": {
+      "required": "Imzo tokenini qo'ying.",
+      "prefix": "Imzo tokeni whsec_ bilan boshlanadi. Tokenni GitLab'dan to'liq nusxalang."
+    },
+    "saveToken": "Tokenni saqlash",
+    "replaceToken": "Tokenni almashtirish",
+    "disconnect": "Uzish",
+    "disconnecting": "Uzilmoqda…",
+    "disconnectConfirm": "{{project}} uzilsinmi? Uning commit, branch va merge request'lari shu doska vazifalaridan o'chiriladi. GitLab'dagi webhook'ni ham o'chiring.",
+    "errors": {
+      "alreadyConnected": "Bu GitLab loyihasi allaqachon shu doskaga ulangan.",
+      "notConfigured": "Bu serverda GitLab integratsiyasi hali sozlanmagan.",
+      "https": "Loyiha manzili https:// bilan boshlanishi kerak.",
+      "url": "Bu GitLab loyihasi manzili emas.",
+      "path": "Manzil loyihani ko'rsatishi kerak, masalan group/project.",
+      "token": "Bu GitLab imzo tokeni emas. Tokenni GitLab'dan to'liq nusxalang."
+    }
+  },
+  "development": {
+    "title": "Ishlab chiqish",
+    "mergeRequests": "Merge request'lar",
+    "branches": "Branch'lar",
+    "commits": "Commit'lar",
+    "none": "GitLab'da bu vazifa hali tilga olinmagan.",
+    "hint": "{{key}} ni commit xabarida, branch nomida yoki merge request sarlavhasida yozing.",
+    "loadFailed": "Bu vazifaning commit, branch va merge request'larini yuklab bo'lmadi.",
+    "showAll": "Barcha {{count}} tasini ko'rsatish",
+    "showLess": "Kamroq ko'rsatish",
+    "state": {
+      "opened": "Ochiq",
+      "merged": "Birlashtirilgan",
+      "closed": "Yopilgan",
+      "locked": "Qulflangan"
+    }
   },
   "apiErrors": {
     "network": "Serverga ulanib bo'lmadi. Internet aloqangizni tekshirib, qayta urinib ko'ring.",

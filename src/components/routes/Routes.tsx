@@ -24,6 +24,7 @@ import {
   BoardPage,
   BoardSettingsDetailsPage,
   BoardSettingsFeaturesPage,
+  BoardSettingsIntegrationsPage,
   FilterPage,
   ManageBoardsPage,
   ForgotPasswordPage,
@@ -73,6 +74,10 @@ export const router = createBrowserRouter([
       {
         path: "/boards/:boardId/settings/features",
         element: deferred(<BoardSettingsFeaturesPage />),
+      },
+      {
+        path: "/boards/:boardId/settings/integrations",
+        element: deferred(<BoardSettingsIntegrationsPage />),
       },
       {
         path: "/filters/:filterId",

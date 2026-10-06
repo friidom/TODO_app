@@ -7,7 +7,11 @@ import i18n from "@/components/i18n";
 // Only sections that do something are listed. A greyed-out "Work types" would
 // be a promise the page cannot keep.
 
-export const BOARD_SETTINGS_SECTIONS = ["details", "features"] as const;
+export const BOARD_SETTINGS_SECTIONS = [
+  "details",
+  "features",
+  "integrations",
+] as const;
 
 export type BoardSettingsSection = (typeof BOARD_SETTINGS_SECTIONS)[number];
 
@@ -37,6 +41,15 @@ export const BOARD_SETTINGS_SECTION_DEFINITIONS: Record<
     },
     get hint() {
       return i18n.t("boardSettings.featuresHint");
+    },
+  },
+  integrations: {
+    section: "integrations",
+    get label() {
+      return i18n.t("boardSettings.integrations");
+    },
+    get hint() {
+      return i18n.t("boardSettings.integrationsHint");
     },
   },
 };

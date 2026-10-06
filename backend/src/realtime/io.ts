@@ -14,7 +14,8 @@ export type Scope =
   | "attachments"
   | "sprints"
   | "members"
-  | "boards";
+  | "boards"
+  | "development";
 
 export interface RowChange<T = Record<string, unknown>> {
   eventType: "INSERT" | "UPDATE" | "DELETE";

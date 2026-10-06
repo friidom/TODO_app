@@ -11,7 +11,8 @@ export type Scope =
   | "attachments"
   | "sprints"
   | "members"
-  | "boards";
+  | "boards"
+  | "development";
 
 export const ALL_SCOPES: Scope[] = [
   "todos",
@@ -21,11 +22,15 @@ export const ALL_SCOPES: Scope[] = [
   "sprints",
   "members",
   "boards",
+  "development",
 ];
 
 // comments and attachments are keyed by todo, not by board, so the whole
 // family is invalidated rather than a key this function cannot construct.
-function keysFor(scope: Scope, boardId: string | undefined): readonly unknown[][] {
+function keysFor(
+  scope: Scope,
+  boardId: string | undefined,
+): readonly unknown[][] {
   switch (scope) {
     case "todos":
       return [[...queryKeys.todos(boardId)]];
@@ -41,6 +46,8 @@ function keysFor(scope: Scope, boardId: string | undefined): readonly unknown[][
       return [[...queryKeys.members(boardId)]];
     case "boards":
       return [[...queryKeys.board(boardId)], [...queryKeys.boards()]];
+    case "development":
+      return [[...queryKeys.boardDevelopment(boardId)]];
     // Reachable despite the union: a newer server may name a scope this build
     // has never heard of.
     default:

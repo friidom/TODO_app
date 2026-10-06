@@ -2,6 +2,8 @@ import "dotenv/config";
 
 import { z } from "zod";
 
+import { parseSecretBoxKey } from "../lib/secretBox.js";
+
 const databaseUrl = z
   .string()
   .min(1)
@@ -38,6 +40,21 @@ const databaseUrl = z
       });
     }
   });
+
+// Bare scheme://host[:port]: the webhook path is appended to it, so a path
+// left on the end would be doubled up rather than replaced.
+const origin = z.string().refine((value) => {
+  try {
+    const url = new URL(value);
+
+    return (
+      (url.protocol === "https:" || url.protocol === "http:") &&
+      url.origin === value.replace(/\/+$/, "")
+    );
+  } catch {
+    return false;
+  }
+}, "expected a bare origin like https://abc.trycloudflare.com, with no path");
 
 // z.coerce.boolean() reads any non-empty string, including "false", as true.
 const flag = (fallback: "true" | "false") =>
@@ -133,6 +150,13 @@ const schema = z.object({
   // three variables is three chances to make them disagree.
   API_PUBLIC_URL: z.string().min(1).default("http://localhost:4000/api/v1"),
 
+  // Where GitLab reaches the API from the internet, when that is not
+  // API_PUBLIC_URL. In local development the browser uses localhost and only a
+  // tunnel reaches the API from outside, and moving API_PUBLIC_URL to the
+  // tunnel would break the OAuth callbacks registered against it. Unset,
+  // webhook urls are built from API_PUBLIC_URL.
+  WEBHOOK_PUBLIC_ORIGIN: origin.optional(),
+
   MAIL_DRIVER: z.enum(["console", "smtp"]).default("console"),
   MAIL_FROM: z.string().min(1).default("TODO App <no-reply@todo.local>"),
   SMTP_HOST: z.string().min(1).optional(),
@@ -150,6 +174,17 @@ const schema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
   GITHUB_CLIENT_ID: z.string().min(1).optional(),
   GITHUB_CLIENT_SECRET: z.string().min(1).optional(),
+
+  // Encrypts the GitLab webhook signing tokens at rest. Optional: unset, the
+  // GitLab integration refuses to store a token and every webhook is ignored.
+  // Changing it makes every stored token unreadable until it is pasted again.
+  INTEGRATION_SECRET_KEY: z
+    .string()
+    .refine(
+      (value) => parseSecretBoxKey(value) !== null,
+      "must be exactly 32 random bytes as base64 — generate one with: openssl rand -base64 32",
+    )
+    .optional(),
 
   // Every admin bucket is computed in this one zone (M34 D-11). "Today"
   // differs by up to a day across zones, and a KPI that disagrees with the

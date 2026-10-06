@@ -69,6 +69,15 @@ export const taskRefLimiter = limiter({
   keyGenerator: (req: Request) => req.actor?.id ?? "anonymous",
 });
 
+// Keyed by link: GitLab's addresses are shared and, behind nginx, every caller
+// is one IP anyway. Generous because a 429 counts as a failed delivery, and
+// enough of those make GitLab disable the webhook.
+export const gitlabWebhookLimiter = limiter({
+  windowMs: MINUTE,
+  limit: 300,
+  keyGenerator: (req: Request) => `gitlab-webhook:${String(req.params.linkId)}`,
+});
+
 // ALL THREE ARE ONE GLOBAL BUCKET behind nginx, because `trust proxy` is unset
 // (B12-03) and every proxied request presents the same container IP. The limits
 // are therefore sized as "absurd for a whole deployment" rather than "generous
