@@ -24,7 +24,7 @@ export function useLogin() {
     }) => signIn(identifier, password),
 
     onSuccess: () => {
-      navigate(next);
+      navigate(next, { replace: true });
     },
   });
 }

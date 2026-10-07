@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Navigate, Outlet, useLocation } from "react-router";
 import OAuthLinkCompleter from "@/components/auth/OAuthLinkCompleter";
 import { useAuth } from "@/services/auth/useAuth";
@@ -14,11 +15,19 @@ function isConfirmed(user: AuthUser) {
 export default function ProtectedRoute() {
   const { user, loading } = useAuth();
   const location = useLocation();
+  const [hadSession, setHadSession] = useState(false);
+
+  if (user && !hadSession) setHadSession(true);
 
   if (loading) return <Loading />;
 
   if (!user) {
-    return <Navigate to={loginPath(location)} replace />;
+    // A session that ended on this page was signed out of, so the page is not a
+    // destination to return to — otherwise signing out on Profile lands the next
+    // sign-in back on Profile.
+    return (
+      <Navigate to={hadSession ? "/login" : loginPath(location)} replace />
+    );
   }
 
   if (!isConfirmed(user)) {
