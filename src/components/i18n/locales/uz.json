@@ -274,7 +274,8 @@
     "back": "Orqaga",
     "breadcrumb": "navigatsiya yo'li",
     "optional": "(ixtiyoriy)",
-    "saved": "Saqlandi."
+    "saved": "Saqlandi.",
+    "percentDone": "{{percent}}% bajarildi"
   },
   "sidebar": {
     "toggle": "Yon panelni ochish/yopish",
@@ -498,7 +499,8 @@
     "doneOf": "{{count}} tadan {{done}} tasi bajarildi",
     "noneActive": "Faol sprint yo'q",
     "noneActiveHint": "Bu doskada ishlarni ko'rish uchun sprintni boshlang.",
-    "goToBacklog": "Backlogga o'tish"
+    "goToBacklog": "Backlogga o'tish",
+    "endDate": "Tugash sanasi"
   },
   "task": {
     "fallbackName": "ish elementi",
@@ -519,7 +521,13 @@
     "updatedAgo": "Yangilangan: {{when}}",
     "closeDetails": "Vazifa tafsilotlarini yopish",
     "moreActions": "Boshqa amallar",
-    "actions": "Vazifa amallari"
+    "actions": "Vazifa amallari",
+    "openInPanel": "Yon panelda ochish",
+    "openAsDialog": "Oynada ochish",
+    "openInNewTab": "Yangi varaqda ochish",
+    "copyLink": "Havolani nusxalash",
+    "linkCopied": "Havola nusxalandi",
+    "copyLinkFailed": "Havolani nusxalab bo'lmadi."
   },
   "view": {
     "ascending": "O'sish bo'yicha",
@@ -568,7 +576,8 @@
     "searchFields": "Maydonlarni qidirish…",
     "clearAll": "Hammasini tozalash",
     "clearField": "{{name}} — tozalash",
-    "shownOf": "{{shown}} / {{total}}"
+    "shownOf": "{{shown}} / {{total}}",
+    "moreAssignees": "Boshqa ijrochilar"
   },
   "list": {
     "collapseAll": "Barcha kichik vazifalarni yig'ish",
@@ -713,7 +722,16 @@
     "addLabel": "Izoh qo'shish",
     "posting": "Yuborilmoqda…",
     "comment": "Izoh",
-    "shortcut": "Yuborish uchun ⌘↵"
+    "shortcut": "Yuborish uchun ⌘↵",
+    "quickLabel": "Tezkor javoblar",
+    "proTip": "Maslahat: izoh qoldirish uchun M tugmasini bosing",
+    "quick": {
+      "looksGood": "🎉 Zo'r chiqibdi!",
+      "needHelp": "👋 Yordam kerakmi?",
+      "blocked": "⛔ Bu bloklangan…",
+      "clarify": "🔍 Aniqlashtirib bera olasizmi…?",
+      "onTrack": "✅ Hammasi reja bo'yicha"
+    }
   },
   "attachments": {
     "title": "Biriktirmalar",
@@ -758,7 +776,9 @@
       "documents": "Biriktirilgan hujjatlar yo'q.",
       "videos": "Biriktirilgan videolar yo'q.",
       "other": "Boshqa biriktirilgan fayllar yo'q."
-    }
+    },
+    "dropHere": "Biriktirish uchun fayllarni qo'yib yuboring",
+    "dropOr": "Fayllarni shu yerga tashlang yoki"
   },
   "subtasks": {
     "title": "Kichik vazifalar",
@@ -766,7 +786,17 @@
     "progress": "{{count}} ta kichik vazifadan {{done}} tasi bajarildi",
     "empty": "Hali kichik vazifalar yo'q.",
     "emptyHint": "Yuqoridagi + orqali bu vazifani qismlarga bo'ling.",
-    "itemTitle": "Kichik vazifa sarlavhasi"
+    "itemTitle": "Kichik vazifa sarlavhasi",
+    "namePlaceholder": "Kichik vazifaga nom bering",
+    "create": "Kichik vazifa yaratish",
+    "chooseExisting": "Mavjudini tanlash",
+    "searchExisting": "Kalit yoki sarlavha bo'yicha qidiring",
+    "noCandidates": "Bu yerda kichik vazifaga aylantirsa bo'ladigan ish elementi yo'q.",
+    "actions": "Kichik vazifa sozlamalari",
+    "hideDone": "Bajarilganlarni yashirish",
+    "sortBy": "Saralash",
+    "restoreDefaults": "Standartga qaytarish",
+    "allDone": "Barcha kichik vazifalar bajarilgan va yashirilgan."
   },
   "epic": {
     "tasks": "Vazifalar",
@@ -1292,12 +1322,75 @@
     "loadFailed": "Bu vazifaning commit, branch va merge request'larini yuklab bo'lmadi.",
     "showAll": "Barcha {{count}} tasini ko'rsatish",
     "showLess": "Kamroq ko'rsatish",
+    "connectTools": "Ishlab chiqish vositalarini ulash",
+    "openInEditor": "Kod muharririda ochish",
+    "openInEditorHint": "VS Code ochiladi va {{project}} loyihasini klonlashni taklif qiladi",
+    "createBranch": "Branch yaratish",
+    "createCommit": "Commit yaratish",
+    "branchName": "Branch nomi",
+    "checkoutCommand": "Git buyrug'i",
+    "createInGitLab": "GitLab'da yaratish",
+    "commitTitle": "Commit'larni vazifalarga bog'lash",
+    "copyKey": "Kalitni nusxalash",
+    "copyCommit": "Git commit namunasini nusxalash",
+    "copied": "Nusxalandi",
+    "copyFailed": "Nusxalab bo'lmadi. Matnni belgilab, qo'lda nusxalang.",
     "state": {
       "opened": "Ochiq",
       "merged": "Birlashtirilgan",
       "closed": "Yopilgan",
       "locked": "Qulflangan"
     }
+  },
+  "viewSettings": {
+    "title": "Doska ko'rinishi sozlamalari",
+    "columnSize": "Ustun kengligi",
+    "columnSizeHint": "Barcha ustunlar bir xil qat'iy kenglikda yoki ustunlar doska kengligiga moslashadi.",
+    "fixed": "Qat'iy",
+    "flexible": "Moslashuvchan",
+    "scrolling": "Aylantirish",
+    "scrollingHint": "Har bir ustun ichida yoki butun doskani aylantirish.",
+    "withinColumns": "Ustunlar ichida",
+    "wholeBoard": "Butun doska",
+    "deviceNote": "Faqat shu qurilmada saqlanadi.",
+    "workItemKey": "Ish elementi kaliti",
+    "hideDoneAfter": "Bajarilgan ishlarni yashirish muddati",
+    "hideDoneHint": "Faqat doskada yashiriladi. Ro'yxat, backlog va qidiruvda barcha ishlar ko'rinadi.",
+    "never": "Hech qachon",
+    "days_one": "{{count}} kun",
+    "days_other": "{{count}} kun",
+    "showFields": "Kartochka maydonlari",
+    "showFieldsHint": "Doskadagi har bir kartochka nimani ko'rsatishini tanlang.",
+    "searchFields": "Maydonlarni qidirish",
+    "selectedFields": "Tanlangan maydonlar",
+    "noFieldsSelected": "Kartochkalarda maydon yo'q. Yuqoridagi qidiruv orqali qo'shing.",
+    "allFieldsShown": "Barcha maydonlar allaqachon ko'rsatilgan.",
+    "removeField": "«{{name}}» maydonini olib tashlash"
+  },
+  "insights": {
+    "title": "Sprint tahlili",
+    "intro": "Sprint holati va maqsad sari borishi.",
+    "attention": "E'tibor talab qiladigan ishlar",
+    "attentionEmpty": "Hozircha e'tibor talab qiladigan ishlar yo'q. Sprintdagi muddati o'tgan ishlar shu yerda ko'rinadi.",
+    "notStarted": "Boshlanmagan",
+    "epics": "Epiklar bo'yicha jarayon",
+    "noEpics": "Bu sprintda epiklar yo'q.",
+    "burndown": "Sprint burndown grafigi",
+    "pointsDone_one": "{{count}} ball bajarildi",
+    "pointsDone_other": "{{count}} ball bajarildi",
+    "pointsLeft_one": "{{count}} ball qoldi",
+    "pointsLeft_other": "{{count}} ball qoldi",
+    "itemsDone_one": "{{count}} ta ish bajarildi",
+    "itemsDone_other": "{{count}} ta ish bajarildi",
+    "itemsLeft_one": "{{count}} ta ish qoldi",
+    "itemsLeft_other": "{{count}} ta ish qoldi",
+    "remainingWork": "Qolgan ish",
+    "guideline": "Ideal chiziq",
+    "currentScope": "Sprintning joriy tarkibi asosida. Sprint davomida qo'shilgan yoki olib tashlangan ishlar hisobga olinmaydi.",
+    "noStartDate": "Grafikni ko'rish uchun sprintga boshlanish sanasini belgilang.",
+    "noWork": "Bu sprintda hozircha ishlar yo'q.",
+    "epicsSummary_one": "Bu sprint {{count}} ta epik ustida ishlamoqda.",
+    "epicsSummary_other": "Bu sprint {{count}} ta epik ustida ishlamoqda."
   },
   "apiErrors": {
     "network": "Serverga ulanib bo'lmadi. Internet aloqangizni tekshirib, qayta urinib ko'ring.",

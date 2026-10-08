@@ -30,6 +30,7 @@ afterAll(async () => {
 
 interface Development {
   connected: boolean;
+  projects: { project_path: string; project_url: string }[];
   commits: { sha: string; title: string; author_name: string; committed_at: string; url: string; project_path: string }[];
   branches: { name: string; head_sha: string; url: string; project_path: string; updated_at: string }[];
   merge_requests: {
@@ -105,6 +106,7 @@ describe("GET /todos/:todoId/development", () => {
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
       connected: true,
+      projects: [{ project_path: "acme/backend", project_url: PROJECT.web_url }],
       commits: [
         {
           sha: sha("API-1 fix authentication flow"),
@@ -186,6 +188,7 @@ describe("GET /todos/:todoId/development", () => {
 
     expect((await developmentOf(alice, todoId)).body).toEqual({
       connected: false,
+      projects: [],
       commits: [],
       branches: [],
       merge_requests: [],
@@ -193,11 +196,14 @@ describe("GET /todos/:todoId/development", () => {
 
     const { linkId } = await link(alice, boardId);
 
-    expect((await developmentOf(alice, todoId)).body.connected).toBe(true);
+    expect((await developmentOf(alice, todoId)).body).toMatchObject({
+      connected: true,
+      projects: [{ project_path: "acme/backend", project_url: "https://gitlab.com/acme/backend" }],
+    });
 
     await client.del(`/api/v1/boards/${boardId}/integrations/gitlab/${linkId}`, undefined, { token: alice.token });
 
-    expect((await developmentOf(alice, todoId)).body.connected).toBe(false);
+    expect((await developmentOf(alice, todoId)).body).toMatchObject({ connected: false, projects: [] });
   });
 
   it("returns only the newest commits when asked for fewer", async () => {
@@ -237,12 +243,13 @@ describe("GET /todos/:todoId/development", () => {
 
     await deliver(client.url, linkId, signedDelivery(token, pushPayload({ project: renamed, commits: [] })));
 
-    const [commit] = (await developmentOf(alice, todoId)).body.commits;
+    const { commits, projects } = (await developmentOf(alice, todoId)).body;
 
-    expect(commit).toMatchObject({
+    expect(commits[0]).toMatchObject({
       project_path: "acme/core",
       url: `https://gitlab.com/acme/core/-/commit/${sha("API-1 before")}`,
     });
+    expect(projects).toEqual([{ project_path: "acme/core", project_url: "https://gitlab.com/acme/core" }]);
   });
 
   describe("who may read it", () => {

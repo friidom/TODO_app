@@ -355,7 +355,7 @@ function FieldSearch({
   );
 }
 
-function SearchField({
+export function SearchField({
   value,
   onChange,
   placeholder,

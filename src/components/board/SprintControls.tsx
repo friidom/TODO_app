@@ -1,9 +1,11 @@
 import { useTranslation } from "react-i18next";
 import { useState } from "react";
-import { FlagIcon } from "lucide-react";
+import { ChartLineIcon, FlagIcon } from "lucide-react";
 
 import CompleteSprintModal from "@/components/backlog/CompleteSprintModal";
+import IconButton from "@/components/ui/IconButton";
 import { TOOLBAR_DIVIDER } from "@/components/ui/controlChrome";
+import { usePanel } from "@/hooks/usePanel";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useSprintsEnabled } from "@/hooks/useSprintsEnabled";
 import { activeSprintOf } from "@/services/sprints/activeSprint";
@@ -21,6 +23,7 @@ export default function SprintControls() {
   const { t } = useTranslation();
   const { data: sprints = [] } = useSprints();
   const { canEditTodos } = usePermissions();
+  const { panel, openPanel, closePanel } = usePanel();
 
   const [completing, setCompleting] = useState(false);
 
@@ -29,10 +32,12 @@ export default function SprintControls() {
   if (!sprintsEnabled || !sprint) return null;
 
   const dates = sprintDates(sprint);
+  const insightsOpen = panel === "insights";
 
   return (
     <>
-      <p className="text-meta text-ink-3 hidden max-w-64 min-w-0 truncate @4xl:block">
+      {/* only where it fits whole — squeezed any narrower it truncated to a lone initial; Sprint details has it all */}
+      <p className="text-meta text-ink-3 hidden max-w-64 min-w-0 truncate @6xl:block">
         <span className="text-ink-2 font-medium">{sprint.name}</span>
         {dates && ` · ${dates}`}
       </p>
@@ -55,11 +60,26 @@ export default function SprintControls() {
             </span>
           }
           onClick={() => setCompleting(true)}
-          className="text-ink font-medium"
+          // filled dark like Jira's Complete sprint; the hover and active text/background must be restated or the base control's would win
+          className="bg-ink text-canvas hover:bg-ink/90 hover:text-canvas active:bg-ink/80 border-transparent font-medium"
         />
       )}
 
       <SprintDetails sprint={sprint} />
+
+      <IconButton
+        label={t("insights.title")}
+        size="toolbar"
+        active={insightsOpen}
+        onClick={() => (insightsOpen ? closePanel() : openPanel("insights"))}
+        // bg-transparent and the idle border would cancel the active look, so they only apply when idle
+        className={cn(
+          "size-8 rounded-md",
+          !insightsOpen && "border-ink/15 hover:bg-wash-strong bg-transparent",
+        )}
+      >
+        <ChartLineIcon />
+      </IconButton>
 
       <span
         aria-hidden

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, type ReactNode } from "react";
 import { XIcon } from "lucide-react";
 
@@ -13,6 +14,8 @@ export default function Drawer({
   onClose: () => void;
   children: ReactNode;
 }) {
+  const { t } = useTranslation();
+
   useEffect(() => {
     function handleEscape(e: KeyboardEvent) {
       if (e.key === "Escape" && !e.defaultPrevented) onClose();
@@ -33,13 +36,14 @@ export default function Drawer({
 
       <aside
         aria-label={title}
-        className="border-hairline bg-rail fixed inset-y-0 right-0 z-50 flex w-[min(24rem,100vw)] shrink-0 flex-col border-l xl:static xl:z-auto xl:w-[22rem]"
+        className="border-hairline bg-rail animate-in fade-in-0 slide-in-from-right-4 fixed inset-y-0 right-0 z-50 flex w-[min(24rem,100vw)] shrink-0 flex-col border-l duration-200 xl:static xl:z-auto xl:w-[22rem]"
       >
-        <header className="border-hairline flex h-12 shrink-0 items-center gap-2 border-b px-4">
-          <h2 className="text-ink truncate text-sm font-semibold">{title}</h2>
+        <header className="border-hairline flex h-14 shrink-0 items-center gap-2 border-b pr-3 pl-5">
+          <h2 className="text-ink truncate text-base font-semibold">{title}</h2>
 
           <IconButton
-            label={`Close ${title}`}
+            label={t("common.close")}
+            size="md"
             onClick={onClose}
             className="ml-auto"
           >

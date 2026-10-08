@@ -1,7 +1,6 @@
 // Plain .ts, like dialogChrome.ts: react-refresh can't fast-refresh a module that mixes components with other exports.
 
-export const SECTION_TITLE =
-  "text-ink-3 text-mini font-semibold tracking-wide uppercase";
+export const SECTION_TITLE = "text-ink text-sm font-semibold";
 
 export const COUNT_CHIP =
   "bg-wash-strong text-ink-2 text-micro grid h-5 min-w-5 shrink-0 place-items-center rounded-full px-1.5 font-semibold tabular-nums";

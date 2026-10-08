@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MessageSquareIcon } from "lucide-react";
 
 import SectionHeader, { EmptyLine } from "@/components/todo/SectionHeader";
@@ -298,6 +298,14 @@ export function CommentRow({
   );
 }
 
+const QUICK_REPLIES = [
+  "comments.quick.looksGood",
+  "comments.quick.needHelp",
+  "comments.quick.blocked",
+  "comments.quick.clarify",
+  "comments.quick.onTrack",
+] as const;
+
 // gated here rather than at each call site, so no tab can render a composer for a role that can't comment
 export function Composer({
   todoId,
@@ -308,10 +316,49 @@ export function Composer({
 }) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState("");
+  const input = useRef<HTMLTextAreaElement>(null);
   const add = useAddComment();
   const { canComment } = usePermissions();
+  const { user } = useAuth();
+  const { data: members = [] } = useBoardMembers(useBoardId());
 
+  const me = members.find((member) => member.id === user?.id);
   const value = commentValue(draft);
+
+  // "M" to comment. event.code, not event.key: on a Russian or Uzbek layout that key types a different letter.
+  useEffect(() => {
+    function handleKey(event: KeyboardEvent) {
+      if (event.code !== "KeyM" || event.repeat || event.isComposing) return;
+      if (event.defaultPrevented) return;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+
+      const field = input.current;
+
+      if (!field) return;
+
+      const target = event.target;
+
+      if (
+        target instanceof Element &&
+        target.closest("input, textarea, select, [contenteditable]")
+      ) {
+        return;
+      }
+
+      // A dialog above this one (an attachment preview, say) owns the keyboard.
+      const dialogs = document.querySelectorAll('[aria-modal="true"]');
+      const top = dialogs[dialogs.length - 1];
+
+      if (top && !top.contains(field)) return;
+
+      event.preventDefault();
+      field.focus();
+    }
+
+    document.addEventListener("keydown", handleKey);
+
+    return () => document.removeEventListener("keydown", handleKey);
+  }, []);
 
   function post() {
     if (value === null) return;
@@ -322,40 +369,82 @@ export function Composer({
     setDraft("");
   }
 
+  function quickReply(text: string) {
+    setDraft(text);
+    input.current?.focus();
+
+    // the value lands on the next commit, so the caret is placed once it has
+    requestAnimationFrame(() =>
+      input.current?.setSelectionRange(text.length, text.length),
+    );
+  }
+
   if (!canComment) return null;
 
   return (
-    <div className={className}>
-      <textarea
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-            post();
-          }
-        }}
-        rows={2}
-        placeholder={t("comments.addPlaceholder")}
-        aria-label={t("comments.addLabel")}
-        className={cn(
-          TEXT_FIELD,
-          "rounded-card field-sizing-content max-h-72 min-h-16 w-full resize-y px-3 py-2.5 text-sm leading-relaxed",
-        )}
-      />
+    <div className={cn("flex gap-2.5", className)}>
+      <Avatar className="mt-0.5 shrink-0">
+        <AvatarImage src={me?.avatar_url ?? undefined} alt="" />
+        <AvatarFallback className="bg-elevated text-ink-2 text-xs font-semibold">
+          {me ? memberInitial(me) : "–"}
+        </AvatarFallback>
+      </Avatar>
 
-      <div className="mt-2 flex items-center gap-3">
-        <button
-          type="button"
-          onClick={post}
-          disabled={value === null || add.isPending}
-          className={cn(DIALOG_CONFIRM, "h-8 px-3 text-xs")}
-        >
-          {add.isPending ? t("comments.posting") : t("comments.comment")}
-        </button>
+      <div className="min-w-0 flex-1">
+        <div className="border-hairline bg-surface focus-within:border-brand focus-within:ring-brand rounded-card border transition-colors duration-150 focus-within:ring-1">
+          <textarea
+            ref={input}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                post();
+              }
+            }}
+            rows={2}
+            placeholder={t("comments.addPlaceholder")}
+            aria-label={t("comments.addLabel")}
+            className="text-ink placeholder:text-ink-3 field-sizing-content max-h-72 min-h-16 w-full resize-none bg-transparent px-3 py-2.5 text-sm leading-relaxed outline-none"
+          />
 
-        <span className="text-ink-3 text-mini hidden sm:inline">
-          {t("comments.shortcut")}
-        </span>
+          {value === null && (
+            <div
+              role="group"
+              aria-label={t("comments.quickLabel")}
+              className="flex flex-wrap gap-1.5 px-2.5 pb-2.5"
+            >
+              {QUICK_REPLIES.map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => quickReply(t(key))}
+                  className="border-hairline bg-surface text-ink-2 hover:bg-wash-strong hover:text-ink focus-visible:ring-brand text-mini rounded-full border px-2.5 py-1 font-medium transition-colors duration-150 outline-none focus-visible:ring-2"
+                >
+                  {t(key)}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <button
+            type="button"
+            onClick={post}
+            disabled={value === null || add.isPending}
+            className={cn(DIALOG_CONFIRM, "h-8 px-3 text-xs")}
+          >
+            {add.isPending ? t("comments.posting") : t("comments.comment")}
+          </button>
+
+          <span className="text-ink-3 text-mini hidden sm:inline">
+            {t("comments.shortcut")}
+          </span>
+
+          <span className="text-ink-3 text-mini hidden sm:ml-auto sm:inline">
+            {t("comments.proTip")}
+          </span>
+        </div>
       </div>
     </div>
   );

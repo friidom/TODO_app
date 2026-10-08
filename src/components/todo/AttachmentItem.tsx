@@ -39,11 +39,12 @@ import {
   TABLE_HEAD,
   TABLE_ROW,
 } from "./detailChrome";
+import { HOVER_REVEAL } from "./TodoItem/fieldChrome";
 import { useCardPopover } from "./TodoItem/useCardPopover";
 
 // Below sm, date/size are hidden (removed from grid flow), not squeezed.
 export const ATTACHMENT_GRID =
-  "grid items-center gap-x-3 px-3 grid-cols-[2rem_minmax(0,1fr)_1.5rem] sm:grid-cols-[2rem_minmax(0,1fr)_6.5rem_4.5rem_1.5rem]";
+  "grid items-center gap-x-3 px-3 grid-cols-[2rem_minmax(0,1fr)_3.25rem] sm:grid-cols-[2rem_minmax(0,1fr)_6.5rem_4.5rem_3.25rem]";
 
 const ROW = "border-hairline h-12 border-b last:border-b-0";
 
@@ -114,7 +115,7 @@ export function AttachmentRow({
   }
 
   return (
-    <div role="row" className={cn(ATTACHMENT_GRID, TABLE_ROW, "h-12")}>
+    <div role="row" className={cn(ATTACHMENT_GRID, TABLE_ROW, "group h-12")}>
       <AttachmentThumb attachment={attachment} onClick={onPreview} />
 
       <div role="cell" className="min-w-0">
@@ -143,7 +144,8 @@ export function AttachmentRow({
         {formatBytes(attachment.size_bytes)}
       </span>
 
-      <div role="cell" className="flex">
+      <div role="cell" className="flex justify-end gap-1">
+        <DownloadButton actions={actions} />
         <AttachmentMenu actions={actions} />
       </div>
     </div>
@@ -166,7 +168,7 @@ export function AttachmentCard({
   const added = dateAdded(attachment.created_at, i18n.language);
 
   return (
-    <li className="border-hairline rounded-card hover:border-ink/20 overflow-hidden border transition-colors duration-150">
+    <li className="group border-hairline rounded-card hover:border-ink/20 overflow-hidden border transition-colors duration-150">
       <AttachmentThumb
         attachment={attachment}
         onClick={onPreview}
@@ -192,7 +194,10 @@ export function AttachmentCard({
         {actions.confirming ? (
           <ConfirmStrip actions={actions} compact />
         ) : (
-          <AttachmentMenu actions={actions} />
+          <>
+            <DownloadButton actions={actions} />
+            <AttachmentMenu actions={actions} />
+          </>
         )}
       </div>
     </li>
@@ -276,7 +281,23 @@ function ConfirmStrip({
   );
 }
 
-// A menu, not two icon buttons — keeps a misclick near the filename from triggering delete.
+// Download sits beside the menu on hover, as in Jira; delete stays inside it, away from a misclick near the filename.
+function DownloadButton({ actions }: { actions: RowActions }) {
+  const { t } = useTranslation();
+
+  return (
+    <IconButton
+      label={t("attachments.download")}
+      size="xs"
+      disabled={actions.downloading}
+      onClick={actions.download}
+      className={HOVER_REVEAL}
+    >
+      <DownloadIcon />
+    </IconButton>
+  );
+}
+
 function AttachmentMenu({ actions }: { actions: RowActions }) {
   const { t } = useTranslation();
   const { mounted, close, triggerProps, panelProps } = useCardPopover();
@@ -290,6 +311,8 @@ function AttachmentMenu({ actions }: { actions: RowActions }) {
         title={t("task.moreActions")}
         aria-haspopup="menu"
         {...triggerProps}
+        // Kept on screen while a download runs, so its spinner is not hidden behind an unhovered row.
+        className={cn(HOVER_REVEAL, actions.downloading && "opacity-100")}
       >
         {actions.downloading ? (
           <Loader2 className="animate-spin" />

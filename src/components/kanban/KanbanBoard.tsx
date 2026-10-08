@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 
 import { DndContext, type DataRef, type UniqueIdentifier } from "@dnd-kit/core";
 import { CircleAlertIcon, RocketIcon } from "lucide-react";
@@ -27,8 +27,17 @@ import { useVisibleTodos } from "@/hooks/useVisibleTodos";
 import { useBoardMembers } from "@/services/members/useBoardMembers";
 import { groupTodos, isSwimlaneGroup } from "@/services/todos/view";
 import { isOnBoard } from "@/services/todos/backlog";
-import { columnCategory, entryStatus } from "@/services/workflow/statuses";
+import { hideStaleDone } from "@/services/views/boardViewPrefs";
+import { useBoardViewPrefs } from "@/stores/boardViewPrefs";
+import {
+  columnCategory,
+  doneStatusIds,
+  entryStatus,
+} from "@/services/workflow/statuses";
+import { useStatuses } from "@/services/workflow/useWorkflow";
+import type { IStatus } from "@/types/data";
 
+import BoardMinimap from "./BoardMinimap";
 import SortableColumn from "./SortableColumn";
 import ColumnDropZone from "./ColumnDropZone";
 import Swimlanes from "./Swimlanes";
@@ -43,7 +52,11 @@ import EmptyState from "../ui/EmptyState";
 import Loading from "../loading/LoadingPage";
 import { byRank } from "@/utils/rank";
 import { columnTitle } from "@/constants/columns";
+import { cn } from "@/utils/cn";
+import { todayISO } from "@/utils/dueDate";
 import { taskKey } from "@/utils/taskKey";
+
+const NO_STATUSES: IStatus[] = [];
 
 export default function KanbanBoard() {
   const { t } = useTranslation();
@@ -51,7 +64,17 @@ export default function KanbanBoard() {
   const view = useBoardView();
 
   // `all` (unfiltered) is what the drop mutation reorders — a filtered array would strand the hidden cards.
-  const { todos, all, isLoading, error } = useVisibleTodos();
+  const { todos: visible, all, isLoading, error } = useVisibleTodos();
+
+  const { data: statuses = NO_STATUSES } = useStatuses();
+  const hideDoneAfter = useBoardViewPrefs((state) => state.prefs.hideDoneAfter);
+  const today = todayISO();
+
+  // Hide done is a Board setting, so it trims after the shared pipeline rather than inside it — List and Backlog keep everything.
+  const todos = useMemo(
+    () => hideStaleDone(visible, hideDoneAfter, doneStatusIds(statuses), today),
+    [visible, hideDoneAfter, statuses, today],
+  );
 
   const { data: members = [] } = useBoardMembers(boardId);
 
@@ -87,6 +110,17 @@ export default function KanbanBoard() {
   } = useKanbanDnd();
 
   const keyPrefix = useKeyPrefix();
+
+  // Read here and handed down, never per column or card, so a layout change re-renders the columns and nothing finer.
+  const flexible = useBoardViewPrefs(
+    (state) => state.prefs.columnSize === "flexible",
+  );
+  const wholeBoard = useBoardViewPrefs(
+    (state) => state.prefs.scroll === "board",
+  );
+
+  // The minimap reads this scroller's own scroll and size; nothing here depends on either.
+  const scrollerRef = useRef<HTMLDivElement>(null);
 
   const [collapsed, setCollapsed] = useState<string[]>([]);
 
@@ -265,8 +299,8 @@ export default function KanbanBoard() {
       onDragEnd={onDragEnd}
       onDragCancel={resetDrag}
     >
-      <div className="flex h-full min-h-0 flex-col">
-        <ViewNotice view={view} visibleCount={todos.length} showDragHint />
+      <div className="relative flex h-full min-h-0 flex-col">
+        <ViewNotice view={view} visibleCount={visible.length} showDragHint />
 
         {sprintsEnabled && activeSprintId === null ? (
           <NoActiveSprint onGoToBacklog={() => view.setMode("backlog")} />
@@ -279,8 +313,21 @@ export default function KanbanBoard() {
           />
         ) : (
           // -mx-3 spends the leading gap's width from ViewShell's gutter, so the first column lines up with the toolbar
-          <div className="-mx-3 min-h-0 flex-1 overflow-x-auto pb-4">
-            <div className="flex h-full min-w-max">
+          <div
+            ref={scrollerRef}
+            className={cn(
+              "-mx-3 min-h-0 flex-1 pb-4",
+              wholeBoard ? "overflow-auto" : "overflow-x-auto",
+            )}
+          >
+            <div
+              className={cn(
+                "flex",
+                wholeBoard ? "min-h-full" : "h-full",
+                // growable columns would otherwise size the row by the longest unwrapped card title
+                flexible ? "min-w-full" : "min-w-max",
+              )}
+            >
               {orderedColumns.map((column, index) => (
                 <Fragment key={column.id}>
                   <ColumnDropZone
@@ -308,12 +355,15 @@ export default function KanbanBoard() {
                       indicator={indicator}
                       isDragSource={!!activeTodo && column.id === sourceId}
                       dragDisabled={dragDisabled}
+                      flexible={flexible}
+                      wholeBoard={wholeBoard}
                       dragging={!!activeTodo || !!activeColumn}
                       // search narrows a column same as a filter — without this a searched column offers the mid-column + with a bogus index
                       exactOrder={
                         view.filterCount === 0 &&
                         !view.query.trim() &&
-                        view.sort === "manual"
+                        view.sort === "manual" &&
+                        todos === visible
                       }
                       onCollapse={() => toggleCollapsed(column.id)}
                       onSetLimit={
@@ -359,6 +409,14 @@ export default function KanbanBoard() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Rendered under the same condition as the scroller it follows, so the two always mount and unmount together */}
+        {!(sprintsEnabled && activeSprintId === null) && !swimlanes && (
+          <BoardMinimap
+            scrollerRef={scrollerRef}
+            columns={orderedColumns.length}
+          />
         )}
       </div>
 

@@ -274,7 +274,8 @@
     "back": "Back",
     "breadcrumb": "breadcrumb",
     "optional": "(optional)",
-    "saved": "Saved."
+    "saved": "Saved.",
+    "percentDone": "{{percent}}% done"
   },
   "sidebar": {
     "toggle": "Toggle sidebar",
@@ -498,7 +499,8 @@
     "doneOf": "{{done}} of {{count}} done",
     "noneActive": "No active sprint",
     "noneActiveHint": "Start a sprint to see work on this board.",
-    "goToBacklog": "Go to Backlog"
+    "goToBacklog": "Go to Backlog",
+    "endDate": "End date"
   },
   "task": {
     "fallbackName": "work item",
@@ -519,7 +521,13 @@
     "updatedAgo": "Updated {{when}}",
     "closeDetails": "Close task details",
     "moreActions": "More actions",
-    "actions": "Task actions"
+    "actions": "Task actions",
+    "openInPanel": "Open in side panel",
+    "openAsDialog": "Open as dialog",
+    "openInNewTab": "Open in new tab",
+    "copyLink": "Copy link",
+    "linkCopied": "Link copied",
+    "copyLinkFailed": "Could not copy the link."
   },
   "view": {
     "ascending": "Ascending",
@@ -568,7 +576,8 @@
     "searchFields": "Search fields…",
     "clearAll": "Clear all",
     "clearField": "Clear {{name}}",
-    "shownOf": "{{shown}} of {{total}}"
+    "shownOf": "{{shown}} of {{total}}",
+    "moreAssignees": "More assignees"
   },
   "list": {
     "collapseAll": "Collapse all subtasks",
@@ -713,7 +722,16 @@
     "addLabel": "Add a comment",
     "posting": "Posting…",
     "comment": "Comment",
-    "shortcut": "⌘↵ to post"
+    "shortcut": "⌘↵ to post",
+    "quickLabel": "Quick replies",
+    "proTip": "Pro tip: press M to comment",
+    "quick": {
+      "looksGood": "🎉 Looks good!",
+      "needHelp": "👋 Need help?",
+      "blocked": "⛔ This is blocked…",
+      "clarify": "🔍 Can you clarify…?",
+      "onTrack": "✅ This is on track"
+    }
   },
   "attachments": {
     "title": "Attachments",
@@ -758,7 +776,9 @@
       "documents": "No documents attached.",
       "videos": "No videos attached.",
       "other": "No other files attached."
-    }
+    },
+    "dropHere": "Drop files to attach",
+    "dropOr": "Drop files here, or"
   },
   "subtasks": {
     "title": "Subtasks",
@@ -766,7 +786,17 @@
     "progress": "{{done}} of {{count}} subtasks done",
     "empty": "No subtasks yet.",
     "emptyHint": "Break this task down with the + above.",
-    "itemTitle": "Subtask title"
+    "itemTitle": "Subtask title",
+    "namePlaceholder": "Name this subtask",
+    "create": "Create subtask",
+    "chooseExisting": "Choose existing",
+    "searchExisting": "Search by key or title",
+    "noCandidates": "No work item can become a subtask here.",
+    "actions": "Subtask options",
+    "hideDone": "Hide done",
+    "sortBy": "Sort by",
+    "restoreDefaults": "Restore defaults",
+    "allDone": "Every subtask is done and hidden."
   },
   "epic": {
     "tasks": "Tasks",
@@ -1292,12 +1322,75 @@
     "loadFailed": "Could not load this task's commits, branches and merge requests.",
     "showAll": "Show all {{count}}",
     "showLess": "Show fewer",
+    "connectTools": "Connect development tools",
+    "openInEditor": "Open in code editor",
+    "openInEditorHint": "Opens VS Code and offers to clone {{project}}",
+    "createBranch": "Create branch",
+    "createCommit": "Create commit",
+    "branchName": "Branch name",
+    "checkoutCommand": "Git command",
+    "createInGitLab": "Create in GitLab",
+    "commitTitle": "Linking commits to tasks",
+    "copyKey": "Copy key",
+    "copyCommit": "Copy a Git commit example",
+    "copied": "Copied",
+    "copyFailed": "Could not copy. Select the text and copy it yourself.",
     "state": {
       "opened": "Open",
       "merged": "Merged",
       "closed": "Closed",
       "locked": "Locked"
     }
+  },
+  "viewSettings": {
+    "title": "View settings",
+    "columnSize": "Column size",
+    "columnSizeHint": "Keep every column the same fixed width, or let columns stretch to fit the board.",
+    "fixed": "Fixed",
+    "flexible": "Flexible",
+    "scrolling": "Scrolling",
+    "scrollingHint": "Scroll inside each column, or scroll the whole board.",
+    "withinColumns": "Within columns",
+    "wholeBoard": "Whole board",
+    "deviceNote": "Saved on this device only.",
+    "workItemKey": "Work item key",
+    "hideDoneAfter": "Hide done work items after",
+    "hideDoneHint": "Only the board hides them. List, Backlog and search still show every work item.",
+    "never": "Never",
+    "days_one": "{{count}} day",
+    "days_other": "{{count}} days",
+    "showFields": "Show fields",
+    "showFieldsHint": "Choose what each card on the board shows.",
+    "searchFields": "Search fields",
+    "selectedFields": "Selected fields",
+    "noFieldsSelected": "Cards show no fields. Search above to add some back.",
+    "allFieldsShown": "Every field is already shown.",
+    "removeField": "Remove {{name}}"
+  },
+  "insights": {
+    "title": "Sprint insights",
+    "intro": "Your sprint's health and progress towards its goal.",
+    "attention": "Work items for attention",
+    "attentionEmpty": "No work items need attention right now. Overdue work in this sprint will show up here.",
+    "notStarted": "Not started",
+    "epics": "Epic progress",
+    "noEpics": "No epics in this sprint.",
+    "burndown": "Sprint burndown",
+    "pointsDone_one": "{{count}} point done",
+    "pointsDone_other": "{{count}} points done",
+    "pointsLeft_one": "{{count}} point to go",
+    "pointsLeft_other": "{{count}} points to go",
+    "itemsDone_one": "{{count}} work item done",
+    "itemsDone_other": "{{count}} work items done",
+    "itemsLeft_one": "{{count}} work item to go",
+    "itemsLeft_other": "{{count}} work items to go",
+    "remainingWork": "Remaining work",
+    "guideline": "Guideline",
+    "currentScope": "Based on the sprint's current scope. Work added or removed mid-sprint isn't tracked.",
+    "noStartDate": "Give the sprint a start date to see its burndown.",
+    "noWork": "There's no work in this sprint yet.",
+    "epicsSummary_one": "This sprint is working towards {{count}} epic.",
+    "epicsSummary_other": "This sprint is working towards {{count}} epics."
   },
   "apiErrors": {
     "network": "Could not reach the server. Check your connection and try again.",

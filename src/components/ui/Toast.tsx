@@ -17,7 +17,7 @@ export function Toast({ toast, onDismiss }: ToastProps) {
   return (
     <div
       className={cn(
-        "bg-popover text-popover-foreground shadow-e3 pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-lg border px-4 py-3",
+        "bg-popover text-popover-foreground shadow-e3 animate-in fade-in-0 slide-in-from-bottom-2 pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-lg border px-4 py-3 duration-200",
         isError ? "border-destructive" : "border-border",
       )}
     >

@@ -25,6 +25,7 @@ import {
 import { categoryOf } from "@/constants/columns";
 import { cn } from "@/utils/cn";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { useCardLabels } from "@/hooks/useCardLabels";
 import { useOpenTask } from "@/hooks/useOpenTask";
 import { usePermissions } from "@/hooks/usePermissions";
 import type { TodoIndicator } from "@/hooks/useKanbanDnd";
@@ -48,6 +49,10 @@ interface Props {
   exactOrder?: boolean;
   // one lane's slice of the column — no menu, no Create button, no height cap (those belong to the column as a whole)
   lane?: boolean;
+  // View settings: the column grows with the board instead of holding COLUMN_WIDTH
+  flexible?: boolean;
+  // View settings: the board scrolls as a whole, so the column is as tall as its cards instead of capped and scrolling itself
+  wholeBoard?: boolean;
   onCollapse: () => void;
   // Each absent when the viewer may not do it: limits are canManageColumns,
   // the rest are the workflow's.
@@ -72,6 +77,8 @@ export default function KanbanColumn({
   dragging = false,
   exactOrder = true,
   lane = false,
+  flexible = false,
+  wholeBoard = false,
   onCollapse,
   onSetLimit,
   onDelete,
@@ -87,6 +94,7 @@ export default function KanbanColumn({
 
   // one lookup per column, not per card
   const subtaskProgress = useSubtaskProgressByParent();
+  const cardLabels = useCardLabels();
 
   const { canEditTodos } = usePermissions();
 
@@ -199,9 +207,15 @@ export default function KanbanColumn({
       ref={setNodeRef}
       className={cn(
         "rounded-surface border-hairline bg-surface relative flex shrink-0 flex-col overflow-hidden border transition-shadow duration-150",
-        COLUMN_WIDTH,
+        flexible ? "w-full" : COLUMN_WIDTH,
         // height comes from the flex row, not a hardcoded pixel sum, so it survives changes to the bars above the board
-        lane ? "h-fit" : choices ? "h-full" : "h-fit max-h-full",
+        lane
+          ? "h-fit"
+          : choices
+            ? "h-full"
+            : wholeBoard
+              ? "h-fit"
+              : "h-fit max-h-full",
         // tint as a gradient layer over bg-surface, not a translucent bg that would let the canvas show through
         transition &&
           "ring-brand/60 from-brand/10 to-brand/10 bg-linear-to-b ring-2 ring-inset",
@@ -296,6 +310,8 @@ export default function KanbanColumn({
                   // primitives, not an object, so TodoContainer's memo isn't broken by a fresh {done,total} every render
                   subtaskDone={subtaskProgress.get(todo.id)?.done ?? 0}
                   subtaskTotal={subtaskProgress.get(todo.id)?.total ?? 0}
+                  parentLabel={cardLabels.parents.get(todo.parent_id ?? "")}
+                  sprintLabel={cardLabels.sprints.get(todo.sprint_id ?? "")}
                 />
 
                 {!dragDisabled && (

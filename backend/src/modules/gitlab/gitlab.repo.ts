@@ -275,7 +275,11 @@ export async function findDevelopment(boardId: string, todoId: string, commitLim
         board_gitlab_projects: PROJECT_FIELDS,
       },
     }),
-    prisma.board_gitlab_projects.count({ where: { board_id: boardId } }),
+    prisma.board_gitlab_projects.findMany({
+      where: { board_id: boardId },
+      orderBy: { created_at: "asc" },
+      ...PROJECT_FIELDS,
+    }),
   ]);
 
   return { commits, branches, mergeRequests, links };

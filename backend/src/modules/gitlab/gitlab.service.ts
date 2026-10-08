@@ -155,8 +155,14 @@ export interface DevelopmentMergeRequest {
   updated_at: Date;
 }
 
+export interface DevelopmentProject {
+  project_path: string;
+  project_url: string;
+}
+
 export interface Development {
   connected: boolean;
+  projects: DevelopmentProject[];
   commits: DevelopmentCommit[];
   branches: DevelopmentBranch[];
   merge_requests: DevelopmentMergeRequest[];
@@ -170,7 +176,8 @@ export async function development(
   const { commits, branches, mergeRequests, links } = await gitlabRepo.findDevelopment(board.id, todoId, commitLimit);
 
   return {
-    connected: links > 0,
+    connected: links.length > 0,
+    projects: links.map((project) => ({ project_path: projectPathOf(project), project_url: projectUrl(project) })),
     commits: commits.map(({ board_gitlab_projects: project, ...commit }) => ({
       ...commit,
       url: commitUrl(projectUrl(project), commit.sha),

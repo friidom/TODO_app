@@ -1,10 +1,6 @@
 import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
-import {
-  ChevronDownIcon,
-  ChevronRightIcon,
-  type LucideIcon,
-} from "lucide-react";
+import { ChevronRightIcon, type LucideIcon } from "lucide-react";
 
 import { COUNT_CHIP, SECTION_TITLE } from "./detailChrome";
 import { cn } from "@/utils/cn";
@@ -40,14 +36,15 @@ export default function SectionHeader({
               { name: collapse.noun },
             )}
             onClick={collapse.onToggle}
-            className="hover:bg-wash-strong focus-visible:ring-brand rounded-control -ml-1.5 flex h-7 items-center gap-2 px-1.5 transition-colors duration-150 outline-none focus-visible:ring-2"
+            className="hover:bg-wash-strong focus-visible:ring-brand rounded-control -ml-1.5 flex h-7 items-center gap-1.5 px-1.5 transition-colors duration-150 outline-none focus-visible:ring-2"
           >
+            <ChevronRightIcon
+              className={cn(
+                "text-ink-3 size-3.5 shrink-0 transition-transform duration-150",
+                !collapse.collapsed && "rotate-90",
+              )}
+            />
             {label}
-            {collapse.collapsed ? (
-              <ChevronRightIcon className="text-ink-3 size-3.5 shrink-0" />
-            ) : (
-              <ChevronDownIcon className="text-ink-3 size-3.5 shrink-0" />
-            )}
           </button>
         ) : (
           label

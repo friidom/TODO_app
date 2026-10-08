@@ -10,6 +10,12 @@ import CommentThread, {
 import TodoHistoryList, {
   HistoryRow,
 } from "@/components/activity/TodoHistoryList";
+import {
+  SEGMENT,
+  SEGMENT_ACTIVE,
+  SEGMENT_IDLE,
+  SEGMENTED,
+} from "./detailChrome";
 import { Skeleton } from "@/components/ui/skeleton";
 import { memberName } from "@/components/members/memberLabels";
 import { useAuth } from "@/services/auth/useAuth";
@@ -49,7 +55,7 @@ export default function ActivitySection({
       <div
         role="tablist"
         aria-label={t("board.activity")}
-        className="border-hairline mb-5 flex items-stretch gap-4 border-b"
+        className={cn(SEGMENTED, "mb-5 w-fit max-w-full overflow-x-auto")}
       >
         {TABS.map(({ key, labelKey }) => {
           const selected = tab === key;
@@ -64,10 +70,9 @@ export default function ActivitySection({
               aria-controls={`${id}-panel`}
               onClick={() => setTab(key)}
               className={cn(
-                "text-meta focus-visible:ring-brand -mb-px flex h-9 items-center rounded-t-[6px] border-b-2 px-0.5 transition-colors duration-150 outline-none focus-visible:ring-2",
-                selected
-                  ? "border-brand text-ink font-medium"
-                  : "text-ink-3 hover:text-ink hover:border-hairline border-transparent",
+                SEGMENT,
+                "text-meta h-7 px-3",
+                selected ? SEGMENT_ACTIVE : SEGMENT_IDLE,
               )}
             >
               {t(labelKey)}

@@ -1,5 +1,8 @@
 import { Fragment, type ReactNode } from "react";
 
+import AssigneeFilter, {
+  ClearFiltersButton,
+} from "@/components/board/AssigneeFilter";
 import BoardActions from "@/components/board/BoardActions";
 import BoardGroup from "@/components/board/BoardGroup";
 import BoardSearch from "@/components/board/BoardSearch";
@@ -45,7 +48,7 @@ export default function ViewToolbar({ view }: { view: BoardView }) {
       case "group":
         return (
           canGroup && (
-            <Slot id={id} className="hidden @4xl:flex">
+            <Slot id={id} className="hidden @5xl:flex">
               <BoardGroup view={view} />
             </Slot>
           )
@@ -53,15 +56,17 @@ export default function ViewToolbar({ view }: { view: BoardView }) {
       case "sort":
         return (
           canSort && (
-            <Slot id={id} className="hidden @4xl:flex">
+            <Slot id={id} className="hidden @5xl:flex">
               <BoardSort view={view} />
             </Slot>
           )
         );
       case "filter":
         return (
-          <Slot id={id}>
+          <Slot id={id} className="items-center gap-2">
+            <AssigneeFilter view={view} />
             <FilterPopover view={view} collapse="hidden @xl:inline" />
+            <ClearFiltersButton view={view} />
           </Slot>
         );
     }
@@ -100,12 +105,13 @@ export default function ViewToolbar({ view }: { view: BoardView }) {
         </ReorderContext>
 
         {(canGroup || canSort) && (
-          <ViewOptions view={view} className="@4xl:hidden" />
+          <ViewOptions view={view} className="@5xl:hidden" />
         )}
 
-        <div className="ml-auto flex min-w-0 items-center gap-2 @max-md:gap-1.5">
+        {/* shrink-0: the search box is what gives way, not the actions, whose overflow would cut New task off */}
+        <div className="ml-auto flex shrink-0 items-center gap-2 @max-md:gap-1.5">
           {view.mode === "board" && <SprintControls />}
-          <BoardActions />
+          <BoardActions showViewSettings={view.mode === "board"} />
           {view.mode !== "list" && <HeaderTodoForm />}
         </div>
       </div>

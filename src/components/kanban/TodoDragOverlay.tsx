@@ -11,6 +11,7 @@ import {
   columnTitle,
   type ColumnCategory,
 } from "@/constants/columns";
+import { useCardLabels } from "@/hooks/useCardLabels";
 import { useSubtaskProgressByParent } from "@/services/todos/useSubtasks";
 import type { IColumn, Todo } from "@/types/data";
 import { cn } from "@/utils/cn";
@@ -33,6 +34,7 @@ export default function TodoDragOverlay({
 }: Props) {
   const subtaskProgress = useSubtaskProgressByParent();
   const progress = activeTodo ? subtaskProgress.get(activeTodo.id) : undefined;
+  const cardLabels = useCardLabels();
 
   return (
     // the lifted content is pointer-events-none, so the cursor has to come from this wrapper
@@ -47,6 +49,8 @@ export default function TodoDragOverlay({
           overlay
           subtaskDone={progress?.done ?? 0}
           subtaskTotal={progress?.total ?? 0}
+          parentLabel={cardLabels.parents.get(activeTodo.parent_id ?? "")}
+          sprintLabel={cardLabels.sprints.get(activeTodo.sprint_id ?? "")}
         />
       )}
 

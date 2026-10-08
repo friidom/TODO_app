@@ -7,8 +7,12 @@ import type {
   DevelopmentMergeRequest,
 } from "./gitlabApi";
 import {
+  branchName,
+  commitCommand,
   commitTooltip,
   developmentCount,
+  editorUrl,
+  newBranchUrl,
   orderMergeRequests,
   shortSha,
   spansProjects,
@@ -54,6 +58,7 @@ function mergeRequest(project_path = "acme/backend"): DevelopmentMergeRequest {
 function development(parts: Partial<Development> = {}): Development {
   return {
     connected: true,
+    projects: [],
     commits: [],
     branches: [],
     merge_requests: [],
@@ -143,5 +148,89 @@ describe("commitTooltip", () => {
 
     expect(Array.from(tooltip)).toHaveLength(501);
     expect(tooltip.endsWith("🚀…")).toBe(true);
+  });
+});
+
+// backend/src/lib/taskRef.ts's TASK_REF_CANDIDATE: what ingestion reads as a key.
+const TASK_REF_CANDIDATE = /\b[A-Za-z][A-Za-z0-9_]*-\d+\b/g;
+
+describe("branchName", () => {
+  it("follows <type>/<key>-<slug>, with fix/ for a bug", () => {
+    expect(branchName("KAN-12", "Fix login form validation", "Task")).toBe(
+      "feature/KAN-12-fix-login-form-validation",
+    );
+    expect(branchName("KAN-12", "Login fails on Safari", "Bug")).toBe(
+      "fix/KAN-12-login-fails-on-safari",
+    );
+  });
+
+  it("transliterates Russian and Uzbek titles", () => {
+    expect(branchName("KAN-7", "Исправить форму входа", "Story")).toBe(
+      "feature/KAN-7-ispravit-formu-vhoda",
+    );
+    expect(branchName("KAN-7", "Oʻzbek tili qoʻllanmasi", "Task")).toBe(
+      "feature/KAN-7-ozbek-tili-qollanmasi",
+    );
+  });
+
+  it("is the key alone when nothing in the title survives", () => {
+    expect(branchName("KAN-12", "🚀 !!!", "Task")).toBe("feature/KAN-12");
+    expect(branchName("KAN-12", null, null)).toBe("feature/KAN-12");
+  });
+
+  it("names no task but its own when the title holds a word and a number", () => {
+    const name = branchName("API-12", "Migrate to API 2 and Vue 3", "Task");
+
+    expect(name).toBe("feature/API-12-migrate-to-api2-and-vue3");
+    expect(name.match(TASK_REF_CANDIDATE)).toEqual(["API-12"]);
+  });
+
+  it("cuts a long title at a word boundary", () => {
+    expect(branchName("KAN-12", "word ".repeat(30), "Task")).toBe(
+      `feature/KAN-12-${Array(10).fill("word").join("-")}`,
+    );
+  });
+});
+
+describe("commitCommand", () => {
+  it("starts the message with the task's key", () => {
+    expect(commitCommand("KAN-12", "Fix login form validation")).toBe(
+      'git commit -m "KAN-12 Fix login form validation"',
+    );
+  });
+
+  it("leaves nothing a shell would expand or run", () => {
+    expect(
+      commitCommand("KAN-12", 'Pay $5 "now" `rm -rf ~` $(curl x|sh) \\ !!'),
+    ).toBe('git commit -m "KAN-12 Pay 5 now rm -rf ~ (curl x|sh)"');
+  });
+
+  it("keeps the message on one line", () => {
+    expect(commitCommand("KAN-12", "First\nsecond\u0015third\u000f")).toBe(
+      'git commit -m "KAN-12 First second third"',
+    );
+  });
+
+  it("is the key alone when the title is empty", () => {
+    expect(commitCommand("KAN-12", null)).toBe('git commit -m "KAN-12"');
+    expect(commitCommand("KAN-12", ' "" ')).toBe('git commit -m "KAN-12"');
+  });
+});
+
+describe("newBranchUrl", () => {
+  it("opens GitLab's new-branch page with the name filled in", () => {
+    expect(
+      newBranchUrl("https://gitlab.com/acme/backend", "feature/KAN-12-fix"),
+    ).toBe(
+      "https://gitlab.com/acme/backend/-/branches/new?branch_name=feature%2FKAN-12-fix",
+    );
+  });
+});
+
+describe("editorUrl", () => {
+  it("hands VS Code the project's clone address", () => {
+    expect(editorUrl("https://gitlab.com/acme/backend")).toBe(
+      "vscode://vscode.git/clone?url=https%3A%2F%2Fgitlab.com%2Facme%2Fbackend.git",
+    );
   });
 });

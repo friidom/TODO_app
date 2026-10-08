@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  canBecomeSubtaskOf,
   canHaveSubtasks,
   canPickEpicParent,
   childrenOf,
@@ -12,6 +13,7 @@ import {
   parentOf,
   subtaskProgress,
   subtaskProgressByParent,
+  subtaskCandidates,
   subtasksByParent,
   topLevelTodos,
 } from "./subtasks";
@@ -516,5 +518,104 @@ describe("epicTaskProgress", () => {
     const todos = [epic({ id: "e" }), todo({ id: "solo" })];
 
     expect(epicTaskProgress(todos, STATUSES).size).toBe(0);
+  });
+});
+
+describe("canBecomeSubtaskOf", () => {
+  const parent = todo({ id: "parent" });
+
+  it("accepts a plain top-level task", () => {
+    const candidate = todo({ id: "c" });
+
+    expect(canBecomeSubtaskOf([parent, candidate], candidate, parent)).toBe(
+      true,
+    );
+  });
+
+  it("refuses the parent itself", () => {
+    expect(canBecomeSubtaskOf([parent], parent, parent)).toBe(false);
+  });
+
+  it("refuses a card that is already its child", () => {
+    const child = todo({ id: "c", parent_id: "parent" });
+
+    expect(canBecomeSubtaskOf([parent, child], child, parent)).toBe(false);
+  });
+
+  it("refuses an Epic", () => {
+    const anEpic = epic({ id: "e" });
+
+    expect(canBecomeSubtaskOf([parent, anEpic], anEpic, parent)).toBe(false);
+  });
+
+  it("refuses a card that has subtasks of its own", () => {
+    const candidate = todo({ id: "c" });
+    const grandchild = todo({ id: "g", parent_id: "c" });
+
+    expect(
+      canBecomeSubtaskOf([parent, candidate, grandchild], candidate, parent),
+    ).toBe(false);
+  });
+
+  it("refuses the card the parent itself sits under", () => {
+    const top = todo({ id: "top" });
+    const nested = todo({ id: "nested", parent_id: "top" });
+
+    expect(canBecomeSubtaskOf([top, nested], top, nested)).toBe(false);
+  });
+
+  it("refuses when the parent is itself a subtask", () => {
+    const top = todo({ id: "top" });
+    const nested = todo({ id: "nested", parent_id: "top" });
+    const candidate = todo({ id: "c" });
+
+    expect(
+      canBecomeSubtaskOf([top, nested, candidate], candidate, nested),
+    ).toBe(false);
+  });
+
+  it("accepts a task that sits under an Epic, and a subtask of another task", () => {
+    const anEpic = epic({ id: "e" });
+    const underEpic = todo({ id: "u", parent_id: "e" });
+    const other = todo({ id: "o" });
+    const sibling = todo({ id: "s", parent_id: "o" });
+    const todos = [parent, anEpic, underEpic, other, sibling];
+
+    expect(canBecomeSubtaskOf(todos, underEpic, parent)).toBe(true);
+    expect(canBecomeSubtaskOf(todos, sibling, parent)).toBe(true);
+  });
+});
+
+describe("subtaskCandidates", () => {
+  it("agrees with canBecomeSubtaskOf for every card on the board", () => {
+    const parent = todo({ id: "parent" });
+    const anEpic = epic({ id: "e" });
+    const todos = [
+      parent,
+      anEpic,
+      todo({ id: "plain" }),
+      todo({ id: "child", parent_id: "parent" }),
+      todo({ id: "holder" }),
+      todo({ id: "held", parent_id: "holder" }),
+      todo({ id: "tasked", parent_id: "e" }),
+    ];
+
+    const expected = todos
+      .filter((candidate) => canBecomeSubtaskOf(todos, candidate, parent))
+      .map((candidate) => candidate.id);
+
+    expect(subtaskCandidates(todos, parent).map((row) => row.id)).toEqual(
+      expected,
+    );
+    expect(expected).toEqual(["plain", "held", "tasked"]);
+  });
+
+  it("offers nothing under a parent that is itself a subtask", () => {
+    const top = todo({ id: "top" });
+    const nested = todo({ id: "nested", parent_id: "top" });
+
+    expect(subtaskCandidates([top, nested, todo({ id: "x" })], nested)).toEqual(
+      [],
+    );
   });
 });

@@ -91,8 +91,14 @@ export type DevelopmentMergeRequest = {
   updated_at: string;
 };
 
+export type DevelopmentProject = {
+  project_path: string;
+  project_url: string;
+};
+
 export type Development = {
   connected: boolean;
+  projects: DevelopmentProject[];
   commits: DevelopmentCommit[];
   branches: DevelopmentBranch[];
   merge_requests: DevelopmentMergeRequest[];

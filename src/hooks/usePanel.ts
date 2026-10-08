@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useSearchParams } from "react-router";
 
-export const PANELS = ["members", "activity"] as const;
+export const PANELS = ["members", "activity", "insights", "settings"] as const;
 
 export type PanelKey = (typeof PANELS)[number];
 

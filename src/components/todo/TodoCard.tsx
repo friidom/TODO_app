@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Fragment, useEffect, useRef, type ReactNode } from "react";
-import { ListTree, Pencil } from "lucide-react";
+import { LayersIcon, ListTree, Pencil } from "lucide-react";
 
 import DueDateControl from "./TodoItem/DueDateControl";
 import EstimateControl from "./TodoItem/EstimateControl";
@@ -8,9 +8,15 @@ import PriorityControl from "./TodoItem/PriorityControl";
 import WorkTypeControl from "./TodoItem/WorkTypeControl";
 import IconButton from "@/components/ui/IconButton";
 import { toPriority, type Priority } from "@/constants/priorities";
-import type { WorkType } from "@/constants/workTypes";
+import { workTypeOf, type WorkType } from "@/constants/workTypes";
+import {
+  DEFAULT_CARD_FIELDS,
+  type CardField,
+} from "@/services/views/boardViewPrefs";
 import { cn } from "@/utils/cn";
 import type { TodoCardContent, TodoViewState } from "@/types/data";
+
+const EPIC = workTypeOf("Epic");
 
 export interface TodoCardProps extends TodoCardContent, TodoViewState {
   draft: string;
@@ -33,6 +39,11 @@ export interface TodoCardProps extends TodoCardContent, TodoViewState {
   // two primitives, not one object — TodoContainer is memoised and a fresh {done,total} per render would break that
   subtaskDone?: number;
   subtaskTotal?: number;
+
+  // View settings › Show fields: a field left out is not rendered at all, set or empty
+  shownFields?: readonly CardField[];
+  parentLabel?: string;
+  sprintLabel?: string;
 
   // absent on the drag overlay, which has no chrome to open anything from
   onOpen?: () => void;
@@ -70,6 +81,9 @@ export default function TodoCard({
   onEstimateChange,
   subtaskDone = 0,
   subtaskTotal = 0,
+  shownFields = DEFAULT_CARD_FIELDS,
+  parentLabel,
+  sprintLabel,
   onOpen,
   assignee,
   menu,
@@ -86,9 +100,11 @@ export default function TodoCard({
     }
   }, [editing]);
 
+  const show = (field: CardField) => shownFields.includes(field);
+
   // Set fields lead and empty ones trail, each in its own box: an invisible placeholder in front would indent
   // everything after it, and one that wrapped would leave a blank line under the card at rest.
-  const fields = [
+  const controls: { key: CardField; set: boolean; node: ReactNode }[] = [
     {
       key: "priority",
       set: toPriority(priority) !== null,
@@ -125,8 +141,39 @@ export default function TodoCard({
     },
   ];
 
+  const fields = controls.filter((field) => show(field.key));
+
   const filled = fields.filter((field) => field.set);
   const empty = fields.filter((field) => !field.set);
+
+  const header = show("type") || show("key");
+  const subtasks = show("subtasks") && subtaskTotal > 0;
+  const parent = show("parent") && parentLabel !== undefined;
+  const sprint = show("sprint") && sprintLabel !== undefined;
+  const footer = fields.length > 0 || subtasks || show("assignee");
+
+  const actions = !editing && canEdit && (
+    <div
+      className={cn(
+        "coarse:opacity-100 flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100",
+        // with type and key both hidden there is no top row to sit in, so it floats over the corner instead of adding one
+        header
+          ? "-my-0.5 -mr-1 ml-auto"
+          : "bg-elevated rounded-control absolute top-1.5 right-1.5 z-10",
+      )}
+    >
+      <IconButton
+        size="xs"
+        label={t("common.rename")}
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={onStartEdit}
+      >
+        <Pencil />
+      </IconButton>
+
+      {menu}
+    </div>
+  );
 
   return (
     <div
@@ -154,7 +201,8 @@ export default function TodoCard({
         overlay
           ? "shadow-e3 pointer-events-none rotate-[1.5deg]"
           : cn(
-              "hover:border-ink/15 hover:shadow-e2",
+              // the wash is a gradient layer, not a background colour: --wash is translucent and would show the column through
+              "hover:border-ink/15 hover:shadow-e2 hover:from-wash hover:to-wash hover:bg-linear-to-b",
               onOpen && "cursor-pointer",
             ),
         selected &&
@@ -165,47 +213,40 @@ export default function TodoCard({
         celebrate && "done-flash",
       )}
     >
-      <div className="coarse:min-h-7 flex min-h-5 items-center gap-1.5">
-        <WorkTypeControl
-          bare
-          value={workType}
-          onChange={onWorkTypeChange}
-          placement="bottom-start"
-        />
+      {header ? (
+        <div className="coarse:min-h-7 flex min-h-5 items-center gap-1.5">
+          {show("type") && (
+            <WorkTypeControl
+              bare
+              value={workType}
+              onChange={onWorkTypeChange}
+              placement="bottom-start"
+            />
+          )}
 
-        {taskKey === null ? (
-          <span aria-hidden className="bg-wash-strong h-2 w-9 rounded-full" />
-        ) : onOpen ? (
-          <button
-            type="button"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={onOpen}
-            title={`Open ${taskKey}`}
-            className="text-ink-3 hover:text-brand focus-visible:ring-brand rounded-control text-mini font-medium tabular-nums transition-colors duration-150 outline-none focus-visible:ring-2"
-          >
-            {taskKey}
-          </button>
-        ) : (
-          <span className="text-ink-3 text-mini font-medium tabular-nums">
-            {taskKey}
-          </span>
-        )}
-
-        {!editing && canEdit && (
-          <div className="coarse:opacity-100 -my-0.5 -mr-1 ml-auto flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100">
-            <IconButton
-              size="xs"
-              label={t("common.rename")}
+          {!show("key") ? null : taskKey === null ? (
+            <span aria-hidden className="bg-wash-strong h-2 w-9 rounded-full" />
+          ) : onOpen ? (
+            <button
+              type="button"
               onPointerDown={(e) => e.stopPropagation()}
-              onClick={onStartEdit}
+              onClick={onOpen}
+              title={`Open ${taskKey}`}
+              className="text-ink-3 hover:text-brand focus-visible:ring-brand rounded-control text-mini font-medium tabular-nums transition-colors duration-150 outline-none focus-visible:ring-2"
             >
-              <Pencil />
-            </IconButton>
+              {taskKey}
+            </button>
+          ) : (
+            <span className="text-ink-3 text-mini font-medium tabular-nums">
+              {taskKey}
+            </span>
+          )}
 
-            {menu}
-          </div>
-        )}
-      </div>
+          {actions}
+        </div>
+      ) : (
+        actions
+      )}
 
       {editing ? (
         <input
@@ -224,35 +265,67 @@ export default function TodoCard({
           className="bg-elevated text-ink rounded-control ring-brand -mx-1 w-[calc(100%+0.5rem)] px-1 text-sm leading-snug font-medium ring-2 outline-none"
         />
       ) : (
-        <p className="text-ink line-clamp-3 text-sm leading-snug font-medium break-words">
-          {title}
-        </p>
+        show("summary") && (
+          <p className="text-ink line-clamp-3 text-sm leading-snug font-medium break-words">
+            {title}
+          </p>
+        )
       )}
 
-      {/* always in flow, never toggled — hiding it on hover would shove every card below it up and down the column */}
-      <div className="mt-1 flex min-h-6 items-center gap-1">
-        {(filled.length > 0 || subtaskTotal > 0) && (
-          <div className="flex min-w-0 flex-wrap items-center gap-1">
-            {filled.map((field) => (
-              <Fragment key={field.key}>{field.node}</Fragment>
-            ))}
+      {(parent || sprint) && (
+        <div className="flex min-w-0 flex-wrap items-center gap-1">
+          {parent && (
+            <span
+              title={parentLabel}
+              className="border-hairline text-ink-2 text-mini rounded-control inline-flex h-5 max-w-full min-w-0 items-center gap-1 border px-1.5 font-medium"
+            >
+              <EPIC.icon className={cn("size-3 shrink-0", EPIC.tone)} />
+              <span className="truncate">
+                {parentLabel || t("common.untitled")}
+              </span>
+            </span>
+          )}
 
-            {subtaskTotal > 0 && (
-              <SubtaskProgress done={subtaskDone} total={subtaskTotal} />
-            )}
-          </div>
-        )}
+          {sprint && (
+            <span
+              title={sprintLabel}
+              className="border-hairline text-ink-2 text-mini rounded-control inline-flex h-5 max-w-full min-w-0 items-center gap-1 border px-1.5 font-medium"
+            >
+              <LayersIcon className="text-ink-3 size-3 shrink-0" />
+              <span className="truncate">{sprintLabel}</span>
+            </span>
+          )}
+        </div>
+      )}
 
-        {empty.length > 0 && (
-          <div className="-mx-0.5 flex h-6 min-w-0 flex-1 items-center gap-1 overflow-hidden px-0.5">
-            {empty.map((field) => (
-              <Fragment key={field.key}>{field.node}</Fragment>
-            ))}
-          </div>
-        )}
+      {/* in flow whenever a field is shown, never toggled by hover — that would shove every card below it up and down the column */}
+      {footer && (
+        <div className="mt-1 flex min-h-6 items-center gap-1">
+          {(filled.length > 0 || subtasks) && (
+            <div className="flex min-w-0 flex-wrap items-center gap-1">
+              {filled.map((field) => (
+                <Fragment key={field.key}>{field.node}</Fragment>
+              ))}
 
-        <div className="ml-auto flex shrink-0">{assignee}</div>
-      </div>
+              {subtasks && (
+                <SubtaskProgress done={subtaskDone} total={subtaskTotal} />
+              )}
+            </div>
+          )}
+
+          {empty.length > 0 && (
+            <div className="-mx-0.5 flex h-6 min-w-0 flex-1 items-center gap-1 overflow-hidden px-0.5">
+              {empty.map((field) => (
+                <Fragment key={field.key}>{field.node}</Fragment>
+              ))}
+            </div>
+          )}
+
+          {show("assignee") && (
+            <div className="ml-auto flex shrink-0">{assignee}</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

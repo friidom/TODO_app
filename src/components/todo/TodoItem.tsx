@@ -10,6 +10,7 @@ import { useOpenTask } from "@/hooks/useOpenTask";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useTodoPatch } from "@/hooks/useTodoPatch";
 import { toCardContent } from "@/services/todos/toCardContent";
+import { useBoardViewPrefs } from "@/stores/boardViewPrefs";
 import { useDoneFlash } from "@/stores/doneFlash";
 import type { Todo, TodoViewState } from "@/types/data";
 import { taskKey } from "@/utils/taskKey";
@@ -21,8 +22,12 @@ const TodoItem = memo(function TodoItem({
   dragDisabled = false,
   subtaskDone = 0,
   subtaskTotal = 0,
+  parentLabel,
+  sprintLabel,
   selected = false,
-}: { todo: Todo; selected?: boolean } & TodoViewState & SubtaskCounts) {
+}: { todo: Todo; selected?: boolean } & TodoViewState &
+  SubtaskCounts &
+  CardLabels) {
   // split so hooks are never called conditionally
   if (overlay) {
     return (
@@ -31,6 +36,8 @@ const TodoItem = memo(function TodoItem({
         overlay
         subtaskDone={subtaskDone}
         subtaskTotal={subtaskTotal}
+        parentLabel={parentLabel}
+        sprintLabel={sprintLabel}
       />
     );
   }
@@ -41,6 +48,8 @@ const TodoItem = memo(function TodoItem({
       dragDisabled={dragDisabled}
       subtaskDone={subtaskDone}
       subtaskTotal={subtaskTotal}
+      parentLabel={parentLabel}
+      sprintLabel={sprintLabel}
       selected={selected}
     />
   );
@@ -52,6 +61,12 @@ export interface SubtaskCounts {
   subtaskTotal?: number;
 }
 
+// the Parent and Sprint card fields' text, looked up once per column (useCardLabels) for the same reason
+export interface CardLabels {
+  parentLabel?: string;
+  sprintLabel?: string;
+}
+
 export default TodoItem;
 
 function DraggableTodo({
@@ -59,12 +74,15 @@ function DraggableTodo({
   dragDisabled,
   subtaskDone,
   subtaskTotal,
+  parentLabel,
+  sprintLabel,
   selected,
 }: {
   todo: Todo;
   dragDisabled?: boolean;
   selected: boolean;
-} & SubtaskCounts) {
+} & SubtaskCounts &
+  CardLabels) {
   const keyPrefix = useKeyPrefix();
 
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -135,6 +153,8 @@ function DraggableTodo({
       dragDisabled={dragDisabled}
       subtaskDone={subtaskDone}
       subtaskTotal={subtaskTotal}
+      parentLabel={parentLabel}
+      sprintLabel={sprintLabel}
       selected={selected}
       setNodeRef={setNodeRef}
       handleProps={handleProps}
@@ -150,11 +170,14 @@ const TodoContainer = memo(function TodoContainer({
   dragDisabled = false,
   subtaskDone = 0,
   subtaskTotal = 0,
+  parentLabel,
+  sprintLabel,
   selected = false,
   setNodeRef,
   handleProps,
 }: { todo: Todo } & TodoViewState &
-  SubtaskCounts & {
+  SubtaskCounts &
+  CardLabels & {
     selected?: boolean;
     setNodeRef?: (element: HTMLElement | null) => void;
     handleProps?: Record<string, unknown>;
@@ -167,6 +190,9 @@ const TodoContainer = memo(function TodoContainer({
   const { canEditTodos } = usePermissions();
   const { openTask } = useOpenTask();
   const keyPrefix = useKeyPrefix();
+
+  // a store slice, not a prop or a URL read: the array keeps its identity until the setting changes, so the memo holds
+  const shownFields = useBoardViewPrefs((state) => state.prefs.cardFields);
 
   // only the real card celebrates, never the drag overlay's copy
   const celebrate = useDoneFlash(
@@ -210,6 +236,9 @@ const TodoContainer = memo(function TodoContainer({
       onEstimateChange={(estimate) => patch({ estimate })}
       subtaskDone={subtaskDone}
       subtaskTotal={subtaskTotal}
+      shownFields={shownFields}
+      parentLabel={parentLabel}
+      sprintLabel={sprintLabel}
       // opening the panel is a read, not gated on canEditTodos — just withheld on the overlay copy
       onOpen={overlay ? undefined : () => openTask(todo.id)}
       assignee={

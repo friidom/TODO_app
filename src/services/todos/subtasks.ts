@@ -34,6 +34,52 @@ export function canPickEpicParent(todos: Todo[], todo: Todo): boolean {
   return !isGenuineSubtask(todos, todo);
 }
 
+function parentIdsOf(todos: Todo[]): Set<string> {
+  const ids = new Set<string>();
+
+  for (const todo of todos) {
+    if (todo.parent_id !== null) ids.add(todo.parent_id);
+  }
+
+  return ids;
+}
+
+// Mirrors enforce_work_item_hierarchy, which stays the authority: this only keeps the picker from offering a pick the
+// database would refuse. The sprint rule is not checked here because picking clears the candidate's sprint.
+function fitsUnder(
+  withChildren: ReadonlySet<string>,
+  candidate: Todo,
+  parent: Todo,
+): boolean {
+  return (
+    candidate.id !== parent.id &&
+    candidate.parent_id !== parent.id &&
+    parent.parent_id !== candidate.id &&
+    !isEpic(candidate) &&
+    !withChildren.has(candidate.id)
+  );
+}
+
+export function canBecomeSubtaskOf(
+  todos: Todo[],
+  candidate: Todo,
+  parent: Todo,
+): boolean {
+  return (
+    canHaveSubtasks(todos, parent) &&
+    fitsUnder(parentIdsOf(todos), candidate, parent)
+  );
+}
+
+// One pass over the board, not canBecomeSubtaskOf per card — that would rescan every row for each candidate.
+export function subtaskCandidates(todos: Todo[], parent: Todo): Todo[] {
+  if (!canHaveSubtasks(todos, parent)) return [];
+
+  const withChildren = parentIdsOf(todos);
+
+  return todos.filter((todo) => fitsUnder(withChildren, todo, parent));
+}
+
 function byCreation(a: Todo, b: Todo): number {
   return (
     (a.created_at ?? "").localeCompare(b.created_at ?? "") ||

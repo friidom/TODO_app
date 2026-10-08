@@ -1,9 +1,5 @@
 import { useTranslation } from "react-i18next";
-import {
-  ArrowUpDownIcon,
-  Rows3Icon,
-  SlidersHorizontalIcon,
-} from "lucide-react";
+import { ArrowUpDownIcon, Rows3Icon } from "lucide-react";
 
 import {
   DropdownMenu,
@@ -50,8 +46,9 @@ export default function ViewOptions({
                 : t("view.options")
             }
             text={t("view.options")}
-            collapse="hidden @4xl:inline"
-            icon={<SlidersHorizontalIcon className="size-4" />}
+            collapse="hidden @5xl:inline"
+            // not the sliders: those are View settings, which sit in the same row
+            icon={<Rows3Icon className="size-4" />}
             active={grouped || sorted}
             className={className}
           />

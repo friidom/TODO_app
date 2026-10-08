@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type DragEvent } from "react";
 import { FloatingPortal } from "@floating-ui/react";
 import {
   CircleAlertIcon,
@@ -85,6 +85,8 @@ export default function AttachmentsSection({ todoId }: { todoId: string }) {
   const [filter, setFilter] = useState<AttachmentFilter>("all");
   const [view, setView] = useState<AttachmentView>("list");
   const [confirmingAll, setConfirmingAll] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const dragDepth = useRef(0);
 
   const upload = useUploadAttachment();
   const downloadAll = useDownloadAllAttachments();
@@ -155,23 +157,61 @@ export default function AttachmentsSection({ todoId }: { todoId: string }) {
     );
   }
 
-  function handlePicked(event: React.ChangeEvent<HTMLInputElement>) {
-    const picked = Array.from(event.target.files ?? []);
-
+  function addFiles(files: File[]) {
     setCollapsed(false);
     setFilter("all");
-    picked.forEach((file) => startUpload(file));
+    files.forEach((file) => startUpload(file));
+  }
+
+  function handlePicked(event: React.ChangeEvent<HTMLInputElement>) {
+    addFiles(Array.from(event.target.files ?? []));
 
     // Cleared so picking the same file twice in a row still fires change.
     event.target.value = "";
   }
+
+  // Only a drag that carries files counts: a card drag is dnd-kit's pointer events and never reaches these, and
+  // dragging selected text over the section should not claim to be an upload.
+  const fileDrop = canAttach
+    ? {
+        onDragEnter: (event: DragEvent) => {
+          if (!carriesFiles(event)) return;
+
+          event.preventDefault();
+          // enter and leave fire for every child the pointer crosses, so a depth count is what says "still over the section"
+          dragDepth.current += 1;
+          setDragging(true);
+        },
+        onDragOver: (event: DragEvent) => {
+          if (!carriesFiles(event)) return;
+
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "copy";
+        },
+        onDragLeave: (event: DragEvent) => {
+          if (!carriesFiles(event)) return;
+
+          dragDepth.current = Math.max(dragDepth.current - 1, 0);
+
+          if (dragDepth.current === 0) setDragging(false);
+        },
+        onDrop: (event: DragEvent) => {
+          if (!carriesFiles(event)) return;
+
+          event.preventDefault();
+          dragDepth.current = 0;
+          setDragging(false);
+          addFiles(Array.from(event.dataTransfer.files));
+        },
+      }
+    : {};
 
   const nothingAtAll = count === 0 && pending.length === 0;
   const emptyTab =
     !nothingAtAll && visible.length === 0 && pending.length === 0;
 
   return (
-    <section>
+    <section className="relative" {...fileDrop}>
       <SectionHeader
         title={t("attachments.title")}
         // Total count, not the filtered subset — a heading that shrinks with the tab would look like lost files.
@@ -270,12 +310,23 @@ export default function AttachmentsSection({ todoId }: { todoId: string }) {
               </button>
             </div>
           ) : nothingAtAll ? (
-            <EmptyLine icon={PaperclipIcon}>
-              <span>
-                {t("attachments.none")}
-                {canAttach && ` ${t("attachments.addHint")}`}
-              </span>
-            </EmptyLine>
+            canAttach ? (
+              <div className="border-hairline rounded-card text-meta text-ink-3 flex flex-wrap items-center justify-center gap-2 border border-dashed px-4 py-5">
+                <span>{t("attachments.dropOr")}</span>
+
+                <button
+                  type="button"
+                  onClick={() => fileInput.current?.click()}
+                  className="border-hairline bg-surface text-ink hover:bg-wash-strong focus-visible:ring-brand rounded-control h-8 border px-3 font-medium transition-colors duration-150 outline-none focus-visible:ring-2"
+                >
+                  {t("attachments.add")}
+                </button>
+              </div>
+            ) : (
+              <EmptyLine icon={PaperclipIcon}>
+                <span>{t("attachments.none")}</span>
+              </EmptyLine>
+            )
           ) : emptyTab ? (
             <EmptyLine icon={PaperclipIcon}>
               <span>
@@ -362,7 +413,26 @@ export default function AttachmentsSection({ todoId }: { todoId: string }) {
           onClose={() => setPreviewing(null)}
         />
       )}
+
+      {dragging && (
+        <div
+          aria-hidden
+          // the tint is a gradient over an opaque surface: brand-soft alone is translucent and the section shows through
+          className="border-brand bg-surface from-brand-soft to-brand-soft text-brand rounded-card text-meta animate-in fade-in-0 pointer-events-none absolute inset-0 z-10 grid place-items-center border-2 border-dashed bg-linear-to-b font-medium duration-150"
+        >
+          {t("attachments.dropHere")}
+        </div>
+      )}
     </section>
+  );
+}
+
+// The containment check is for the preview lightbox: it is portalled out of the section, but React still bubbles its
+// events through it, so a file dragged over the lightbox would otherwise read as a drop on the section.
+function carriesFiles(event: DragEvent): boolean {
+  return (
+    Array.from(event.dataTransfer.types).includes("Files") &&
+    event.currentTarget.contains(event.target as Node)
   );
 }
 

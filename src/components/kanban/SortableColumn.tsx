@@ -2,6 +2,7 @@ import { useDraggable } from "@dnd-kit/core";
 import type { ComponentProps } from "react";
 
 import KanbanColumn from "./KanbanColumn";
+import { cn } from "@/utils/cn";
 
 type Props = Omit<ComponentProps<typeof KanbanColumn>, "dragHandleProps"> & {
   // Column order is the workflow's, so only someone who may publish it can drag one.
@@ -12,6 +13,8 @@ export default function SortableColumn({
   reorderDisabled = false,
   ...props
 }: Props) {
+  const { flexible } = props;
+
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: props.column.id,
     data: { type: "column", columnId: props.column.id },
@@ -24,7 +27,12 @@ export default function SortableColumn({
       ref={setNodeRef}
       role="group"
       aria-label={`${props.headerTitle} column`}
-      className={isDragging ? "opacity-40" : undefined}
+      // Flexible: basis-0 shares the row out equally whatever the cards hold, so a long title cannot widen its column. The
+      // minimum sits below the fixed width so a laptop-width board fits instead of scrolling exactly as Fixed does.
+      className={cn(
+        isDragging && "opacity-40",
+        flexible && "min-w-60 flex-1 basis-0",
+      )}
     >
       <KanbanColumn
         {...props}

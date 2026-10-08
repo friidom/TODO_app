@@ -5,11 +5,13 @@ import BoardIdentity from "@/components/layout/BoardIdentity";
 import Drawer from "@/components/layout/Drawer";
 import Layout from "@/components/layout/Layout";
 import ViewShell from "@/components/layout/ViewShell";
+import SprintInsights from "@/components/board/SprintInsights";
+import ViewSettings from "@/components/board/ViewSettings";
 import ViewTabs from "@/components/board/ViewTabs";
 import ViewToolbar from "@/components/board/ViewToolbar";
 import ActivityDrawer from "@/components/activity/ActivityDrawer";
 import MembersDrawer from "@/components/members/MembersDrawer";
-import TaskDetailModal from "@/components/todo/TaskDetailModal";
+import TaskDetailModal, { TaskPanel } from "@/components/todo/TaskDetailModal";
 import KanbanBoard from "@/components/kanban/KanbanBoard";
 import ListView from "@/components/views/ListView";
 import SummaryView from "@/components/summary/SummaryView";
@@ -21,11 +23,13 @@ import Loading from "@/components/loading/LoadingPage";
 import { useBoard } from "@/services/boards/useBoard";
 import { useBoardId } from "@/hooks/useBoardId";
 import { useBoardView } from "@/hooks/useBoardView";
+import { useOpenTask } from "@/hooks/useOpenTask";
 import { useSprintsEnabled } from "@/hooks/useSprintsEnabled";
 import { usePanel } from "@/hooks/usePanel";
 import { useVisibleTodos } from "@/hooks/useVisibleTodos";
 import { useColumns } from "@/services/columns/useColumnsApi";
 import { useBoardRealtime } from "@/services/realtime/useBoardRealtime";
+import { useTaskLayout } from "@/stores/taskLayout";
 import { relativeTime } from "@/utils/relativeTime";
 import { isUuid } from "@/utils/uuid";
 
@@ -47,6 +51,8 @@ function BoardView({ boardId }: { boardId: string }) {
   const sprintsEnabled = useSprintsEnabled();
 
   const { panel, closePanel } = usePanel();
+  const { taskId } = useOpenTask();
+  const taskLayout = useTaskLayout((state) => state.layout);
   const { t } = useTranslation();
 
   // one channel per board, opened here and torn down on unmount/boardId change — every view below just reads the cache it patches
@@ -68,13 +74,24 @@ function BoardView({ boardId }: { boardId: string }) {
         toolbar={<ViewToolbar view={view} />}
         framed={view.mode === "list"}
         drawer={
-          panel === "members" ? (
+          // an open task takes the slot: openPanel clears ?task, so both only meet in a hand-edited URL
+          taskId && taskLayout === "panel" ? (
+            <TaskPanel boardId={boardId} />
+          ) : panel === "members" ? (
             <Drawer title={t("board.members")} onClose={closePanel}>
               <MembersDrawer boardId={boardId} />
             </Drawer>
           ) : panel === "activity" ? (
             <Drawer title={t("board.activity")} onClose={closePanel}>
               <ActivityDrawer boardId={boardId} />
+            </Drawer>
+          ) : panel === "insights" ? (
+            <Drawer title={t("insights.title")} onClose={closePanel}>
+              <SprintInsights />
+            </Drawer>
+          ) : panel === "settings" ? (
+            <Drawer title={t("viewSettings.title")} onClose={closePanel}>
+              <ViewSettings />
             </Drawer>
           ) : undefined
         }
@@ -94,7 +111,7 @@ function BoardView({ boardId }: { boardId: string }) {
         )}
       </ViewShell>
 
-      <TaskDetailModal boardId={boardId} />
+      {taskLayout === "modal" && <TaskDetailModal boardId={boardId} />}
     </Layout>
   );
 }

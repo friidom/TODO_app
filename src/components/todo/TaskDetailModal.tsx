@@ -1,8 +1,18 @@
 import { useTranslation } from "react-i18next";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { FloatingPortal } from "@floating-ui/react";
 import {
   CircleAlertIcon,
+  ExternalLinkIcon,
+  LinkIcon,
+  Maximize2Icon,
+  Minimize2Icon,
   MoreHorizontalIcon,
   Trash2Icon,
   XIcon,
@@ -10,6 +20,8 @@ import {
 
 import ActivitySection from "./ActivitySection";
 import AttachmentsSection from "./AttachmentsSection";
+import DetailCard from "./DetailCard";
+import DevelopmentActions from "./DevelopmentActions";
 import DevelopmentSection from "./DevelopmentSection";
 import EpicTasksSection from "./EpicTasksSection";
 import ParentLine from "./ParentLine";
@@ -25,11 +37,20 @@ import StartDateControl from "./TodoItem/StartDateControl";
 import StatusControl from "./TodoItem/StatusControl";
 import WorkTypeControl from "./TodoItem/WorkTypeControl";
 import { useCardPopover } from "./TodoItem/useCardPopover";
-import { SECTION_TITLE, TEXT_FIELD } from "./detailChrome";
+import { TEXT_FIELD } from "./detailChrome";
 import IconButton from "@/components/ui/IconButton";
-import { MENU_ITEM_DANGER, POPOVER_PANEL } from "@/components/ui/controlChrome";
+import {
+  ICON_BUTTON,
+  MENU_ITEM_DANGER,
+  POPOVER_PANEL,
+} from "@/components/ui/controlChrome";
 import { DIALOG_CANCEL, DIALOG_DANGER } from "@/components/ui/dialogChrome";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { workTypeOf } from "@/constants/workTypes";
 import { useKeyPrefix } from "@/hooks/useKeyPrefix";
 import { useOpenTask } from "@/hooks/useOpenTask";
@@ -42,9 +63,14 @@ import {
 } from "@/services/todos/taskDraft";
 import { useDeleteTodo } from "@/services/todos/useDeleteTodo";
 import { useTodo } from "@/services/todos/useTodo";
-import { useTodoHierarchy } from "@/services/todos/useSubtasks";
+import {
+  useTodoHierarchy,
+  type TodoHierarchy,
+} from "@/services/todos/useSubtasks";
 import { useSprints } from "@/services/sprints/useSprints";
 import { useSprintsEnabled } from "@/hooks/useSprintsEnabled";
+import { toast } from "@/stores/toasts";
+import { useTaskLayout } from "@/stores/taskLayout";
 import type { TodoDetail } from "@/types/data";
 import { cn } from "@/utils/cn";
 import { relativeTime } from "@/utils/relativeTime";
@@ -52,7 +78,12 @@ import { taskKey } from "@/utils/taskKey";
 
 const EXIT_MS = 150;
 
-// Centered modal, not a drawer — a drawer permanently squeezes the board for a surface open only part of the time.
+type TaskVariant = "modal" | "panel";
+
+type Patch = ReturnType<typeof useTodoPatch>;
+
+// Centered modal by default — a drawer permanently squeezes the board for a surface open only part of the time.
+// TaskPanel below is the opt-in alternative for people who want the board beside the task.
 export default function TaskDetailModal({ boardId }: { boardId: string }) {
   const { taskId, closeTask } = useOpenTask();
 
@@ -70,6 +101,16 @@ export default function TaskDetailModal({ boardId }: { boardId: string }) {
       onClose={closeTask}
     />
   );
+}
+
+// Rendered through ViewShell's drawer slot, not through Drawer: Drawer closes on Escape without asking, which would
+// route around the unsaved-edit guard (the M17 regression).
+export function TaskPanel({ boardId }: { boardId: string }) {
+  const { taskId, closeTask } = useOpenTask();
+
+  if (!taskId) return null;
+
+  return <PanelShell taskId={taskId} boardId={boardId} onClose={closeTask} />;
 }
 
 // Keeps the last truthy value for `ms` so an exit animation has something to render while unmounting.
@@ -90,6 +131,41 @@ function useClosingValue<T>(value: T | undefined, ms: number) {
   return value ?? held;
 }
 
+// Escape and the unsaved-edit guard, shared by the dialog and the side panel. A ref, not a prop — only Body knows if a
+// draft is unsaved, and it rebinds this every render.
+function useGuardedClose(
+  onClose: () => void,
+  scope?: RefObject<HTMLElement | null>,
+) {
+  const closeRef = useRef(onClose);
+
+  useEffect(() => {
+    function handleEscape(event: KeyboardEvent) {
+      // Deferred to whatever's on top — a nested popover marks the event so it closes without taking the task with it.
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+
+      // The panel sits beside a live board, and the board's own text fields (create card, rename column, search) do not
+      // mark Escape as handled — without this, cancelling one of them would close the task.
+      if (
+        scope &&
+        event.target instanceof Element &&
+        !scope.current?.contains(event.target) &&
+        event.target.closest("input, textarea, select, [contenteditable]")
+      ) {
+        return;
+      }
+
+      closeRef.current();
+    }
+
+    document.addEventListener("keydown", handleEscape);
+
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [scope]);
+
+  return closeRef;
+}
+
 function Overlay({
   taskId,
   boardId,
@@ -102,25 +178,9 @@ function Overlay({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
-  const { data: todo, isPending, error } = useTodo(taskId, boardId);
+  const closeRef = useGuardedClose(onClose);
 
-  // Ref, not a prop — only Body knows if a draft is unsaved, and it rebinds this every render.
-  const requestCloseRef = useRef(onClose);
-
-  useEffect(() => {
-    function handleEscape(event: KeyboardEvent) {
-      // Deferred to whatever's on top — a nested popover marks the event so it closes without taking the task with it.
-      if (event.key === "Escape" && !event.defaultPrevented) {
-        requestCloseRef.current();
-      }
-    }
-
-    document.addEventListener("keydown", handleEscape);
-
-    return () => document.removeEventListener("keydown", handleEscape);
-  }, []);
-
-  const requestClose = () => requestCloseRef.current();
+  const requestClose = () => closeRef.current();
 
   return (
     <div
@@ -146,26 +206,112 @@ function Overlay({
             : "animate-in fade-in-0 slide-in-from-bottom-1 duration-200",
         )}
       >
-        {isPending ? (
-          <Loading onClose={requestClose} />
-        ) : error ? (
-          <Dead
-            onClose={requestClose}
-            title={t("task.loadFailed")}
-            body={t("task.loadFailedHint")}
-          />
-        ) : !todo ? (
-          // Deliberately doesn't distinguish "deleted" from "wrong board" — fetchTodo is board-scoped.
-          <Dead
-            onClose={requestClose}
-            title={t("task.notFound")}
-            body={t("task.notFoundHint")}
-          />
-        ) : (
-          <Body todo={todo} onClose={onClose} bindCloseRef={requestCloseRef} />
-        )}
+        <TaskContent
+          taskId={taskId}
+          boardId={boardId}
+          onClose={onClose}
+          closeRef={closeRef}
+          variant="modal"
+        />
       </div>
     </div>
+  );
+}
+
+// Below xl there is no room to sit beside the board, so it overlays it with a scrim, as Drawer does.
+function PanelShell({
+  taskId,
+  boardId,
+  onClose,
+}: {
+  taskId: string;
+  boardId: string;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const panel = useRef<HTMLElement>(null);
+  const closeRef = useGuardedClose(onClose, panel);
+
+  useEffect(() => {
+    panel.current?.focus({ preventScroll: true });
+  }, []);
+
+  return (
+    <>
+      <div
+        aria-hidden
+        onMouseDown={() => closeRef.current()}
+        className="fixed inset-0 z-40 bg-black/40 xl:hidden"
+      />
+
+      <aside
+        ref={panel}
+        tabIndex={-1}
+        aria-label={t("task.details")}
+        className="border-hairline bg-surface animate-in fade-in-0 slide-in-from-right-4 shadow-e3 fixed inset-y-0 right-0 z-50 flex w-[min(28rem,100vw)] shrink-0 flex-col border-l duration-200 outline-none xl:static xl:z-auto xl:shadow-none"
+      >
+        {/* Keyed by task, so the aside itself stays put when switching tasks and only its content remounts. */}
+        <TaskContent
+          key={taskId}
+          taskId={taskId}
+          boardId={boardId}
+          onClose={onClose}
+          closeRef={closeRef}
+          variant="panel"
+        />
+      </aside>
+    </>
+  );
+}
+
+function TaskContent({
+  taskId,
+  boardId,
+  onClose,
+  closeRef,
+  variant,
+}: {
+  taskId: string;
+  boardId: string;
+  onClose: () => void;
+  closeRef: RefObject<() => void>;
+  variant: TaskVariant;
+}) {
+  const { t } = useTranslation();
+  const { data: todo, isPending, error } = useTodo(taskId, boardId);
+
+  const requestClose = () => closeRef.current();
+
+  if (isPending) return <Loading onClose={requestClose} variant={variant} />;
+
+  if (error) {
+    return (
+      <Dead
+        onClose={requestClose}
+        title={t("task.loadFailed")}
+        body={t("task.loadFailedHint")}
+      />
+    );
+  }
+
+  // Deliberately doesn't distinguish "deleted" from "wrong board" — fetchTodo is board-scoped.
+  if (!todo) {
+    return (
+      <Dead
+        onClose={requestClose}
+        title={t("task.notFound")}
+        body={t("task.notFoundHint")}
+      />
+    );
+  }
+
+  return (
+    <Body
+      todo={todo}
+      onClose={onClose}
+      bindCloseRef={closeRef}
+      variant={variant}
+    />
   );
 }
 
@@ -173,10 +319,12 @@ function Body({
   todo,
   onClose,
   bindCloseRef,
+  variant,
 }: {
   todo: TodoDetail;
   onClose: () => void;
-  bindCloseRef: React.RefObject<() => void>;
+  bindCloseRef: RefObject<() => void>;
+  variant: TaskVariant;
 }) {
   const { t } = useTranslation();
   const patch = useTodoPatch(todo);
@@ -185,9 +333,6 @@ function Body({
   const key = taskKey(useKeyPrefix(), todo.board_key);
 
   const hierarchy = useTodoHierarchy(todo);
-
-  const { data: sprints = [] } = useSprints();
-  const sprintsEnabled = useSprintsEnabled();
 
   const [title, setTitle] = useState(todo.title ?? "");
   const [description, setDescription] = useState(todo.description ?? "");
@@ -242,8 +387,64 @@ function Body({
     requestClose();
   }
 
-  const created = relativeTime(todo.created_at);
-  const updated = relativeTime(todo.updated_at);
+  const panel = variant === "panel";
+
+  const titleField = (
+    <textarea
+      value={title}
+      readOnly={!canEditTodos}
+      onChange={(e) => setTitle(e.target.value)}
+      onBlur={saveTitle}
+      rows={1}
+      aria-label={t("fields.title")}
+      className={cn(
+        "text-ink rounded-control -mx-2 field-sizing-content w-[calc(100%+1rem)] resize-none bg-transparent px-2 py-1 text-xl leading-snug font-semibold tracking-tight transition-colors duration-150 outline-none",
+        canEditTodos &&
+          "hover:bg-wash-strong focus:ring-brand focus:bg-transparent focus:ring-2",
+      )}
+    />
+  );
+
+  const descriptionField = (
+    <>
+      <SectionHeader title={t("task.description")} />
+
+      <textarea
+        value={description}
+        readOnly={!canEditTodos}
+        onChange={(e) => setDescription(e.target.value)}
+        onBlur={saveDescription}
+        rows={5}
+        placeholder={
+          canEditTodos ? t("task.addDescription") : t("task.noDescription")
+        }
+        aria-label={t("task.description")}
+        className={cn(
+          TEXT_FIELD,
+          "rounded-card block field-sizing-content max-h-[28rem] min-h-24 w-full resize-y px-3 py-2.5 text-sm leading-relaxed",
+          !canEditTodos && "focus:border-hairline focus:ring-0",
+        )}
+      />
+    </>
+  );
+
+  const sections = (
+    <>
+      {/* Attachments are content, not Activity (comments/history) — filed as its own section, not a fifth tab. */}
+      <AttachmentsSection todoId={todo.id} />
+
+      {/* A genuine Subtask (leaf of the hierarchy) renders neither of these. */}
+      {hierarchy.canHaveSubtasks && <SubtasksSection todo={todo} />}
+
+      {hierarchy.isEpic && <EpicTasksSection epic={todo} />}
+
+      <DevelopmentSection
+        todoId={todo.id}
+        boardId={todo.board_id}
+        taskKey={key}
+      />
+    </>
+  );
 
   return (
     <>
@@ -254,9 +455,12 @@ function Body({
           <ParentLine parentId={todo.parent_id} boardId={todo.board_id} />
         }
         actions={
-          canEditTodos && (
-            <MoreActions onDelete={() => setConfirming("delete")} />
-          )
+          <TaskActions
+            todo={todo}
+            keyLabel={key}
+            variant={variant}
+            onDelete={() => setConfirming("delete")}
+          />
         }
         onClose={requestClose}
       />
@@ -293,6 +497,8 @@ function Body({
         >
           <button
             type="button"
+            // both keep focus in the field: losing it saves, which would save what Discard throws away
+            onMouseDown={(event) => event.preventDefault()}
             onClick={() => setConfirming(null)}
             className={cn(DIALOG_CANCEL, "h-8 px-3")}
           >
@@ -301,6 +507,7 @@ function Body({
 
           <button
             type="button"
+            onMouseDown={(event) => event.preventDefault()}
             onClick={onClose}
             className={cn(DIALOG_DANGER, "h-8 px-3")}
           >
@@ -309,190 +516,264 @@ function Body({
         </ConfirmBar>
       )}
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto md:flex-row md:overflow-hidden">
-        <div className="min-w-0 flex-1 space-y-8 px-5 py-6 md:overflow-y-auto md:px-7">
-          <div>
-            <textarea
-              value={title}
-              readOnly={!canEditTodos}
-              onChange={(e) => setTitle(e.target.value)}
-              onBlur={saveTitle}
-              rows={1}
-              aria-label={t("fields.title")}
-              className={cn(
-                "text-ink rounded-control -mx-2 field-sizing-content w-[calc(100%+1rem)] resize-none bg-transparent px-2 py-1 text-xl leading-snug font-semibold tracking-tight transition-colors duration-150 outline-none",
-                canEditTodos &&
-                  "hover:bg-wash-strong focus:ring-brand focus:bg-transparent focus:ring-2",
-              )}
-            />
+      {panel ? (
+        // One column, Jira's order: the fields cards sit below the content, and the conversation closes it out.
+        <div className="min-h-0 flex-1 space-y-7 overflow-y-auto px-5 py-5">
+          <div className="space-y-3">
+            {titleField}
 
-            <div className="mt-5">
-              <SectionHeader title={t("task.description")} />
-
-              <textarea
-                value={description}
-                readOnly={!canEditTodos}
-                onChange={(e) => setDescription(e.target.value)}
-                onBlur={saveDescription}
-                rows={5}
-                placeholder={
-                  canEditTodos
-                    ? t("task.addDescription")
-                    : t("task.noDescription")
-                }
-                aria-label={t("task.description")}
-                className={cn(
-                  TEXT_FIELD,
-                  "rounded-card block field-sizing-content max-h-[28rem] min-h-24 w-full resize-y px-3 py-2.5 text-sm leading-relaxed",
-                  !canEditTodos && "focus:border-hairline focus:ring-0",
-                )}
-              />
-            </div>
+            <StatusField todo={todo} panel />
           </div>
 
-          {/* Attachments are content, not Activity (comments/history) — filed as its own section, not a fifth tab. */}
-          <AttachmentsSection todoId={todo.id} />
+          <div>{descriptionField}</div>
 
-          {/* A genuine Subtask (leaf of the hierarchy) renders neither of these. */}
-          {hierarchy.canHaveSubtasks && <SubtasksSection todo={todo} />}
+          {sections}
 
-          {hierarchy.isEpic && <EpicTasksSection epic={todo} />}
-
-          <DevelopmentSection
-            todoId={todo.id}
-            boardId={todo.board_id}
-            taskKey={key}
+          <TaskRail
+            todo={todo}
+            hierarchy={hierarchy}
+            patch={patch}
+            keyLabel={key}
           />
 
           <ActivitySection todoId={todo.id} boardId={todo.board_id} />
         </div>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto md:flex-row md:overflow-hidden">
+          <div className="min-w-0 flex-1 space-y-8 px-5 py-6 md:overflow-y-auto md:px-7">
+            <div>
+              {titleField}
 
-        {/* pointer-events-none for a viewer — these controls are popover triggers, not readOnly like the textareas. */}
-        <aside
+              <div className="mt-5">{descriptionField}</div>
+            </div>
+
+            {sections}
+
+            <ActivitySection todoId={todo.id} boardId={todo.board_id} />
+          </div>
+
+          <aside className="border-hairline bg-canvas/50 shrink-0 space-y-5 border-t p-5 md:w-[20rem] md:overflow-y-auto md:border-t-0 md:border-l">
+            <StatusField todo={todo} />
+
+            <TaskRail
+              todo={todo}
+              hierarchy={hierarchy}
+              patch={patch}
+              keyLabel={key}
+            />
+          </aside>
+        </div>
+      )}
+    </>
+  );
+}
+
+// pointer-events-none for a viewer — these controls are popover triggers, not readOnly like the textareas.
+function StatusField({
+  todo,
+  panel = false,
+}: {
+  todo: TodoDetail;
+  panel?: boolean;
+}) {
+  const { canEditTodos } = usePermissions();
+
+  return (
+    <div
+      className={cn(
+        panel && "w-fit min-w-40",
+        !canEditTodos && "pointer-events-none",
+      )}
+    >
+      <StatusControl
+        todoId={todo.id}
+        statusId={todo.status_id}
+        variant="field"
+      />
+    </div>
+  );
+}
+
+// The cards under the status, shared by both layouts. Only the field values are inert for a viewer: the card's own
+// collapse toggle must stay reachable, so pointer-events-none cannot sit on the whole rail.
+function TaskRail({
+  todo,
+  hierarchy,
+  patch,
+  keyLabel,
+}: {
+  todo: TodoDetail;
+  hierarchy: TodoHierarchy;
+  patch: Patch;
+  keyLabel: string | null;
+}) {
+  const { t, i18n } = useTranslation();
+  const { canEditTodos } = usePermissions();
+  const { data: sprints = [] } = useSprints();
+  const sprintsEnabled = useSprintsEnabled();
+
+  const created = relativeTime(todo.created_at);
+  const updated = relativeTime(todo.updated_at);
+
+  // One list feeds both the rows and the collapsed card's summary, so the summary can only name fields that are shown.
+  const fields: { key: string; label: string; node: ReactNode }[] = [
+    {
+      key: "assignee",
+      label: t("fields.assignee"),
+      node: (
+        <AssigneeControl
+          boardId={todo.board_id}
+          value={todo.assignee_id}
+          onChange={(assignee_id) => patch({ assignee_id })}
+          alwaysVisible
+          showName
+        />
+      ),
+    },
+    {
+      key: "workType",
+      label: t("fields.workType"),
+      node: (
+        <WorkTypeControl
+          value={todo.type}
+          onChange={(type) => patch({ type })}
+          showLabel
+        />
+      ),
+    },
+    {
+      key: "priority",
+      label: t("fields.priority"),
+      node: (
+        <PriorityControl
+          value={todo.priority}
+          onChange={(priority) => patch({ priority })}
+          showLabel
+          alwaysVisible
+        />
+      ),
+    },
+    {
+      key: "storyPoints",
+      label: t("task.storyPoints"),
+      node: (
+        <EstimateControl
+          value={todo.estimate}
+          onChange={(estimate) => patch({ estimate })}
+          alwaysVisible
+          showLabel
+        />
+      ),
+    },
+    ...(hierarchy.canPickEpicParent
+      ? [
+          {
+            key: "parent",
+            label: t("fields.parent"),
+            node: (
+              <EpicParentControl
+                value={todo.parent_id}
+                onChange={(epicId) => patch({ parent_id: epicId })}
+              />
+            ),
+          },
+        ]
+      : []),
+    // A genuine Subtask has no sprint of its own — it inherits its parent Task's.
+    // The field also goes with the Sprints feature (0020); the stored
+    // sprint_id is left alone so turning it back on restores it.
+    ...(sprintsEnabled && !hierarchy.isGenuineSubtask
+      ? [
+          {
+            key: "sprint",
+            label: t("fields.sprint"),
+            node: (
+              <SprintControl
+                value={todo.sprint_id}
+                sprints={sprints}
+                onChange={(sprintId) => patch({ sprint_id: sprintId })}
+              />
+            ),
+          },
+        ]
+      : []),
+    // Each end is bounded by the other, so the range can't be inverted.
+    {
+      key: "startDate",
+      label: t("fields.startDate"),
+      node: (
+        <StartDateControl
+          value={todo.start_date}
+          onChange={(start_date) => patch({ start_date })}
+          notAfter={todo.due_date}
+          alwaysVisible
+          showLabel
+        />
+      ),
+    },
+    {
+      key: "dueDate",
+      label: t("fields.dueDate"),
+      node: (
+        <DueDateControl
+          value={todo.due_date}
+          onChange={(due_date) => patch({ due_date })}
+          notBefore={todo.start_date}
+          alwaysVisible
+          showLabel
+        />
+      ),
+    },
+  ];
+
+  return (
+    <div className="space-y-5">
+      <DetailCard
+        id="details"
+        title={t("workflow.details")}
+        summary={fields.map((field) => field.label).join(", ")}
+      >
+        <dl
           className={cn(
-            "border-hairline bg-canvas/50 shrink-0 space-y-5 border-t p-5 md:w-[20rem] md:overflow-y-auto md:border-t-0 md:border-l",
+            "px-3.5 py-1.5",
             !canEditTodos && "pointer-events-none",
           )}
         >
-          <div>
-            <p className={cn(SECTION_TITLE, "mb-2")}>{t("fields.status")}</p>
+          {fields.map((field) => (
+            <Field key={field.key} label={field.label}>
+              {field.node}
+            </Field>
+          ))}
+        </dl>
+      </DetailCard>
 
-            <StatusControl
-              todoId={todo.id}
-              statusId={todo.status_id}
-              variant="field"
-            />
-          </div>
+      <DevelopmentActions todo={todo} taskKey={keyLabel} />
 
-          <section className="border-hairline bg-surface rounded-card border">
-            <h3
-              className={cn(
-                SECTION_TITLE,
-                "border-hairline border-b px-3.5 py-2.5",
-              )}
+      {(created || updated) && (
+        <p className="text-ink-3 text-mini px-0.5 leading-relaxed">
+          {created && (
+            <span
+              className="block"
+              title={new Date(todo.created_at).toLocaleString(i18n.language)}
             >
-              {t("workflow.details")}
-            </h3>
-
-            <dl className="px-3.5 py-1.5">
-              <Field label={t("fields.assignee")}>
-                <AssigneeControl
-                  boardId={todo.board_id}
-                  value={todo.assignee_id}
-                  onChange={(assignee_id) => patch({ assignee_id })}
-                  alwaysVisible
-                  showName
-                />
-              </Field>
-
-              <Field label={t("fields.workType")}>
-                <WorkTypeControl
-                  value={todo.type}
-                  onChange={(type) => patch({ type })}
-                  showLabel
-                />
-              </Field>
-
-              <Field label={t("fields.priority")}>
-                <PriorityControl
-                  value={todo.priority}
-                  onChange={(priority) => patch({ priority })}
-                  showLabel
-                  alwaysVisible
-                />
-              </Field>
-
-              <Field label={t("task.storyPoints")}>
-                <EstimateControl
-                  value={todo.estimate}
-                  onChange={(estimate) => patch({ estimate })}
-                  alwaysVisible
-                  showLabel
-                />
-              </Field>
-
-              {hierarchy.canPickEpicParent && (
-                <Field label={t("fields.parent")}>
-                  <EpicParentControl
-                    value={todo.parent_id}
-                    onChange={(epicId) => patch({ parent_id: epicId })}
-                  />
-                </Field>
-              )}
-
-              {/* A genuine Subtask has no sprint of its own — it inherits its parent Task's.
-                  The field also goes with the Sprints feature (0020); the stored
-                  sprint_id is left alone so turning it back on restores it. */}
-              {sprintsEnabled && !hierarchy.isGenuineSubtask && (
-                <Field label={t("fields.sprint")}>
-                  <SprintControl
-                    value={todo.sprint_id}
-                    sprints={sprints}
-                    onChange={(sprintId) => patch({ sprint_id: sprintId })}
-                  />
-                </Field>
-              )}
-
-              {/* Each end is bounded by the other, so the range can't be inverted. */}
-              <Field label={t("fields.startDate")}>
-                <StartDateControl
-                  value={todo.start_date}
-                  onChange={(start_date) => patch({ start_date })}
-                  notAfter={todo.due_date}
-                  alwaysVisible
-                  showLabel
-                />
-              </Field>
-
-              <Field label={t("fields.dueDate")}>
-                <DueDateControl
-                  value={todo.due_date}
-                  onChange={(due_date) => patch({ due_date })}
-                  notBefore={todo.start_date}
-                  alwaysVisible
-                  showLabel
-                />
-              </Field>
-            </dl>
-          </section>
-
-          {(created || updated) && (
-            <p className="text-ink-3 text-mini px-0.5 leading-relaxed">
-              {created && (
-                <span className="block">
-                  {t("task.createdAgo", { when: created })}
-                </span>
-              )}
-              {updated && (
-                <span className="block">
-                  {t("task.updatedAgo", { when: updated })}
-                </span>
-              )}
-            </p>
+              {t("task.createdAgo", { when: created })}
+            </span>
           )}
-        </aside>
-      </div>
-    </>
+          {updated && (
+            <span
+              className="block"
+              title={
+                todo.updated_at
+                  ? new Date(todo.updated_at).toLocaleString(i18n.language)
+                  : undefined
+              }
+            >
+              {t("task.updatedAgo", { when: updated })}
+            </span>
+          )}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -540,6 +821,68 @@ function Header({
         </IconButton>
       </div>
     </header>
+  );
+}
+
+function TaskActions({
+  todo,
+  keyLabel,
+  variant,
+  onDelete,
+}: {
+  todo: TodoDetail;
+  keyLabel: string | null;
+  variant: TaskVariant;
+  onDelete: () => void;
+}) {
+  const { t } = useTranslation();
+  const { canEditTodos } = usePermissions();
+  const setLayout = useTaskLayout((state) => state.setLayout);
+
+  const panel = variant === "panel";
+  // The key where there is one: TaskRefPage resolves it, and it reads better in a pasted link. The id covers a card still in flight.
+  const path = `/tasks/${keyLabel ?? todo.id}`;
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}${path}`);
+      toast.success(t("task.linkCopied"));
+    } catch {
+      toast.error(t("task.copyLinkFailed"));
+    }
+  }
+
+  return (
+    <>
+      <IconButton label={t("task.copyLink")} onClick={() => void copyLink()}>
+        <LinkIcon />
+      </IconButton>
+
+      {canEditTodos && <MoreActions onDelete={onDelete} />}
+
+      {panel && (
+        <Tooltip>
+          <TooltipTrigger
+            render={<a href={path} target="_blank" rel="noreferrer" />}
+            aria-label={t("task.openInNewTab")}
+            className={ICON_BUTTON.sm}
+          >
+            <ExternalLinkIcon />
+          </TooltipTrigger>
+
+          <TooltipContent side="bottom">
+            {t("task.openInNewTab")}
+          </TooltipContent>
+        </Tooltip>
+      )}
+
+      <IconButton
+        label={panel ? t("task.openAsDialog") : t("task.openInPanel")}
+        onClick={() => setLayout(panel ? "modal" : "panel")}
+      >
+        {panel ? <Maximize2Icon /> : <Minimize2Icon />}
+      </IconButton>
+    </>
   );
 }
 
@@ -640,22 +983,36 @@ function Field({
   );
 }
 
-function Loading({ onClose }: { onClose: () => void }) {
+function Loading({
+  onClose,
+  variant,
+}: {
+  onClose: () => void;
+  variant: TaskVariant;
+}) {
   return (
     <>
       <Header keyLabel={null} onClose={onClose} />
 
-      <div className="flex min-h-0 flex-1 flex-col md:flex-row" aria-busy>
-        <div className="min-w-0 flex-1 space-y-5 px-5 py-6 md:px-7">
+      {variant === "panel" ? (
+        <div className="space-y-5 px-5 py-5" aria-busy>
           <Skeleton className="h-8 w-2/3" />
+          <Skeleton className="h-8 w-40" />
           <Skeleton className="h-24 w-full" />
         </div>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col md:flex-row" aria-busy>
+          <div className="min-w-0 flex-1 space-y-5 px-5 py-6 md:px-7">
+            <Skeleton className="h-8 w-2/3" />
+            <Skeleton className="h-24 w-full" />
+          </div>
 
-        <div className="border-hairline bg-canvas/50 shrink-0 space-y-5 border-t p-5 md:w-[20rem] md:border-t-0 md:border-l">
-          <Skeleton className="h-8 w-full" />
-          <Skeleton className="h-72 w-full" />
+          <div className="border-hairline bg-canvas/50 shrink-0 space-y-5 border-t p-5 md:w-[20rem] md:border-t-0 md:border-l">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-72 w-full" />
+          </div>
         </div>
-      </div>
+      )}
     </>
   );
 }
