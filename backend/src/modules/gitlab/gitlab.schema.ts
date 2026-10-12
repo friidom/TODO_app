@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { MAX_PAGE } from "../../config/constants.js";
 import { signingSecretError, type SigningSecretError } from "../../lib/webhookSignature.js";
+import { spaceParamsSchema } from "../spaces/spaces.schema.js";
 import { parseProjectUrl, type ProjectUrlError } from "./gitlab.links.js";
 
 const PROJECT_URL_MESSAGES: Record<ProjectUrlError, string> = {
@@ -47,6 +48,10 @@ export const signingTokenSchema = z.object({
 
 export const linkParamsSchema = z.object({ linkId: z.uuid() });
 
+// One schema for both ids: validate() replaces req.params with what it parses,
+// so validating linkId alone would drop spaceId.
+export const spaceLinkParamsSchema = spaceParamsSchema.extend(linkParamsSchema.shape);
+
 // Unbounded by default, like a card's activity history: a default limit would
 // silently drop a busy card's older commits.
 export const developmentQuerySchema = z.object({
@@ -56,4 +61,5 @@ export const developmentQuerySchema = z.object({
 export type ConnectProjectInput = z.infer<typeof connectProjectSchema>;
 export type SigningTokenInput = z.infer<typeof signingTokenSchema>;
 export type LinkParams = z.infer<typeof linkParamsSchema>;
+export type SpaceLinkParams = z.infer<typeof spaceLinkParamsSchema>;
 export type DevelopmentQuery = z.infer<typeof developmentQuerySchema>;

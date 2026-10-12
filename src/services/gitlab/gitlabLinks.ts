@@ -1,8 +1,8 @@
-import type { GitLabLink, GitLabLinkStatus } from "./gitlabApi";
+import type { GitLabLinkStatus } from "./gitlabApi";
 
 export const LINK_POLL_MS = 5_000;
 
-// The settings page is outside the board's realtime room, so a delivery is
+// The settings pages are outside every board's realtime room, so a delivery is
 // noticed only by asking again. Only a link waiting on GitLab can change while
 // the admin does nothing here, and a failed refresh stops the asking, because
 // the QueryCache toasts each failed refetch.
@@ -10,7 +10,7 @@ export function linksPollInterval({
   data,
   status,
 }: {
-  data: readonly GitLabLink[] | undefined;
+  data: readonly { status: GitLabLinkStatus }[] | undefined;
   status: "pending" | "error" | "success";
 }): number | false {
   if (status === "error") return false;
@@ -71,4 +71,25 @@ export function failureMessageKey(reason: string | null): string {
   return isFailureReason(reason)
     ? FAILURE_MESSAGE[reason]
     : "gitlab.failure.unknown";
+}
+
+// What Board Settings can say about a board's GitLab project. A space is
+// visible only to its owner, so "the space has no project" can be offered as
+// a link only when the space is the viewer's own.
+export type BoardGitLabSource = "space" | "ownSpace" | "otherSpace" | "unfiled";
+
+export function boardGitLabSource({
+  spaceId,
+  ownsSpace,
+  spaceLinked,
+}: {
+  spaceId: string | null;
+  ownsSpace: boolean;
+  spaceLinked: boolean;
+}): BoardGitLabSource {
+  if (spaceLinked) return "space";
+
+  if (spaceId === null) return "unfiled";
+
+  return ownsSpace ? "ownSpace" : "otherSpace";
 }

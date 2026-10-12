@@ -7,11 +7,13 @@ import { disconnect, resetDatabase } from "../../testing/db.js";
 import { makeUser, type TestUser } from "../../testing/fixtures.js";
 import {
   PROJECT,
+  connectSpaceProject,
   deliver,
   mergeRequestPayload,
   pushPayload,
   signedDelivery,
   signingToken,
+  spaceIdOf,
   type Delivery,
 } from "../../testing/gitlab.js";
 import { startTestServer, type TestClient } from "../../testing/httpClient.js";
@@ -41,26 +43,19 @@ interface Link {
 async function linkedProject(
   user: TestUser,
   { projectUrl = "https://gitlab.com/acme/backend", token = signingToken() as string | null } = {},
-): Promise<{ link: Link; token: string }> {
-  const connected = await client.post<{ link: Link }>(
-    `/api/v1/boards/${user.boardId}/integrations/gitlab`,
-    { project_url: projectUrl },
+): Promise<{ link: { id: string }; token: string }> {
+  const { linkId, token: saved } = await connectSpaceProject(client, user, user.boardId, { projectUrl, token });
+
+  return { link: { id: linkId }, token: saved };
+}
+
+async function spaceLinkOf(user: TestUser): Promise<Link | null> {
+  const response = await client.get<{ link: Link | null }>(
+    `/api/v1/spaces/${await spaceIdOf(user.boardId)}/integrations/gitlab`,
     { token: user.token },
   );
 
-  if (connected.status !== 201) throw new Error(`connect failed: ${connected.status}`);
-
-  if (token !== null) {
-    const saved = await client.put(
-      `/api/v1/boards/${user.boardId}/integrations/gitlab/${connected.body.link.id}/signing-token`,
-      { token },
-      { token: user.token },
-    );
-
-    if (saved.status !== 200) throw new Error(`token failed: ${saved.status}`);
-  }
-
-  return { link: connected.body.link, token: token ?? "" };
+  return response.body.link;
 }
 
 function row(linkId: string) {
@@ -68,11 +63,7 @@ function row(linkId: string) {
 }
 
 async function statusOf(user: TestUser): Promise<string | undefined> {
-  const listed = await client.get<Link[]>(`/api/v1/boards/${user.boardId}/integrations/gitlab`, {
-    token: user.token,
-  });
-
-  return listed.body[0]?.status;
+  return (await spaceLinkOf(user))?.status;
 }
 
 const push = () => pushPayload({ commits: [{ message: "MB-1 fix authentication" }] });
@@ -156,11 +147,7 @@ describe("accepting a delivery", () => {
 
     expect(response.status).toBe(200);
 
-    const listed = await client.get<Link[]>(`/api/v1/boards/${alice.boardId}/integrations/gitlab`, {
-      token: alice.token,
-    });
-
-    expect(listed.body[0]).toMatchObject({
+    expect(await spaceLinkOf(alice)).toMatchObject({
       project_path: "acme/core-api",
       project_url: "https://gitlab.com/acme/core-api",
     });
@@ -324,8 +311,8 @@ describe("checking the project", () => {
   });
 });
 
-describe("keeping boards apart", () => {
-  it("does not accept one board's token on another board's link to the same project", async () => {
+describe("keeping spaces apart", () => {
+  it("does not accept one space's token on another space's link to the same project", async () => {
     const alice = await makeUser("alice");
     const bob = await makeUser("bob");
     const aliceLink = await linkedProject(alice);

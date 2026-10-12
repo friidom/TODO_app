@@ -60,8 +60,10 @@ const KNOWN: Record<string, string> = {
   "That value is not allowed.": "apiErrors.notAllowed",
   "A required field is missing.": "apiErrors.required",
   "That date is not valid.": "apiErrors.badDate",
-  "That GitLab project is already connected to this board.":
+  "That GitLab project is already connected to this space.":
     "gitlab.errors.alreadyConnected",
+  "This space's GitLab connection just changed. Reload and try again.":
+    "gitlab.errors.changed",
   "GitLab integration is not configured on this server.":
     "gitlab.errors.notConfigured",
   "project_url: must be an https:// address.": "gitlab.errors.https",

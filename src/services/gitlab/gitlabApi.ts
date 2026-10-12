@@ -17,47 +17,79 @@ export type GitLabLink = {
   created_at: string;
 };
 
-export function fetchGitLabLinks(boardId: string): Promise<GitLabLink[]> {
-  return api.get<GitLabLink[]>(`/boards/${boardId}/integrations/gitlab`);
+export type BoardGitLabLink = GitLabLink & {
+  board: { id: string; title: string | null; key_prefix: string };
+};
+
+export type SpaceGitLab = {
+  configured: boolean;
+  link: GitLabLink | null;
+  // Links boards in this space made before GitLab moved to spaces.
+  board_links: BoardGitLabLink[];
+};
+
+export type SpaceLinkSummary = Pick<
+  GitLabLink,
+  "project_path" | "project_url" | "status" | "last_delivery_at"
+>;
+
+export type BoardGitLab = {
+  space_link: SpaceLinkSummary | null;
+  board_links: GitLabLink[];
+};
+
+// Who a link belongs to: a space, or a board that linked a project before
+// projects were connected per space.
+export type GitLabOwner = { spaceId: string } | { boardId: string };
+
+function ownerPath(owner: GitLabOwner): string {
+  return "spaceId" in owner
+    ? `/spaces/${owner.spaceId}/integrations/gitlab`
+    : `/boards/${owner.boardId}/integrations/gitlab`;
 }
 
-export function connectGitLabProject({
-  boardId,
+export function fetchSpaceGitLab(spaceId: string): Promise<SpaceGitLab> {
+  return api.get<SpaceGitLab>(ownerPath({ spaceId }));
+}
+
+export function fetchBoardGitLab(boardId: string): Promise<BoardGitLab> {
+  return api.get<BoardGitLab>(ownerPath({ boardId }));
+}
+
+export function connectSpaceGitLab({
+  spaceId,
   projectUrl,
 }: {
-  boardId: string;
+  spaceId: string;
   projectUrl: string;
 }): Promise<{ link: GitLabLink; webhook_url: string }> {
-  return api.post(`/boards/${boardId}/integrations/gitlab`, {
-    project_url: projectUrl,
-  });
+  return api.post(ownerPath({ spaceId }), { project_url: projectUrl });
 }
 
 // Write-only: the token goes up once and nothing the API answers carries it
 // back, so the link it returns is all there is to show.
 export function saveGitLabSigningToken({
-  boardId,
+  owner,
   linkId,
   token,
 }: {
-  boardId: string;
+  owner: GitLabOwner;
   linkId: string;
   token: string;
 }): Promise<GitLabLink> {
-  return api.put<GitLabLink>(
-    `/boards/${boardId}/integrations/gitlab/${linkId}/signing-token`,
-    { token },
-  );
+  return api.put<GitLabLink>(`${ownerPath(owner)}/${linkId}/signing-token`, {
+    token,
+  });
 }
 
-export async function unlinkGitLabProject({
-  boardId,
+export async function disconnectGitLabLink({
+  owner,
   linkId,
 }: {
-  boardId: string;
+  owner: GitLabOwner;
   linkId: string;
 }): Promise<void> {
-  await api.del<void>(`/boards/${boardId}/integrations/gitlab/${linkId}`);
+  await api.del<void>(`${ownerPath(owner)}/${linkId}`);
 }
 
 export type DevelopmentCommit = {

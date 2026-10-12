@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import BoardSettingsShell, {
   Section,
 } from "@/components/boardSettings/BoardSettingsShell";
-import GitLabIntegration from "@/components/gitlab/GitLabIntegration";
+import BoardGitLabStatus from "@/components/gitlab/BoardGitLabStatus";
 import { useBoardId } from "@/hooks/useBoardId";
 import { useBoard } from "@/services/boards/useBoard";
 import type { IBoard } from "@/types/data";
@@ -27,7 +27,7 @@ function Integrations({ board }: { board: IBoard }) {
       title={t("gitlab.title")}
       hint={t("gitlab.hint", { example: `${board.key_prefix}-12` })}
     >
-      <GitLabIntegration board={board} />
+      <BoardGitLabStatus board={board} />
     </Section>
   );
 }

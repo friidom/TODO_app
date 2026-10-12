@@ -62,7 +62,8 @@ const MERGE_REQUEST_BADGE: Record<MergeRequestState, string> = {
 const SHA = "text-ink-3 font-mono text-xs tabular-nums";
 
 // Renders nothing on a board without GitLab: a section that could only ever
-// say so would sit on every task of every board that does not use it.
+// say so would sit on every task of every board that does not use it. A task
+// with history keeps it after its space disconnects, so that still shows.
 export default function DevelopmentSection({
   todoId,
   boardId,
@@ -79,9 +80,9 @@ export default function DevelopmentSection({
     todoId,
   );
 
-  if (data && !data.connected) return null;
-
   const count = data ? developmentCount(data) : 0;
+
+  if (data && !data.connected && count === 0) return null;
 
   return (
     <section>

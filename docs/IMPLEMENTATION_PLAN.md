@@ -4323,6 +4323,34 @@ Phase E2's rule carries over unchanged: **a chart that ships without a row here 
 
 ---
 
+# PART IV-F — GITLAB, OWNED BY THE SPACE (0035/0036)
+
+**Status.** ✅ Built 2026-10-12 on `feature/gitlab-space-integration`, uncommitted for review. GitLab itself (0034: webhook ingestion of the commits, branches and merge requests that name a task's key) predates this plan's milestones; this part records only the move of its ownership from the board to the space.
+
+**Why.** One repository usually serves several boards — a team's API and Web boards share a monorepo — and connecting it per board meant one webhook, one signing token and one setup per board, with nothing to stop two boards in one space from pointing at different projects.
+
+**The deliberate exception to *"Does this belong to a Board?"*** The repository belongs to whoever owns the boards it serves, and in this schema that is the space's owner, who owns every board filed in the space (`boards_space_ownership`). 0018–0022 moved the workflow flag off `spaces` because a space has no membership and a board admin could not reach it. The same consequence is accepted here on purpose: **only the space's owner connects, changes or disconnects GitLab**, and a board admin's Integrations page is read-only. Reading is unchanged — any board member sees a task's development data.
+
+**Decisions.**
+
+- One active link per space (a partial unique index). Boards inherit through `boards.space_id`; nothing is stored per board, so a board created or moved later follows its space.
+- Disconnecting and changing the project are soft: `disconnected_at` is set, the token wiped, the history kept. A later link to the same GitLab project adopts that history at its first verified delivery, so a merge request opened before the change is updated rather than duplicated.
+- The rule 0034 held in a composite foreign key — a link writes only to its own board — becomes the trigger `enforce_gitlab_link_scope`: the link's board, or any board in the link's space.
+- 0036 promotes a board link only when that is unambiguous: the only link in its space, made by the space's owner. Every other link stays a board link, keeps working for its board, is listed in Space settings, and is replaced when the space connects a project.
+
+**Migration.** `npm run db:migrate` applies 0035 (expand) and 0036 (backfill). A promoted link keeps its id, so its webhook url and sealed token keep working with no change in GitLab.
+
+**Tests.** `gitlab.space.int.test.ts` — inheritance by existing, new and moved boards; other spaces untouched; changing and reconnecting the project; legacy links; space deletion; and 0036 replayed from its own file against fixtures. `gitlab.links.int.test.ts` — the space and board routes and who may call them. `gitlab.db.int.test.ts` — the trigger and the one-active-link index.
+
+**Not built.**
+
+- A per-board override of the space's project.
+- Promoting a legacy board link in place. Connecting the same project from Space settings is the path, and the history follows.
+- Choosing from a list of accessible projects: there is no GitLab API access — no OAuth application, no token — to list them, so a project is named by its address.
+- GitLab issue linking. Tasks are named in GitLab; GitLab issues are not named in tasks.
+
+---
+
 # PART V — DEFERRED / PRODUCTION HARDENING
 
 **Nothing in this part blocks any task in Part III or Part IV.**

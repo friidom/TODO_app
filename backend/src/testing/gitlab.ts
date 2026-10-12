@@ -1,5 +1,9 @@
 import { createHmac, randomBytes, randomUUID } from "node:crypto";
 
+import { prisma } from "../db/prisma.js";
+import type { TestUser } from "./fixtures.js";
+import type { TestClient } from "./httpClient.js";
+
 // Payloads shaped like the GitLab.com deliveries captured in Phase 3A, with
 // every person and project replaced, and signed exactly the way GitLab signs.
 
@@ -158,4 +162,42 @@ export async function deliver(
   const text = await response.text();
 
   return { status: response.status, body: text === "" ? undefined : JSON.parse(text) };
+}
+
+export async function spaceIdOf(boardId: string): Promise<string> {
+  const board = await prisma.boards.findUniqueOrThrow({ where: { id: boardId }, select: { space_id: true } });
+
+  if (board.space_id === null) throw new Error(`board ${boardId} is not filed in a space`);
+
+  return board.space_id;
+}
+
+export interface ConnectedSpace {
+  spaceId: string;
+  linkId: string;
+  token: string;
+}
+
+// Connects the space the board is filed in, as its owner would: the project
+// first, then the signing token GitLab generated. token null stops after the
+// first step, leaving the link waiting for one.
+export async function connectSpaceProject(
+  client: TestClient,
+  user: TestUser,
+  boardId: string,
+  { projectUrl = "https://gitlab.com/acme/backend", token = signingToken() as string | null } = {},
+): Promise<ConnectedSpace> {
+  const spaceId = await spaceIdOf(boardId);
+  const path = `/api/v1/spaces/${spaceId}/integrations/gitlab`;
+  const connected = await client.post<{ link: { id: string } }>(path, { project_url: projectUrl }, { token: user.token });
+
+  if (connected.status !== 201) throw new Error(`connect failed: ${connected.status} ${JSON.stringify(connected.body)}`);
+
+  if (token !== null) {
+    const saved = await client.put(`${path}/${connected.body.link.id}/signing-token`, { token }, { token: user.token });
+
+    if (saved.status !== 200) throw new Error(`token failed: ${saved.status}`);
+  }
+
+  return { spaceId, linkId: connected.body.link.id, token: token ?? "" };
 }

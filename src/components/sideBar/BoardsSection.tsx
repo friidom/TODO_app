@@ -258,6 +258,13 @@ function SpaceRow({
 
               <DropdownMenuContent align="start" className="w-44">
                 <DropdownMenuItem
+                  render={<Link to={`/spaces/${space.id}/settings`} />}
+                >
+                  <SettingsIcon />
+                  {t("sidebar.spaceSettings")}
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
                   onClick={() => onDialog({ kind: "rename-space", space })}
                 >
                   <PencilIcon />

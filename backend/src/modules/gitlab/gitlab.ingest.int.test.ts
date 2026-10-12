@@ -6,12 +6,14 @@ import { disconnect, resetDatabase } from "../../testing/db.js";
 import { addMember, firstStatusOf, makeUser, type TestUser } from "../../testing/fixtures.js";
 import {
   ZERO_SHA,
+  connectSpaceProject,
   deliver,
   mergeRequestPayload,
   pushPayload,
   sha,
   signedDelivery,
   signingToken,
+  spaceIdOf,
 } from "../../testing/gitlab.js";
 import { startTestServer, type TestClient } from "../../testing/httpClient.js";
 import { startRealtimeHarness, settle, type RealtimeHarness } from "../../testing/realtimeHarness.js";
@@ -40,7 +42,11 @@ interface Card {
 }
 
 async function board(user: TestUser, title: string): Promise<{ id: string; key_prefix: string }> {
-  const response = await client.post<{ id: string; key_prefix: string }>("/api/v1/boards", { title }, { token: user.token });
+  const response = await client.post<{ id: string; key_prefix: string }>(
+    "/api/v1/boards",
+    { title, space_id: await spaceIdOf(user.boardId) },
+    { token: user.token },
+  );
 
   if (response.status !== 201) throw new Error(`board failed: ${response.status}`);
 
@@ -67,20 +73,9 @@ async function cards(user: TestUser, boardId: string, count: number): Promise<Ca
 }
 
 async function linked(user: TestUser, boardId: string, projectUrl = "https://gitlab.com/acme/backend", token = signingToken()) {
-  const connected = await client.post<{ link: { id: string } }>(
-    `/api/v1/boards/${boardId}/integrations/gitlab`,
-    { project_url: projectUrl },
-    { token: user.token },
-  );
-  const saved = await client.put(
-    `/api/v1/boards/${boardId}/integrations/gitlab/${connected.body.link.id}/signing-token`,
-    { token },
-    { token: user.token },
-  );
+  const { linkId } = await connectSpaceProject(client, user, boardId, { projectUrl, token });
 
-  if (connected.status !== 201 || saved.status !== 200) throw new Error("link failed");
-
-  return { linkId: connected.body.link.id, token };
+  return { linkId, token };
 }
 
 const now = () => Math.floor(Date.now() / 1000);
@@ -218,7 +213,7 @@ describe("commits", () => {
   });
 });
 
-describe("boards linked to the same GitLab project", () => {
+describe("spaces linked to the same GitLab project", () => {
   async function twoBoards() {
     const alice = await makeUser("alice");
     const bob = await makeUser("bob");
@@ -239,7 +234,7 @@ describe("boards linked to the same GitLab project", () => {
     };
   }
 
-  it("each receive only their own board's tasks from the same commit", async () => {
+  it("each receive only their own space's tasks from the same commit", async () => {
     const { mobile, apiCard, mobileCard, apiLink, mobileLink } = await twoBoards();
     const payload = pushPayload({ commits: [{ message: "API-1 and MOB-1 in one commit" }] });
 
@@ -253,7 +248,7 @@ describe("boards linked to the same GitLab project", () => {
     expect(await commitsOf(mobileCard.id)).toHaveLength(1);
   });
 
-  it("never write another board's tasks, even for someone on both boards", async () => {
+  it("never write another space's tasks, even for someone on both boards", async () => {
     const { alice, bob, mobile, apiLink } = await twoBoards();
 
     await addMember(mobile.id, alice, "admin", bob.id);

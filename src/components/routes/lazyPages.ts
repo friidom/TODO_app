@@ -25,6 +25,10 @@ export const BoardSettingsIntegrationsPage = lazy(
   () => import("@/pages/boardSettings/BoardSettingsIntegrationsPage"),
 );
 
+export const SpaceSettingsPage = lazy(
+  () => import("@/pages/spaceSettings/SpaceSettingsPage"),
+);
+
 export const InvitePage = lazy(() => import("@/pages/invite/InvitePage"));
 
 export const RegisterPage = lazy(() => import("@/pages/auth/RegisterPage"));

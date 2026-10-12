@@ -303,7 +303,8 @@
     "notBuilt": "{{name}} — not built yet",
     "soon": "Soon",
     "profile": "Profile and preferences",
-    "account": "Account"
+    "account": "Account",
+    "spaceSettings": "Space settings"
   },
   "header": {
     "newTask": "New task",
@@ -1246,13 +1247,16 @@
     "integrations": "Integrations",
     "integrationsHint": "Connect the tools your team works in."
   },
+  "spaceSettings": {
+    "title": "Space settings",
+    "notFoundTitle": "Space not found",
+    "notFoundHint": "It may have been deleted. A space can be opened only by its owner."
+  },
   "gitlab": {
     "title": "GitLab",
     "hint": "Mention a task's key, such as {{example}}, in a commit message, a branch name or a merge request, and it appears on that task.",
-    "loadFailed": "Could not load this board's GitLab connections.",
-    "empty": "No GitLab project is connected to this board yet.",
+    "loadFailed": "Could not load GitLab settings.",
     "projectUrl": "GitLab project",
-    "anotherProject": "Connect another GitLab project",
     "projectUrlHint": "The project's address, such as https://gitlab.com/group/project.",
     "projectUrlRequired": "Enter the project's address.",
     "connect": "Connect",
@@ -1302,14 +1306,42 @@
     "replaceToken": "Replace token",
     "disconnect": "Disconnect",
     "disconnecting": "Disconnecting…",
-    "disconnectConfirm": "Disconnect {{project}}? Its commits, branches and merge requests are removed from this board's tasks. Delete the webhook in GitLab as well.",
     "errors": {
-      "alreadyConnected": "That GitLab project is already connected to this board.",
+      "alreadyConnected": "That GitLab project is already connected to this space.",
       "notConfigured": "GitLab integration is not set up on this server yet.",
       "https": "The project's address must start with https://.",
       "url": "That is not a GitLab project address.",
       "path": "The address must name a project, such as group/project.",
-      "token": "That is not a GitLab signing token. Copy the whole token from GitLab."
+      "token": "That is not a GitLab signing token. Copy the whole token from GitLab.",
+      "changed": "This space's GitLab connection just changed. Reload and try again."
+    },
+    "spaceHint": "Connect one GitLab project to this space. Every board in it, including boards added later, shows the commits, branches and merge requests that mention its tasks, such as {{example}}.",
+    "notConfigured": "This server can't store GitLab signing tokens yet: an administrator needs to set INTEGRATION_SECRET_KEY. You can connect a project now, but it won't receive events until then.",
+    "emptyTitle": "No GitLab project connected",
+    "emptyHint": "Connect one project here and every board in this space uses it.",
+    "newProjectUrl": "New GitLab project",
+    "changeProject": "Change project",
+    "replaceWarning": "Connecting a different project disconnects {{current}} for every board in this space. Its commits, branches and merge requests stay on the tasks. Delete its webhook in GitLab afterwards.",
+    "replaceBoardLinksWarning": "This also disconnects the board connections listed above. Their history stays on the tasks.",
+    "replaceAndConnect": "Replace and connect",
+    "disconnectSpaceConfirm": "Disconnect {{project}} from this space? Its boards stop receiving GitLab events. Commits, branches and merge requests already on tasks stay there. Delete the webhook in GitLab as well.",
+    "disconnectBoardConfirm": "Disconnect {{project}} from this board? Commits, branches and merge requests already on its tasks stay there. Delete the webhook in GitLab as well.",
+    "boardsUsing": "Used by every board in this space: {{boards}}. Boards you add later use it too.",
+    "boardsWillUse": "Boards in this space: {{boards}}. A project connected here applies to all of them, and to boards you add later.",
+    "noBoardsYet": "There are no boards in this space yet. Boards you add here use its GitLab project.",
+    "boardLinksTitle": "Boards with their own GitLab connection",
+    "boardLinksHint": "These were connected per board, before GitLab moved to spaces. Each keeps working for its own board until you connect a project here, which replaces them. Their history stays on the tasks.",
+    "board": {
+      "manage": "Manage in space settings",
+      "connect": "Connect in space settings",
+      "viaSpace": "This board uses the GitLab project of its space, {{space}}.",
+      "viaOwnersSpace": "This board uses its space's GitLab project, which the space's owner manages.",
+      "lastDelivery": "Last delivery {{time}}.",
+      "ownSpaceEmpty": "GitLab is connected per space. {{space}} has no project yet — connect one there and every board in it uses it.",
+      "otherSpaceEmpty": "GitLab is connected per space, by the space's owner. This board's space has no project yet.",
+      "unfiled": "GitLab is connected per space. File this board into a space to use it.",
+      "ownLink": "This board's own connection, made before GitLab moved to spaces. It keeps working for this board until its space connects a project.",
+      "ownLinkSuperseded": "This board's space now has its own GitLab project, so this older connection no longer receives events. Disconnect it, and delete its webhook in GitLab."
     }
   },
   "development": {

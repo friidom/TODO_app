@@ -49,7 +49,8 @@ model attachments {
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model board_gitlab_projects {
   id                         String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  board_id                   String                       @db.Uuid
+  board_id                   String?                      @db.Uuid
+  space_id                   String?                      @unique(map: "board_gitlab_projects_one_active_per_space", where: raw("(disconnected_at IS NULL)")) @db.Uuid
   instance_url               String
   project_path               String                       @db.Citext
   gitlab_project_id          BigInt?
@@ -61,7 +62,9 @@ model board_gitlab_projects {
   last_failure_reason        String?
   created_by                 String?                      @db.Uuid
   created_at                 DateTime                     @default(now()) @db.Timestamptz(6)
-  boards                     boards                       @relation(fields: [board_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  disconnected_at            DateTime?                    @db.Timestamptz(6)
+  boards                     boards?                      @relation(fields: [board_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  spaces                     spaces?                      @relation(fields: [space_id], references: [id], onUpdate: NoAction)
   profiles                   profiles?                    @relation(fields: [created_by], references: [id], onUpdate: NoAction)
   todo_gitlab_branches       todo_gitlab_branches[]
   todo_gitlab_commits        todo_gitlab_commits[]
@@ -347,6 +350,7 @@ model spaces {
   created_at DateTime @default(now()) @db.Timestamptz(6)
   updated_at DateTime @default(now()) @db.Timestamptz(6)
   boards     boards[]
+  board_gitlab_projects board_gitlab_projects?
   profiles   profiles @relation(fields: [owner_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([owner_id])
@@ -386,7 +390,7 @@ model todo_gitlab_branches {
   deleted_at            DateTime?             @db.Timestamptz(6)
   created_at            DateTime              @default(now()) @db.Timestamptz(6)
   todos                 todos                 @relation(fields: [todo_id, board_id], references: [id, board_id], onDelete: Cascade, onUpdate: NoAction, map: "todo_gitlab_branches_todo_fkey")
-  board_gitlab_projects board_gitlab_projects @relation(fields: [link_id, board_id], references: [id, board_id], onDelete: Cascade, onUpdate: NoAction, map: "todo_gitlab_branches_link_fkey")
+  board_gitlab_projects board_gitlab_projects @relation(fields: [link_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "todo_gitlab_branches_link_fkey")
 
   @@unique([todo_id, link_id, name], map: "todo_gitlab_branches_key")
   @@index([link_id, name], map: "todo_gitlab_branches_link_name_idx")
@@ -407,7 +411,7 @@ model todo_gitlab_commits {
   matched_ref           String
   created_at            DateTime              @default(now()) @db.Timestamptz(6)
   todos                 todos                 @relation(fields: [todo_id, board_id], references: [id, board_id], onDelete: Cascade, onUpdate: NoAction, map: "todo_gitlab_commits_todo_fkey")
-  board_gitlab_projects board_gitlab_projects @relation(fields: [link_id, board_id], references: [id, board_id], onDelete: Cascade, onUpdate: NoAction, map: "todo_gitlab_commits_link_fkey")
+  board_gitlab_projects board_gitlab_projects @relation(fields: [link_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "todo_gitlab_commits_link_fkey")
 
   @@unique([todo_id, link_id, sha], map: "todo_gitlab_commits_key")
   @@index([todo_id, committed_at(sort: Desc)], map: "todo_gitlab_commits_todo_committed_idx")
@@ -430,7 +434,7 @@ model todo_gitlab_merge_requests {
   gitlab_updated_at     DateTime              @db.Timestamptz(6)
   created_at            DateTime              @default(now()) @db.Timestamptz(6)
   todos                 todos                 @relation(fields: [todo_id, board_id], references: [id, board_id], onDelete: Cascade, onUpdate: NoAction, map: "todo_gitlab_merge_requests_todo_fkey")
-  board_gitlab_projects board_gitlab_projects @relation(fields: [link_id, board_id], references: [id, board_id], onDelete: Cascade, onUpdate: NoAction, map: "todo_gitlab_merge_requests_link_fkey")
+  board_gitlab_projects board_gitlab_projects @relation(fields: [link_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "todo_gitlab_merge_requests_link_fkey")
 
   @@unique([todo_id, link_id, iid], map: "todo_gitlab_merge_requests_key")
   @@index([link_id, iid], map: "todo_gitlab_merge_requests_link_iid_idx")

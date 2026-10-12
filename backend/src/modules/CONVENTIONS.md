@@ -126,6 +126,12 @@ prisma.boards.findUnique({ include: { sprints: true } })  // ← returns ONE spr
 A board has many sprints and at most one *active* one. Use `findMany`, and read
 the running one with `findFirst({ where: { board_id, state: "active" } })`.
 
+`board_gitlab_projects.space_id` is the same trap
+(`board_gitlab_projects_one_active_per_space`, `where disconnected_at is
+null`): a space keeps every link it ever disconnected. Read the active one with
+`findFirst({ where: { space_id, disconnected_at: null } })`, never through
+`spaces.board_gitlab_projects`.
+
 ## Route declaration order is load-bearing
 
 Express matches in declaration order, so a literal segment must be declared

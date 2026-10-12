@@ -27,6 +27,9 @@ export async function resetDatabase(): Promise<void> {
   await prisma.boards.deleteMany({});
   await prisma.spaces.deleteMany({});
 
+  // A deleted space leaves its GitLab link behind without an owner (0035).
+  await prisma.board_gitlab_projects.deleteMany({});
+
   // A deleted board's keys stay behind on purpose (0031), so the board delete
   // above leaves every one of them reserved.
   await prisma.board_keys.deleteMany({});

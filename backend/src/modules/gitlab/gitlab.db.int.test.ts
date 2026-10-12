@@ -5,8 +5,8 @@ import { disconnect, resetDatabase } from "../../testing/db.js";
 import { firstStatusOf, makeUser, type TestUser } from "../../testing/fixtures.js";
 import { startTestServer, type TestClient } from "../../testing/httpClient.js";
 
-// The guarantees 0034 makes on its own, below the service: whatever the code
-// above it does, these hold.
+// The guarantees 0034 and 0035 make on their own, below the service: whatever
+// the code above them does, these hold.
 
 let client: TestClient;
 
@@ -157,6 +157,62 @@ describe("todo_gitlab_commits", () => {
   });
 });
 
+describe("space links (0035)", () => {
+  async function spaceOf(user: TestUser): Promise<string> {
+    const board = await prisma.boards.findUniqueOrThrow({ where: { id: user.boardId }, select: { space_id: true } });
+
+    return board.space_id!;
+  }
+
+  function spaceLink(spaceId: string, projectPath = "acme/backend") {
+    return prisma.board_gitlab_projects.create({
+      data: { space_id: spaceId, instance_url: "https://gitlab.com", project_path: projectPath },
+    });
+  }
+
+  it("writes to any board filed in its space and to no other", async () => {
+    const alice = await makeUser("alice");
+    const mallory = await makeUser("mallory");
+    const { id: linkId } = await spaceLink(await spaceOf(alice));
+    const aliceTodo = await createCard(alice, alice.boardId);
+    const malloryTodo = await createCard(mallory, mallory.boardId);
+
+    await prisma.todo_gitlab_commits.create({ data: commit(alice.boardId, aliceTodo, linkId) });
+
+    await expect(
+      prisma.todo_gitlab_commits.create({ data: commit(mallory.boardId, malloryTodo, linkId) }),
+    ).rejects.toThrow();
+    expect(await prisma.todo_gitlab_commits.count()).toBe(1);
+  });
+
+  it("keeps at most one active link per space", async () => {
+    const alice = await makeUser("alice");
+    const spaceId = await spaceOf(alice);
+    const first = await spaceLink(spaceId);
+
+    await expect(spaceLink(spaceId, "acme/frontend")).rejects.toThrow();
+
+    await prisma.board_gitlab_projects.update({ where: { id: first.id }, data: { disconnected_at: new Date() } });
+
+    await expect(spaceLink(spaceId, "acme/frontend")).resolves.toMatchObject({ space_id: spaceId });
+  });
+
+  it("refuses a link owned by a space and a board at once", async () => {
+    const alice = await makeUser("alice");
+
+    await expect(
+      prisma.board_gitlab_projects.create({
+        data: {
+          space_id: await spaceOf(alice),
+          board_id: alice.boardId,
+          instance_url: "https://gitlab.com",
+          project_path: "acme/backend",
+        },
+      }),
+    ).rejects.toThrow();
+  });
+});
+
 describe("cascades", () => {
   async function seeded() {
     const alice = await makeUser("alice");
@@ -191,7 +247,7 @@ describe("cascades", () => {
     ]);
   }
 
-  it("unlinking removes that link's development records", async () => {
+  it("hard-deleting a link removes its development records (only a board's deletion does that now)", async () => {
     const { linkId } = await seeded();
 
     await prisma.board_gitlab_projects.delete({ where: { id: linkId } });
@@ -199,7 +255,7 @@ describe("cascades", () => {
     expect(await remaining()).toEqual([0, 0, 0]);
   });
 
-  it("unlinking one board leaves another board's records for the same project", async () => {
+  it("hard-deleting one board's link leaves another board's records for the same project", async () => {
     const { linkId } = await seeded();
     const bob = await makeUser("bob");
     const bobTodo = await createCard(bob, bob.boardId);

@@ -4,30 +4,62 @@ import { requireBoard } from "../../middleware/boardAccess.js";
 import { requireActor } from "../../middleware/requireAuth.js";
 import * as gitlabService from "./gitlab.service.js";
 import * as gitlabWebhookService from "./gitlab.webhook.service.js";
+import type { SpaceParams } from "../spaces/spaces.schema.js";
 import type { TodoParams } from "../todos/todos.schema.js";
-import type { ConnectProjectInput, DevelopmentQuery, LinkParams, SigningTokenInput } from "./gitlab.schema.js";
+import type {
+  ConnectProjectInput,
+  DevelopmentQuery,
+  LinkParams,
+  SigningTokenInput,
+  SpaceLinkParams,
+} from "./gitlab.schema.js";
 
-export const listLinks: RequestHandler = async (req, res) => {
-  res.json(await gitlabService.list(requireBoard(req)));
+export const spaceIntegration: RequestHandler = async (req, res) => {
+  const { spaceId } = req.params as SpaceParams;
+
+  res.json(await gitlabService.spaceIntegration({ id: requireActor(req) }, spaceId));
 };
 
-export const connect: RequestHandler = async (req, res) => {
+export const connectSpace: RequestHandler = async (req, res) => {
+  const { spaceId } = req.params as SpaceParams;
+
   res
     .status(201)
-    .json(await gitlabService.connect({ id: requireActor(req) }, requireBoard(req), req.body as ConnectProjectInput));
+    .json(await gitlabService.connectSpace({ id: requireActor(req) }, spaceId, req.body as ConnectProjectInput));
 };
 
-export const saveSigningToken: RequestHandler = async (req, res) => {
+export const saveSpaceSigningToken: RequestHandler = async (req, res) => {
+  const { spaceId, linkId } = req.params as SpaceLinkParams;
+  const { token } = req.body as SigningTokenInput;
+
+  res.json(await gitlabService.saveSigningToken({ id: requireActor(req) }, { space_id: spaceId }, linkId, token));
+};
+
+export const disconnectSpaceLink: RequestHandler = async (req, res) => {
+  const { spaceId, linkId } = req.params as SpaceLinkParams;
+
+  await gitlabService.disconnect({ id: requireActor(req) }, { space_id: spaceId }, linkId);
+
+  res.status(204).end();
+};
+
+export const boardIntegration: RequestHandler = async (req, res) => {
+  res.json(await gitlabService.boardIntegration(requireBoard(req)));
+};
+
+export const saveBoardSigningToken: RequestHandler = async (req, res) => {
   const { linkId } = req.params as LinkParams;
   const { token } = req.body as SigningTokenInput;
 
-  res.json(await gitlabService.saveSigningToken(requireBoard(req), linkId, token));
+  res.json(
+    await gitlabService.saveSigningToken({ id: requireActor(req) }, { board_id: requireBoard(req).id }, linkId, token),
+  );
 };
 
-export const unlink: RequestHandler = async (req, res) => {
+export const disconnectBoardLink: RequestHandler = async (req, res) => {
   const { linkId } = req.params as LinkParams;
 
-  await gitlabService.unlink(requireBoard(req), linkId);
+  await gitlabService.disconnect({ id: requireActor(req) }, { board_id: requireBoard(req).id }, linkId);
 
   res.status(204).end();
 };

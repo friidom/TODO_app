@@ -8,7 +8,7 @@ import { commentsRoutes } from "../modules/comments/comments.routes.js";
 import { meRoutes } from "../modules/feed/feed.routes.js";
 import { notificationsRoutes } from "../modules/notifications/notifications.routes.js";
 import { boardColumnsRoutes, columnsRoutes } from "../modules/columns/columns.routes.js";
-import { boardGitlabRoutes } from "../modules/gitlab/gitlab.routes.js";
+import { boardGitlabRoutes, spaceGitlabRoutes } from "../modules/gitlab/gitlab.routes.js";
 import {
   boardInviteesRoutes,
   boardInvitesRoutes,
@@ -40,6 +40,7 @@ apiRouter.use("/admin", adminRoutes);
 apiRouter.use("/auth", authRoutes);
 apiRouter.use("/users", usersRoutes);
 apiRouter.use("/spaces", spacesRoutes);
+apiRouter.use("/spaces/:spaceId/integrations/gitlab", spaceGitlabRoutes);
 apiRouter.use("/invites", invitesRoutes);
 apiRouter.use("/columns", columnsRoutes);
 apiRouter.use("/todos", todosRoutes);

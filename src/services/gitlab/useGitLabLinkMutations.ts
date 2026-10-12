@@ -1,61 +1,58 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import {
-  connectGitLabProject,
+  connectSpaceGitLab,
+  disconnectGitLabLink,
   saveGitLabSigningToken,
-  unlinkGitLabProject,
+  type GitLabOwner,
 } from "./gitlabApi";
 import { queryKeys } from "@/services/queryClient/queryKeys";
-import { useBoardId } from "@/hooks/useBoardId";
 
 // Silent, because each form shows its error beside the field it is about. Not
 // optimistic, because the server decides which status a link is in. The
-// invalidation is returned so the button stays busy until the list has caught
+// invalidation is returned so the button stays busy until the page has caught
 // up, rather than clearing the form a beat before the card appears.
-function useGitLabLinkMutation<TVars extends object>(
-  call: (vars: TVars & { boardId: string }) => Promise<unknown>,
-  { dropsDevelopment = false }: { dropsDevelopment?: boolean } = {},
+//
+// reachesTasks: this tab is outside every board's realtime room while on a
+// settings page, and a task opened earlier may still hold the old project.
+function useGitLabMutation<TVars>(
+  call: (vars: TVars) => Promise<unknown>,
+  { reachesTasks = false }: { reachesTasks?: boolean } = {},
 ) {
   const queryClient = useQueryClient();
-  const boardId = useBoardId();
 
   return useMutation({
     meta: { silent: true },
-
-    mutationFn: (vars: TVars) => {
-      if (!boardId) throw new Error("GitLab mutation ran without a board");
-
-      return call({ ...vars, boardId });
-    },
-
+    mutationFn: call,
     onSuccess: () =>
       Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.gitlabLinks(boardId),
-        }),
-        dropsDevelopment &&
+        queryClient.invalidateQueries({ queryKey: queryKeys.gitlab() }),
+        reachesTasks &&
           queryClient.invalidateQueries({
-            queryKey: queryKeys.boardDevelopment(boardId),
+            queryKey: queryKeys.developments(),
           }),
       ]),
   });
 }
 
-export function useConnectGitLabProject() {
-  return useGitLabLinkMutation<{ projectUrl: string }>(connectGitLabProject);
-}
-
-export function useSaveGitLabSigningToken() {
-  return useGitLabLinkMutation<{ linkId: string; token: string }>(
-    saveGitLabSigningToken,
+export function useConnectSpaceGitLab(spaceId: string) {
+  return useGitLabMutation(
+    ({ projectUrl }: { projectUrl: string }) =>
+      connectSpaceGitLab({ spaceId, projectUrl }),
+    { reachesTasks: true },
   );
 }
 
-// The server's realtime emit cannot reach this tab, which is outside the
-// board's room while on the settings page, and a task opened earlier may still
-// hold the removed commits in its cache.
-export function useUnlinkGitLabProject() {
-  return useGitLabLinkMutation<{ linkId: string }>(unlinkGitLabProject, {
-    dropsDevelopment: true,
-  });
+export function useSaveGitLabSigningToken(owner: GitLabOwner) {
+  return useGitLabMutation(
+    ({ linkId, token }: { linkId: string; token: string }) =>
+      saveGitLabSigningToken({ owner, linkId, token }),
+  );
+}
+
+export function useDisconnectGitLab(owner: GitLabOwner) {
+  return useGitLabMutation(
+    ({ linkId }: { linkId: string }) => disconnectGitLabLink({ owner, linkId }),
+    { reachesTasks: true },
+  );
 }

@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { useId, useState } from "react";
+import { useId, useState, type ReactNode } from "react";
 import {
   CopyIcon,
   ExternalLinkIcon,
@@ -9,7 +9,11 @@ import {
 
 import { Field } from "@/components/boardSettings/BoardSettingsShell";
 import { FIELD_INPUT, FIELD_INPUT_INVALID } from "@/components/ui/fieldInput";
-import type { GitLabLink, GitLabLinkStatus } from "@/services/gitlab/gitlabApi";
+import type {
+  GitLabLink,
+  GitLabLinkStatus,
+  GitLabOwner,
+} from "@/services/gitlab/gitlabApi";
 import {
   LINK_STATUS_LABEL,
   failureMessageKey,
@@ -17,23 +21,20 @@ import {
   type SigningTokenProblem,
 } from "@/services/gitlab/gitlabLinks";
 import {
-  useConnectGitLabProject,
+  useDisconnectGitLab,
   useSaveGitLabSigningToken,
-  useUnlinkGitLabProject,
 } from "@/services/gitlab/useGitLabLinkMutations";
-import { useGitLabLinks } from "@/services/gitlab/useGitLabLinks";
 import { toast } from "@/stores/toasts";
-import type { IBoard } from "@/types/data";
 import { cn } from "@/utils/cn";
 import { relativeTime } from "@/utils/relativeTime";
 
-const ACTION =
+export const ACTION =
   "border-hairline text-ink-2 hover:bg-elevated hover:text-ink focus-visible:ring-brand rounded-control text-meta flex h-9 shrink-0 items-center gap-2 border px-3 font-medium transition-colors outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-60";
 
 const DANGER =
   "border-status-red/30 text-status-red hover:bg-status-red/10 focus-visible:ring-status-red rounded-control text-meta flex h-9 shrink-0 items-center gap-2 border px-3 font-medium transition-colors outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-60";
 
-const SUBMIT =
+export const SUBMIT =
   "bg-brand text-brand-fg rounded-control inline-flex h-9 items-center gap-2 px-3.5 text-[13px] font-medium transition-opacity disabled:opacity-60";
 
 const STATUS_TONE: Record<GitLabLinkStatus, string> = {
@@ -57,87 +58,92 @@ const SETUP_STEPS = [
   "gitlab.setup.save",
 ] as const;
 
-export default function GitLabIntegration({ board }: { board: IBoard }) {
+export function StatusBadge({ status }: { status: GitLabLinkStatus }) {
   const { t } = useTranslation();
-  const links = useGitLabLinks(board.id);
-
-  if (links.data === undefined) {
-    return links.isError ? (
-      <div className="flex items-center gap-3">
-        <p role="alert" className="text-status-red text-xs">
-          {t("gitlab.loadFailed")}
-        </p>
-
-        <button
-          type="button"
-          onClick={() => void links.refetch()}
-          className={ACTION}
-        >
-          {t("common.retry")}
-        </button>
-      </div>
-    ) : (
-      <Loader2 className="text-ink-3 size-4 animate-spin" />
-    );
-  }
 
   return (
-    <>
-      {links.data.length === 0 && (
-        <p className="text-ink-3 text-sm">{t("gitlab.empty")}</p>
+    <span
+      className={cn(
+        "text-mini rounded-full border px-2 py-0.5 font-medium whitespace-nowrap",
+        STATUS_TONE[status],
       )}
-
-      {links.data.map((link) => (
-        <LinkCard key={link.id} link={link} />
-      ))}
-
-      <ConnectForm another={links.data.length > 0} />
-    </>
+    >
+      {t(LINK_STATUS_LABEL[status])}
+    </span>
   );
 }
 
-function LinkCard({ link }: { link: GitLabLink }) {
+// Name first, then where it lives: the namespace and GitLab's own address.
+export function ProjectName({ path, url }: { path: string; url: string }) {
+  const { t } = useTranslation();
+  const slash = path.lastIndexOf("/");
+
+  return (
+    <div className="min-w-0">
+      <a
+        href={url}
+        target="_blank"
+        rel="noreferrer"
+        title={t("gitlab.openProject", { project: path })}
+        className="text-ink hover:text-brand flex min-w-0 items-center gap-1.5 text-sm font-medium transition-colors"
+      >
+        <span className="truncate">{path.slice(slash + 1)}</span>
+        <ExternalLinkIcon className="text-ink-3 size-3.5 shrink-0" />
+      </a>
+
+      <p className="text-ink-3 truncate text-xs">
+        {path.slice(0, slash)} · {url.replace(/^https:\/\//, "")}
+      </p>
+    </div>
+  );
+}
+
+export default function GitLabLinkCard({
+  link,
+  owner,
+  disconnectMessage,
+  actions,
+  note,
+}: {
+  link: GitLabLink;
+  owner: GitLabOwner;
+  disconnectMessage: string;
+  actions?: ReactNode;
+  note?: ReactNode;
+}) {
   const { t } = useTranslation();
   const [confirming, setConfirming] = useState(false);
 
   return (
     <article className="border-hairline rounded-control border">
       <header className="border-hairline flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-3">
-        <a
-          href={link.project_url}
-          target="_blank"
-          rel="noreferrer"
-          title={t("gitlab.openProject", { project: link.project_path })}
-          className="text-ink hover:text-brand flex min-w-0 items-center gap-1.5 text-sm font-medium transition-colors"
-        >
-          <span className="truncate">{link.project_path}</span>
-          <ExternalLinkIcon className="text-ink-3 size-3.5 shrink-0" />
-        </a>
+        <ProjectName path={link.project_path} url={link.project_url} />
 
-        <span
-          className={cn(
-            "text-mini rounded-full border px-2 py-0.5 font-medium whitespace-nowrap",
-            STATUS_TONE[link.status],
-          )}
-        >
-          {t(LINK_STATUS_LABEL[link.status])}
-        </span>
+        <StatusBadge status={link.status} />
 
-        <button
-          type="button"
-          disabled={confirming}
-          onClick={() => setConfirming(true)}
-          className={cn(DANGER, "ml-auto h-8")}
-        >
-          <Link2OffIcon className="size-3.5" />
-          {t("gitlab.disconnect")}
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          {actions}
+
+          <button
+            type="button"
+            disabled={confirming}
+            onClick={() => setConfirming(true)}
+            className={cn(DANGER, "h-8")}
+          >
+            <Link2OffIcon className="size-3.5" />
+            {t("gitlab.disconnect")}
+          </button>
+        </div>
       </header>
 
       <div className="flex flex-col gap-4 p-4">
+        {note}
+
         {confirming && (
           <DisconnectConfirm
-            link={link}
+            owner={owner}
+            linkId={link.id}
+            message={disconnectMessage}
             onCancel={() => setConfirming(false)}
           />
         )}
@@ -148,7 +154,7 @@ function LinkCard({ link }: { link: GitLabLink }) {
 
         {link.status !== "active" && <SetupSteps project={link.project_path} />}
 
-        <SigningTokenForm link={link} />
+        <SigningTokenForm owner={owner} link={link} />
       </div>
     </article>
   );
@@ -241,9 +247,15 @@ function SetupSteps({ project }: { project: string }) {
   );
 }
 
-function SigningTokenForm({ link }: { link: GitLabLink }) {
+function SigningTokenForm({
+  owner,
+  link,
+}: {
+  owner: GitLabOwner;
+  link: GitLabLink;
+}) {
   const { t } = useTranslation();
-  const save = useSaveGitLabSigningToken();
+  const save = useSaveGitLabSigningToken(owner);
   const [token, setToken] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
@@ -323,14 +335,18 @@ function SigningTokenForm({ link }: { link: GitLabLink }) {
 }
 
 function DisconnectConfirm({
-  link,
+  owner,
+  linkId,
+  message,
   onCancel,
 }: {
-  link: GitLabLink;
+  owner: GitLabOwner;
+  linkId: string;
+  message: string;
   onCancel: () => void;
 }) {
   const { t } = useTranslation();
-  const unlink = useUnlinkGitLabProject();
+  const disconnect = useDisconnectGitLab(owner);
 
   return (
     <div
@@ -342,13 +358,11 @@ function DisconnectConfirm({
         onCancel();
       }}
     >
-      <p className="text-ink-2 text-xs leading-relaxed">
-        {t("gitlab.disconnectConfirm", { project: link.project_path })}
-      </p>
+      <p className="text-ink-2 text-xs leading-relaxed">{message}</p>
 
-      {unlink.isError && (
+      {disconnect.isError && (
         <p role="alert" className="text-status-red text-xs">
-          {unlink.error.message}
+          {disconnect.error.message}
         </p>
       )}
 
@@ -356,7 +370,7 @@ function DisconnectConfirm({
         <button
           type="button"
           autoFocus
-          disabled={unlink.isPending}
+          disabled={disconnect.isPending}
           onClick={onCancel}
           className={ACTION}
         >
@@ -365,88 +379,18 @@ function DisconnectConfirm({
 
         <button
           type="button"
-          disabled={unlink.isPending}
-          onClick={() => unlink.mutate({ linkId: link.id })}
+          disabled={disconnect.isPending}
+          onClick={() => disconnect.mutate({ linkId })}
           className={DANGER}
         >
-          {unlink.isPending && <Loader2 className="size-3.5 animate-spin" />}
-          {unlink.isPending
+          {disconnect.isPending && (
+            <Loader2 className="size-3.5 animate-spin" />
+          )}
+          {disconnect.isPending
             ? t("gitlab.disconnecting")
             : t("gitlab.disconnect")}
         </button>
       </div>
     </div>
-  );
-}
-
-function ConnectForm({ another }: { another: boolean }) {
-  const { t } = useTranslation();
-  const connect = useConnectGitLabProject();
-  const [projectUrl, setProjectUrl] = useState("");
-  const [submitted, setSubmitted] = useState(false);
-
-  const missing = projectUrl.trim() === "";
-  const error =
-    submitted && missing
-      ? t("gitlab.projectUrlRequired")
-      : connect.error?.message;
-
-  function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    setSubmitted(true);
-
-    if (missing) return;
-
-    connect.mutate(
-      { projectUrl: projectUrl.trim() },
-      {
-        onSuccess: () => {
-          setProjectUrl("");
-          setSubmitted(false);
-        },
-      },
-    );
-  }
-
-  return (
-    <form
-      onSubmit={handleSubmit}
-      className={cn(
-        "flex flex-col gap-2",
-        another && "border-hairline border-t pt-4",
-      )}
-    >
-      <Field
-        label={another ? t("gitlab.anotherProject") : t("gitlab.projectUrl")}
-        hint={t("gitlab.projectUrlHint")}
-      >
-        <input
-          value={projectUrl}
-          onChange={(event) => {
-            setProjectUrl(event.target.value);
-            connect.reset();
-          }}
-          inputMode="url"
-          autoComplete="off"
-          spellCheck={false}
-          placeholder="https://gitlab.com/group/project"
-          aria-invalid={error !== undefined}
-          className={cn(FIELD_INPUT, error && FIELD_INPUT_INVALID)}
-        />
-      </Field>
-
-      <div className="flex items-center justify-end gap-3">
-        {error && (
-          <p role="alert" className="text-status-red mr-auto text-xs">
-            {error}
-          </p>
-        )}
-
-        <button type="submit" disabled={connect.isPending} className={SUBMIT}>
-          {connect.isPending && <Loader2 className="size-3.5 animate-spin" />}
-          {connect.isPending ? t("gitlab.connecting") : t("gitlab.connect")}
-        </button>
-      </div>
-    </form>
   );
 }

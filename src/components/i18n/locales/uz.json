@@ -303,7 +303,8 @@
     "notBuilt": "{{name}} — hali tayyor emas",
     "soon": "Tez orada",
     "profile": "Profil va sozlamalar",
-    "account": "Hisob"
+    "account": "Hisob",
+    "spaceSettings": "Maydon sozlamalari"
   },
   "header": {
     "newTask": "Yangi vazifa",
@@ -1246,13 +1247,16 @@
     "integrations": "Integratsiyalar",
     "integrationsHint": "Jamoangiz ishlaydigan vositalarni ulang."
   },
+  "spaceSettings": {
+    "title": "Maydon sozlamalari",
+    "notFoundTitle": "Maydon topilmadi",
+    "notFoundHint": "U o'chirilgan bo'lishi mumkin. Maydonni faqat uning egasi ocha oladi."
+  },
   "gitlab": {
     "title": "GitLab",
     "hint": "Vazifa kalitini, masalan {{example}}, commit xabarida, branch nomida yoki merge request'da yozing — ular shu vazifada ko'rinadi.",
-    "loadFailed": "Bu doskaning GitLab ulanishlarini yuklab bo'lmadi.",
-    "empty": "Bu doskaga hali birorta GitLab loyihasi ulanmagan.",
+    "loadFailed": "GitLab sozlamalarini yuklab bo'lmadi.",
     "projectUrl": "GitLab loyihasi",
-    "anotherProject": "Yana bitta GitLab loyihasini ulash",
     "projectUrlHint": "Loyiha manzili, masalan https://gitlab.com/group/project.",
     "projectUrlRequired": "Loyiha manzilini kiriting.",
     "connect": "Ulash",
@@ -1302,14 +1306,42 @@
     "replaceToken": "Tokenni almashtirish",
     "disconnect": "Uzish",
     "disconnecting": "Uzilmoqda…",
-    "disconnectConfirm": "{{project}} uzilsinmi? Uning commit, branch va merge request'lari shu doska vazifalaridan o'chiriladi. GitLab'dagi webhook'ni ham o'chiring.",
     "errors": {
-      "alreadyConnected": "Bu GitLab loyihasi allaqachon shu doskaga ulangan.",
+      "alreadyConnected": "Bu GitLab loyihasi allaqachon shu maydonga ulangan.",
       "notConfigured": "Bu serverda GitLab integratsiyasi hali sozlanmagan.",
       "https": "Loyiha manzili https:// bilan boshlanishi kerak.",
       "url": "Bu GitLab loyihasi manzili emas.",
       "path": "Manzil loyihani ko'rsatishi kerak, masalan group/project.",
-      "token": "Bu GitLab imzo tokeni emas. Tokenni GitLab'dan to'liq nusxalang."
+      "token": "Bu GitLab imzo tokeni emas. Tokenni GitLab'dan to'liq nusxalang.",
+      "changed": "Bu maydonning GitLab ulanishi hozirgina o'zgardi. Sahifani yangilab, qayta urinib ko'ring."
+    },
+    "spaceHint": "Bu maydonga bitta GitLab loyihasini ulang. Undagi har bir doska, keyin qo'shiladiganlari ham, o'z vazifalari tilga olingan commit, branch va merge request'larni ko'rsatadi, masalan {{example}}.",
+    "notConfigured": "Bu server hali GitLab imzo tokenlarini saqlay olmaydi: administrator INTEGRATION_SECRET_KEY ni o'rnatishi kerak. Loyihani hozir ulashingiz mumkin, lekin hodisalar shundan keyingina keladi.",
+    "emptyTitle": "GitLab loyihasi ulanmagan",
+    "emptyHint": "Bu yerda bitta loyihani ulang — maydondagi barcha doskalar undan foydalanadi.",
+    "newProjectUrl": "Yangi GitLab loyihasi",
+    "changeProject": "Loyihani almashtirish",
+    "replaceWarning": "Boshqa loyihani ulash bu maydondagi barcha doskalar uchun {{current}} ni uzadi. Uning commit, branch va merge request'lari vazifalarda qoladi. So'ng GitLab'dagi uning webhook'ini o'chiring.",
+    "replaceBoardLinksWarning": "Bu yuqorida sanalgan doska ulanishlarini ham uzadi. Ularning tarixi vazifalarda qoladi.",
+    "replaceAndConnect": "Almashtirish va ulash",
+    "disconnectSpaceConfirm": "{{project}} bu maydondan uzilsinmi? Uning doskalari GitLab hodisalarini olishni to'xtatadi. Vazifalardagi mavjud commit, branch va merge request'lar qoladi. GitLab'dagi webhook'ni ham o'chiring.",
+    "disconnectBoardConfirm": "{{project}} bu doskadan uzilsinmi? Uning vazifalaridagi mavjud commit, branch va merge request'lar qoladi. GitLab'dagi webhook'ni ham o'chiring.",
+    "boardsUsing": "Bu maydondagi barcha doskalar foydalanadi: {{boards}}. Keyin qo'shiladigan doskalar ham undan foydalanadi.",
+    "boardsWillUse": "Bu maydondagi doskalar: {{boards}}. Bu yerda ulangan loyiha ularning barchasiga va keyin qo'shiladigan doskalarga ham tegishli bo'ladi.",
+    "noBoardsYet": "Bu maydonda hali doska yo'q. Bu yerga qo'shiladigan doskalar uning GitLab loyihasidan foydalanadi.",
+    "boardLinksTitle": "O'z GitLab ulanishi bor doskalar",
+    "boardLinksHint": "Ular GitLab maydonlarga o'tishidan oldin har bir doska uchun alohida ulangan. Har biri bu yerda loyiha ulanmaguncha o'z doskasi uchun ishlayveradi, ulanganda esa almashtiriladi. Ularning tarixi vazifalarda qoladi.",
+    "board": {
+      "manage": "Maydon sozlamalarida boshqarish",
+      "connect": "Maydon sozlamalarida ulash",
+      "viaSpace": "Bu doska o'z maydoni — {{space}} — GitLab loyihasidan foydalanadi.",
+      "viaOwnersSpace": "Bu doska o'z maydonining GitLab loyihasidan foydalanadi, uni maydon egasi boshqaradi.",
+      "lastDelivery": "Oxirgi yetkazma {{time}}.",
+      "ownSpaceEmpty": "GitLab maydonga ulanadi. {{space}} da hali loyiha yo'q — uni o'sha yerda ulang, shunda undagi barcha doskalar foydalanadi.",
+      "otherSpaceEmpty": "GitLab'ni maydon egasi ulaydi. Bu doska maydonida hali loyiha yo'q.",
+      "unfiled": "GitLab maydonga ulanadi. Undan foydalanish uchun bu doskani maydonga joylashtiring.",
+      "ownLink": "Bu doskaning GitLab maydonlarga o'tishidan oldin qilingan o'z ulanishi. U doska maydoni loyiha ulamaguncha shu doska uchun ishlayveradi.",
+      "ownLinkSuperseded": "Bu doska maydonida endi o'z GitLab loyihasi bor, shuning uchun bu eski ulanish hodisalarni olmaydi. Uni uzing va GitLab'dagi webhook'ini o'chiring."
     }
   },
   "development": {

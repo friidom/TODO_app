@@ -5,7 +5,7 @@ import { ingestMergeRequest, ingestPush, type PushResult } from "./gitlab.ingest
 import { parseEvent, type GitLabProject } from "./gitlab.payload.js";
 import * as gitlabRepo from "./gitlab.repo.js";
 import type { DeliveryLink } from "./gitlab.repo.js";
-import { integrationKey, tokenContext } from "./gitlab.service.js";
+import { boardsReachedBy, integrationKey, tokenContext } from "./gitlab.service.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -81,7 +81,8 @@ export async function receiveDelivery(
 
   const link = await gitlabRepo.findLinkForDelivery(linkId);
 
-  if (link === null) throw refused();
+  // No owner: the space it belonged to was deleted (0035).
+  if (link === null || (link.space_id === null && link.board_id === null)) throw refused();
 
   // Half-configured, not failed: GitLab disables a webhook that keeps failing,
   // and the admin has simply not pasted the token yet.
@@ -133,11 +134,19 @@ export async function receiveDelivery(
     throw new AppError("conflict", "This webhook belongs to a different GitLab project.");
   }
 
-  if (parsed.kind === "other") return { status: "ignored" };
-
-  if (parsed.kind === "push") {
-    return { status: "processed", event: "push", ...(await ingestPush(link, parsed.event, verification.sentAt)) };
+  // This delivery pinned the project, so earlier links to the same project can
+  // now be recognised as such.
+  if (link.gitlab_project_id === null && link.space_id !== null) {
+    await gitlabRepo.adoptHistory({ id: link.id, space_id: link.space_id, instance_url: link.instance_url }, BigInt(project.id));
   }
 
-  return { status: "processed", event: "merge_request", ...(await ingestMergeRequest(link, parsed.event)) };
+  if (parsed.kind === "other") return { status: "ignored" };
+
+  const target = { id: link.id, boardIds: await boardsReachedBy(link) };
+
+  if (parsed.kind === "push") {
+    return { status: "processed", event: "push", ...(await ingestPush(target, parsed.event, verification.sentAt)) };
+  }
+
+  return { status: "processed", event: "merge_request", ...(await ingestMergeRequest(target, parsed.event)) };
 }

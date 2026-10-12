@@ -12,6 +12,8 @@ const ADMIN_ROOT = ["admin"] as const;
 
 const DEVELOPMENT_ROOT = ["development"] as const;
 
+const GITLAB_ROOT = ["gitlab"] as const;
+
 export const queryKeys = {
   // boardId stays required even though it may be undefined — a route param not yet resolved keys a disabled query.
   todos: (boardId: string | undefined) => ["todos", boardId] as const,
@@ -58,8 +60,15 @@ export const queryKeys = {
 
   attachments: (todoId: string | undefined) => ["attachments", todoId] as const,
 
-  gitlabLinks: (boardId: string | undefined) =>
-    ["gitlab-links", boardId] as const,
+  // One root, so a change to a space's project refreshes the space's settings
+  // and every board settings page reading it at once.
+  gitlab: () => GITLAB_ROOT,
+
+  spaceGitlab: (spaceId: string | undefined) =>
+    [...GITLAB_ROOT, "space", spaceId] as const,
+
+  boardGitlab: (boardId: string | undefined) =>
+    [...GITLAB_ROOT, "board", boardId] as const,
 
   // Board before todo, unlike comments: the realtime "development" scope names
   // a board, and this prefix is then exactly that board's entries.
@@ -68,6 +77,8 @@ export const queryKeys = {
 
   boardDevelopment: (boardId: string | undefined) =>
     [...DEVELOPMENT_ROOT, boardId] as const,
+
+  developments: () => DEVELOPMENT_ROOT,
 
   forYou: () => FOR_YOU_ROOT,
 

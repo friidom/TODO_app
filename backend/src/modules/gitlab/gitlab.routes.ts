@@ -5,6 +5,7 @@ import { gitlabWebhookLimiter } from "../../middleware/rateLimit.js";
 import { requireAuth } from "../../middleware/requireAuth.js";
 import { requireRole } from "../../middleware/requireRole.js";
 import { validate } from "../../middleware/validate.js";
+import { spaceParamsSchema } from "../spaces/spaces.schema.js";
 import { todoParamsSchema } from "../todos/todos.schema.js";
 import * as controller from "./gitlab.controller.js";
 import {
@@ -12,23 +13,44 @@ import {
   developmentQuerySchema,
   linkParamsSchema,
   signingTokenSchema,
+  spaceLinkParamsSchema,
 } from "./gitlab.schema.js";
 
-// Board Settings territory, so admin and above — PATCH /boards/:boardId's own
-// gate. boardAccess resolves only :boardId here; :linkId is not a child it
-// knows, so every handler below scopes by (board_id, id) itself.
-export const boardGitlabRoutes = Router({ mergeParams: true });
+// The space's owner, and nobody else: a space has no other role. The service
+// checks ownership, because no middleware resolves a space.
+export const spaceGitlabRoutes = Router({ mergeParams: true });
 
-boardGitlabRoutes.get("/", requireAuth, boardAccess(), requireRole("admin"), controller.listLinks);
+spaceGitlabRoutes.get("/", requireAuth, validate({ params: spaceParamsSchema }), controller.spaceIntegration);
 
-boardGitlabRoutes.post(
+spaceGitlabRoutes.post(
   "/",
   requireAuth,
-  boardAccess(),
-  requireRole("admin"),
-  validate({ body: connectProjectSchema }),
-  controller.connect,
+  validate({ params: spaceParamsSchema, body: connectProjectSchema }),
+  controller.connectSpace,
 );
+
+spaceGitlabRoutes.put(
+  "/:linkId/signing-token",
+  requireAuth,
+  validate({ params: spaceLinkParamsSchema, body: signingTokenSchema }),
+  controller.saveSpaceSigningToken,
+);
+
+spaceGitlabRoutes.delete(
+  "/:linkId",
+  requireAuth,
+  validate({ params: spaceLinkParamsSchema }),
+  controller.disconnectSpaceLink,
+);
+
+// Board Settings territory, so admin and above — PATCH /boards/:boardId's own
+// gate. There is no connect: a board inherits its space's project. What is
+// left reads that, and keeps a link made before 0035 repairable until its
+// space replaces it. :linkId is not a child boardAccess knows, so each handler
+// scopes by (board_id, id) itself.
+export const boardGitlabRoutes = Router({ mergeParams: true });
+
+boardGitlabRoutes.get("/", requireAuth, boardAccess(), requireRole("admin"), controller.boardIntegration);
 
 boardGitlabRoutes.put(
   "/:linkId/signing-token",
@@ -36,7 +58,7 @@ boardGitlabRoutes.put(
   boardAccess(),
   requireRole("admin"),
   validate({ params: linkParamsSchema, body: signingTokenSchema }),
-  controller.saveSigningToken,
+  controller.saveBoardSigningToken,
 );
 
 boardGitlabRoutes.delete(
@@ -45,7 +67,7 @@ boardGitlabRoutes.delete(
   boardAccess(),
   requireRole("admin"),
   validate({ params: linkParamsSchema }),
-  controller.unlink,
+  controller.disconnectBoardLink,
 );
 
 // Any member may read a card's development, as they may its comments.

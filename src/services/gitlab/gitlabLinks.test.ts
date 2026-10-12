@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { GitLabLink, GitLabLinkStatus } from "./gitlabApi";
 import {
   LINK_POLL_MS,
+  boardGitLabSource,
   failureMessageKey,
   linksPollInterval,
   signingTokenProblem,
@@ -98,5 +99,32 @@ describe("failureMessageKey", () => {
     expect(failureMessageKey("tls")).toBe("gitlab.failure.unknown");
     expect(failureMessageKey("toString")).toBe("gitlab.failure.unknown");
     expect(failureMessageKey(null)).toBe("gitlab.failure.unknown");
+  });
+});
+
+describe("boardGitLabSource", () => {
+  it("reads through the space whenever the space has a project, whoever looks", () => {
+    expect(
+      boardGitLabSource({ spaceId: "s", ownsSpace: false, spaceLinked: true }),
+    ).toBe("space");
+  });
+
+  it("offers the space's settings only to the space's owner", () => {
+    expect(
+      boardGitLabSource({ spaceId: "s", ownsSpace: true, spaceLinked: false }),
+    ).toBe("ownSpace");
+    expect(
+      boardGitLabSource({ spaceId: "s", ownsSpace: false, spaceLinked: false }),
+    ).toBe("otherSpace");
+  });
+
+  it("says when there is no space to inherit from", () => {
+    expect(
+      boardGitLabSource({
+        spaceId: null,
+        ownsSpace: false,
+        spaceLinked: false,
+      }),
+    ).toBe("unfiled");
   });
 });

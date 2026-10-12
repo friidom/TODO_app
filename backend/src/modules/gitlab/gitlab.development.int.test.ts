@@ -6,12 +6,13 @@ import { addMember, firstStatusOf, makeUser, type TestUser } from "../../testing
 import {
   PROJECT,
   ZERO_SHA,
+  connectSpaceProject,
   deliver,
   mergeRequestPayload,
   pushPayload,
   sha,
   signedDelivery,
-  signingToken,
+  spaceIdOf,
 } from "../../testing/gitlab.js";
 import { startTestServer, type TestClient } from "../../testing/httpClient.js";
 
@@ -47,7 +48,11 @@ interface Development {
 
 async function scene() {
   const alice = await makeUser("alice");
-  const created = await client.post<{ id: string }>("/api/v1/boards", { title: "API" }, { token: alice.token });
+  const created = await client.post<{ id: string }>(
+    "/api/v1/boards",
+    { title: "API", space_id: await spaceIdOf(alice.boardId) },
+    { token: alice.token },
+  );
   const boardId = created.body.id;
   const status = await firstStatusOf(boardId);
   const card = await client.post<{ id: string }>(
@@ -59,21 +64,8 @@ async function scene() {
   return { alice, boardId, todoId: card.body.id };
 }
 
-async function link(user: TestUser, boardId: string) {
-  const token = signingToken();
-  const connected = await client.post<{ link: { id: string } }>(
-    `/api/v1/boards/${boardId}/integrations/gitlab`,
-    { project_url: "https://gitlab.com/acme/backend" },
-    { token: user.token },
-  );
-
-  await client.put(
-    `/api/v1/boards/${boardId}/integrations/gitlab/${connected.body.link.id}/signing-token`,
-    { token },
-    { token: user.token },
-  );
-
-  return { linkId: connected.body.link.id, token };
+function link(user: TestUser, boardId: string) {
+  return connectSpaceProject(client, user, boardId);
 }
 
 function developmentOf(user: TestUser, todoId: string, query = "") {
@@ -194,16 +186,37 @@ describe("GET /todos/:todoId/development", () => {
       merge_requests: [],
     });
 
-    const { linkId } = await link(alice, boardId);
+    const { spaceId, linkId } = await link(alice, boardId);
 
     expect((await developmentOf(alice, todoId)).body).toMatchObject({
       connected: true,
       projects: [{ project_path: "acme/backend", project_url: "https://gitlab.com/acme/backend" }],
     });
 
-    await client.del(`/api/v1/boards/${boardId}/integrations/gitlab/${linkId}`, undefined, { token: alice.token });
+    await client.del(`/api/v1/spaces/${spaceId}/integrations/gitlab/${linkId}`, undefined, { token: alice.token });
 
     expect((await developmentOf(alice, todoId)).body).toMatchObject({ connected: false, projects: [] });
+  });
+
+  it("keeps the task's history after the space disconnects GitLab", async () => {
+    const { alice, boardId, todoId } = await scene();
+    const { spaceId, linkId, token } = await link(alice, boardId);
+
+    await deliver(client.url, linkId, signedDelivery(token, pushPayload({ commits: [{ message: "API-1 kept" }] })));
+    await deliver(
+      client.url,
+      linkId,
+      signedDelivery(token, mergeRequestPayload({ iid: 7, title: "API-1 kept" }), { event: "Merge Request Hook" }),
+    );
+    await client.del(`/api/v1/spaces/${spaceId}/integrations/gitlab/${linkId}`, undefined, { token: alice.token });
+
+    const { body } = await developmentOf(alice, todoId);
+
+    expect(body).toMatchObject({ connected: false, projects: [] });
+    expect(body.commits.map((commit) => [commit.title, commit.url])).toEqual([
+      ["API-1 kept", `${PROJECT.web_url}/-/commit/${sha("API-1 kept")}`],
+    ]);
+    expect(body.merge_requests.map((mergeRequest) => mergeRequest.iid)).toEqual([7]);
   });
 
   it("returns only the newest commits when asked for fewer", async () => {

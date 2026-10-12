@@ -32,6 +32,7 @@ import {
   ProfilePage,
   RegisterPage,
   ResetPasswordPage,
+  SpaceSettingsPage,
   TaskRefPage,
 } from "./lazyPages";
 
@@ -78,6 +79,10 @@ export const router = createBrowserRouter([
       {
         path: "/boards/:boardId/settings/integrations",
         element: deferred(<BoardSettingsIntegrationsPage />),
+      },
+      {
+        path: "/spaces/:spaceId/settings",
+        element: deferred(<SpaceSettingsPage />),
       },
       {
         path: "/filters/:filterId",
