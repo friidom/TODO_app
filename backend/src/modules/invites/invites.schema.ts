@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-import { INVITEE_SEARCH_MIN_CHARS } from "../../config/constants.js";
-
 const invitableRole = z.enum(["viewer", "editor", "admin"]);
 
 // expires_in_days is NOT bounded here. create_invite clamps rather than
@@ -34,8 +32,6 @@ export const inviteParamsSchema = z.object({ inviteId: z.uuid() });
 export const inviteeQuerySchema = z.object({
   q: z.string().trim().max(200).optional().default(""),
 });
-
-export const SEARCH_MIN_CHARS = INVITEE_SEARCH_MIN_CHARS;
 
 export type CreateInviteInput = z.infer<typeof createInviteSchema>;
 export type InviteCredential = z.infer<typeof credential>;

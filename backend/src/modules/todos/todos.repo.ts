@@ -215,12 +215,6 @@ export async function remove(
   return count;
 }
 
-export function exists(boardId: string, todoId: string): Promise<boolean> {
-  return prisma.todos
-    .count({ where: { id: todoId, board_id: boardId }, take: 1 })
-    .then((count) => count > 0);
-}
-
 // Moves every card off one status onto another. When the destination sits in a
 // different column the cards are appended after its last card, in their
 // existing order, writing BOTH keys — rank is the one that actually orders

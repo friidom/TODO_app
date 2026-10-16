@@ -11,6 +11,7 @@ import { ThemeProvider } from "./providers/ThemeProvider.tsx";
 import { AuthProvider } from "./providers/AuthProvider.tsx";
 import { ToastProvider } from "./providers/ToastProvider.tsx";
 import "./components/i18n";
+import { Agentation } from "agentation";
 
 createRoot(document.getElementById("root")!).render(
   <ThemeProvider>
@@ -18,6 +19,9 @@ createRoot(document.getElementById("root")!).render(
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
           <RouterProvider router={router} />
+          {import.meta.env.DEV && (
+            <Agentation endpoint="http://localhost:4747" />
+          )}
         </ToastProvider>
       </QueryClientProvider>
     </AuthProvider>

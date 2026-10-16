@@ -72,13 +72,6 @@ export function insertBoard(
   });
 }
 
-export function findProfile(tx: Prisma.TransactionClient, userId: string) {
-  return tx.profiles.findUnique({
-    where: { id: userId },
-    select: { id: true, username: true, full_name: true, bio: true, avatar_url: true },
-  });
-}
-
 const PROFILE_FIELDS = {
   id: true,
   username: true,

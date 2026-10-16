@@ -462,6 +462,16 @@ function Burndown({
                     stopOpacity="0.04"
                   />
                 </linearGradient>
+
+                <clipPath id="insights-burndown-reveal">
+                  <rect
+                    x="0"
+                    y={-PLOT_HEIGHT}
+                    width="100"
+                    height={PLOT_HEIGHT * 3}
+                    className="chart-reveal"
+                  />
+                </clipPath>
               </defs>
 
               {GRID.map((share) => (
@@ -502,54 +512,61 @@ function Burndown({
                   stroke="currentColor"
                   strokeWidth="1.5"
                   strokeLinecap="round"
+                  strokeDasharray="4 3"
                   vectorEffect="non-scaling-stroke"
-                  className="text-ink-3"
+                  className="text-ink-3 animate-in fade-in-0 duration-700"
                 />
               )}
 
-              {area && <path d={area} fill="url(#insights-burndown-fill)" />}
+              <g clipPath="url(#insights-burndown-reveal)">
+                {area && <path d={area} fill="url(#insights-burndown-fill)" />}
 
-              {line && (
-                <path
-                  d={line}
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinejoin="round"
-                  vectorEffect="non-scaling-stroke"
-                  className="text-brand"
-                />
-              )}
-
-              {focus !== null && (
-                <line
-                  x1={xOf(focus)}
-                  x2={xOf(focus)}
-                  y1="0"
-                  y2={PLOT_HEIGHT}
-                  stroke="currentColor"
-                  strokeWidth="1"
-                  vectorEffect="non-scaling-stroke"
-                  className="text-brand/50"
-                />
-              )}
+                {line && (
+                  <path
+                    d={line}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinejoin="round"
+                    vectorEffect="non-scaling-stroke"
+                    className="text-brand"
+                  />
+                )}
+              </g>
             </svg>
+
+            {focus === null && remaining.length > 0 && (
+              <span
+                aria-hidden
+                style={{
+                  left: `${xOf(remaining.length - 1)}%`,
+                  top: `${(yOf(remaining[remaining.length - 1]) / PLOT_HEIGHT) * 100}%`,
+                }}
+                className="bg-brand ring-elevated animate-in zoom-in-0 fade-in-0 fill-mode-both pointer-events-none absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 delay-700 duration-300"
+              />
+            )}
 
             {focus !== null && (
               <>
+                <span
+                  aria-hidden
+                  style={{ left: `${xOf(focus)}%` }}
+                  className="bg-brand/40 pointer-events-none absolute inset-y-0 w-px transition-[left] duration-150 ease-out"
+                />
+
                 <span
                   aria-hidden
                   style={{
                     left: `${xOf(focus)}%`,
                     top: `${(yOf(remaining[focus]) / PLOT_HEIGHT) * 100}%`,
                   }}
-                  className="bg-brand ring-elevated pointer-events-none absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2"
+                  className="bg-brand ring-elevated pointer-events-none absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 transition-[left,top] duration-150 ease-out"
                 />
 
                 <span
                   aria-hidden
                   style={{ left: `${Math.min(Math.max(xOf(focus), 18), 82)}%` }}
-                  className="bg-ink text-canvas text-mini shadow-e2 pointer-events-none absolute -top-2 -translate-x-1/2 -translate-y-full rounded-md px-2 py-1 font-medium whitespace-nowrap tabular-nums"
+                  className="bg-ink text-canvas text-mini shadow-e2 animate-in fade-in-0 pointer-events-none absolute -top-2 -translate-x-1/2 -translate-y-full rounded-md px-2 py-1 font-medium whitespace-nowrap tabular-nums transition-[left] duration-150 ease-out"
                 >
                   {formatDue(days[focus], today)} ·{" "}
                   {t(leftKey, { count: remaining[focus] })}

@@ -105,17 +105,16 @@ function DraggableTodo({
     const out: Record<string, (event: unknown) => void> = {};
 
     for (const key of listenerKeys ? listenerKeys.split(",") : []) {
-      out[key] = (event) =>
+      const forward = (event: unknown) =>
         (
           listenersRef.current as
             Record<string, ((e: unknown) => void) | undefined> | undefined
         )?.[key]?.(event);
-    }
 
-    const pointerDown = out.onPointerDown;
-
-    if (pointerDown) {
-      delete out.onPointerDown;
+      if (key !== "onPointerDown") {
+        out[key] = forward;
+        continue;
+      }
 
       // capture, so a press on one of the card's controls still picks the card up — they stop pointerdown for their
       // popovers; a plain click on them still lands, since nothing activates before the pointer moves 8px
@@ -127,7 +126,7 @@ function DraggableTodo({
         if ((target as Element).closest("input, textarea, [contenteditable]"))
           return;
 
-        pointerDown(event);
+        forward(event);
       };
     }
 

@@ -4,10 +4,6 @@ export const OAUTH_PROVIDERS = ["google", "github"] as const;
 
 export type OAuthProvider = (typeof OAUTH_PROVIDERS)[number];
 
-export function isOAuthProvider(value: string): value is OAuthProvider {
-  return (OAUTH_PROVIDERS as readonly string[]).includes(value);
-}
-
 // What every provider is reduced to before any policy runs. oauth.service.ts
 // never learns which provider it is handling — the same reason lib/permissions
 // and lib/workflow are tables rather than a series of ifs. Adding a provider

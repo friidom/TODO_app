@@ -168,7 +168,3 @@ export function update(
 export async function remove(tx: Prisma.TransactionClient, boardId: string): Promise<void> {
   await tx.boards.delete({ where: { id: boardId } });
 }
-
-export function exists(boardId: string): Promise<boolean> {
-  return prisma.boards.count({ where: { id: boardId }, take: 1 }).then((count) => count > 0);
-}

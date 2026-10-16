@@ -59,9 +59,8 @@ function Features({ board }: { board: IBoard }) {
   );
 }
 
-// A native checkbox styled as a switch — the app's in-use idiom
-// (ui/checkbox.tsx has no consumers and carries shadcn tokens this theme does
-// not define). role="switch" is what makes it read as on/off to a screen reader.
+// role="switch" is what makes this native checkbox read as on/off to a screen
+// reader.
 function Toggle({
   label,
   checked,

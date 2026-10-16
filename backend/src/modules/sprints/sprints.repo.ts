@@ -35,13 +35,6 @@ export function findOne(boardId: string, sprintId: string): Promise<SprintRow | 
   });
 }
 
-export function findActive(boardId: string): Promise<SprintRow | null> {
-  return prisma.sprints.findFirst({
-    where: { board_id: boardId, state: "active" },
-    select: SPRINT_FIELDS,
-  });
-}
-
 export function maxRank(boardId: string): Promise<number | null> {
   return prisma.sprints
     .aggregate({ where: { board_id: boardId }, _max: { rank: true } })

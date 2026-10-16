@@ -187,7 +187,7 @@ The object key is `<board_id>/<todo_id>/<attachment_id>.<ext>` and **carries no 
 ## Gotchas
 
 - `@/` → `src/`, declared in both `vite.config.ts` and `tsconfig.app.json`. Existing imports mix `@/` and relative paths freely.
-- Vendored shadcn primitives (`button`, `input`, `tooltip`, `dropdown-menu`, `sheet`, …) live in `src/components/ui/` and are built on `radix-ui` + `@base-ui/react`. `src/components/ui/SideBarUI/` holds only `sidebar.tsx` and its `use-sidebar.ts` — that folder is the sidebar, not a UI kit. `components.json` aliases are correct now, so `npx shadcn add` lands in `ui/` importing `@/utils/cn`.
+- Vendored shadcn primitives (`button`, `input`, `tooltip`, `dropdown-menu`, `sheet`, …) live in `src/components/ui/` and are built on `@base-ui/react`. `src/components/ui/SideBarUI/` holds only `sidebar.tsx` and its `use-sidebar.ts` — that folder is the sidebar, not a UI kit. `components.json` aliases are correct now, so `npx shadcn add` lands in `ui/` importing `@/utils/cn`.
 - `noUnusedLocals`/`noUnusedParameters` are on, so an unused import fails `npm run build` even though the dev server is happy.
 
 

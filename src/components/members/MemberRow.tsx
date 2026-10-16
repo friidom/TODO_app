@@ -18,12 +18,13 @@ export default function MemberRow({
   return (
     <li
       className={cn(
-        "flex items-center gap-2.5 px-3 py-2 transition-colors",
-        isCurrentUser ? "bg-brand-soft/40" : "hover:bg-ink/5",
+        "rounded-control flex items-center gap-3 px-2 py-2 transition-colors",
+        isCurrentUser ? "bg-brand-soft/40" : "hover:bg-wash-strong",
       )}
     >
       <MemberIdentity
         member={member}
+        size="default"
         suffix={
           isCurrentUser ? (
             <span className="text-ink-3 font-normal">

@@ -12,6 +12,7 @@ import SummaryCard, { WidgetEmpty } from "@/components/summary/SummaryCard";
 import { bucketRange, smoothLinePath, xOf, yOf } from "@/services/admin/flow";
 import { bucketLabel, dash } from "@/services/admin/format";
 import type { Bucket, SeriesPoint } from "@/services/admin/types";
+import { cn } from "@/utils/cn";
 
 const PLOT_HEIGHT = 40;
 const HEADROOM = 3;
@@ -149,7 +150,7 @@ export default function DualSeries({
                   <stop
                     offset="0%"
                     stopColor="currentColor"
-                    stopOpacity="0.2"
+                    stopOpacity="0.12"
                   />
                   <stop
                     offset="100%"
@@ -169,9 +170,8 @@ export default function DualSeries({
                 y2={PLOT_HEIGHT - share * (PLOT_HEIGHT - HEADROOM)}
                 stroke="currentColor"
                 strokeWidth="1"
-                strokeDasharray={share === 0 ? undefined : "2 3"}
                 vectorEffect="non-scaling-stroke"
-                className={share === 0 ? "text-ink/15" : "text-ink/[0.06]"}
+                className={share === 0 ? "text-ink/15" : "text-ink/[0.05]"}
               />
             ))}
 
@@ -191,8 +191,9 @@ export default function DualSeries({
                     d={line}
                     fill="none"
                     stroke="currentColor"
-                    strokeWidth="1.75"
+                    strokeWidth="1.5"
                     strokeLinecap="round"
+                    strokeLinejoin="round"
                     vectorEffect="non-scaling-stroke"
                   />
                 </g>
@@ -200,26 +201,29 @@ export default function DualSeries({
             })}
 
             {hover.index !== null && (
-              <>
-                <Crosshair
-                  index={hover.index}
-                  count={points.length}
-                  height={PLOT_HEIGHT}
-                />
-                {visible.map((series) => (
-                  <circle
-                    key={series.key}
-                    cx={xOf(hover.index!, points.length)}
-                    cy={yOf(points[hover.index!]![series.key], scale)}
-                    r="2.5"
-                    fill="currentColor"
-                    className={series.tone}
-                    vectorEffect="non-scaling-stroke"
-                  />
-                ))}
-              </>
+              <Crosshair
+                index={hover.index}
+                count={points.length}
+                height={PLOT_HEIGHT}
+              />
             )}
           </svg>
+
+          {hover.index !== null &&
+            visible.map((series) => (
+              <span
+                key={series.key}
+                aria-hidden
+                style={{
+                  left: `${xOf(hover.index!, points.length)}%`,
+                  top: `${(yOf(points[hover.index!]![series.key], scale) / PLOT_HEIGHT) * 100}%`,
+                }}
+                className={cn(
+                  "ring-elevated pointer-events-none absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-current ring-2 transition-[left,top] duration-100",
+                  series.tone,
+                )}
+              />
+            ))}
 
           <div
             {...hover.surface}

@@ -277,7 +277,6 @@ html {
   }
 }
 
-
 /* Elevation — three steps, and the reason they are tokens.
    ---------------------------------------------------------------------------
    Before this there was no ladder, only six hard-coded shadows invented one at
@@ -301,7 +300,8 @@ html {
 :root {
   --elevation-1: 0 1px 2px oklch(0.24 0.02 265 / 5%);
   --elevation-2:
-    0 1px 2px oklch(0.24 0.02 265 / 5%), 0 4px 12px -2px oklch(0.24 0.02 265 / 9%);
+    0 1px 2px oklch(0.24 0.02 265 / 5%),
+    0 4px 12px -2px oklch(0.24 0.02 265 / 9%);
   --elevation-3:
     0 4px 8px -2px oklch(0.24 0.02 265 / 8%),
     0 20px 44px -12px oklch(0.24 0.02 265 / 20%);
@@ -309,7 +309,8 @@ html {
 
 .dark {
   --elevation-1: 0 1px 2px oklch(0 0 0 / 28%);
-  --elevation-2: 0 1px 2px oklch(0 0 0 / 30%), 0 4px 12px -2px oklch(0 0 0 / 38%);
+  --elevation-2:
+    0 1px 2px oklch(0 0 0 / 30%), 0 4px 12px -2px oklch(0 0 0 / 38%);
   --elevation-3:
     0 4px 8px -2px oklch(0 0 0 / 40%), 0 20px 44px -12px oklch(0 0 0 / 55%);
 }
@@ -490,6 +491,22 @@ html {
   --color-done-flash: var(--status-green);
 
   animation: done-flash 1.4s ease-out;
+}
+
+@keyframes chart-reveal {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.chart-reveal {
+  transform-box: fill-box;
+  transform-origin: left;
+  animation: chart-reveal 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {

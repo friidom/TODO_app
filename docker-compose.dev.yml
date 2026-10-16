@@ -66,6 +66,10 @@ services:
     restart: unless-stopped
 
   backend:
+    # Named, unlike in docker-compose.yml: the shared project name would
+    # otherwise tag both builds todo-app-<service>, and whichever file built
+    # last would hand the other its image.
+    image: todo-app-backend-dev
     build:
       context: ./backend
       dockerfile: Dockerfile.dev
@@ -140,6 +144,7 @@ services:
     restart: unless-stopped
 
   frontend:
+    image: todo-app-frontend-dev
     build:
       context: .
       dockerfile: Dockerfile.dev

@@ -16,7 +16,7 @@ and render through six views over one shared data pipeline.
 **Frontend**
 - React 19 · TypeScript (`strict`) · Vite 8
 - TanStack Query as the only real state layer
-- Tailwind CSS v4 (CSS-first, no config file), vendored shadcn primitives on Radix + Base UI
+- Tailwind CSS v4 (CSS-first, no config file), vendored shadcn primitives on Base UI
 - `@dnd-kit/core`, hand-rolled (no `sortable`)
 
 **Backend**
@@ -264,15 +264,15 @@ production need separate apps.
 ## Project status
 
 The migration off Supabase onto a self-hosted Express + Prisma + PostgreSQL
-backend is complete for every data path. Three surfaces have not moved yet.
+backend is complete for every data path.
 
 | | Status |
 |---|---|
 | REST API migration (B5–B8) — auth, authorization, all CRUD | ✅ Complete |
 | Docker Compose setup | ✅ Complete |
 | CI — GitHub Actions runs lint, build, unit and integration tests | ✅ Running |
-| **Realtime updates and presence** (B9) | ⏳ Pending — still calls Supabase |
-| **Storage: attachments and avatars** (B10) | ✅ Complete — MinIO, `todo-attachments` and `todo-avatars` |
+| Realtime updates and presence (B9) | ✅ Complete — Socket.IO on the API |
+| Storage: attachments and avatars (B10) | ✅ Complete — MinIO, `todo-attachments` and `todo-avatars` |
 | **Swagger / OpenAPI docs** | ⏳ Not started |
 | **Deployment pipeline** (B12) | ⏳ Not started |
 
