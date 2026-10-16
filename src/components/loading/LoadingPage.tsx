@@ -2,7 +2,7 @@ export default function Loading() {
   const { t } = useTranslation();
 
   return (
-    <div className="bg-canvas flex h-full min-h-64 w-full flex-1 items-center justify-center">
+    <div className="bg-canvas skeleton-in flex min-h-svh w-full flex-1 items-center justify-center">
       <span
         role="status"
         aria-label={t("common.loading")}

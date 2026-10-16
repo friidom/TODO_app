@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  BOARD_VISITS_LIMIT,
   VIEWED_LIMIT,
   clearViewed,
+  readBoardVisits,
   readViewed,
+  recordBoardVisit,
   recordView,
 } from "./viewed";
 
@@ -165,5 +168,56 @@ describe("clearing", () => {
     clearViewed(storage);
 
     expect(readViewed(storage)).toEqual([]);
+  });
+});
+
+describe("board visits", () => {
+  it("moves a revisited board to the front instead of listing it twice", () => {
+    const storage = memoryStorage();
+
+    recordBoardVisit("a", "2026-08-01T00:00:00Z", storage);
+    recordBoardVisit("b", "2026-08-02T00:00:00Z", storage);
+
+    const visits = recordBoardVisit("a", "2026-08-03T00:00:00Z", storage);
+
+    expect(visits.map((visit) => visit.id)).toEqual(["a", "b"]);
+    expect(readBoardVisits(storage)).toEqual(visits);
+  });
+
+  it("keeps only the most recent visits", () => {
+    const storage = memoryStorage();
+
+    for (let index = 0; index < BOARD_VISITS_LIMIT + 3; index += 1) {
+      recordBoardVisit(
+        `b-${index}`,
+        `2026-08-01T00:00:0${index % 10}Z`,
+        storage,
+      );
+    }
+
+    const visits = readBoardVisits(storage);
+
+    expect(visits).toHaveLength(BOARD_VISITS_LIMIT);
+    expect(visits[0]!.id).toBe(`b-${BOARD_VISITS_LIMIT + 2}`);
+  });
+
+  it("drops malformed entries and survives a browser that refuses storage", () => {
+    expect(
+      readBoardVisits(memoryStorage({ "kan:recent-boards": "{not json" })),
+    ).toEqual([]);
+    expect(
+      readBoardVisits(
+        memoryStorage({
+          "kan:recent-boards": JSON.stringify([
+            { id: 1 },
+            { id: "ok", at: "2026-08-01T00:00:00Z" },
+          ]),
+        }),
+      ),
+    ).toEqual([{ id: "ok", at: "2026-08-01T00:00:00Z" }]);
+    expect(readBoardVisits(hostileStorage())).toEqual([]);
+    expect(() =>
+      recordBoardVisit("a", "2026-08-01T00:00:00Z", hostileStorage()),
+    ).not.toThrow();
   });
 });

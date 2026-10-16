@@ -17,7 +17,7 @@ import { cn } from "@/utils/cn";
 // SidebarTrigger is shadcn's Button, whose ghost/focus recipe these overrides replace with ICON_BUTTON.md's
 const SIDEBAR_TRIGGER = cn(
   ICON_BUTTON.md,
-  "-ml-2 focus-visible:border-transparent active:not-aria-[haspopup]:translate-y-0 dark:hover:bg-wash-strong",
+  "-ml-2 md:hidden focus-visible:border-transparent active:not-aria-[haspopup]:translate-y-0 dark:hover:bg-wash-strong",
 );
 
 export default function BoardIdentity({
@@ -45,7 +45,6 @@ export default function BoardIdentity({
 
   return (
     <header className="@container flex h-14 shrink-0 items-center gap-2 px-5 md:px-6">
-      {/* the only way back to an offcanvas sidebar collapsed on this page, so it stays at every width */}
       <Tooltip>
         <TooltipTrigger
           render={<SidebarTrigger className={SIDEBAR_TRIGGER} />}

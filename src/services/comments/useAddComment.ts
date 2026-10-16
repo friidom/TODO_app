@@ -76,8 +76,10 @@ export function useAddComment() {
     },
   });
 
-  const mutate = (variables: AddCommentVars) =>
-    mutation.mutate({ ...variables, id: crypto.randomUUID() });
+  const mutate = (
+    variables: AddCommentVars,
+    options?: Parameters<typeof mutation.mutate>[1],
+  ) => mutation.mutate({ ...variables, id: crypto.randomUUID() }, options);
 
   return { ...mutation, mutate };
 }

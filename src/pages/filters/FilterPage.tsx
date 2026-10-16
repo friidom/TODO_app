@@ -3,17 +3,16 @@ import { useMemo, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router";
 import { FilterIcon } from "lucide-react";
 
-import Layout from "@/components/layout/Layout";
+import { FeedSkeleton } from "@/components/forYou/FeedList";
 import FeedRow from "@/components/forYou/FeedRow";
 import EmptyState from "@/components/ui/EmptyState";
-import { Skeleton } from "@/components/ui/skeleton";
 import { SidebarTrigger } from "@/components/ui/SideBarUI/sidebar";
 import { useScopedStatuses } from "@/hooks/useScopedStatuses";
 import { useScopedTodos } from "@/hooks/useScopedTodos";
 import { useAuth } from "@/services/auth/useAuth";
 import { useBoards } from "@/services/boards/useBoards";
 import { useProfile } from "@/services/profile/useProfile";
-import { toFeedItems } from "@/services/forYou/feed";
+import { toFeedItems, type FeedTodo } from "@/services/forYou/feed";
 import { readViewed } from "@/services/forYou/viewed";
 import { topLevelTodos } from "@/services/todos/subtasks";
 import { doneStatusIds } from "@/services/workflow/statuses";
@@ -24,7 +23,6 @@ import {
   type FilterContext,
   type FilterId,
 } from "@/services/filters/registry";
-import type { Todo } from "@/types/data";
 
 export default function FilterPage() {
   const { filterId } = useParams();
@@ -58,8 +56,21 @@ function Filter({ id }: { id: FilterId }) {
   );
 
   const items = useMemo(() => {
+    const statusById = new Map(statuses.map((status) => [status.id, status]));
+
     // Subtasks are dropped first, the way useVisibleTodos does it for the board.
-    const all = topLevelTodos(rows);
+    const all = topLevelTodos(rows).map((todo): FeedTodo => {
+      const status = todo.status_id
+        ? statusById.get(todo.status_id)
+        : undefined;
+
+      return {
+        ...todo,
+        status: status
+          ? { name: status.name, category: status.category }
+          : null,
+      };
+    });
 
     if (definition.source === "viewed") {
       // The set comes from this browser; the order is when it saw each card.
@@ -69,7 +80,7 @@ function Filter({ id }: { id: FilterId }) {
 
       const found = seen
         .map((entry) => byId.get(entry.id))
-        .filter((todo): todo is Todo => todo !== undefined);
+        .filter((todo): todo is FeedTodo => todo !== undefined);
 
       return toFeedItems(found, boards, (todo) => at.get(todo.id) ?? null);
     }
@@ -87,63 +98,57 @@ function Filter({ id }: { id: FilterId }) {
         ? todo.completed_at
         : (todo.updated_at ?? todo.created_at),
     );
-  }, [rows, boards, context, definition]);
+  }, [rows, boards, context, definition, statuses]);
 
   const busy = isLoading || statusesLoading;
 
   return (
-    <Layout>
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-4xl px-5 pt-4 pb-10 md:px-6">
-          <div className="mb-4 flex items-center gap-3">
-            <SidebarTrigger className="coarse:size-9 text-ink-3 hover:text-ink shrink-0 md:hidden" />
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="mx-auto w-full max-w-4xl px-5 pt-4 pb-10 md:px-6">
+        <div className="mb-4 flex items-center gap-3">
+          <SidebarTrigger className="coarse:size-9 text-ink-3 hover:text-ink shrink-0 md:hidden" />
 
-            <h1 className="text-ink text-base font-semibold tracking-tight">
-              {t(definition.labelKey)}
-            </h1>
+          <h1 className="text-ink text-base font-semibold tracking-tight">
+            {t(definition.labelKey)}
+          </h1>
 
-            {!busy && (
-              <span className="bg-ink/10 text-ink-3 text-mini rounded px-1.5 py-0.5 font-semibold tabular-nums">
-                {items.length}
-              </span>
-            )}
-          </div>
-
-          {busy ? (
-            <div className="space-y-2" aria-busy>
-              {[0, 1, 2, 3, 4].map((row) => (
-                <Skeleton key={row} className="h-14 w-full" />
-              ))}
-            </div>
-          ) : items.length === 0 ? (
-            <EmptyState
-              icon={FilterIcon}
-              title={t("filters.emptyTitle")}
-              hint={t("filters.emptyHint", { name: t(definition.labelKey) })}
-            />
-          ) : (
-            <ul className="border-hairline bg-surface rounded-card divide-ink/[0.06] divide-y overflow-hidden border">
-              {items.map((item) => (
-                <FeedRow
-                  key={item.todo.id}
-                  item={item}
-                  now={now}
-                  isMine={item.todo.assignee_id === user?.id}
-                  avatarUrl={profile?.avatar_url}
-                  initial={(profile?.username ?? "?").slice(0, 1).toUpperCase()}
-                  // Opens on the owning board, the way the For You feed does —
-                  // a task overlay needs a board to resolve against.
-                  onOpen={() =>
-                    void navigate(
-                      `/boards/${item.todo.board_id}?task=${item.todo.id}`,
-                    )
-                  }
-                />
-              ))}
-            </ul>
+          {!busy && (
+            <span className="bg-ink/10 text-ink-3 text-mini rounded px-1.5 py-0.5 font-semibold tabular-nums">
+              {items.length}
+            </span>
           )}
         </div>
+
+        {busy ? (
+          <FeedSkeleton />
+        ) : items.length === 0 ? (
+          <EmptyState
+            icon={FilterIcon}
+            title={t("filters.emptyTitle")}
+            hint={t("filters.emptyHint", { name: t(definition.labelKey) })}
+          />
+        ) : (
+          <ul className="border-hairline bg-surface rounded-card divide-ink/[0.06] divide-y overflow-hidden border">
+            {items.map((item) => (
+              <FeedRow
+                key={item.todo.id}
+                item={item}
+                now={now}
+                isMine={item.todo.assignee_id === user?.id}
+                avatarUrl={profile?.avatar_url}
+                initial={(profile?.username ?? "?").slice(0, 1).toUpperCase()}
+                // Opens on the owning board, the way the For You feed does —
+                // a task overlay needs a board to resolve against.
+                onOpen={() =>
+                  void navigate(
+                    `/boards/${item.todo.board_id}?task=${item.todo.id}`,
+                  )
+                }
+              />
+            ))}
+          </ul>
+        )}
       </div>
-    </Layout>
+    </div>
   );
 }

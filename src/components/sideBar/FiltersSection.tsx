@@ -1,53 +1,90 @@
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { NavLink, useLocation } from "react-router";
 import { ListFilterIcon } from "lucide-react";
 
+import DropLine from "@/components/dnd/DropLine";
+import { useReorderItem } from "@/components/dnd/reorderDnd";
 import {
-  SidebarGroup,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/SideBarUI/sidebar";
-import { filterDefinitions, filterPath } from "@/services/filters/registry";
-import SectionLabel from "./SectionLabel";
+import { filterPath, type FilterDefinition } from "@/services/filters/registry";
+import { SIDEBAR_DND, type SidebarList } from "@/services/sidebar/layout";
+import { cn } from "@/utils/cn";
+import Section, { Grip } from "./Section";
+import { stepKey } from "./stepKey";
 
-// Collapsed by default: nine entries under the boards would push them off the
-// first screen, and the boards are what people come here for.
-export default function FiltersSection() {
+export default function FiltersSection({
+  filters,
+  open,
+  onToggle,
+  onStep,
+}: {
+  filters: FilterDefinition[];
+  open: boolean;
+  onToggle: () => void;
+  onStep: (list: SidebarList, id: string, delta: -1 | 1) => void;
+}) {
   const { t } = useTranslation();
-  const location = useLocation();
-  const [open, setOpen] = useState(() =>
-    location.pathname.startsWith("/filters/"),
-  );
 
   return (
-    <SidebarGroup>
-      <SectionLabel
-        label={t("sidebar.filters")}
-        open={open}
-        onToggle={() => setOpen((it) => !it)}
-      />
+    <Section
+      id="filters"
+      label={t("sidebar.filters")}
+      open={open}
+      onToggle={onToggle}
+      onStep={(delta) => onStep("section", "filters", delta)}
+    >
+      <SidebarMenu>
+        {filters.map((definition) => (
+          <FilterRow
+            key={definition.id}
+            definition={definition}
+            onStep={(delta) => onStep("filter", definition.id, delta)}
+          />
+        ))}
+      </SidebarMenu>
+    </Section>
+  );
+}
 
-      {open && (
-        <SidebarMenu>
-          {filterDefinitions().map((definition) => {
-            const to = filterPath(definition.id);
+function FilterRow({
+  definition,
+  onStep,
+}: {
+  definition: FilterDefinition;
+  onStep: (delta: -1 | 1) => void;
+}) {
+  const { t } = useTranslation();
+  const location = useLocation();
 
-            return (
-              <SidebarMenuItem key={definition.id}>
-                <SidebarMenuButton
-                  render={<NavLink to={to} />}
-                  isActive={location.pathname === to}
-                >
-                  <ListFilterIcon />
-                  <span>{t(definition.labelKey)}</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            );
-          })}
-        </SidebarMenu>
-      )}
-    </SidebarGroup>
+  const { setNodeRef, pointerProps, isDragging, edge } = useReorderItem(
+    definition.id,
+    { group: SIDEBAR_DND.filter, axis: "y" },
+  );
+
+  const to = filterPath(definition.id);
+  const label = t(definition.labelKey);
+
+  return (
+    <SidebarMenuItem
+      ref={setNodeRef}
+      className={cn("transition-opacity", isDragging && "opacity-40")}
+    >
+      <Grip {...pointerProps} className="-left-2" />
+
+      <SidebarMenuButton
+        render={<NavLink to={to} draggable={false} />}
+        isActive={location.pathname === to}
+        title={label}
+        onKeyDown={stepKey(onStep)}
+      >
+        <ListFilterIcon />
+        <span>{label}</span>
+      </SidebarMenuButton>
+
+      <DropLine edge={edge} axis="y" />
+    </SidebarMenuItem>
   );
 }

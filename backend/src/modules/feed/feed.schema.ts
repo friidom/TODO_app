@@ -11,6 +11,10 @@ export const workedOnQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(MAX_PAGE).default(FEED_PAGE),
 });
 
+export const myActivityQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(MAX_PAGE).default(FEED_PAGE),
+});
+
 // A comma-separated list rather than repeated keys, and capped: these ids come
 // from the caller's own localStorage, so the cap bounds the query rather than
 // trusting the list's length.
@@ -24,4 +28,5 @@ export const byIdsQuerySchema = z.object({
 
 export type FeedQuery = z.infer<typeof feedQuerySchema>;
 export type WorkedOnQuery = z.infer<typeof workedOnQuerySchema>;
+export type MyActivityQuery = z.infer<typeof myActivityQuerySchema>;
 export type ByIdsQuery = z.infer<typeof byIdsQuerySchema>;

@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Fragment, useEffect, useRef, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { LayersIcon, ListTree, Pencil } from "lucide-react";
 
 import DueDateControl from "./TodoItem/DueDateControl";
@@ -93,6 +93,10 @@ export default function TodoCard({
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const [wasPending] = useState(taskKey === null && !overlay);
+  // cleared once played: done-flash shares the animation property, and would replay the entrance when it ends
+  const [arriving, setArriving] = useState(wasPending);
+
   useEffect(() => {
     if (editing) {
       inputRef.current?.focus();
@@ -180,6 +184,14 @@ export default function TodoCard({
       ref={setNodeRef}
       {...handleProps}
       inert={overlay || undefined}
+      aria-busy={taskKey === null || undefined}
+      onAnimationEnd={
+        arriving
+          ? (event) => {
+              if (event.target === event.currentTarget) setArriving(false);
+            }
+          : undefined
+      }
       // safe to put on the drag handle: dnd-kit's pointer sensor needs an 8px move to start a drag,
       // and swallows the click for 50ms after a drop, so a stationary click never gets eaten
       onClick={(event) => {
@@ -211,6 +223,8 @@ export default function TodoCard({
         dragging &&
           "border-ink/20 hover:border-ink/20 border-dashed opacity-40 shadow-none hover:shadow-none",
         celebrate && "done-flash",
+        arriving &&
+          "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 ease-emphasized duration-200",
       )}
     >
       {header ? (
@@ -225,14 +239,18 @@ export default function TodoCard({
           )}
 
           {!show("key") ? null : taskKey === null ? (
-            <span aria-hidden className="bg-wash-strong h-2 w-9 rounded-full" />
+            <span aria-hidden className="skeleton h-2 w-9 rounded-full" />
           ) : onOpen ? (
             <button
               type="button"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={onOpen}
               title={`Open ${taskKey}`}
-              className="text-ink-3 hover:text-brand focus-visible:ring-brand rounded-control text-mini font-medium tabular-nums transition-colors duration-150 outline-none focus-visible:ring-2"
+              className={cn(
+                "text-ink-3 hover:text-brand focus-visible:ring-brand rounded-control text-mini font-medium tabular-nums transition-colors duration-150 outline-none focus-visible:ring-2",
+                wasPending &&
+                  "motion-safe:animate-in motion-safe:fade-in-0 duration-300",
+              )}
             >
               {taskKey}
             </button>

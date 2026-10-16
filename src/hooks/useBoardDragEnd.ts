@@ -12,6 +12,7 @@ import {
   type WorkflowModel,
 } from "@/services/workflow/statuses";
 import { toast } from "@/stores/toasts";
+import { useCardLanding } from "@/stores/cardLanding";
 import { useDoneFlash } from "@/stores/doneFlash";
 import type { IColumn, IStatus, Todo } from "@/types/data";
 import { byRank } from "@/utils/rank";
@@ -51,6 +52,7 @@ export function useBoardDragEnd({
   const todoDrop = useTodoDrop();
   const gate = useWorkflowGate();
   const flashDone = useDoneFlash((state) => state.flash);
+  const land = useCardLanding((state) => state.land);
   const { t } = useTranslation();
 
   const sourceStatus =
@@ -144,6 +146,18 @@ export function useBoardDragEnd({
         indicator.statusId ? visible.length : indicator.index,
         activeTodo.id,
       );
+
+      const released = active.rect.current.translated;
+
+      if (released) {
+        land({
+          todoId: activeTodo.id,
+          left: released.left,
+          top: released.top,
+          statusId: activeTodo.status_id,
+          rank: activeTodo.rank,
+        });
+      }
 
       todoDrop.mutate({
         todos,

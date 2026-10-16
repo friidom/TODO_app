@@ -12,7 +12,7 @@ import {
 import { useTranslation } from "react-i18next";
 
 import ViewNotice from "@/components/board/ViewNotice";
-import Loading from "@/components/loading/LoadingPage";
+import ViewSkeleton from "@/components/loading/ViewSkeleton";
 import { useBoardId } from "@/hooks/useBoardId";
 import { useBoardView } from "@/hooks/useBoardView";
 import { useCalendarView } from "@/hooks/useCalendarView";
@@ -100,7 +100,7 @@ export default function CalendarView() {
     drop(todo, day);
   }
 
-  if (isLoading) return <Loading />;
+  if (isLoading) return <ViewSkeleton mode="calendar" />;
 
   if (error) return <p className="text-status-red text-sm">{error.message}</p>;
 
@@ -112,7 +112,7 @@ export default function CalendarView() {
       onDragEnd={handleDragEnd}
       onDragCancel={() => setDragging(null)}
     >
-      <div className="flex h-full min-h-0 flex-col">
+      <div className="motion-safe:animate-in motion-safe:fade-in-0 flex h-full min-h-0 flex-col duration-200">
         <ViewNotice view={view} visibleCount={todos.length} />
 
         <CalendarNav

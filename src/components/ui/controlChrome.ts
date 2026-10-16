@@ -2,7 +2,7 @@
 // No z-index in any recipe — each floating layer keeps its own place on the ladder (attachment menus sit at z-[70]).
 
 const ICON_BUTTON_BASE =
-  "text-ink-3 hover:text-ink hover:bg-wash-strong active:bg-wash-strong aria-expanded:bg-wash-strong aria-expanded:text-ink focus-visible:ring-brand inline-grid shrink-0 place-items-center rounded-control transition-colors duration-150 outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50 [&_svg:not([class*='size-'])]:size-4";
+  "text-ink-3 hover:text-ink hover:bg-wash-strong active:bg-wash-strong aria-expanded:bg-wash-strong aria-expanded:text-ink focus-visible:ring-brand inline-grid shrink-0 place-items-center rounded-control transition-[color,background-color,scale] duration-150 outline-none focus-visible:ring-2 motion-safe:active:scale-95 disabled:pointer-events-none disabled:opacity-50 [&_svg:not([class*='size-'])]:size-4";
 
 export const ICON_BUTTON = {
   xs: `${ICON_BUTTON_BASE} size-6 coarse:size-8 [&_svg:not([class*='size-'])]:size-3.5`,

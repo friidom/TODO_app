@@ -49,7 +49,7 @@ import DeleteColumnModal from "../columns/DeleteColumnModal";
 import CollapsedColumn from "../columns/CollapsedColumn";
 import ViewNotice from "../board/ViewNotice";
 import EmptyState from "../ui/EmptyState";
-import Loading from "../loading/LoadingPage";
+import ViewSkeleton from "../loading/ViewSkeleton";
 import { byRank } from "@/utils/rank";
 import { columnTitle } from "@/constants/columns";
 import { cn } from "@/utils/cn";
@@ -197,7 +197,7 @@ export default function KanbanBoard() {
   }
 
   // sprintsPending still gates loading — without it a card in the running sprint flickers out of its column for a frame.
-  if (isLoading || sprintsPending) return <Loading />;
+  if (isLoading || sprintsPending) return <ViewSkeleton mode="board" />;
 
   if (error) {
     return (
@@ -299,7 +299,7 @@ export default function KanbanBoard() {
       onDragEnd={onDragEnd}
       onDragCancel={resetDrag}
     >
-      <div className="relative flex h-full min-h-0 flex-col">
+      <div className="motion-safe:animate-in motion-safe:fade-in-0 relative flex h-full min-h-0 flex-col duration-200">
         <ViewNotice view={view} visibleCount={visible.length} showDragHint />
 
         {sprintsEnabled && activeSprintId === null ? (

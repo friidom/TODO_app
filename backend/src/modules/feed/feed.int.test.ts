@@ -178,6 +178,106 @@ describe("GET /me/feed?tab=assigned", () => {
   });
 });
 
+describe("GET /me/feed status", () => {
+  it("carries each card's status name and category", async () => {
+    const alice = await makeUser("alice");
+    const status = await firstStatusOf(alice.boardId);
+
+    await addTodo(alice, alice.boardId, { title: "one" });
+
+    const response = await client.get<(Todo & { status: unknown })[]>(
+      "/api/v1/me/feed?tab=recent",
+      { token: alice.token },
+    );
+
+    expect(response.body[0]!.status).toEqual({ name: status.name, category: status.category });
+  });
+});
+
+interface MyActivity {
+  items: { actor_id: string | null; board_id: string; entity_id: string | null }[];
+  people: Record<string, { username: string }>;
+  live_todo_ids: string[];
+}
+
+describe("GET /me/activity", () => {
+  it("needs a token", async () => {
+    expect((await client.get("/api/v1/me/activity")).status).toBe(401);
+  });
+
+  it("returns other people's work on the caller's boards, never the caller's own", async () => {
+    const alice = await makeUser("alice");
+    const bob = await makeUser("bob");
+
+    await addMember(alice.boardId, bob, "editor", alice.id);
+    await addTodo(alice, alice.boardId, { title: "alice's" });
+
+    const theirs = await addTodo(bob, alice.boardId, { title: "bob's" });
+
+    const response = await client.get<MyActivity>("/api/v1/me/activity", { token: alice.token });
+
+    expect(response.status).toBe(200);
+    expect(response.body.items.map((item) => item.entity_id)).toContain(theirs.id);
+    expect(response.body.items.every((item) => item.actor_id !== alice.id)).toBe(true);
+    expect(response.body.people[bob.id]?.username).toBe(bob.username);
+    expect(response.body.live_todo_ids).toContain(theirs.id);
+  });
+
+  it("SCOPES TO ACCESSIBLE BOARDS BEFORE THE LIMIT", async () => {
+    const alice = await makeUser("alice");
+    const bob = await makeUser("bob");
+    const mallory = await makeUser("mallory");
+
+    await addMember(alice.boardId, bob, "editor", alice.id);
+    await addTodo(bob, alice.boardId, { title: "visible" });
+
+    for (let index = 0; index < 5; index += 1) {
+      await addTodo(mallory, mallory.boardId, { title: `hidden ${index}` });
+    }
+
+    const response = await client.get<MyActivity>("/api/v1/me/activity?limit=3", {
+      token: alice.token,
+    });
+
+    expect(response.body.items.length).toBeGreaterThan(0);
+    expect(response.body.items.every((item) => item.board_id === alice.boardId)).toBe(true);
+    expect(response.body.people[mallory.id]).toBeUndefined();
+  });
+
+  it("stops naming someone once they no longer share a board with the caller", async () => {
+    const alice = await makeUser("alice");
+    const bob = await makeUser("bob");
+
+    await addMember(alice.boardId, bob, "editor", alice.id);
+    await addTodo(bob, alice.boardId, { title: "before leaving" });
+
+    await client.del(`/api/v1/boards/${alice.boardId}/members/me`, undefined, {
+      token: bob.token,
+    });
+
+    const response = await client.get<MyActivity>("/api/v1/me/activity", { token: alice.token });
+
+    expect(response.body.items.some((item) => item.actor_id === bob.id)).toBe(true);
+    expect(response.body.people[bob.id]).toBeUndefined();
+  });
+
+  it("keeps a deleted work item's history but not as something to open", async () => {
+    const alice = await makeUser("alice");
+    const bob = await makeUser("bob");
+
+    await addMember(alice.boardId, bob, "editor", alice.id);
+
+    const todo = await addTodo(bob, alice.boardId, { title: "doomed" });
+
+    await client.del(`/api/v1/todos/${todo.id}`, undefined, { token: bob.token });
+
+    const response = await client.get<MyActivity>("/api/v1/me/activity", { token: alice.token });
+
+    expect(response.body.items.some((item) => item.entity_id === todo.id)).toBe(true);
+    expect(response.body.live_todo_ids).not.toContain(todo.id);
+  });
+});
+
 describe("GET /me/worked-on", () => {
   it("returns ids and dates, newest first", async () => {
     const alice = await makeUser("alice");

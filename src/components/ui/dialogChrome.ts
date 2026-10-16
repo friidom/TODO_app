@@ -10,7 +10,7 @@ export const DIALOG_LABEL = "text-ink-2 mb-1.5 block text-meta font-medium";
 export const DIALOG_ACTIONS = "mt-6 flex items-center justify-end gap-2";
 
 const ACTION_BASE =
-  "rounded-control focus-visible:ring-offset-surface inline-flex h-9 items-center justify-center gap-1.5 px-3.5 text-[13px] font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60";
+  "rounded-control focus-visible:ring-offset-surface inline-flex h-9 items-center justify-center gap-1.5 px-3.5 text-[13px] font-medium transition-[color,background-color,scale] outline-none focus-visible:ring-2 focus-visible:ring-offset-2 motion-safe:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60";
 
 export const DIALOG_CANCEL = `${ACTION_BASE} text-ink-2 hover:bg-ink/[0.06] active:bg-ink/[0.1] hover:text-ink focus-visible:ring-brand`;
 

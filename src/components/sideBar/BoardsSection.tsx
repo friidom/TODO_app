@@ -16,6 +16,8 @@ import {
 
 import BoardFormModal from "@/components/boards/BoardFormModal";
 import DeleteBoardModal from "@/components/boards/DeleteBoardModal";
+import DropLine from "@/components/dnd/DropLine";
+import { useReorderItem } from "@/components/dnd/reorderDnd";
 import DeleteSpaceModal from "@/components/spaces/DeleteSpaceModal";
 import SpaceFormModal from "@/components/spaces/SpaceFormModal";
 import IconButton from "@/components/ui/IconButton";
@@ -27,20 +29,25 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  SidebarGroup,
   SidebarMenu,
   SidebarMenuActions,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/SideBarUI/sidebar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/services/auth/useAuth";
-import { useBoards } from "@/services/boards/useBoards";
-import { groupBoardsBySpace } from "@/services/spaces/groupBoards";
-import { useSpaces } from "@/services/spaces/useSpaces";
 import { boardSettingsPath } from "@/services/boardSettings/registry";
+import {
+  SIDEBAR_DND,
+  UNFILED,
+  spaceKeyOf,
+  type SidebarList,
+} from "@/services/sidebar/layout";
+import type { SpaceGroup } from "@/services/spaces/groupBoards";
 import type { IBoard, ISpace } from "@/types/data";
 import { cn } from "@/utils/cn";
-import SectionLabel from "./SectionLabel";
+import Section, { Collapse, Grip } from "./Section";
+import { stepKey } from "./stepKey";
 
 // gated on board.owner_id, not a roster fetch — filing/deleting is owner-only in the db anyway, and the row already has this field
 type Dialog =
@@ -51,107 +58,90 @@ type Dialog =
   | { kind: "delete-space"; space: ISpace; boardCount: number }
   | null;
 
-export default function BoardsSection() {
+type Step = (
+  list: SidebarList,
+  id: string,
+  delta: -1 | 1,
+  container?: string,
+) => void;
+
+export default function BoardsSection({
+  groups,
+  loading,
+  open,
+  collapsed,
+  onToggle,
+  onStep,
+}: {
+  groups: SpaceGroup[];
+  loading: boolean;
+  open: boolean;
+  collapsed: string[];
+  onToggle: (key: string) => void;
+  onStep: Step;
+}) {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const { data: boards = [], isPending } = useBoards();
-  const { data: spaces = [] } = useSpaces();
 
   const [dialog, setDialog] = useState<Dialog>(null);
-
-  // client-only, never persisted — just how this person is looking at the tree right now
-  const [collapsed, setCollapsed] = useState<string[]>([]);
-
-  const [sectionOpen, setSectionOpen] = useState(true);
-
-  const groups = groupBoardsBySpace(boards, spaces);
   const close = () => setDialog(null);
-
-  const toggle = (key: string) =>
-    setCollapsed((open) =>
-      open.includes(key) ? open.filter((it) => it !== key) : [...open, key],
-    );
 
   return (
     <>
-      <SidebarGroup>
-        <SectionLabel
-          label={t("sidebar.spaces")}
-          open={sectionOpen}
-          onToggle={() => setSectionOpen((open) => !open)}
-        />
+      <Section
+        id="spaces"
+        label={t("sidebar.spaces")}
+        open={open}
+        onToggle={() => onToggle("spaces")}
+        onStep={(delta) => onStep("section", "spaces", delta)}
+        actions={<CreateMenu onDialog={setDialog} />}
+      >
+        <SidebarMenu>
+          {loading &&
+            [0, 1, 2].map((row) => (
+              <SidebarMenuItem key={row}>
+                <div className="flex h-8 items-center gap-2 px-2">
+                  <Skeleton className="size-4 rounded" />
+                  <Skeleton
+                    className="h-3 rounded-full"
+                    style={{ width: `${55 - row * 12}%` }}
+                  />
+                </div>
+              </SidebarMenuItem>
+            ))}
 
-        <SidebarMenu
-          className={cn(
-            "motion-safe:animate-in motion-safe:fade-in motion-safe:duration-150",
-            !sectionOpen && "hidden",
-          )}
-        >
-          {isPending && (
+          {!loading && groups.length === 0 && (
             <SidebarMenuItem>
-              <span className="text-ink-3 text-meta flex h-8 items-center px-2">
-                {t("common.loading")}
-              </span>
-            </SidebarMenuItem>
-          )}
-
-          {!isPending && boards.length === 0 && spaces.length === 0 && (
-            <SidebarMenuItem>
-              <span className="text-ink-3 text-meta flex h-8 items-center px-2">
-                {t("sidebar.noBoardsYet")}
-              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  setDialog({ kind: "create-board", spaceId: null })
+                }
+                className="text-ink-3 hover:text-ink text-meta flex h-8 items-center gap-2 px-2 transition-colors"
+              >
+                <PlusIcon className="size-4" />
+                {t("sidebar.newBoard")}
+              </button>
             </SidebarMenuItem>
           )}
 
           {groups.map((group) => {
-            const key = group.space?.id ?? "unfiled";
+            const key = spaceKeyOf(group);
 
             return (
               <SpaceRow
                 key={key}
-                space={group.space}
-                boards={group.boards}
+                group={group}
                 userId={user?.id}
                 collapsed={collapsed.includes(key)}
-                onToggle={() => toggle(key)}
+                onToggle={() => onToggle(key)}
+                onStep={onStep}
                 onDialog={setDialog}
               />
             );
           })}
         </SidebarMenu>
-
-        <SidebarMenu className={cn("mt-2", !sectionOpen && "hidden")}>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              onClick={() => setDialog({ kind: "create-board", spaceId: null })}
-              className="text-ink-3"
-            >
-              <PlusIcon />
-              <span>{t("sidebar.newBoard")}</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              onClick={() => setDialog({ kind: "create-space" })}
-              className="text-ink-3"
-            >
-              <FolderPlusIcon />
-              <span>{t("sidebar.createSpace")}</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              render={<Link to="/boards" />}
-              className="text-ink-3"
-            >
-              <Settings2Icon />
-              <span>{t("sidebar.manageBoards")}</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarGroup>
+      </Section>
 
       {dialog?.kind === "create-board" && (
         <BoardFormModal spaceId={dialog.spaceId} onClose={close} />
@@ -178,37 +168,94 @@ export default function BoardsSection() {
   );
 }
 
+function CreateMenu({ onDialog }: { onDialog: (dialog: Dialog) => void }) {
+  const { t } = useTranslation();
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={<IconButton size="xs" label={t("sidebar.createIn")} />}
+      >
+        <PlusIcon />
+      </DropdownMenuTrigger>
+
+      <DropdownMenuContent align="start" className="w-48">
+        <DropdownMenuItem
+          onClick={() => onDialog({ kind: "create-board", spaceId: null })}
+        >
+          <KanbanIcon />
+          {t("sidebar.newBoard")}
+        </DropdownMenuItem>
+
+        <DropdownMenuItem onClick={() => onDialog({ kind: "create-space" })}>
+          <FolderPlusIcon />
+          {t("sidebar.createSpace")}
+        </DropdownMenuItem>
+
+        <DropdownMenuSeparator />
+
+        <DropdownMenuItem render={<Link to="/boards" />}>
+          <Settings2Icon />
+          {t("sidebar.manageBoards")}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 // space === null is the "can't file this" group — a board shared with you whose owner's space you can't read via RLS
 function SpaceRow({
-  space,
-  boards,
+  group,
   userId,
   collapsed,
   onToggle,
+  onStep,
   onDialog,
 }: {
-  space: ISpace | null;
-  boards: IBoard[];
+  group: SpaceGroup;
   userId: string | undefined;
   collapsed: boolean;
   onToggle: () => void;
+  onStep: Step;
   onDialog: (dialog: Dialog) => void;
 }) {
   const { t } = useTranslation();
+  const { space, boards } = group;
+  const key = spaceKeyOf(group);
+
+  // Unfiled is pinned last: it is not a space of the reader's to arrange
+  const { setNodeRef, pointerProps, isDragging, edge } = useReorderItem(key, {
+    group: SIDEBAR_DND.space,
+    axis: "y",
+    disabled: key === UNFILED,
+  });
+
   const title = space?.title ?? t("common.unfiled");
   const newBoardLabel = space
     ? t("sidebar.newBoardIn", { space: space.title })
     : t("sidebar.newBoardUnfiled");
 
   return (
-    <>
-      <SidebarMenuItem className="mt-2 first:mt-0">
+    <li
+      ref={setNodeRef}
+      className={cn(
+        "relative mt-1.5 transition-opacity first:mt-0",
+        isDragging && "opacity-40",
+      )}
+    >
+      <div data-sidebar="menu-item" className="group/menu-item relative">
+        {space && <Grip {...pointerProps} className="-left-2" />}
+
         <SidebarMenuButton
           onClick={onToggle}
+          onKeyDown={
+            space ? stepKey((delta) => onStep("space", key, delta)) : undefined
+          }
           aria-expanded={!collapsed}
           aria-label={t(collapsed ? "sidebar.expand" : "sidebar.collapse", {
             name: title,
           })}
+          title={title}
           className={cn(
             "font-semibold",
             space ? "coarse:pr-18 pr-14" : "coarse:pr-10 pr-8",
@@ -226,7 +273,7 @@ function SpaceRow({
 
           <ChevronRightIcon
             className={cn(
-              "text-ink-3 coarse:opacity-100 size-3.5 opacity-0 transition-[opacity,transform] duration-150 group-hover/menu-item:opacity-100 group-focus-visible/menu-button:opacity-100",
+              "text-ink-3 coarse:opacity-100 size-3.5 opacity-0 transition-[opacity,rotate] duration-150 group-hover/menu-item:opacity-100 group-focus-visible/menu-button:opacity-100",
               collapsed ? "opacity-100" : "rotate-90",
             )}
           />
@@ -290,45 +337,56 @@ function SpaceRow({
             </DropdownMenu>
           )}
         </SidebarMenuActions>
-      </SidebarMenuItem>
+      </div>
 
-      {!collapsed && (
-        <li className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-1 motion-safe:duration-150">
-          <SidebarMenu>
-            {boards.length === 0 ? (
-              <SidebarMenuItem>
-                <span className="text-ink-3 text-meta flex h-8 items-center pl-8">
-                  {space ? t("sidebar.noBoards") : t("sidebar.nothingHere")}
-                </span>
-              </SidebarMenuItem>
-            ) : (
-              boards.map((board) => (
-                <BoardRow
-                  key={board.id}
-                  board={board}
-                  owned={board.owner_id === userId}
-                  onDialog={onDialog}
-                />
-              ))
-            )}
-          </SidebarMenu>
-        </li>
-      )}
-    </>
+      <Collapse open={!collapsed}>
+        <SidebarMenu className="mt-0.5">
+          {boards.length === 0 ? (
+            <SidebarMenuItem>
+              <span className="text-ink-3 text-meta flex h-8 items-center pl-8">
+                {space ? t("sidebar.noBoards") : t("sidebar.nothingHere")}
+              </span>
+            </SidebarMenuItem>
+          ) : (
+            boards.map((board) => (
+              <BoardRow
+                key={board.id}
+                board={board}
+                container={key}
+                owned={board.owner_id === userId}
+                onStep={onStep}
+                onDialog={onDialog}
+              />
+            ))
+          )}
+        </SidebarMenu>
+      </Collapse>
+
+      <DropLine edge={edge} axis="y" />
+    </li>
   );
 }
 
 function BoardRow({
   board,
+  container,
   owned,
+  onStep,
   onDialog,
 }: {
   board: IBoard;
+  container: string;
   owned: boolean;
+  onStep: Step;
   onDialog: (dialog: Dialog) => void;
 }) {
   const { t } = useTranslation();
   const location = useLocation();
+
+  const { setNodeRef, pointerProps, isDragging, edge } = useReorderItem(
+    board.id,
+    { group: SIDEBAR_DND.board, axis: "y", container },
+  );
 
   const to = `/boards/${board.id}`;
   // startsWith, not equality: /boards/:id/settings/... is still this board, and
@@ -337,15 +395,26 @@ function BoardRow({
   const isActive =
     location.pathname === to || location.pathname.startsWith(`${to}/`);
 
+  const title = board.title || t("common.untitledBoard");
+
   return (
-    <SidebarMenuItem>
+    <SidebarMenuItem
+      ref={setNodeRef}
+      className={cn("transition-opacity", isDragging && "opacity-40")}
+    >
+      <Grip {...pointerProps} className="left-3" />
+
       <SidebarMenuButton
-        render={<NavLink to={to} />}
+        render={<NavLink to={to} draggable={false} />}
         isActive={isActive}
+        title={title}
+        onKeyDown={stepKey((delta) =>
+          onStep("board", board.id, delta, container),
+        )}
         className={cn("pl-8", owned && "coarse:pr-10 pr-8")}
       >
         <KanbanIcon />
-        <span>{board.title || t("common.untitledBoard")}</span>
+        <span>{title}</span>
       </SidebarMenuButton>
 
       {owned && (
@@ -385,6 +454,8 @@ function BoardRow({
           </DropdownMenu>
         </SidebarMenuActions>
       )}
+
+      <DropLine edge={edge} axis="y" />
     </SidebarMenuItem>
   );
 }

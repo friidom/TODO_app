@@ -1,9 +1,8 @@
 import { useTranslation } from "react-i18next";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 
 import BoardIdentity from "@/components/layout/BoardIdentity";
 import Drawer from "@/components/layout/Drawer";
-import Layout from "@/components/layout/Layout";
 import ViewShell from "@/components/layout/ViewShell";
 import SprintInsights from "@/components/board/SprintInsights";
 import ViewSettings from "@/components/board/ViewSettings";
@@ -19,7 +18,7 @@ import CalendarView from "@/components/calendar/CalendarView";
 import TimelineView from "@/components/timeline/TimelineView";
 import BacklogView from "@/components/backlog/BacklogView";
 import NotFoundPage from "@/pages/error/NotFoundPage";
-import Loading from "@/components/loading/LoadingPage";
+import { BoardPageSkeleton } from "@/components/loading/ViewSkeleton";
 import { useBoard } from "@/services/boards/useBoard";
 import { useBoardId } from "@/hooks/useBoardId";
 import { useBoardView } from "@/hooks/useBoardView";
@@ -29,6 +28,7 @@ import { usePanel } from "@/hooks/usePanel";
 import { useVisibleTodos } from "@/hooks/useVisibleTodos";
 import { useColumns } from "@/services/columns/useColumnsApi";
 import { useBoardRealtime } from "@/services/realtime/useBoardRealtime";
+import { recordBoardVisit } from "@/services/forYou/viewed";
 import { useTaskLayout } from "@/stores/taskLayout";
 import { relativeTime } from "@/utils/relativeTime";
 import { isUuid } from "@/utils/uuid";
@@ -58,7 +58,13 @@ function BoardView({ boardId }: { boardId: string }) {
   // one channel per board, opened here and torn down on unmount/boardId change — every view below just reads the cache it patches
   const viewers = useBoardRealtime(boardId);
 
-  if (isPending) return <Loading />;
+  const visitedId = board?.id;
+
+  useEffect(() => {
+    if (visitedId) recordBoardVisit(visitedId, new Date().toISOString());
+  }, [visitedId]);
+
+  if (isPending) return <BoardPageSkeleton />;
 
   // real failures (offline, RLS) go to the route's errorElement — telling the user "board not found" would be a lie
   if (error) throw error;
@@ -67,7 +73,7 @@ function BoardView({ boardId }: { boardId: string }) {
   if (!board) return <NotFoundPage />;
 
   return (
-    <Layout>
+    <>
       <ViewShell
         identity={<BoardMeta board={board} viewers={viewers} />}
         tabs={<ViewTabs view={view} />}
@@ -112,7 +118,7 @@ function BoardView({ boardId }: { boardId: string }) {
       </ViewShell>
 
       {taskLayout === "modal" && <TaskDetailModal boardId={boardId} />}
-    </Layout>
+    </>
   );
 }
 

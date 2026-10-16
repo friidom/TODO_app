@@ -9,7 +9,7 @@ import {
 import { PlusIcon, LayersIcon } from "lucide-react";
 
 import ViewNotice from "@/components/board/ViewNotice";
-import Loading from "@/components/loading/LoadingPage";
+import ViewSkeleton from "@/components/loading/ViewSkeleton";
 import EmptyState from "@/components/ui/EmptyState";
 import { workTypeOf } from "@/constants/workTypes";
 import useBacklogDnd, { type BacklogIndicator } from "@/hooks/useBacklogDnd";
@@ -85,7 +85,7 @@ export default function BacklogView() {
     },
   });
 
-  if (isLoading || sprintsLoading) return <Loading />;
+  if (isLoading || sprintsLoading) return <ViewSkeleton mode="backlog" />;
 
   if (error) return <p className="text-status-red text-sm">{error.message}</p>;
 
@@ -123,7 +123,7 @@ export default function BacklogView() {
       }}
     >
       {/* two elements, not one — a single flex-col+overflow-y-auto let flex-shrink squeeze the sections instead of overflowing */}
-      <div className="flex h-full min-h-0 flex-col">
+      <div className="motion-safe:animate-in motion-safe:fade-in-0 flex h-full min-h-0 flex-col duration-200">
         <ViewNotice view={view} visibleCount={todos.length} />
 
         {canEditTodos && (

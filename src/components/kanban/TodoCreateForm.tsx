@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { CornerDownLeft } from "lucide-react";
-import { useEffect, useState, type RefObject } from "react";
+import { useState, type RefObject } from "react";
 
 import AssigneeControl from "@/components/todo/TodoItem/AssigneeControl";
 import DueDateControl from "@/components/todo/TodoItem/DueDateControl";
@@ -10,7 +10,7 @@ import { DEFAULT_WORK_TYPE, type WorkType } from "@/constants/workTypes";
 import { cn } from "@/utils/cn";
 
 const CARD =
-  "rounded-card border-brand/60 bg-elevated ring-brand/15 shadow-e1 border px-2.5 py-2 ring-2";
+  "rounded-card border-brand/60 bg-elevated ring-brand/15 shadow-e1 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-98 ease-emphasized border px-2.5 py-2 ring-2 duration-150";
 
 export interface CreateDraft {
   assignee_id: string | null;
@@ -24,7 +24,6 @@ interface Props {
   onSubmit: (draft: CreateDraft) => void;
   onCancel: () => void;
   boardId: string;
-  skeleton?: boolean;
   className?: string;
   ref?: RefObject<HTMLDivElement | null>;
 }
@@ -36,12 +35,10 @@ export default function TodoCreateForm({
   onSubmit,
   onCancel,
   boardId,
-  skeleton = false,
   className,
   ref,
 }: Props) {
   const { t } = useTranslation();
-  const [ready, setReady] = useState(!skeleton);
   const [assigneeId, setAssigneeId] = useState<string | null>(null);
   const [dueDate, setDueDate] = useState<string | null>(null);
   const [type, setType] = useState<WorkType>(DEFAULT_WORK_TYPE);
@@ -50,32 +47,6 @@ export default function TodoCreateForm({
 
   const submit = () =>
     onSubmit({ assignee_id: assigneeId, due_date: dueDate, type });
-
-  useEffect(() => {
-    if (ready) return;
-
-    const timer = setTimeout(() => setReady(true), 180);
-
-    return () => clearTimeout(timer);
-  }, [ready]);
-
-  if (!ready) {
-    return (
-      <div ref={ref} className={cn(CARD, className)}>
-        <div className="animate-pulse">
-          <div className="bg-wash-strong rounded-control h-5 w-full" />
-
-          <div className="mt-2.5 flex items-center gap-1">
-            <div className="bg-wash-strong rounded-control size-6" />
-            <div className="bg-wash-strong rounded-control size-6" />
-            <div className="bg-wash-strong rounded-control size-6" />
-
-            <div className="bg-wash-strong rounded-control ml-auto size-7" />
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div ref={ref} className={cn(CARD, className)}>

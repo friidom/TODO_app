@@ -1,5 +1,5 @@
 import { Suspense, type ReactNode } from "react";
-import { Navigate, createBrowserRouter } from "react-router";
+import { Navigate, Outlet, createBrowserRouter } from "react-router";
 
 import ProtectedRoute from "./ProtectedRoute";
 import SuperadminRoute from "./SuperadminRoute";
@@ -8,7 +8,12 @@ import PublicRoute from "./PublicRoute";
 import LoginPage from "@/pages/auth/LoginPage";
 import NotFoundPage from "@/pages/error/NotFoundPage";
 import RouteErrorPage from "@/pages/error/RouteErrorPage";
+import Layout from "@/components/layout/Layout";
 import Loading from "@/components/loading/LoadingPage";
+import {
+  BoardPageSkeleton,
+  RowsSkeleton,
+} from "@/components/loading/ViewSkeleton";
 import {
   AdminActivityPage,
   AdminBoardPage,
@@ -37,8 +42,8 @@ import {
 } from "./lazyPages";
 
 // login/ForYou stay eager since they're the first paint; error pages stay eager since a failed lazy import inside one is a dead end
-const deferred = (element: ReactNode) => (
-  <Suspense fallback={<Loading />}>{element}</Suspense>
+const deferred = (element: ReactNode, fallback: ReactNode = <Loading />) => (
+  <Suspense fallback={fallback}>{element}</Suspense>
 );
 
 export const router = createBrowserRouter([
@@ -46,23 +51,45 @@ export const router = createBrowserRouter([
     element: <ProtectedRoute />,
     errorElement: <RouteErrorPage />,
     children: [
-      // "/" is the personal hub, not a redirect to an arbitrary board
+      // One shell for the pages that share the sidebar, so moving between them
+      // keeps it mounted. errorElement sits on each child, not here, so a page
+      // that throws keeps the sidebar as its way out.
       {
-        path: "/",
-        element: <ForYouPage />,
+        element: (
+          <Layout>
+            <Outlet />
+          </Layout>
+        ),
+        children: [
+          // "/" is the personal hub, not a redirect to an arbitrary board
+          {
+            path: "/",
+            element: <ForYouPage />,
+            errorElement: <RouteErrorPage />,
+          },
+          {
+            path: "/boards/:boardId",
+            element: deferred(<BoardPage />, <BoardPageSkeleton />),
+            errorElement: <RouteErrorPage />,
+          },
+          {
+            path: "/filters/:filterId",
+            element: deferred(
+              <FilterPage />,
+              <div className="mx-auto w-full max-w-4xl px-5 pt-16 md:px-6">
+                <RowsSkeleton rows={6} />
+              </div>,
+            ),
+            errorElement: <RouteErrorPage />,
+          },
+        ],
       },
-      // Declared before /boards/:boardId so the literal segment is not swallowed
-      // by the param — the rule the API's own routers follow.
       {
         path: "/boards",
         element: deferred(<ManageBoardsPage />),
       },
-      {
-        path: "/boards/:boardId",
-        element: deferred(<BoardPage />),
-      },
-      // Flat, not nested, like every other route here — each settings page
-      // renders the shell itself, the way the admin pages render AdminShell.
+      // Flat, not nested under the board — each settings page renders the
+      // shell itself, the way the admin pages render AdminShell.
       // The param stays :boardId because useBoardId and usePermissions read it.
       {
         path: "/boards/:boardId/settings",
@@ -83,10 +110,6 @@ export const router = createBrowserRouter([
       {
         path: "/spaces/:spaceId/settings",
         element: deferred(<SpaceSettingsPage />),
-      },
-      {
-        path: "/filters/:filterId",
-        element: deferred(<FilterPage />),
       },
       {
         path: "/tasks/:ref",

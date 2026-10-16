@@ -113,7 +113,6 @@ export default function KanbanColumn({
   const { t } = useTranslation();
 
   const [creatingAt, setCreatingAt] = useState<number | null>(null);
-  const [skeleton, setSkeleton] = useState(false);
   const [title, setTitle] = useState("");
 
   const addTodoMutation = useAddTodo();
@@ -122,12 +121,10 @@ export default function KanbanColumn({
   // stable identity so DropZone's memo holds across ~200 gaps
   const openAt = useCallback((gap: number) => {
     setCreatingAt(gap);
-    setSkeleton(true);
   }, []);
 
   function onClose() {
     setCreatingAt(null);
-    setSkeleton(false);
     setTitle("");
   }
 
@@ -170,15 +167,19 @@ export default function KanbanColumn({
 
     if (!trimmedTitle || creatingAt === null || newCardStatus === null) return;
 
-    addTodoMutation.mutate({
-      title: trimmedTitle,
-      status_id: newCardStatus.id,
-      // creatingAt counts visible cards; append when the list is filtered so the index can't be wrong
-      index: exactOrder ? creatingAt : undefined,
-      ...draft,
-    });
+    addTodoMutation.mutate(
+      {
+        title: trimmedTitle,
+        status_id: newCardStatus.id,
+        // creatingAt counts visible cards; append when the list is filtered so the index can't be wrong
+        index: exactOrder ? creatingAt : undefined,
+        ...draft,
+      },
+      {
+        onError: () => setTitle((current) => current || trimmedTitle),
+      },
+    );
     setTitle("");
-    setSkeleton(false);
     setCreatingAt(creatingAt + 1);
   };
   const listRef = useRef<HTMLDivElement>(null);
@@ -196,7 +197,6 @@ export default function KanbanColumn({
       onSubmit={handleAddTodo}
       onCancel={onClose}
       boardId={column.board_id}
-      skeleton={skeleton}
       // the form sits between a gap and the next card, so it supplies that gap's spacing itself; with gaps off the list's gap-2.5 does
       className={dragDisabled ? undefined : "mb-2.5"}
     />

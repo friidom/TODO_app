@@ -11,10 +11,13 @@ import { cn } from "@/utils/cn";
 export default function ForYouTabs({
   value,
   counts,
+  max,
   onChange,
 }: {
   value: ForYouTab;
   counts?: Partial<Record<ForYouTab, number>>;
+  // a full page is "at least this many", not an exact count
+  max?: number;
   onChange: (tab: ForYouTab) => void;
 }) {
   const { t } = useTranslation();
@@ -56,7 +59,7 @@ export default function ForYouTabs({
                       : "bg-ink/[0.08] text-ink-3",
                   )}
                 >
-                  {count}
+                  {max !== undefined && count >= max ? `${max}+` : count}
                 </span>
               )}
             </button>

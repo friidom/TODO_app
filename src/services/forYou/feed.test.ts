@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import type { IBoard, Todo } from "@/types/data";
 import {
+  groupByStatus,
   groupFeed,
   isForYouTab,
   mergeFeed,
   periodOf,
+  recentBoards,
   toFeedItems,
   type FeedItem,
 } from "./feed";
@@ -308,6 +310,100 @@ describe("current-user filtering", () => {
       true,
       false,
       false,
+    ]);
+  });
+});
+
+describe("assigned work by status", () => {
+  const withStatus = (
+    category: string | null,
+    statusId: string | null = "s-1",
+  ): FeedItem => ({
+    ...item("2026-08-21T09:00:00Z", { status_id: statusId }),
+    todo: {
+      ...todo({ status_id: statusId }),
+      status: category
+        ? { name: category, category: category as "todo" }
+        : null,
+    },
+  });
+
+  it("puts what you are working on first and what is finished last", () => {
+    const groups = groupByStatus([
+      withStatus("done"),
+      withStatus("todo"),
+      withStatus("in_progress"),
+      withStatus("in_review"),
+    ]);
+
+    expect(groups.map((group) => group.key)).toEqual([
+      "in_progress",
+      "in_review",
+      "todo",
+      "done",
+    ]);
+  });
+
+  it("files a card with no status under the backlog", () => {
+    expect(groupByStatus([withStatus(null, null)]).map((g) => g.key)).toEqual([
+      "backlog",
+    ]);
+  });
+
+  it("reads an unknown or missing category as todo", () => {
+    const groups = groupByStatus([withStatus("archived"), withStatus(null)]);
+
+    expect(groups.map((group) => group.key)).toEqual(["todo"]);
+    expect(groups[0]!.items).toHaveLength(2);
+  });
+
+  it("keeps the order it was given inside a group", () => {
+    const first = withStatus("todo");
+    const second = withStatus("todo");
+
+    expect(groupByStatus([first, second])[0]!.items).toEqual([first, second]);
+  });
+});
+
+describe("recent boards", () => {
+  const boards = [
+    board({ id: "a", title: "Alpha" }),
+    board({ id: "c", title: "Gamma" }),
+    board({ id: "b", title: "Beta" }),
+  ];
+
+  it("puts visited boards first, newest visit first", () => {
+    const shortcuts = recentBoards(
+      boards,
+      [
+        { id: "c", at: "2026-08-21T10:00:00Z" },
+        { id: "b", at: "2026-08-20T10:00:00Z" },
+      ],
+      3,
+    );
+
+    expect(shortcuts.map((it) => it.board.id)).toEqual(["c", "b", "a"]);
+    expect(shortcuts.map((it) => it.visitedAt)).toEqual([
+      "2026-08-21T10:00:00Z",
+      "2026-08-20T10:00:00Z",
+      null,
+    ]);
+  });
+
+  it("never offers a board the caller can no longer reach", () => {
+    const shortcuts = recentBoards(
+      boards,
+      [{ id: "gone", at: "2026-08-21T10:00:00Z" }],
+      3,
+    );
+
+    expect(shortcuts.map((it) => it.board.id)).toEqual(["a", "b", "c"]);
+  });
+
+  it("fills with the rest by title, up to the limit", () => {
+    expect(recentBoards(boards, [], 2).map((it) => it.board.id)).toEqual([
+      "a",
+      "b",
     ]);
   });
 });

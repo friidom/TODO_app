@@ -79,15 +79,23 @@ export default function NotificationsButton() {
           onClick={show}
           aria-haspopup="dialog"
           aria-expanded={phase === "open"}
+          tooltip={t("notifications.title")}
           className={cn(visible && "bg-wash-strong text-ink")}
         >
           <BellIcon />
           <span>{t("notifications.title")}</span>
 
           {unread > 0 && (
-            <span className="bg-brand text-brand-fg text-micro ml-auto rounded px-1.5 leading-4 font-semibold tabular-nums">
-              {unread > 99 ? "99+" : unread}
-            </span>
+            <>
+              <span className="bg-brand text-brand-fg text-micro ml-auto rounded px-1.5 leading-4 font-semibold tabular-nums group-data-[collapsible=icon]:sr-only">
+                {unread > 99 ? "99+" : unread}
+              </span>
+
+              <span
+                aria-hidden
+                className="bg-brand ring-rail absolute top-1.5 right-1.5 hidden size-2 rounded-full ring-2 group-data-[collapsible=icon]:block"
+              />
+            </>
           )}
         </SidebarMenuButton>
       </SidebarMenuItem>

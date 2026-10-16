@@ -363,9 +363,12 @@ export function Composer({
   function post() {
     if (value === null) return;
 
-    add.mutate({ todoId, content: value });
+    add.mutate(
+      { todoId, content: value },
+      { onError: () => setDraft((current) => current || value) },
+    );
 
-    // cleared right away, not in onSuccess — the write is optimistic so it's already in the thread below
+    // cleared right away, not in onSuccess — the write is optimistic so it's already in the thread below; a failure puts it back
     setDraft("");
   }
 

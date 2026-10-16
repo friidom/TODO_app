@@ -303,7 +303,12 @@
     "soon": "Soon",
     "profile": "Profile and preferences",
     "account": "Account",
-    "spaceSettings": "Space settings"
+    "spaceSettings": "Space settings",
+    "createIn": "Create",
+    "expandSidebar": "Expand sidebar",
+    "collapseSidebar": "Collapse sidebar",
+    "reorderHint": "Drag to reorder, or press Alt+↑/↓",
+    "movedTo": "{{name}} moved to position {{position}} of {{count}}"
   },
   "header": {
     "newTask": "New task",
@@ -1010,6 +1015,25 @@
         "title": "Nothing viewed yet",
         "hint": "Tasks you open appear here. This list is kept in this browser only, so it starts empty on a new device."
       }
+    },
+    "greeting": {
+      "morning": "Good morning",
+      "afternoon": "Good afternoon",
+      "evening": "Good evening"
+    },
+    "yourWork": "Your work",
+    "recentBoards": "Recent boards",
+    "yourBoards": "Your boards",
+    "allBoards": "All boards",
+    "groups": {
+      "backlog": "Backlog"
+    },
+    "activity": {
+      "title": "Activity",
+      "subtitle": "From teammates on your boards",
+      "loadFailed": "Couldn't load activity",
+      "emptyTitle": "Nothing new from teammates",
+      "emptyHint": "When someone else creates, moves or edits work on one of your boards, it shows up here."
     }
   },
   "notifications": {

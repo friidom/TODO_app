@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 
 import ActivityFeed from "@/components/activity/ActivityFeed";
-import Loading from "@/components/loading/LoadingPage";
+import ViewSkeleton from "@/components/loading/ViewSkeleton";
 import { useBoardId } from "@/hooks/useBoardId";
 import { useBoardView } from "@/hooks/useBoardView";
 import { usePanel } from "@/hooks/usePanel";
@@ -88,12 +88,12 @@ export default function SummaryView() {
     [todos],
   );
 
-  if (isLoading) return <Loading />;
+  if (isLoading) return <ViewSkeleton mode="summary" />;
 
   if (error) return <p className="text-status-red text-sm">{error.message}</p>;
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto pb-4">
+    <div className="motion-safe:animate-in motion-safe:fade-in-0 h-full min-h-0 overflow-y-auto pb-4 duration-200">
       <div className="flex flex-col gap-3">
         {/* gap-px + bg-hairline, not divide-x — divide-* skips the first child, which draws a mid-row rule once the grid wraps to 3 cols */}
         <div className="border-hairline bg-hairline rounded-card grid grid-cols-2 gap-px overflow-hidden border sm:grid-cols-3 xl:grid-cols-6">

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { insertionIndex, reorder, stepGap } from "./reorder";
+import { insertionIndex, reorder, step, stepGap } from "./reorder";
 
 describe("reorder", () => {
   const ids = ["a", "b", "c", "d"];
@@ -47,5 +47,20 @@ describe("stepGap", () => {
     expect(stepGap(4, 1, 4, 1)).toBeNull();
     expect(stepGap(4, 1, 0, -1)).toBeNull();
     expect(stepGap(2, 0, 1, 1)).toBe(2);
+  });
+});
+
+describe("step", () => {
+  const ids = ["a", "b", "c"];
+
+  it("moves an item one place up or down", () => {
+    expect(step(ids, "b", -1)).toEqual(["b", "a", "c"]);
+    expect(step(ids, "b", 1)).toEqual(["a", "c", "b"]);
+  });
+
+  it("has nowhere to go past either end, or for an unknown item", () => {
+    expect(step(ids, "a", -1)).toBeNull();
+    expect(step(ids, "c", 1)).toBeNull();
+    expect(step(ids, "z", 1)).toBeNull();
   });
 });

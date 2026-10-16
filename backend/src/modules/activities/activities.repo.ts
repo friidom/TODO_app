@@ -42,6 +42,25 @@ export function findByTodo(
   });
 }
 
+// actor_id is null on trigger-written system events, and `<> me` alone would
+// drop those rows along with the caller's own.
+export function findTodoEventsByOthers(
+  actorId: string,
+  boardIds: string[],
+  limit: number,
+): Promise<ActivityRow[]> {
+  return prisma.activities.findMany({
+    where: {
+      board_id: { in: boardIds },
+      entity_type: "todo",
+      OR: [{ actor_id: null }, { actor_id: { not: actorId } }],
+    },
+    orderBy: [{ created_at: "desc" }, { id: "desc" }],
+    take: limit,
+    select: ACTIVITY_FIELDS,
+  });
+}
+
 export function findTodoIdsWorkedOn(
   actorId: string,
   boardIds: string[],

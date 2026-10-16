@@ -40,6 +40,11 @@ body,
   background: var(--background);
   transition: background-color 0.2s;
 }
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
 /* Design tokens — M3 shell.
    ---------------------------------------------------------------------------
    Two groups, and the split is deliberate.
@@ -86,6 +91,7 @@ body,
      so the vendored primitives can reach it too. */
   --wash: oklch(0.15 0.02 260 / 5%);
   --wash-strong: oklch(0.15 0.02 260 / 8%);
+  --skeleton-sheen: oklch(1 0 0 / 55%);
 
   /* The shadcn tokens, aliased onto the shell — the same thing `.dark` has
      always done, and the reason light mode looked like a different product.
@@ -158,6 +164,7 @@ body,
 
   --wash: oklch(1 0 0 / 6%);
   --wash-strong: oklch(1 0 0 / 10%);
+  --skeleton-sheen: oklch(1 0 0 / 5%);
 
   --background: var(--canvas);
   --card: var(--surface);
@@ -359,6 +366,8 @@ html {
   --radius-card: var(--radius-card-size);
   --radius-control: var(--radius-control-size);
 
+  --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+
   /* The three steps below `text-xs` that this product genuinely uses and
      Tailwind does not ship. Named rather than arbitrary so the next dense
      surface reaches for a step instead of inventing `text-[12.5px]` — the
@@ -493,6 +502,50 @@ html {
   animation: done-flash 1.4s ease-out;
 }
 
+/* transform, not background-position, so the sweep never repaints */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--wash-strong);
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    transparent,
+    var(--skeleton-sheen),
+    transparent
+  );
+  animation: skeleton-sweep 1.6s ease-in-out infinite;
+}
+
+@keyframes skeleton-sweep {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* delayed so a fast load goes straight to content instead of flashing grey */
+.skeleton-in {
+  animation: skeleton-in 0.2s ease-out 0.15s both;
+}
+
+@keyframes skeleton-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.motion-ghost,
+.motion-ghost * {
+  animation: none !important;
+  pointer-events: none !important;
+}
+
 @keyframes chart-reveal {
   from {
     transform: scaleX(0);
@@ -512,6 +565,10 @@ html {
 @media (prefers-reduced-motion: reduce) {
   .done-flash {
     animation: none;
+  }
+
+  .skeleton::after {
+    display: none;
   }
 
   /* One blanket rule rather than a `motion-safe:` on every transition.

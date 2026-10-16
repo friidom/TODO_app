@@ -19,7 +19,7 @@ export default function ViewShell({
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-h-0 min-w-0 flex-1">
+    <div className="motion-safe:animate-in motion-safe:fade-in-0 flex min-h-0 min-w-0 flex-1 duration-200">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {identity}
 

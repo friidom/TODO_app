@@ -47,3 +47,13 @@ export function stepGap(
 
   return null;
 }
+
+// One place up or down, the keyboard's way of reordering. Null at either end.
+export function step<T>(ids: readonly T[], id: T, delta: -1 | 1): T[] | null {
+  const index = ids.indexOf(id);
+  const neighbour = ids[index + delta];
+
+  if (index === -1 || neighbour === undefined) return null;
+
+  return reorder(ids, id, neighbour, delta < 0 ? "before" : "after");
+}

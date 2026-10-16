@@ -4,31 +4,44 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/services/auth/useAuth";
 import { useBoards } from "@/services/boards/useBoards";
 import { queryKeys } from "@/services/queryClient/queryKeys";
-import type { IBoard, Todo } from "@/types/data";
+import type { IBoard } from "@/types/data";
 import {
   fetchAssignedTodos,
+  fetchMyActivity,
   fetchRecentTodos,
   fetchTodosByIds,
   fetchWorkedOn,
 } from "./forYouApi";
-import { mergeFeed, toFeedItems, type FeedItem, type ForYouTab } from "./feed";
+import {
+  mergeFeed,
+  toFeedItems,
+  type FeedItem,
+  type FeedTodo,
+  type ForYouTab,
+} from "./feed";
 import { readViewed } from "./viewed";
 
 const EMPTY_BOARDS: IBoard[] = [];
-const EMPTY_TODOS: Todo[] = [];
+const EMPTY_TODOS: FeedTodo[] = [];
 
 // All four tabs' queries are declared unconditionally and gated by `enabled` — switching tabs flips which one runs, it doesn't mount/unmount.
 export interface ForYouFeed {
   items: FeedItem[];
   isLoading: boolean;
   error: Error | null;
+  retry: () => void;
 }
 
 export function useForYouFeed(tab: ForYouTab): ForYouFeed {
   const { user } = useAuth();
   const userId = user?.id;
 
-  const { data: boards = EMPTY_BOARDS, isLoading: boardsLoading } = useBoards();
+  const {
+    data: boards = EMPTY_BOARDS,
+    isLoading: boardsLoading,
+    error: boardsError,
+    refetch: refetchBoards,
+  } = useBoards();
 
   // read once on mount — local storage, and this page remounts whenever a task navigates away and back
   const [viewed] = useState(() => readViewed());
@@ -105,11 +118,29 @@ export function useForYouFeed(tab: ForYouTab): ForYouFeed {
     (ids.length > 0 && byIds.isLoading);
 
   const error =
+    boardsError ??
     (tab === "recommended" ? (recent.error ?? assigned.error) : null) ??
     (tab === "assigned" ? assigned.error : null) ??
     source?.error ??
     byIds.error ??
     null;
 
-  return { items, isLoading, error };
+  const retry = () => {
+    for (const query of [recent, assigned, workedOn, byIds]) {
+      if (query.error) void query.refetch();
+    }
+
+    if (boardsError) void refetchBoards();
+  };
+
+  return { items, isLoading, error, retry };
+}
+
+// Polls: a teammate.s change reaches no realtime channel this page listens on.
+export function useMyActivity() {
+  return useQuery({
+    queryKey: queryKeys.forYouActivity(),
+    queryFn: () => fetchMyActivity(),
+    refetchInterval: 60_000,
+  });
 }

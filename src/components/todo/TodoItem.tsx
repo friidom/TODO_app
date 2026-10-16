@@ -1,4 +1,12 @@
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useDraggable } from "@dnd-kit/core";
 
 import TodoCard from "./TodoCard";
@@ -11,6 +19,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useTodoPatch } from "@/hooks/useTodoPatch";
 import { toCardContent } from "@/services/todos/toCardContent";
 import { useBoardViewPrefs } from "@/stores/boardViewPrefs";
+import { useCardLanding, type Landing } from "@/stores/cardLanding";
 import { useDoneFlash } from "@/stores/doneFlash";
 import type { Todo, TodoViewState } from "@/types/data";
 import { taskKey } from "@/utils/taskKey";
@@ -198,6 +207,32 @@ const TodoContainer = memo(function TodoContainer({
     (state) => state.todoId === todo.id && !overlay && !dragging,
   );
 
+  const landing = useCardLanding((state) =>
+    !overlay && state.landing?.todoId === todo.id ? state.landing : null,
+  );
+  const clearLanding = useCardLanding((state) => state.clear);
+
+  // the drop's optimistic write lands a tick after the drag ends; until it does, this is still the dragged-from slot
+  const landed =
+    landing !== null &&
+    (landing.statusId !== todo.status_id || landing.rank !== todo.rank);
+
+  const nodeRef = useRef<HTMLElement | null>(null);
+  const setRef = useCallback(
+    (element: HTMLElement | null) => {
+      nodeRef.current = element;
+      setNodeRef?.(element);
+    },
+    [setNodeRef],
+  );
+
+  useLayoutEffect(() => {
+    if (!landing || !landed || !nodeRef.current) return;
+
+    clearLanding();
+    flyIn(nodeRef.current, landing);
+  }, [landing, landed, clearLanding]);
+
   function save() {
     // empty reverts, unchanged is a no-op — both just close the editor
     if (draft.trim() === "" || draft === todo.title) {
@@ -223,7 +258,7 @@ const TodoContainer = memo(function TodoContainer({
       celebrate={celebrate}
       selected={selected}
       overlay={overlay}
-      dragging={dragging}
+      dragging={dragging || (landing !== null && !landed)}
       dragDisabled={dragDisabled}
       onDraftChange={setDraft}
       onSave={save}
@@ -248,8 +283,50 @@ const TodoContainer = memo(function TodoContainer({
         />
       }
       menu={<TodoMenu todo={todo} onEdit={() => setEditing(true)} />}
-      setNodeRef={setNodeRef}
+      setNodeRef={setRef}
       handleProps={handleProps}
     />
   );
 });
+
+// From where the overlay was let go into the card's own slot. A copy flies,
+// fixed over the page, because the card itself is clipped by its column's
+// scroller; the card waits invisible underneath for exactly as long.
+function flyIn(node: HTMLElement, from: Landing) {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+  const to = node.getBoundingClientRect();
+  const dx = from.left - to.left;
+  const dy = from.top - to.top;
+
+  if (Math.abs(dx) + Math.abs(dy) < 2) return;
+
+  const ghost = node.cloneNode(true) as HTMLElement;
+
+  ghost.inert = true;
+  ghost.classList.add("motion-ghost");
+  Object.assign(ghost.style, {
+    position: "fixed",
+    left: `${to.left}px`,
+    top: `${to.top}px`,
+    width: `${to.width}px`,
+    height: `${to.height}px`,
+    margin: "0",
+    zIndex: "60",
+  });
+  document.body.append(ghost);
+
+  const timing = { duration: 220, easing: "cubic-bezier(0.2, 0, 0, 1)" };
+
+  node.animate({ opacity: [0, 0] }, timing);
+
+  const flight = ghost.animate(
+    [
+      { transform: `translate(${dx}px, ${dy}px) rotate(1.5deg)` },
+      { transform: "none" },
+    ],
+    timing,
+  );
+
+  flight.onfinish = flight.oncancel = () => ghost.remove();
+}

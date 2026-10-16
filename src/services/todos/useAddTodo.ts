@@ -169,8 +169,10 @@ export function useAddTodo() {
   });
 
   // Minted here, not in onMutate, because mutationFn needs it too and context only flows forward to the callbacks.
-  const mutate = (variables: AddTodoVars) =>
-    mutation.mutate({ ...variables, id: crypto.randomUUID() });
+  const mutate = (
+    variables: AddTodoVars,
+    options?: Parameters<typeof mutation.mutate>[1],
+  ) => mutation.mutate({ ...variables, id: crypto.randomUUID() }, options);
 
   return { ...mutation, mutate };
 }

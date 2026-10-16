@@ -21,7 +21,7 @@ export default function ThemeToggle() {
         <Sun
           size={18}
           className={cn(
-            "absolute transition-all duration-150 ease-out",
+            "absolute transition-[rotate,opacity] duration-150 ease-out",
             theme === "dark" ? "rotate-0 opacity-100" : "rotate-90 opacity-0",
           )}
         />
@@ -29,7 +29,7 @@ export default function ThemeToggle() {
         <Moon
           size={18}
           className={cn(
-            "absolute transition-all duration-150 ease-out",
+            "absolute transition-[rotate,opacity] duration-150 ease-out",
             theme === "light" ? "rotate-0 opacity-100" : "-rotate-90 opacity-0",
           )}
         />

@@ -90,6 +90,8 @@ export const queryKeys = {
   forYouWorkedOn: (userId: string | undefined) =>
     [...FOR_YOU_ROOT, "worked-on", userId] as const,
 
+  forYouActivity: () => [...FOR_YOU_ROOT, "activity"] as const,
+
   forYouByIds: (ids: string[]) =>
     [...FOR_YOU_ROOT, "by-ids", [...ids].sort().join(",")] as const,
 

@@ -5,7 +5,7 @@ import { ChevronRightIcon, InboxIcon } from "lucide-react";
 import { DragChip } from "@/components/dnd/DropLine";
 import ReorderContext from "@/components/dnd/ReorderContext";
 import type { ReorderMove } from "@/components/dnd/reorderDnd";
-import Loading from "@/components/loading/LoadingPage";
+import ViewSkeleton from "@/components/loading/ViewSkeleton";
 import EmptyState from "@/components/ui/EmptyState";
 import { categoryOf } from "@/constants/columns";
 import { useBoardId } from "@/hooks/useBoardId";
@@ -160,7 +160,7 @@ export default function ListView() {
   // Same target HeaderTodoForm picks.
   const createStatusId = useMemo(() => defaultStatus(statuses)?.id, [statuses]);
 
-  if (isLoading) return <Loading />;
+  if (isLoading) return <ViewSkeleton mode="list" />;
 
   if (error) return <p className="text-status-red text-sm">{error.message}</p>;
 
@@ -241,7 +241,7 @@ export default function ListView() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="motion-safe:animate-in motion-safe:fade-in-0 flex h-full min-h-0 flex-col duration-200">
       <div
         className={cn(FRAME, "flex min-h-0 flex-1 flex-col overflow-hidden")}
       >

@@ -317,16 +317,16 @@ function Row({
 
 function Skeleton() {
   return (
-    <ul className="animate-pulse flex-col gap-1 p-0.5">
+    <ul aria-hidden className="flex-col gap-1 p-0.5">
       {Array.from({ length: 4 }, (_, i) => (
         <li key={i} className="flex items-start gap-2.5 px-2 py-2">
-          <span className="bg-ink/10 size-7 shrink-0 rounded-lg" />
+          <span className="skeleton size-7 shrink-0 rounded-lg" />
           <span className="min-w-0 flex-1">
             <span
-              className="bg-ink/10 block h-3 rounded"
+              className="skeleton block h-3 rounded"
               style={{ width: `${60 + ((i * 11) % 30)}%` }}
             />
-            <span className="bg-ink/10 mt-2 block h-2.5 w-24 rounded" />
+            <span className="skeleton mt-2 block h-2.5 w-24 rounded" />
           </span>
         </li>
       ))}

@@ -111,9 +111,9 @@ export function AdminSkeleton({ rows = 8 }: { rows?: number }) {
           key={index}
           className="border-hairline flex items-center gap-3 border-b px-3.5 py-2.5 last:border-b-0"
         >
-          <span className="bg-ink/[0.06] h-3 w-40 animate-pulse rounded" />
-          <span className="bg-ink/[0.04] h-3 flex-1 animate-pulse rounded" />
-          <span className="bg-ink/[0.04] h-3 w-16 animate-pulse rounded" />
+          <span className="skeleton h-3 w-40 rounded" />
+          <span className="skeleton h-3 flex-1 rounded" />
+          <span className="skeleton h-3 w-16 rounded" />
         </div>
       ))}
     </div>

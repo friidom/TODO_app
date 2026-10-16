@@ -303,7 +303,12 @@
     "soon": "Tez orada",
     "profile": "Profil va sozlamalar",
     "account": "Hisob",
-    "spaceSettings": "Maydon sozlamalari"
+    "spaceSettings": "Maydon sozlamalari",
+    "createIn": "Yaratish",
+    "expandSidebar": "Yon panelni yoyish",
+    "collapseSidebar": "Yon panelni yig'ish",
+    "reorderHint": "Tartibini o'zgartirish uchun torting yoki Alt+↑/↓ ni bosing",
+    "movedTo": "{{name}}: {{count}} tadan {{position}}-o'rin"
   },
   "header": {
     "newTask": "Yangi vazifa",
@@ -1010,6 +1015,25 @@
         "title": "Hali hech narsa ko'rilmagan",
         "hint": "Siz ochgan vazifalar shu yerda ko'rinadi. Bu ro'yxat faqat shu brauzerda saqlanadi, shuning uchun yangi qurilmada bo'sh boshlanadi."
       }
+    },
+    "greeting": {
+      "morning": "Xayrli tong",
+      "afternoon": "Xayrli kun",
+      "evening": "Xayrli kech"
+    },
+    "yourWork": "Ishlaringiz",
+    "recentBoards": "So'nggi doskalar",
+    "yourBoards": "Doskalaringiz",
+    "allBoards": "Barcha doskalar",
+    "groups": {
+      "backlog": "Backlog"
+    },
+    "activity": {
+      "title": "Faollik",
+      "subtitle": "Doskalaringizdagi hamkasblar",
+      "loadFailed": "Faollikni yuklab bo'lmadi",
+      "emptyTitle": "Hamkasblardan yangilik yo'q",
+      "emptyHint": "Boshqa birov doskalaringizdan birida ish yaratsa, ko'chirsa yoki o'zgartirsa, bu yerda ko'rinadi."
     }
   },
   "notifications": {

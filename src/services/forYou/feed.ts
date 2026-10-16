@@ -1,9 +1,19 @@
 import { translated } from "@/components/i18n";
+import { COLUMN_CATEGORIES, type ColumnCategory } from "@/constants/columns";
 import type { IBoard, Todo } from "@/types/data";
 import { taskKey } from "@/utils/taskKey";
+import type { BoardVisit } from "./viewed";
+
+export interface FeedStatus {
+  name: string;
+  category: ColumnCategory;
+}
+
+// The /me reads join the status in; a row built from a board's own todos has none.
+export type FeedTodo = Todo & { status?: FeedStatus | null };
 
 export interface FeedItem {
-  todo: Todo;
+  todo: FeedTodo;
   at: string;
   boardName: string | null;
   key: string | null;
@@ -30,7 +40,7 @@ export function isForYouTab(value: string | null): value is ForYouTab {
 }
 
 export function toFeedItems(
-  todos: Todo[],
+  todos: FeedTodo[],
   boards: IBoard[],
   dateOf: (todo: Todo) => string | null = (todo) =>
     todo.updated_at ?? todo.created_at,
@@ -167,4 +177,83 @@ export function groupFeed(
     label: FEED_PERIOD_LABELS[period],
     items: buckets.get(period)!,
   }));
+}
+
+export const STATUS_GROUPS = [
+  "in_progress",
+  "in_review",
+  "todo",
+  "backlog",
+  "done",
+] as const;
+
+export type StatusGroupKey = (typeof STATUS_GROUPS)[number];
+
+export interface StatusGroup {
+  key: StatusGroupKey;
+  items: FeedItem[];
+}
+
+function isCategory(value: unknown): value is ColumnCategory {
+  return typeof value === "string" && value in COLUMN_CATEGORIES;
+}
+
+// An unknown category reads as todo, the fallback categoryOf uses.
+export function groupByStatus(items: FeedItem[]): StatusGroup[] {
+  const buckets = new Map<StatusGroupKey, FeedItem[]>();
+
+  for (const item of items) {
+    const category = item.todo.status?.category;
+    const key: StatusGroupKey =
+      item.todo.status_id === null
+        ? "backlog"
+        : isCategory(category)
+          ? category
+          : "todo";
+
+    const bucket = buckets.get(key);
+
+    if (bucket) bucket.push(item);
+    else buckets.set(key, [item]);
+  }
+
+  return STATUS_GROUPS.filter((key) => buckets.has(key)).map((key) => ({
+    key,
+    items: buckets.get(key)!,
+  }));
+}
+
+export interface BoardShortcut {
+  board: IBoard;
+  visitedAt: string | null;
+}
+
+// The rest follow by title so a browser with no visits still gets shortcuts.
+export function recentBoards(
+  boards: IBoard[],
+  visits: BoardVisit[],
+  limit: number,
+): BoardShortcut[] {
+  const byId = new Map(boards.map((board) => [board.id, board]));
+  const shortcuts: BoardShortcut[] = [];
+  const taken = new Set<string>();
+
+  for (const visit of visits) {
+    const board = byId.get(visit.id);
+
+    if (!board || taken.has(board.id)) continue;
+
+    taken.add(board.id);
+    shortcuts.push({ board, visitedAt: visit.at });
+  }
+
+  const rest = boards
+    .filter((board) => !taken.has(board.id))
+    .sort((a, b) => (a.title ?? "").localeCompare(b.title ?? ""));
+
+  for (const board of rest) {
+    shortcuts.push({ board, visitedAt: null });
+  }
+
+  return shortcuts.slice(0, limit);
 }

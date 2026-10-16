@@ -91,7 +91,7 @@ export default function Histogram({
                       height: `${Math.max(bin.count === 0 ? 0 : 3, (bin.count / peak) * 100)}%`,
                     }}
                     className={cn(
-                      "w-full rounded-t-[3px] transition-all duration-150",
+                      "w-full rounded-t-[3px] transition-[height,background-color] duration-150",
                       selected === index
                         ? "bg-brand"
                         : active === index
