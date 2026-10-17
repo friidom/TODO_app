@@ -10,7 +10,7 @@ import { DEFAULT_WORK_TYPE, type WorkType } from "@/constants/workTypes";
 import { cn } from "@/utils/cn";
 
 const CARD =
-  "rounded-card border-brand/60 bg-elevated ring-brand/15 shadow-e1 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-98 ease-emphasized border px-2.5 py-2 ring-2 duration-150";
+  "rounded-md border-brand/60 bg-elevated ring-brand/15 shadow-e1 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-98 ease-emphasized border px-2.5 py-2 ring-2 duration-150";
 
 export interface CreateDraft {
   assignee_id: string | null;

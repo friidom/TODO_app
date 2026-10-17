@@ -9,26 +9,35 @@ export default function LabelChip({
   onRemove,
   removeLabel,
   size = "md",
+  outline = false,
 }: {
   name: string;
   onRemove?: () => void;
   removeLabel?: string;
   size?: "sm" | "md";
+  outline?: boolean;
 }) {
   const tone = labelTone(name);
 
   return (
     <span
       className={cn(
-        "text-ink rounded-control inline-flex max-w-full min-w-0 items-center gap-1 font-medium",
-        size === "sm" ? "text-micro h-4 px-1" : "text-mini h-6 px-1.5",
-        tone.chip,
+        "text-ink inline-flex max-w-full min-w-0 items-center gap-1",
+        outline
+          ? cn("bg-elevated h-5 rounded border px-1 text-xs", tone.border)
+          : cn(
+              "rounded-control font-medium",
+              size === "sm" ? "text-micro h-4 px-1" : "text-mini h-6 px-1.5",
+              tone.chip,
+            ),
       )}
     >
-      <span
-        aria-hidden
-        className={cn("size-1.5 shrink-0 rounded-full", tone.dot)}
-      />
+      {!outline && (
+        <span
+          aria-hidden
+          className={cn("size-1.5 shrink-0 rounded-full", tone.dot)}
+        />
+      )}
       <span className="min-w-0 truncate">{name}</span>
 
       {onRemove && (

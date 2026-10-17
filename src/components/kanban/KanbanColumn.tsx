@@ -322,12 +322,6 @@ export default function KanbanColumn({
                   subtaskTotal={subtaskProgress.get(todo.id)?.total ?? 0}
                   parentLabel={cardLabels.parents.get(todo.parent_id ?? "")}
                   spaceLabel={cardLabels.space}
-                  statusName={
-                    cardLabels.statuses.get(todo.status_id ?? "")?.name
-                  }
-                  statusCategory={
-                    cardLabels.statuses.get(todo.status_id ?? "")?.category
-                  }
                   reporterName={cardLabels.people.get(todo.creator_id ?? "")}
                 />
 

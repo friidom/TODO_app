@@ -11,6 +11,7 @@ import { useDraggable } from "@dnd-kit/core";
 
 import TodoCard from "./TodoCard";
 import AssigneeControl from "./TodoItem/AssigneeControl";
+import StatusControl from "./TodoItem/StatusControl";
 import TodoMenu from "./TodoItem/TodoMenu";
 import { itemLabel } from "@/hooks/dragAnnouncements";
 import { useKeyPrefix } from "@/hooks/useKeyPrefix";
@@ -35,8 +36,6 @@ const TodoItem = memo(function TodoItem({
   subtaskTotal = 0,
   parentLabel,
   spaceLabel,
-  statusName,
-  statusCategory,
   reporterName,
   selected = false,
 }: { todo: Todo; selected?: boolean } & TodoViewState &
@@ -52,8 +51,6 @@ const TodoItem = memo(function TodoItem({
         subtaskTotal={subtaskTotal}
         parentLabel={parentLabel}
         spaceLabel={spaceLabel}
-        statusName={statusName}
-        statusCategory={statusCategory}
         reporterName={reporterName}
       />
     );
@@ -67,8 +64,6 @@ const TodoItem = memo(function TodoItem({
       subtaskTotal={subtaskTotal}
       parentLabel={parentLabel}
       spaceLabel={spaceLabel}
-      statusName={statusName}
-      statusCategory={statusCategory}
       reporterName={reporterName}
       selected={selected}
     />
@@ -81,12 +76,10 @@ export interface SubtaskCounts {
   subtaskTotal?: number;
 }
 
-// the Parent, Space, Status and Reporter card fields' text, looked up once per column (useCardLabels) for the same reason
+// the Parent, Space and Reporter card fields' text, looked up once per column (useCardLabels) for the same reason
 export interface CardLabels {
   parentLabel?: string;
   spaceLabel?: string;
-  statusName?: string;
-  statusCategory?: string;
   reporterName?: string;
 }
 
@@ -99,8 +92,6 @@ function DraggableTodo({
   subtaskTotal,
   parentLabel,
   spaceLabel,
-  statusName,
-  statusCategory,
   reporterName,
   selected,
 }: {
@@ -180,8 +171,6 @@ function DraggableTodo({
       subtaskTotal={subtaskTotal}
       parentLabel={parentLabel}
       spaceLabel={spaceLabel}
-      statusName={statusName}
-      statusCategory={statusCategory}
       reporterName={reporterName}
       selected={selected}
       setNodeRef={setNodeRef}
@@ -200,8 +189,6 @@ const TodoContainer = memo(function TodoContainer({
   subtaskTotal = 0,
   parentLabel,
   spaceLabel,
-  statusName,
-  statusCategory,
   reporterName,
   selected = false,
   setNodeRef,
@@ -298,13 +285,19 @@ const TodoContainer = memo(function TodoContainer({
       shownFields={shownFields}
       parentLabel={parentLabel}
       spaceLabel={spaceLabel}
-      statusName={statusName}
-      statusCategory={statusCategory}
       reporterName={reporterName}
       // opening the panel is a read, not gated on canEditTodos — just withheld on the overlay copy
       onOpen={overlay ? undefined : () => openTask(todo.id)}
+      status={
+        <StatusControl
+          variant="lozenge"
+          todoId={todo.id}
+          statusId={todo.status_id}
+        />
+      }
       assignee={
         <AssigneeControl
+          alwaysVisible
           boardId={todo.board_id}
           value={todo.assignee_id}
           onChange={(assignee_id) => patch({ assignee_id })}

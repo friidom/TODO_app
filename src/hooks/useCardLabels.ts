@@ -8,13 +8,11 @@ import { useBoardMembers } from "@/services/members/useBoardMembers";
 import { useSpaces } from "@/services/spaces/useSpaces";
 import { isEpic } from "@/services/todos/subtasks";
 import { useTodos } from "@/services/todos/useTodos";
-import { useStatuses } from "@/services/workflow/useWorkflow";
 import type { BoardMember } from "@/services/members/membersApi";
-import type { IStatus, Todo } from "@/types/data";
+import type { Todo } from "@/types/data";
 
 const NO_TODOS: Todo[] = [];
 const NO_MEMBERS: BoardMember[] = [];
-const NO_STATUSES: IStatus[] = [];
 
 // The names the Parent and Space card fields show, built once per column and looked up by id, so no card gains a
 // hook of its own. Board cards are never subtasks, so an Epic is the only parent one can have. A card's space is its
@@ -25,7 +23,6 @@ export function useCardLabels() {
   const boardId = useBoardId();
   const { data: board } = useBoard(boardId);
   const { data: members = NO_MEMBERS } = useBoardMembers(boardId);
-  const { data: statuses = NO_STATUSES } = useStatuses();
   const { data: spaces } = useSpaces();
 
   const parents = useMemo(
@@ -40,15 +37,10 @@ export function useCardLabels() {
       : (spaces.find((it) => it.id === board.space_id)?.title ??
         t("common.unfiled"));
 
-  const statusById = useMemo(
-    () => new Map(statuses.map((status) => [status.id, status])),
-    [statuses],
-  );
-
   const people = useMemo(
     () => new Map(members.map((member) => [member.id, memberName(member)])),
     [members],
   );
 
-  return { parents, space, statuses: statusById, people };
+  return { parents, space, people };
 }

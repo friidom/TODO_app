@@ -2,7 +2,6 @@ import { useTranslation } from "react-i18next";
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   CheckIcon,
-  CircleCheck,
   FolderIcon,
   ListTree,
   Pencil,
@@ -16,7 +15,6 @@ import EstimateControl from "./TodoItem/EstimateControl";
 import PriorityControl from "./TodoItem/PriorityControl";
 import WorkTypeControl from "./TodoItem/WorkTypeControl";
 import IconButton from "@/components/ui/IconButton";
-import { categoryOf } from "@/constants/columns";
 import { toPriority, type Priority } from "@/constants/priorities";
 import { workTypeOf, type WorkType } from "@/constants/workTypes";
 import {
@@ -29,6 +27,12 @@ import { relativeTime } from "@/utils/relativeTime";
 import type { TodoCardContent, TodoViewState } from "@/types/data";
 
 const EPIC = workTypeOf("Epic");
+const MAX_LABELS = 6;
+
+const META_ROW =
+  "text-ink-2 flex min-w-0 items-center gap-1.5 text-xs leading-4";
+const META_CHIP =
+  "border-ink/20 inline-flex h-5 max-w-full min-w-0 items-center gap-1 rounded border px-1 text-xs";
 
 export interface TodoCardProps extends TodoCardContent, TodoViewState {
   draft: string;
@@ -36,7 +40,7 @@ export interface TodoCardProps extends TodoCardContent, TodoViewState {
   canEdit: boolean;
   // just landed in a done column — play the ring once
   celebrate?: boolean;
-  // its status's category is done: the key is struck through and checked, the title stays fully legible
+  // its status's category is done: the footer shows a check
   done?: boolean;
   // the card whose task panel is open
   selected?: boolean;
@@ -58,13 +62,12 @@ export interface TodoCardProps extends TodoCardContent, TodoViewState {
   shownFields?: readonly CardField[];
   parentLabel?: string;
   spaceLabel?: string;
-  statusName?: string;
-  statusCategory?: string;
   reporterName?: string;
 
   // absent on the drag overlay, which has no chrome to open anything from
   onOpen?: () => void;
 
+  status?: ReactNode;
   assignee?: ReactNode;
   menu?: ReactNode;
 
@@ -107,10 +110,9 @@ export default function TodoCard({
   shownFields = DEFAULT_CARD_FIELDS,
   parentLabel,
   spaceLabel,
-  statusName,
-  statusCategory,
   reporterName,
   onOpen,
+  status,
   assignee,
   menu,
   setNodeRef,
@@ -132,8 +134,6 @@ export default function TodoCard({
 
   const show = (field: CardField) => shownFields.includes(field);
 
-  // Set fields lead and empty ones trail, each in its own box: an invisible placeholder in front would indent
-  // everything after it, and one that wrapped would leave a blank line under the card at rest.
   const controls: { key: CardField; set: boolean; node: ReactNode }[] = [
     {
       key: "priority",
@@ -173,15 +173,17 @@ export default function TodoCard({
 
   const fields = controls.filter((field) => show(field.key));
 
-  const filled = fields.filter((field) => field.set);
+  // An empty control waits in the footer, revealed on hover. A set due date is a row of its own: beside the
+  // priority, estimate, subtasks and avatar it pushed the key off a 264px card.
   const empty = fields.filter((field) => !field.set);
+  const filled = fields.filter((field) => field.set && field.key !== "due");
+  const due = fields.find((field) => field.set && field.key === "due");
 
-  const header = show("type") || show("key");
   const subtasks = show("subtasks") && subtaskTotal > 0;
   const parent = show("parent") && parentLabel !== undefined;
   const space = show("space") && spaceLabel !== undefined;
-  const status = show("status") && statusName !== undefined;
   const reporter = show("reporter") && reporterName !== undefined;
+  const identity = show("type") || show("key");
 
   // Each date is "Label value", with the full day in its title: an icon alone cannot tell created from updated.
   const dates = (
@@ -198,66 +200,13 @@ export default function TodoCard({
     ] as const
   ).filter(([field, , iso, text]) => show(field) && iso && text);
 
-  const context = [
-    status && (
-      <span
-        key="status"
-        title={statusName}
-        className="inline-flex max-w-full min-w-0 items-center gap-1.5"
-      >
-        <span
-          className={cn(
-            "size-1.5 shrink-0 rounded-full",
-            categoryOf(statusCategory).dot,
-          )}
-        />
-        <span className="truncate">{statusName}</span>
-      </span>
-    ),
-    parent && (
-      <span
-        key="parent"
-        title={parentLabel}
-        className="inline-flex max-w-full min-w-0 items-center gap-1"
-      >
-        <EPIC.icon className={cn("size-3 shrink-0", EPIC.tone)} />
-        <span className="truncate">{parentLabel || t("common.untitled")}</span>
-      </span>
-    ),
-    reporter && (
-      <span
-        key="reporter"
-        title={`${t("fields.reporter")}: ${reporterName}`}
-        className="inline-flex max-w-full min-w-0 items-center gap-1"
-      >
-        <UserIcon className="size-3 shrink-0" />
-        <span className="truncate">{reporterName}</span>
-      </span>
-    ),
-    space && (
-      <span
-        key="space"
-        title={spaceLabel}
-        className="inline-flex max-w-full min-w-0 items-center gap-1"
-      >
-        <FolderIcon className="size-3 shrink-0" />
-        <span className="truncate">{spaceLabel}</span>
-      </span>
-    ),
-  ].filter(Boolean);
-  const labelChips = show("labels") && labels.length > 0;
-  const footer = fields.length > 0 || subtasks || show("assignee");
+  const footer =
+    identity || fields.length > 0 || subtasks || done || show("assignee");
 
   const actions = !editing && canEdit && (
-    <div
-      className={cn(
-        "coarse:opacity-100 flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100",
-        // with type and key both hidden there is no top row to sit in, so it floats over the corner instead of adding one
-        header
-          ? "-my-0.5 -mr-1 ml-auto"
-          : "bg-elevated rounded-control absolute top-1.5 right-1.5 z-10",
-      )}
-    >
+    // over the title rather than beside it, so a long title keeps the card's full width at rest;
+    // background:inherit picks up the card's hover wash, which is a gradient layer and not a colour
+    <div className="coarse:opacity-100 rounded-control absolute top-2.5 right-2 z-10 flex items-center gap-0.5 opacity-0 transition-opacity duration-150 [background:inherit] group-hover:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100">
       <IconButton
         size="xs"
         label={t("common.rename")}
@@ -300,7 +249,7 @@ export default function TodoCard({
         onOpen?.();
       }}
       className={cn(
-        "group border-hairline bg-elevated rounded-card shadow-e1 focus-visible:ring-brand relative flex flex-col gap-1 border p-2.5 transition-[border-color,box-shadow,opacity] duration-150 outline-none focus-visible:ring-2",
+        "group border-hairline bg-elevated shadow-e1 focus-visible:ring-brand relative flex flex-col gap-2 rounded-md border p-3 transition-[border-color,box-shadow,opacity] duration-150 outline-none focus-visible:ring-2",
         !dragDisabled && "touch-none select-none",
         overlay
           ? "shadow-e3 pointer-events-none rotate-[1.5deg]"
@@ -319,58 +268,7 @@ export default function TodoCard({
           "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 ease-emphasized duration-200",
       )}
     >
-      {header ? (
-        <div className="coarse:min-h-7 flex min-h-5 items-center gap-1.5">
-          {show("type") && (
-            <WorkTypeControl
-              bare
-              value={workType}
-              onChange={onWorkTypeChange}
-              placement="bottom-start"
-            />
-          )}
-
-          {!show("key") ? null : taskKey === null ? (
-            <span aria-hidden className="skeleton h-2 w-9 rounded-full" />
-          ) : onOpen ? (
-            <button
-              type="button"
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={onOpen}
-              title={`Open ${taskKey}`}
-              className={cn(
-                "text-ink-3 hover:text-brand focus-visible:ring-brand rounded-control text-mini font-medium tabular-nums transition-colors duration-150 outline-none focus-visible:ring-2",
-                done && "decoration-ink-3/70 line-through",
-                wasPending &&
-                  "motion-safe:animate-in motion-safe:fade-in-0 duration-300",
-              )}
-            >
-              {taskKey}
-            </button>
-          ) : (
-            <span
-              className={cn(
-                "text-ink-3 text-mini font-medium tabular-nums",
-                done && "decoration-ink-3/70 line-through",
-              )}
-            >
-              {taskKey}
-            </span>
-          )}
-
-          {done && (
-            <CircleCheck
-              role="img"
-              aria-label={t("columnCategory.done")}
-              className="text-status-green size-3.5 shrink-0"
-            />
-          )}
-
-          {actions}
-        </div>
-      ) : (
-        actions
-      )}
+      {actions}
 
       {editing ? (
         <div className="flex flex-col gap-1.5">
@@ -387,7 +285,7 @@ export default function TodoCard({
               if (e.key === "Escape") onCancel();
             }}
             onPointerDown={(e) => e.stopPropagation()}
-            className="bg-elevated text-ink rounded-control ring-brand -mx-1 w-[calc(100%+0.5rem)] px-1 text-sm leading-snug font-medium ring-2 outline-none"
+            className="bg-elevated text-ink rounded-control ring-brand -mx-1 w-[calc(100%+0.5rem)] px-1 text-sm leading-5 ring-2 outline-none"
           />
 
           {/* preventDefault on pointerdown keeps focus in the field: its blur saves, and would beat Cancel to it */}
@@ -423,8 +321,9 @@ export default function TodoCard({
         show("summary") && (
           <p
             className={cn(
-              "line-clamp-3 text-sm leading-snug font-medium break-words",
-              done ? "text-ink-2" : "text-ink",
+              "text-ink line-clamp-3 text-sm leading-5 break-words",
+              // touch shows the actions at rest, so the first line must not run under them
+              actions && "coarse:pr-16",
             )}
           >
             {title}
@@ -432,71 +331,131 @@ export default function TodoCard({
         )
       )}
 
-      {labelChips && (
-        <div className="flex min-w-0 items-center gap-1">
-          {labels.slice(0, 2).map((name) => (
-            <span key={name} className="min-w-0 shrink">
-              <LabelChip name={name} size="sm" />
-            </span>
+      {show("status") && status && <div className="flex min-w-0">{status}</div>}
+
+      {show("labels") && labels.length > 0 && (
+        <div className="flex min-w-0 flex-wrap gap-1">
+          {labels.slice(0, MAX_LABELS).map((name) => (
+            <LabelChip key={name} name={name} outline />
           ))}
-          {labels.length > 2 && (
+          {labels.length > MAX_LABELS && (
             <span
-              title={labels.slice(2).join(", ")}
-              className="text-ink-3 text-micro shrink-0 font-medium tabular-nums"
+              title={labels.slice(MAX_LABELS).join(", ")}
+              className={cn(META_CHIP, "text-ink-2 tabular-nums")}
             >
-              +{labels.length - 2}
+              +{labels.length - MAX_LABELS}
             </span>
           )}
         </div>
       )}
 
-      {context.length > 0 && (
-        <div className="text-ink-3 text-mini flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 font-medium">
-          {context}
-        </div>
-      )}
-
       {dates.length > 0 && (
-        <div className="text-ink-3 text-mini flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
+        <div className="text-ink-2 flex flex-wrap gap-x-3 gap-y-1 text-xs leading-4 tabular-nums">
           {dates.map(([field, label, iso, text]) => (
-            <span
-              key={field}
-              title={iso ? formatDayFull(iso) : undefined}
-              className="tabular-nums"
-            >
-              <span className="text-ink-3/80">{t(label)}</span>{" "}
-              <span className="text-ink-2 font-medium">{text}</span>
+            <span key={field} title={iso ? formatDayFull(iso) : undefined}>
+              <span className="text-ink-3">{t(label)}</span> {text}
             </span>
           ))}
         </div>
       )}
 
-      {/* in flow whenever a field is shown, never toggled by hover — that would shove every card below it up and down the column */}
-      {footer && (
-        <div className="mt-1 flex min-h-6 items-center gap-1">
-          {(filled.length > 0 || subtasks) && (
-            <div className="flex min-w-0 flex-wrap items-center gap-1">
-              {filled.map((field) => (
-                <Fragment key={field.key}>{field.node}</Fragment>
-              ))}
+      {due && <div className="flex">{due.node}</div>}
 
-              {subtasks && (
-                <SubtaskProgress done={subtaskDone} total={subtaskTotal} />
+      {parent && (
+        <span
+          title={parentLabel}
+          className={cn(META_CHIP, "text-ink self-start")}
+        >
+          <EPIC.icon className={cn("size-3.5 shrink-0", EPIC.tone)} />
+          <span className="truncate">
+            {parentLabel || t("common.untitled")}
+          </span>
+        </span>
+      )}
+
+      {reporter && (
+        <span
+          title={`${t("fields.reporter")}: ${reporterName}`}
+          className={META_ROW}
+        >
+          <UserIcon className="text-ink-3 size-4 shrink-0" />
+          <span className="truncate">{reporterName}</span>
+        </span>
+      )}
+
+      {space && (
+        <span title={spaceLabel} className={META_ROW}>
+          <FolderIcon className="text-ink-3 size-4 shrink-0" />
+          <span className="truncate">{spaceLabel}</span>
+        </span>
+      )}
+
+      {/* in flow whenever a field is shown, never toggled by hover — that would shove every card below it up and down the column.
+          It wraps rather than truncating the key once every control is set; the hover-revealed group has a zero basis, so it never causes a wrap */}
+      {footer && (
+        <div className="flex min-h-6 flex-wrap items-center gap-x-2 gap-y-1">
+          {identity && (
+            <div className="flex min-w-0 items-center gap-1">
+              {show("type") && (
+                <WorkTypeControl
+                  bare
+                  value={workType}
+                  onChange={onWorkTypeChange}
+                  placement="bottom-start"
+                />
+              )}
+
+              {!show("key") ? null : taskKey === null ? (
+                <span aria-hidden className="skeleton h-2 w-9 rounded-full" />
+              ) : onOpen ? (
+                <button
+                  type="button"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={onOpen}
+                  title={`Open ${taskKey}`}
+                  className={cn(
+                    "text-ink-2 hover:text-brand focus-visible:ring-brand rounded-control truncate text-xs font-semibold tabular-nums transition-colors duration-150 outline-none focus-visible:ring-2",
+                    wasPending &&
+                      "motion-safe:animate-in motion-safe:fade-in-0 duration-300",
+                  )}
+                >
+                  {taskKey}
+                </button>
+              ) : (
+                <span className="text-ink-2 truncate text-xs font-semibold tabular-nums">
+                  {taskKey}
+                </span>
               )}
             </div>
           )}
 
           {empty.length > 0 && (
-            <div className="-mx-0.5 flex h-6 min-w-0 flex-1 items-center gap-1 overflow-hidden px-0.5">
+            <div className="-mx-0.5 flex h-6 min-w-0 flex-1 items-center justify-end gap-1 overflow-hidden px-0.5">
               {empty.map((field) => (
                 <Fragment key={field.key}>{field.node}</Fragment>
               ))}
             </div>
           )}
 
-          {show("assignee") && (
-            <div className="ml-auto flex shrink-0">{assignee}</div>
-          )}
+          <div className="ml-auto flex shrink-0 items-center gap-1">
+            {filled.map((field) => (
+              <Fragment key={field.key}>{field.node}</Fragment>
+            ))}
+
+            {subtasks && (
+              <SubtaskProgress done={subtaskDone} total={subtaskTotal} />
+            )}
+
+            {done && (
+              <CheckIcon
+                role="img"
+                aria-label={t("columnCategory.done")}
+                className="text-status-green size-4 shrink-0"
+              />
+            )}
+
+            {show("assignee") && assignee}
+          </div>
         </div>
       )}
     </div>
@@ -509,10 +468,10 @@ function SubtaskProgress({ done, total }: { done: number; total: number }) {
   return (
     <span
       title={t("subtasks.progress", { done, count: total })}
-      className="text-ink-3 flex h-5 shrink-0 flex-col justify-center gap-0.5"
+      className="text-ink-2 flex h-5 shrink-0 flex-col justify-center gap-0.5"
     >
-      <span className="text-mini flex items-center gap-1 leading-none font-medium tabular-nums">
-        <ListTree className="size-3 shrink-0" />
+      <span className="flex items-center gap-1 text-xs leading-none font-medium tabular-nums">
+        <ListTree className="text-ink-3 size-3.5 shrink-0" />
         {done}/{total}
       </span>
 

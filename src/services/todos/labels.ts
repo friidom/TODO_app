@@ -54,14 +54,30 @@ export function labelCatalog(
 }
 
 // Tinted from the existing palette, never a new colour: the text stays ink, so
-// every tone reads at the same contrast and the dot carries the hue.
+// every tone reads at the same contrast and the dot or the border carries the hue.
 export const LABEL_TONES = [
-  { chip: "bg-brand/10", dot: "bg-brand" },
-  { chip: "bg-status-blue/12", dot: "bg-status-blue" },
-  { chip: "bg-status-green/12", dot: "bg-status-green" },
-  { chip: "bg-status-orange/14", dot: "bg-status-orange" },
-  { chip: "bg-status-red/10", dot: "bg-status-red" },
-  { chip: "bg-ink/[0.07]", dot: "bg-ink-3" },
+  { chip: "bg-brand/10", dot: "bg-brand", border: "border-brand/55" },
+  {
+    chip: "bg-status-blue/12",
+    dot: "bg-status-blue",
+    border: "border-status-blue/55",
+  },
+  {
+    chip: "bg-status-green/12",
+    dot: "bg-status-green",
+    border: "border-status-green/60",
+  },
+  {
+    chip: "bg-status-orange/14",
+    dot: "bg-status-orange",
+    border: "border-status-orange/65",
+  },
+  {
+    chip: "bg-status-red/10",
+    dot: "bg-status-red",
+    border: "border-status-red/55",
+  },
+  { chip: "bg-ink/[0.07]", dot: "bg-ink-3", border: "border-ink/25" },
 ] as const;
 
 export function labelTone(name: string): (typeof LABEL_TONES)[number] {
