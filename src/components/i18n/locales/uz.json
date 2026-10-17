@@ -185,7 +185,14 @@
     "autoLayout": "Avtomatik joylashtirish",
     "fit": "Ekranga moslash",
     "zoomOut": "Kichiklashtirish",
-    "zoomIn": "Kattalashtirish"
+    "zoomIn": "Kattalashtirish",
+    "statusNode": "Holat {{name}}",
+    "start": "Boshlanish",
+    "startHint": "Ustun tanlamasdan yaratilgan vazifalar “{{name}}” holatidan boshlanadi.",
+    "anyStatus": "Istalgan holat",
+    "fromMany": "Holatlardan",
+    "itemsHere": "Shu yerdagi vazifalar",
+    "alreadyAllowed": "Allaqachon ruxsat etilgan"
   },
   "activity": {
     "statusCreated": "{{name}} holatini yaratdi",
@@ -238,7 +245,8 @@
     "memberRemoved": "{{who}} ni olib tashladi",
     "roleMade": "{{who}} ni {{role}} qildi",
     "roleChanged": "{{who}} rolini o'zgartirdi",
-    "changedSomething": "nimanidir o'zgartirdi"
+    "changedSomething": "nimanidir o'zgartirdi",
+    "labelsChanged": "{{item}} teglarini o'zgartirdi"
   },
   "loading": "Yuklanmoqda...",
   "common": {
@@ -428,7 +436,8 @@
     "updated": "Yangilangan",
     "completed": "Bajarilgan",
     "title": "Sarlavha",
-    "workType": "Ish turi"
+    "workType": "Ish turi",
+    "labels": "Teglar"
   },
   "due": {
     "none": "Muddatsiz",
@@ -505,7 +514,8 @@
     "noneActive": "Faol sprint yo'q",
     "noneActiveHint": "Bu doskada ishlarni ko'rish uchun sprintni boshlang.",
     "goToBacklog": "Backlogga o'tish",
-    "endDate": "Tugash sanasi"
+    "endDate": "Tugash sanasi",
+    "updated": "Sprint yangilandi"
   },
   "task": {
     "fallbackName": "ish elementi",
@@ -532,7 +542,10 @@
     "openInNewTab": "Yangi varaqda ochish",
     "copyLink": "Havolani nusxalash",
     "linkCopied": "Havola nusxalandi",
-    "copyLinkFailed": "Havolani nusxalab bo'lmadi."
+    "copyLinkFailed": "Havolani nusxalab bo'lmadi.",
+    "saving": "Saqlanmoqda…",
+    "saved": "Saqlandi",
+    "saveFailed": "Saqlab bo'lmadi — o'zgarishlar bekor qilindi."
   },
   "view": {
     "ascending": "O'sish bo'yicha",
@@ -703,7 +716,9 @@
     "taskRemoved": "vazifani olib tashladi",
     "madeSubtask": "buni kichik vazifaga aylantirdi",
     "madeTopLevel": "buni yuqori darajadagi ish elementiga aylantirdi",
-    "estimateField": "Ball bahosi"
+    "estimateField": "Ball bahosi",
+    "labelAdded": "teg qo'shdi",
+    "labelRemoved": "tegni olib tashladi"
   },
   "taskActivity": {
     "all": "Hammasi",
@@ -847,7 +862,10 @@
     "none": "Ota epik yo'q",
     "label": "Ota epik",
     "noEpics": "Bu doskada hali epiklar yo'q.",
-    "remove": "Ota epikni olib tashlash"
+    "remove": "Ota epikni olib tashlash",
+    "showDone": "Bajarilganlarni ko'rsatish",
+    "noMatches": "Mos epik topilmadi",
+    "refine": "Dastlabki {{count}} ta ko'rsatilmoqda; qidiruvni aniqlashtiring."
   },
   "estimate": {
     "set": "Ball bahosini belgilash",
@@ -981,7 +999,16 @@
     "trends": "Faollik tendensiyalari",
     "trendsHint": "Yaratilgan elementlar va eng so'nggi o'zgarishi o'sha kunga to'g'ri kelgan elementlar",
     "trendsEmpty": "Grafik uchun hali ma'lumot yo'q.",
-    "perDay": "{{name}} kunlar bo'yicha: {{values}}"
+    "perDay": "{{name}} kunlar bo'yicha: {{values}}",
+    "items_one": "ta ish",
+    "items_other": "ta ish",
+    "late_one": "{{count}} ta kechikkan",
+    "late_other": "{{count}} ta kechikkan",
+    "onTrack_one": "{{count}} ta muddatida",
+    "onTrack_other": "{{count}} ta muddatida",
+    "trendsExplore": "Kunlik yaratilgan va yangilangan ishlar. Har bir kunni o‘qish uchun strelka tugmalaridan foydalaning.",
+    "itemsShare_one": "{{count}} ta ish, {{percent}}%",
+    "itemsShare_other": "{{count}} ta ish, {{percent}}%"
   },
   "forYou": {
     "filterLabel": "Ishlaringizni filtrlash",
@@ -1205,7 +1232,17 @@
     "newPassword": "Yangi parol",
     "confirmNewPassword": "Yangi parolni tasdiqlang",
     "updating": "Yangilanmoqda…",
-    "updatePassword": "Parolni yangilash"
+    "updatePassword": "Parolni yangilash",
+    "resendVerification": "Tasdiqlash xatini qayta yuborish",
+    "verificationResent": "Agar bu manzil tasdiqlanishini kutayotgan bo‘lsa, yangi havola yuborildi.",
+    "noEmailYet": "Bir necha daqiqada xat kelmadimi? Spam jildini tekshiring yoki qayta yuboring.",
+    "emailVerifiedTitle": "Elektron pochta tasdiqlandi",
+    "emailVerifiedSubtitle": "Hisobingiz tayyor. Davom etish uchun kiring.",
+    "verifyingTitle": "Elektron pochta tasdiqlanmoqda",
+    "verifyingSubtitle": "Bir lahza…",
+    "verifyLinkInvalidTitle": "Havola eskirgan",
+    "verifyLinkInvalidSubtitle": "Tasdiqlash havolalari bir marta ishlaydi va 24 soat amal qiladi. Manzilingizni kiriting, yangisini yuboramiz.",
+    "verifiedSubtitle": "Pochta tasdiqlandi. Yangi hisobingiz bilan kiring."
   },
   "profile": {
     "title": "Profil",
@@ -1420,7 +1457,18 @@
     "selectedFields": "Tanlangan maydonlar",
     "noFieldsSelected": "Kartochkalarda maydon yo'q. Yuqoridagi qidiruv orqali qo'shing.",
     "allFieldsShown": "Barcha maydonlar allaqachon ko'rsatilgan.",
-    "removeField": "«{{name}}» maydonini olib tashlash"
+    "removeField": "«{{name}}» maydonini olib tashlash",
+    "boardView": "Doska ko‘rinishi",
+    "saved": "Saqlangan",
+    "unsaved": "Saqlanmagan o‘zgarishlar",
+    "notSaved": "Saqlanmagan",
+    "savedHint": "Bu doskani ochgan har kim shu saqlangan ko‘rinishni ko‘radi.",
+    "notSavedHint": "Doskada hali saqlangan ko‘rinish yo‘q, shuning uchun har kim o‘z sozlamalarini ko‘radi.",
+    "unsavedHintAdmin": "O‘zgarishlar faqat shu qurilmada. Hamma ko‘rishi uchun ularni saqlang.",
+    "unsavedHintMember": "O‘zgarishlar faqat shu qurilmada. Ko‘rinishni hamma uchun faqat doska administratorlari saqlay oladi.",
+    "saveBoard": "Hamma uchun saqlash",
+    "resetToSaved": "Saqlanganiga qaytarish",
+    "boardViewSaved": "Doska ko‘rinishi hamma uchun saqlandi."
   },
   "insights": {
     "title": "Sprint tahlili",
@@ -1445,7 +1493,13 @@
     "noStartDate": "Grafikni ko'rish uchun sprintga boshlanish sanasini belgilang.",
     "noWork": "Bu sprintda hozircha ishlar yo'q.",
     "epicsSummary_one": "Bu sprint {{count}} ta epik ustida ishlamoqda.",
-    "epicsSummary_other": "Bu sprint {{count}} ta epik ustida ishlamoqda."
+    "epicsSummary_other": "Bu sprint {{count}} ta epik ustida ishlamoqda.",
+    "pointsCount_one": "{{count}} ball",
+    "pointsCount_other": "{{count}} ball",
+    "itemsCount_one": "{{count}} ta ish",
+    "itemsCount_other": "{{count}} ta ish",
+    "doneSoFar": "Bajarilgan",
+    "burndownExplore": "Sprint grafigi. Har bir kunni o‘qish uchun strelka tugmalaridan foydalaning."
   },
   "apiErrors": {
     "network": "Serverga ulanib bo'lmadi. Internet aloqangizni tekshirib, qayta urinib ko'ring.",
@@ -1497,7 +1551,9 @@
       "internal": "Serverda muammo yuz berdi. Qayta urinib ko'ring.",
       "unknown": "Nimadir xato ketdi. Qayta urinib ko'ring."
     },
-    "boardKeyTaken": "{{key}} doska kaliti allaqachon band."
+    "boardKeyTaken": "{{key}} doska kaliti allaqachon band.",
+    "emailNotVerified": "Kirish uchun elektron pochtangizni tasdiqlang. Pochtangizni tekshiring yoki yangi havola so‘rang.",
+    "verifyLinkInvalid": "Bu tasdiqlash havolasi yaroqsiz yoki muddati o‘tgan."
   },
   "adminActions": {
     "created": "Yaratildi",
@@ -1844,5 +1900,71 @@
       "hintLoading": "Faktik ko'rsatkichlar, yonma-yon",
       "gridLabel": "Dasturchilar va ularning ko'rsatkichlari"
     }
+  },
+  "starred": {
+    "title": "Saralanganlar",
+    "star": "Saralanganlarga qo'shish",
+    "unstar": "Saralanganlardan olib tashlash",
+    "search": "Saralangan doskalarni qidirish",
+    "empty": "Hozircha hech narsa saralanmagan",
+    "emptyHint": "Doskani ••• menyusi yoki nomi yonidagi yulduzcha orqali saralang.",
+    "noMatches": "“{{query}}” bo'yicha saralangan doska topilmadi",
+    "showAll": "Hammasini ko'rsatish ({{count}})",
+    "expand": "Saralangan doskalarni ko'rsatish",
+    "collapse": "Saralangan doskalarni yashirish",
+    "loadFailed": "Saralanganlarni yuklab bo'lmadi."
+  },
+  "recent": {
+    "title": "So'nggilar",
+    "search": "So'nggilarni qidirish",
+    "filterAll": "Hammasi",
+    "filterBoards": "Doskalar",
+    "filterTasks": "Vazifalar",
+    "empty": "Hozircha so'nggi narsa yo'q",
+    "emptyHint": "Siz ochgan doska va vazifalar shu yerda ko'rinadi.",
+    "noMatches": "So'nggilar orasida “{{query}}” yo'q",
+    "viewAll": "Barcha so'nggi elementlar",
+    "workedOn": "Siz ishlagan elementlar",
+    "loadFailed": "So'nggi vazifalarni yuklab bo'lmadi."
+  },
+  "labels": {
+    "add": "Teg qo'shish",
+    "search": "Tegni qidiring yoki yarating",
+    "all": "Barcha teglar",
+    "create": "“{{name}}” yaratish",
+    "none": "Hozircha teg yo'q. Yaratish uchun nom kiriting.",
+    "noMatches": "“{{query}}” teg topilmadi",
+    "remove": "{{name}} tegini olib tashlash",
+    "limit": "Vazifada ko'pi bilan 20 ta teg bo'lishi mumkin.",
+    "tooLong": "Teg 40 belgigacha bo'lishi mumkin.",
+    "inFlight": "Vazifa saqlangach mavjud bo'ladi."
+  },
+  "pins": {
+    "title": "Mahkamlanganlar",
+    "pin": "Mahkamlash",
+    "unpin": "Mahkamni olib tashlash",
+    "goTo": "Asl nusxaga o'tish",
+    "fields": "Mening mahkamlangan maydonlarim",
+    "pinField": "Maydonni tepaga mahkamlash",
+    "unpinField": "Maydonni olib tashlash"
+  },
+  "createItem": {
+    "title": "Ish yaratish",
+    "requiredNote": "Majburiy maydonlar yulduzcha * bilan belgilangan",
+    "summary": "Nomi",
+    "summaryPlaceholder": "Nima qilish kerak?",
+    "summaryRequired": "Nomini kiriting.",
+    "summaryTooLong": "Nomi {{max}} belgidan qisqa bo‘lsin.",
+    "descriptionPlaceholder": "Batafsil ma’lumot, havola yoki qabul mezonlarini qo‘shing",
+    "estimateInvalid": "Baho noldan kichik bo‘lmasligi kerak.",
+    "datesOrder": "Muddat boshlanish sanasidan oldin bo‘lishi mumkin emas.",
+    "noParent": "Ota-ishsiz",
+    "labelsHint": "Belgilarni vergul bilan ajrating.",
+    "labelsPlaceholder": "masalan: frontend, bug-bash",
+    "another": "Yana yaratish",
+    "shortcut": "⌘/Ctrl + Enter — yaratish",
+    "creating": "Yaratilmoqda…",
+    "created": "Ish yaratildi.",
+    "labelFailed": "“{{label}}” belgisini qo‘shib bo‘lmadi."
   }
 }

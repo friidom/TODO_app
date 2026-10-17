@@ -47,6 +47,39 @@ export function str(payload: Activity["payload"], key: string): string | null {
   return typeof value === "string" ? value : null;
 }
 
+function names(payload: Activity["payload"], key: string): string[] {
+  if (
+    typeof payload !== "object" ||
+    payload === null ||
+    Array.isArray(payload)
+  ) {
+    return [];
+  }
+
+  const value = payload[key];
+
+  return Array.isArray(value)
+    ? value.filter((it): it is string => typeof it === "string")
+    : [];
+}
+
+// What a labels_changed row added and removed, compared without case as the API does.
+export function labelDiff(payload: Activity["payload"]): {
+  added: string[];
+  removed: string[];
+} {
+  const from = names(payload, "from");
+  const to = names(payload, "to");
+  const lower = (list: string[]) => new Set(list.map((it) => it.toLowerCase()));
+  const had = lower(from);
+  const has = lower(to);
+
+  return {
+    added: to.filter((name) => !had.has(name.toLowerCase())),
+    removed: from.filter((name) => !has.has(name.toLowerCase())),
+  };
+}
+
 export function num(payload: Activity["payload"], key: string): number | null {
   if (
     typeof payload !== "object" ||
@@ -224,6 +257,25 @@ export function describeActivity(
         taskId,
         detail: null,
       };
+
+    case "todo.labels_changed": {
+      const { added, removed } = labelDiff(activity.payload);
+
+      return {
+        text: t("activity.labelsChanged", { item }),
+        taskId,
+        detail:
+          added.length + removed.length > 0
+            ? {
+                label: t("fields.labels"),
+                value: [
+                  ...added.map((name) => `+${name}`),
+                  ...removed.map((name) => `−${name}`),
+                ].join(" "),
+              }
+            : null,
+      };
+    }
 
     case "todo.estimate_changed": {
       const to = num(activity.payload, "to");

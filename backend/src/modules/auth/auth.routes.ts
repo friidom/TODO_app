@@ -8,8 +8,11 @@ import {
   loginIpLimiter,
   refreshLimiter,
   registerLimiter,
+  resendVerificationAddressLimiter,
+  resendVerificationIpLimiter,
   resetPasswordLimiter,
   usernameAvailableLimiter,
+  verifyEmailLimiter,
 } from "../../middleware/rateLimit.js";
 import { validate } from "../../middleware/validate.js";
 import * as controller from "./auth.controller.js";
@@ -19,8 +22,10 @@ import {
   loginSchema,
   logoutSchema,
   registerSchema,
+  resendVerificationSchema,
   resetPasswordSchema,
   usernameAvailableSchema,
+  verifyEmailSchema,
 } from "./auth.schema.js";
 
 export const authRoutes = Router();
@@ -67,6 +72,21 @@ authRoutes.post(
   resetPasswordLimiter,
   validate({ body: resetPasswordSchema }),
   controller.resetPassword,
+);
+
+authRoutes.post(
+  "/email/verify",
+  verifyEmailLimiter,
+  validate({ body: verifyEmailSchema }),
+  controller.verifyEmail,
+);
+
+authRoutes.post(
+  "/email/resend",
+  resendVerificationIpLimiter,
+  resendVerificationAddressLimiter,
+  validate({ body: resendVerificationSchema }),
+  controller.resendVerification,
 );
 
 authRoutes.get(

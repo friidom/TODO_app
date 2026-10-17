@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronRightIcon } from "lucide-react";
 
+import LabelChip from "@/components/todo/LabelChip";
 import AssigneeControl from "@/components/todo/TodoItem/AssigneeControl";
 import DueDateControl from "@/components/todo/TodoItem/DueDateControl";
 import EpicParentControl from "@/components/todo/TodoItem/EpicParentControl";
@@ -23,6 +24,7 @@ import { queryKeys } from "@/services/queryClient/queryKeys";
 import { activeSprintIdOf } from "@/services/sprints/activeSprint";
 import { useSprints } from "@/services/sprints/useSprints";
 import { sprintAssignmentPatch } from "@/services/todos/backlog";
+import { labelsOf } from "@/services/todos/labels";
 import { isEpic } from "@/services/todos/subtasks";
 import type { ListColumnId } from "@/services/views/listColumns";
 import type { Todo } from "@/types/data";
@@ -140,6 +142,9 @@ export default function ListCell(props: ListCellProps) {
         />
       );
 
+    case "labels":
+      return <LabelsCell labels={labelsOf(todo)} />;
+
     case "created":
       return <TimeCell value={todo.created_at} />;
 
@@ -163,6 +168,24 @@ function None() {
   const { t } = useTranslation();
 
   return <span className="text-ink-3 text-sm">{t("common.none")}</span>;
+}
+
+// Read-only here: a label is added from the task, where the picker has room.
+function LabelsCell({ labels }: { labels: string[] }) {
+  if (labels.length === 0) return <None />;
+
+  return (
+    <span
+      title={labels.join(", ")}
+      className="flex min-w-0 items-center gap-1 overflow-hidden"
+    >
+      {labels.map((name) => (
+        <span key={name} className="min-w-0 shrink-0 last:shrink">
+          <LabelChip name={name} size="sm" />
+        </span>
+      ))}
+    </span>
+  );
 }
 
 function NotApplicable() {

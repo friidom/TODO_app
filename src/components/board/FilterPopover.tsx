@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FloatingPortal } from "@floating-ui/react";
 import { ListFilterIcon, PlusIcon, SearchIcon } from "lucide-react";
@@ -9,6 +9,9 @@ import { useBoardId } from "@/hooks/useBoardId";
 import type { BoardView } from "@/hooks/useBoardView";
 import { useAuth } from "@/services/auth/useAuth";
 import { useBoardMembers } from "@/services/members/useBoardMembers";
+import { labelCatalog } from "@/services/todos/labels";
+import { useTodos } from "@/services/todos/useTodos";
+import type { Todo } from "@/types/data";
 import {
   filterOptions,
   matchOptions,
@@ -27,6 +30,8 @@ import ToolbarButton from "./ToolbarButton";
 import { useFilterPopover } from "./useFilterPopover";
 
 const SEARCHABLE_FROM = 7;
+
+const NO_TODOS: Todo[] = [];
 
 const PINNED: FilterCategory[] = ["assignee", "status", "type", "priority"];
 
@@ -186,6 +191,11 @@ function ValuePanel({
   const { user } = useAuth();
   const { data: statuses = [] } = useStatuses();
   const { data: members = [] } = useBoardMembers(boardId);
+  const { data: todos = NO_TODOS } = useTodos();
+  const labels = useMemo(
+    () => labelCatalog(todos).map((use) => use.name),
+    [todos],
+  );
 
   const [needle, setNeedle] = useState("");
 
@@ -196,6 +206,7 @@ function ValuePanel({
     statuses,
     members,
     currentUserId: user?.id,
+    labels,
   });
 
   const searchable = options.length >= SEARCHABLE_FROM;

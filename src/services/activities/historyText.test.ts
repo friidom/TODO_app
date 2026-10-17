@@ -7,7 +7,7 @@ const NAMES = { "user-a": "Alice", "user-b": "Bob" };
 
 function entry(
   action: string,
-  payload: Record<string, string | number | null> = {},
+  payload: Record<string, string | number | null | string[]> = {},
 ): Activity {
   return {
     id: "act-1",
@@ -239,6 +239,35 @@ describe("describeHistoryChange — estimate_changed (Story point estimate)", ()
 
     expect(change?.to).toBe("0");
     expect(change?.to).not.toBe("None");
+  });
+});
+
+describe("describeHistoryChange — labels_changed", () => {
+  it("names the label that was added", () => {
+    expect(
+      describeHistoryChange(
+        entry("labels_changed", { from: ["ui"], to: ["ui", "Bug"] }),
+        NAMES,
+      ),
+    ).toEqual({ verb: "added the label", field: "Bug", from: null, to: null });
+  });
+
+  it("names the label that was removed, ignoring case", () => {
+    expect(
+      describeHistoryChange(
+        entry("labels_changed", { from: ["Bug", "ui"], to: ["bug"] }),
+        NAMES,
+      )?.field,
+    ).toBe("ui");
+  });
+
+  it("skips a row that changed nothing it can name", () => {
+    expect(
+      describeHistoryChange(
+        entry("labels_changed", { from: [], to: [] }),
+        NAMES,
+      ),
+    ).toBeNull();
   });
 });
 

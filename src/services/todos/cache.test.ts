@@ -4,11 +4,13 @@ import type { Todo } from "../../types/data";
 import { RANK_GAP, byRank } from "../../utils/rank";
 import {
   applyBacklogMoved,
+  applyDetailPatched,
   applySubtaskInserted,
   applyTodoConfirmed,
   applyTodoDeleted,
   applyTodoInserted,
   applyTodoMoved,
+  applyTodoPatched,
   applyTodoUpdated,
 } from "./cache";
 
@@ -448,5 +450,54 @@ describe("applyTodoDeleted — with subtasks in the array", () => {
 
     expect(result.map((row) => row.id)).not.toContain("1");
     expect(result.map((row) => row.id)).toContain("98");
+  });
+});
+
+describe("applyTodoPatched", () => {
+  it("changes one row and passes the rest through by reference", () => {
+    const before = board();
+    const after = applyTodoPatched(before, "2", { status_id: "b" });
+
+    expect(after[1]).toMatchObject({ id: "2", status_id: "b" });
+    expect(after[0]).toBe(before[0]);
+    expect(before[1]!.status_id).toBe("a");
+  });
+
+  it("never grows a list row a field it did not carry", () => {
+    const after = applyTodoPatched(board(), "1", {
+      description: "long text",
+    } as Partial<Todo>);
+
+    expect("description" in after[0]!).toBe(false);
+  });
+
+  it("returns the same row when nothing changes", () => {
+    const before = board();
+
+    expect(applyTodoPatched(before, "1", { status_id: "a" })[0]).toBe(
+      before[0],
+    );
+  });
+});
+
+describe("applyDetailPatched", () => {
+  type Detail = Todo & { description: string | null };
+  const detail = { ...todo(1, "a", 0), description: "keep me" } as Detail;
+
+  it("patches without blanking the description", () => {
+    const after = applyDetailPatched(detail, "1", { status_id: "b" });
+
+    expect(after).toMatchObject({ status_id: "b", description: "keep me" });
+  });
+
+  it("ignores another todo's id and a missing entry", () => {
+    expect(applyDetailPatched(detail, "2", { status_id: "b" })).toBe(detail);
+    expect(applyDetailPatched<Detail>(undefined, "1", { status_id: "b" })).toBe(
+      undefined,
+    );
+  });
+
+  it("returns the same reference when unchanged", () => {
+    expect(applyDetailPatched(detail, "1", { status_id: "a" })).toBe(detail);
   });
 });

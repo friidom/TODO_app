@@ -1,12 +1,16 @@
 import { randomUUID } from "node:crypto";
 
-import { PASSWORD_RESET_TTL_MINUTES } from "../../config/constants.js";
+import {
+  EMAIL_VERIFICATION_TTL_HOURS,
+  PASSWORD_RESET_TTL_MINUTES,
+} from "../../config/constants.js";
 import { env } from "../../config/env.js";
 import { prisma } from "../../db/prisma.js";
 import { withActor } from "../../db/withActor.js";
 import { AppError, uniqueConstraintOf } from "../../lib/errors.js";
 import { normalizeIdentifier } from "../../lib/identifier.js";
-import { mailer } from "../../lib/mail.js";
+import { describeMailError, mailer } from "../../lib/mail.js";
+import { passwordResetEmail, verificationEmail } from "../../lib/mailTemplates.js";
 import { hashPassword, verifyDummyPassword, verifyPassword } from "../../lib/password.js";
 import { mintOpaqueToken, refreshTokenExpiry, sha256, signAccessToken } from "../../lib/tokens.js";
 import { isValidUsername, normalizeUsername } from "../../lib/username.js";
@@ -142,6 +146,8 @@ export async function register(input: RegisterInput, meta: RequestMeta): Promise
   const user = await publicUserOf(userId);
 
   if (env.AUTH_REQUIRE_EMAIL_VERIFICATION) {
+    await sendVerificationEmail(userId, input.email);
+
     return { user, needsVerification: true };
   }
 
@@ -175,8 +181,12 @@ export async function login(input: LoginInput, meta: RequestMeta): Promise<AuthR
   // After the hash, so this costs the same time as an active account.
   if (found.deactivated_at !== null) throw invalidCredentials();
 
+  // Only after the password matched, so this says nothing to someone who does not know it.
   if (env.AUTH_REQUIRE_EMAIL_VERIFICATION && found.email_verified_at === null) {
-    throw invalidCredentials();
+    throw new AppError(
+      "forbidden",
+      "Confirm your email address to sign in. Check your inbox, or ask for a new link.",
+    );
   }
 
   const user = await publicUserOf(found.id);
@@ -304,15 +314,63 @@ export async function forgotPassword(email: string): Promise<void> {
   try {
     await mailer.send({
       to: user.email,
-      subject: "Reset your password",
-      text:
-        `Open this link to choose a new password:\n\n${link}\n\n` +
-        `It expires in ${PASSWORD_RESET_TTL_MINUTES} minutes and can be used once. ` +
-        `If you did not ask for it, nothing has changed and you can ignore this message.`,
+      ...passwordResetEmail(link, PASSWORD_RESET_TTL_MINUTES),
     });
   } catch (error) {
     // Must not surface as a 500 — that would answer differently for a real address.
-    console.error("[auth] password reset mail failed:", error);
+    console.error(`[auth] password reset mail failed: ${describeMailError(error)}`);
+  }
+}
+
+// Never throws: a mail outage must not fail the registration that called it, and
+// the person can ask for another link.
+async function sendVerificationEmail(userId: string, email: string): Promise<void> {
+  const { token, tokenHash } = mintOpaqueToken();
+
+  await authRepo.createVerificationToken(prisma, {
+    userId,
+    tokenHash,
+    expiresAt: new Date(Date.now() + EMAIL_VERIFICATION_TTL_HOURS * 3_600_000),
+  });
+
+  const link = `${env.APP_URL}/verify-email?token=${encodeURIComponent(token)}`;
+
+  try {
+    await mailer.send({ to: email, ...verificationEmail(link, EMAIL_VERIFICATION_TTL_HOURS) });
+  } catch (error) {
+    console.error(`[auth] verification mail failed: ${describeMailError(error)}`);
+  }
+}
+
+// Answers the same whether the address is unknown, already verified or not.
+export async function resendVerification(email: string): Promise<void> {
+  if (!env.AUTH_REQUIRE_EMAIL_VERIFICATION) return;
+
+  const user = await authRepo.findUserByEmail(email.trim());
+
+  if (user === null || user.deactivated_at !== null || user.email_verified_at !== null) return;
+
+  await sendVerificationEmail(user.id, user.email);
+}
+
+// No session: like a reset link, a verification link must not double as a login link.
+export async function verifyEmail(token: string): Promise<void> {
+  const tokenHash = sha256(token);
+
+  const ok = await prisma.$transaction(async (tx) => {
+    const row = await authRepo.findVerificationToken(tx, tokenHash);
+
+    if (row === null || row.used_at !== null || row.expires_at <= new Date()) return false;
+
+    if (!(await authRepo.consumeVerificationTokens(tx, row.id, row.user_id))) return false;
+
+    await authRepo.markEmailVerified(tx, row.user_id);
+
+    return true;
+  });
+
+  if (!ok) {
+    throw new AppError("bad_request", "This confirmation link is invalid or has expired.");
   }
 }
 

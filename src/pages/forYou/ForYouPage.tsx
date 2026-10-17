@@ -18,7 +18,7 @@ import {
 } from "@/services/forYou/feed";
 import { FEED_PAGE } from "@/services/forYou/forYouApi";
 import { useForYouFeed } from "@/services/forYou/useForYou";
-import { readBoardVisits, recordView } from "@/services/forYou/viewed";
+import { readBoardVisits } from "@/services/forYou/viewed";
 import { useProfile } from "@/services/profile/useProfile";
 import { useSpaces } from "@/services/spaces/useSpaces";
 
@@ -37,7 +37,11 @@ export default function ForYouPage() {
 
   const { user } = useAuth();
   const { data: profile } = useProfile();
-  const { data: boards = [], isLoading: boardsLoading } = useBoards();
+  const {
+    data: boards = [],
+    isLoading: boardsLoading,
+    isSuccess: boardsLoaded,
+  } = useBoards();
   const { data: spaces = [] } = useSpaces();
 
   const [creating, setCreating] = useState(false);
@@ -66,12 +70,10 @@ export default function ForYouPage() {
 
   // fixed at mount, not read per row — otherwise two rows a millisecond apart could land in different "Today"/"Yesterday" groups
   const [now] = useState(() => Date.now());
-  const [visits] = useState(() => readBoardVisits());
+  const [visits] = useState(() => readBoardVisits(user?.id));
 
   const openTask = useCallback(
     (boardId: string, taskId: string) => {
-      recordView(taskId, boardId, new Date().toISOString());
-
       navigate(`/boards/${boardId}?task=${taskId}`);
     },
     [navigate],
@@ -109,7 +111,7 @@ export default function ForYouPage() {
           </div>
         </header>
 
-        {!boardsLoading && boards.length === 0 ? (
+        {boardsLoaded && boards.length === 0 ? (
           <NoBoards onCreate={() => setCreating(true)} />
         ) : (
           <>

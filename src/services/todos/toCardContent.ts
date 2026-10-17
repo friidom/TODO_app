@@ -1,3 +1,4 @@
+import { labelsOf } from "./labels";
 import { taskKey } from "@/utils/taskKey";
 import type { Todo, TodoCardContent } from "@/types/data";
 
@@ -13,5 +14,10 @@ export function toCardContent(
     priority: todo.priority,
     dueDate: todo.due_date,
     estimate: todo.estimate,
+    labels: labelsOf(todo),
+    startDate: todo.start_date,
+    createdAt: todo.created_at,
+    updatedAt: todo.updated_at,
+    completedAt: todo.completed_at,
   };
 }

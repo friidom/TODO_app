@@ -62,6 +62,7 @@ const TODO_FIELDS = [
   "created_at",
   "updated_at",
   "completed_at",
+  "labels",
 ];
 
 async function setup(role: "owner" | "editor" | "viewer" = "owner") {

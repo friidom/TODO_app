@@ -75,3 +75,22 @@ export const remove: RequestHandler = async (req, res) => {
 
   res.status(204).end();
 };
+
+const setPinned =
+  (pinned: boolean): RequestHandler =>
+  async (req, res) => {
+    const { todoId, attachmentId } = req.params as AttachmentParams;
+
+    res.json(
+      await attachmentsService.setPinned(
+        { id: requireActor(req) },
+        requireBoard(req),
+        todoId,
+        attachmentId,
+        pinned,
+      ),
+    );
+  };
+
+export const pin = setPinned(true);
+export const unpin = setPinned(false);

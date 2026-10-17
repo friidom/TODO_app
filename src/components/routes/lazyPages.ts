@@ -37,6 +37,10 @@ export const ForgotPasswordPage = lazy(
   () => import("@/pages/auth/ForgotPasswordPage"),
 );
 
+export const VerifyEmailPage = lazy(
+  () => import("@/pages/auth/VerifyEmailPage"),
+);
+
 export const ResetPasswordPage = lazy(
   () => import("@/pages/auth/ResetPasswordPage"),
 );

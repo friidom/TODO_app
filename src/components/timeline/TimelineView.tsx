@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import ViewNotice from "@/components/board/ViewNotice";
 import ViewSkeleton from "@/components/loading/ViewSkeleton";
+import ViewError from "@/components/loading/ViewError";
 import { useBoardView } from "@/hooks/useBoardView";
 import { useKeyPrefix } from "@/hooks/useKeyPrefix";
 import { useOpenTask } from "@/hooks/useOpenTask";
@@ -120,7 +121,7 @@ export default function TimelineView() {
 
   if (isLoading) return <ViewSkeleton mode="timeline" />;
 
-  if (error) return <p className="text-status-red text-sm">{error.message}</p>;
+  if (error) return <ViewError error={error} />;
 
   return (
     <div className="motion-safe:animate-in motion-safe:fade-in-0 flex h-full min-h-0 flex-col duration-200">

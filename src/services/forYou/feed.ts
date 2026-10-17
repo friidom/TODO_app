@@ -152,11 +152,17 @@ export function periodOf(day: string, now: Date): FeedPeriod {
   return "older";
 }
 
-export function groupFeed(
-  items: FeedItem[],
+export interface PeriodGroup<T> {
+  period: FeedPeriod;
+  label: string;
+  items: T[];
+}
+
+export function groupByPeriod<T extends { at: string }>(
+  items: T[],
   now: Date = new Date(),
-): FeedGroup[] {
-  const buckets = new Map<FeedPeriod, FeedItem[]>();
+): PeriodGroup<T>[] {
+  const buckets = new Map<FeedPeriod, T[]>();
 
   for (const item of items) {
     const at = new Date(item.at);
@@ -177,6 +183,13 @@ export function groupFeed(
     label: FEED_PERIOD_LABELS[period],
     items: buckets.get(period)!,
   }));
+}
+
+export function groupFeed(
+  items: FeedItem[],
+  now: Date = new Date(),
+): FeedGroup[] {
+  return groupByPeriod(items, now);
 }
 
 export const STATUS_GROUPS = [

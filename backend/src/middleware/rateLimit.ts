@@ -57,6 +57,21 @@ export const forgotPasswordAddressLimiter = limiter({
 
 export const resetPasswordLimiter = limiter({ windowMs: 60 * MINUTE, limit: 20 });
 
+export const verifyEmailLimiter = limiter({ windowMs: 60 * MINUTE, limit: 20 });
+
+export const resendVerificationIpLimiter = limiter({ windowMs: 60 * MINUTE, limit: 10 });
+
+// Keyed by address for the reason forgotPasswordAddressLimiter is.
+export const resendVerificationAddressLimiter = limiter({
+  windowMs: 60 * MINUTE,
+  limit: 3,
+  keyGenerator: (req: Request) => {
+    const email = (req.body as { email?: unknown } | undefined)?.email;
+
+    return typeof email === "string" ? email.trim().toLowerCase() : "anonymous";
+  },
+});
+
 export const usernameAvailableLimiter = limiter({ windowMs: 5 * MINUTE, limit: 60 });
 
 export const refreshLimiter = limiter({ windowMs: 15 * MINUTE, limit: 120 });

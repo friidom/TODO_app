@@ -2,6 +2,7 @@ import { Router } from "express";
 
 import { boardAccess } from "../../middleware/boardAccess.js";
 import { requireAuth } from "../../middleware/requireAuth.js";
+import { requireRole } from "../../middleware/requireRole.js";
 import { validate } from "../../middleware/validate.js";
 import { todoParamsSchema } from "../todos/todos.schema.js";
 import * as controller from "./comments.controller.js";
@@ -49,4 +50,22 @@ commentsRoutes.delete(
   boardAccess(),
   validate({ params: commentParamsSchema }),
   controller.remove,
+);
+
+commentsRoutes.put(
+  "/:commentId/pin",
+  requireAuth,
+  boardAccess(),
+  requireRole("editor"),
+  validate({ params: commentParamsSchema }),
+  controller.pin,
+);
+
+commentsRoutes.delete(
+  "/:commentId/pin",
+  requireAuth,
+  boardAccess(),
+  requireRole("editor"),
+  validate({ params: commentParamsSchema }),
+  controller.unpin,
 );

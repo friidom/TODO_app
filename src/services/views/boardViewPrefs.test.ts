@@ -7,8 +7,12 @@ import {
   isDefaultBoardViewPrefs,
   normalizeBoardViewPrefs,
   readBoardViewPrefs,
+  readDeviceViewPrefs,
+  readPersonalViewPrefs,
+  resolveBoardViewPrefs,
   toggleCardField,
   writeBoardViewPrefs,
+  writePersonalViewPrefs,
   type BoardViewPrefs,
 } from "./boardViewPrefs";
 import type { Todo } from "@/types/data";
@@ -62,9 +66,16 @@ describe("normalizeBoardViewPrefs", () => {
   it("drops unknown card fields, dedupes, and keeps the card's own order", () => {
     expect(
       normalizeBoardViewPrefs({
-        cardFields: ["assignee", "labels", "summary", "assignee", 4],
+        cardFields: ["assignee", "flags", "summary", "assignee", 4],
       }).cardFields,
     ).toEqual(["summary", "assignee"]);
+  });
+
+  it("drops the retired sprint field from a stored list and keeps space", () => {
+    expect(
+      normalizeBoardViewPrefs({ cardFields: ["summary", "sprint", "space"] })
+        .cardFields,
+    ).toEqual(["summary", "space"]);
   });
 
   it("keeps an emptied field list empty instead of restoring the defaults", () => {
@@ -247,5 +258,102 @@ describe("storage", () => {
     store["board:view-prefs"] = "{not json";
 
     expect(readBoardViewPrefs()).toEqual(DEFAULT_BOARD_VIEW_PREFS);
+  });
+
+  it("keeps unsaved changes per board, and drops a corrupt entry rather than throwing", () => {
+    writePersonalViewPrefs({
+      a: prefs({ scroll: "board" }),
+      b: prefs({ hideDoneAfter: 7 }),
+    });
+
+    expect(readPersonalViewPrefs()).toEqual({
+      a: prefs({ scroll: "board" }),
+      b: prefs({ hideDoneAfter: 7 }),
+    });
+
+    writePersonalViewPrefs({});
+    expect(store["board:view-prefs:boards"]).toBeUndefined();
+
+    store["board:view-prefs:boards"] = "[1,2]";
+    expect(readPersonalViewPrefs()).toEqual({});
+  });
+
+  it("reads no device settings as null, not as the default", () => {
+    expect(readDeviceViewPrefs()).toBeNull();
+
+    store["board:view-prefs"] = JSON.stringify(
+      prefs({ columnSize: "flexible" }),
+    );
+    expect(readDeviceViewPrefs()).toEqual(prefs({ columnSize: "flexible" }));
+  });
+});
+
+describe("resolveBoardViewPrefs", () => {
+  const saved = prefs({
+    cardFields: ["summary", "status"],
+    columnSize: "flexible",
+  });
+  const device = prefs({ scroll: "board" });
+
+  it("shows the board's saved view over this device's own settings", () => {
+    const resolved = resolveBoardViewPrefs({
+      personal: undefined,
+      saved,
+      device,
+    });
+
+    expect(resolved).toMatchObject({
+      prefs: saved,
+      source: "saved",
+      dirty: false,
+      saved: true,
+    });
+  });
+
+  it("falls back to the device, then the default, when nothing is saved", () => {
+    expect(
+      resolveBoardViewPrefs({ personal: undefined, saved: null, device }),
+    ).toMatchObject({
+      prefs: device,
+      source: "device",
+      saved: false,
+    });
+
+    expect(
+      resolveBoardViewPrefs({ personal: undefined, saved: null, device: null }),
+    ).toMatchObject({ prefs: DEFAULT_BOARD_VIEW_PREFS, source: "default" });
+  });
+
+  it("lets an unsaved personal change win, marked dirty, with the saved view as what reset returns to", () => {
+    const personal = prefs({ cardFields: ["summary"], columnSize: "flexible" });
+    const resolved = resolveBoardViewPrefs({ personal, saved, device });
+
+    expect(resolved).toMatchObject({
+      prefs: personal,
+      baseline: saved,
+      source: "personal",
+      dirty: true,
+    });
+  });
+
+  it("treats a personal entry equal to the saved view as no change", () => {
+    const resolved = resolveBoardViewPrefs({
+      personal: { ...saved },
+      saved,
+      device,
+    });
+
+    expect(resolved).toMatchObject({ source: "saved", dirty: false });
+  });
+
+  it("reads a field order change as a change", () => {
+    const personal = {
+      ...saved,
+      cardFields: ["status", "summary"] as BoardViewPrefs["cardFields"],
+    };
+
+    expect(resolveBoardViewPrefs({ personal, saved, device: null }).dirty).toBe(
+      true,
+    );
   });
 });

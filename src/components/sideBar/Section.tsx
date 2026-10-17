@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/SideBarUI/sidebar";
 import { SIDEBAR_DND, type SidebarSection } from "@/services/sidebar/layout";
 import { cn } from "@/utils/cn";
-import { stepKey } from "./stepKey";
+import { REORDER_KEYS, stepKey } from "./stepKey";
 
 // Pointer-only by design: the keyboard reorders with Alt+↑/↓ on the row itself,
 // so a grip per row would add no access, only a tab stop.
@@ -97,6 +97,7 @@ export default function Section({
                 type="button"
                 onClick={onToggle}
                 onKeyDown={stepKey(onStep)}
+                aria-keyshortcuts={REORDER_KEYS}
                 aria-expanded={open}
               />
             }

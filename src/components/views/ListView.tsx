@@ -6,6 +6,7 @@ import { DragChip } from "@/components/dnd/DropLine";
 import ReorderContext from "@/components/dnd/ReorderContext";
 import type { ReorderMove } from "@/components/dnd/reorderDnd";
 import ViewSkeleton from "@/components/loading/ViewSkeleton";
+import ViewError from "@/components/loading/ViewError";
 import EmptyState from "@/components/ui/EmptyState";
 import { categoryOf } from "@/constants/columns";
 import { useBoardId } from "@/hooks/useBoardId";
@@ -162,7 +163,7 @@ export default function ListView() {
 
   if (isLoading) return <ViewSkeleton mode="list" />;
 
-  if (error) return <p className="text-status-red text-sm">{error.message}</p>;
+  if (error) return <ViewError error={error} />;
 
   const grouped = view.group !== "none";
   const span = visibleColumns.length + 2;

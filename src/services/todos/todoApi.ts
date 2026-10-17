@@ -30,11 +30,17 @@ export function addTodo({
   type = DEFAULT_WORK_TYPE,
   parent_id = null,
   sprint_id = null,
+  priority = null,
+  estimate = null,
+  description = null,
 }: {
   id: string;
   title: string;
   status_id: string | null;
   board_id: string;
+  priority?: string | null;
+  estimate?: number | null;
+  description?: string | null;
   assignee_id?: string | null;
   start_date?: string | null;
   due_date?: string | null;
@@ -52,6 +58,9 @@ export function addTodo({
     type,
     parent_id,
     sprint_id,
+    priority,
+    estimate,
+    description,
   });
 }
 
@@ -137,4 +146,14 @@ export type TodoPatch = { id: string; board_id: string } & Partial<
 // would look correct and then revert.
 export function updateTodo({ id, board_id, ...patch }: TodoPatch): Promise<Todo> {
   return api.patch<Todo>(`/boards/${board_id}/todos/${id}`, patch);
+}
+
+export function addLabel(todoId: string, name: string): Promise<TodoDetail> {
+  return api.post<TodoDetail>(`/todos/${todoId}/labels`, { name });
+}
+
+export function removeLabel(todoId: string, name: string): Promise<TodoDetail> {
+  return api.del<TodoDetail>(
+    `/todos/${todoId}/labels?name=${encodeURIComponent(name)}`,
+  );
 }

@@ -1,9 +1,15 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { addTodo, moveTodo } from "./todoApi";
-import { applyTodoConfirmed, applyTodoInserted } from "./cache";
+import {
+  applyTodoConfirmed,
+  applyTodoDeleted,
+  applyTodoInserted,
+} from "./cache";
 import { queryKeys } from "@/services/queryClient/queryKeys";
 import type { Todo } from "../../types/data";
 import { useBoardId } from "@/hooks/useBoardId";
+import { useAuth } from "@/services/auth/useAuth";
+import { recordView } from "@/services/forYou/viewed";
 import { DEFAULT_WORK_TYPE } from "@/constants/workTypes";
 import { isGenuineSubtask } from "./subtasks";
 import { rankForAppend, rankForDrop } from "@/utils/rank";
@@ -26,6 +32,9 @@ interface AddTodoVars {
   parent_id?: string | null;
   // undefined = "use the active sprint"; null = "deliberately none". Don't collapse these.
   sprint_id?: string | null;
+  priority?: string | null;
+  estimate?: number | null;
+  description?: string | null;
 }
 
 type AddTodoInput = AddTodoVars & { id: string };
@@ -33,6 +42,7 @@ type AddTodoInput = AddTodoVars & { id: string };
 // Sprint is read here, not passed by callers, so every create path lands in the running sprint without each one remembering to say so.
 export function useAddTodo() {
   const queryClient = useQueryClient();
+  const userId = useAuth().user?.id;
   const boardId = useBoardId();
 
   const { data: sprints = [] } = useSprints();
@@ -53,6 +63,9 @@ export function useAddTodo() {
       type = DEFAULT_WORK_TYPE,
       parent_id = null,
       sprint_id,
+      priority = null,
+      estimate = null,
+      description = null,
     }: AddTodoInput) => {
       if (!boardId) throw new Error("useAddTodo ran without a board");
 
@@ -67,6 +80,9 @@ export function useAddTodo() {
         type,
         parent_id,
         sprint_id: sprint_id === undefined ? activeSprintId : sprint_id,
+        priority,
+        estimate,
+        description,
       });
     },
 
@@ -81,6 +97,8 @@ export function useAddTodo() {
       type = DEFAULT_WORK_TYPE,
       parent_id = null,
       sprint_id,
+      priority = null,
+      estimate = null,
     }) => {
       if (!boardId) throw new Error("useAddTodo ran without a board");
 
@@ -113,8 +131,8 @@ export function useAddTodo() {
         board_key: null,
         assignee_id,
         type,
-        priority: null,
-        estimate: null,
+        priority,
+        estimate,
         parent_id,
         start_date,
         due_date,
@@ -129,14 +147,14 @@ export function useAddTodo() {
         queryKeys.todos(boardId),
         applyTodoInserted(previousTodos, optimisticTodo, index, columnOf),
       );
-
-      return { previousTodos };
     },
 
-    onError: (_err, _variables, context) => {
-      queryClient.setQueryData(
+    // Only this create's own row: restoring a snapshot would also undo a create that
+    // overlapped it, or bring back one that had already failed.
+    onError: (_err, { id }) => {
+      queryClient.setQueryData<Todo[]>(
         queryKeys.todos(boardId),
-        context?.previousTodos,
+        (rows) => rows && applyTodoDeleted(rows, id),
       );
     },
 
@@ -147,6 +165,15 @@ export function useAddTodo() {
       const todos = applyTodoConfirmed(current, serverTodo);
 
       queryClient.setQueryData<Todo[]>(queryKeys.todos(boardId), todos);
+
+      if (serverTodo.board_id && !isGenuineSubtask(todos, serverTodo)) {
+        recordView(
+          userId,
+          serverTodo.id,
+          serverTodo.board_id,
+          new Date().toISOString(),
+        );
+      }
 
       const kept = todos.find((todo) => todo.id === serverTodo.id);
       const rank = kept?.rank ?? serverTodo.rank;
@@ -169,10 +196,14 @@ export function useAddTodo() {
   });
 
   // Minted here, not in onMutate, because mutationFn needs it too and context only flows forward to the callbacks.
+  // onError rides this call's own promise: TanStack runs mutate()'s callbacks for the latest call only.
   const mutate = (
     variables: AddTodoVars,
-    options?: Parameters<typeof mutation.mutate>[1],
-  ) => mutation.mutate({ ...variables, id: crypto.randomUUID() }, options);
+    { onError }: { onError?: () => void } = {},
+  ) =>
+    mutation
+      .mutateAsync({ ...variables, id: crypto.randomUUID() })
+      .catch(() => onError?.());
 
   return { ...mutation, mutate };
 }

@@ -74,6 +74,15 @@ export async function updatePassword(token: string, password: string): Promise<v
   );
 }
 
+export async function verifyEmail(token: string): Promise<void> {
+  await api.post<{ ok: true }>("/auth/email/verify", { token }, { anonymous: true });
+}
+
+// Answers the same whether or not the address has an account waiting.
+export async function resendVerification(email: string): Promise<void> {
+  await api.post<{ ok: true }>("/auth/email/resend", { email }, { anonymous: true });
+}
+
 export async function isUsernameAvailable(username: string): Promise<boolean> {
   const { available } = await api.get<{ available: boolean }>(
     `/auth/username-available${toQuery({ username })}`,

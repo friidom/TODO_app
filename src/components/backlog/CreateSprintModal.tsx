@@ -23,6 +23,7 @@ import {
   useCreateSprint,
   useUpdateSprint,
 } from "@/services/sprints/useSprints";
+import { toast } from "@/stores/toasts";
 import type { Sprint } from "@/types/data";
 import { cn } from "@/utils/cn";
 import { fromCalendarDay, toCalendarDay, todayISO } from "@/utils/dueDate";
@@ -67,7 +68,15 @@ export default function CreateSprintModal({
     };
 
     if (sprint) {
-      updateSprint.mutate({ id: sprint.id, ...values }, { onSuccess: onClose });
+      updateSprint.mutate(
+        { id: sprint.id, ...values },
+        {
+          onSuccess: () => {
+            toast.success(t("sprint.updated"));
+            onClose();
+          },
+        },
+      );
     } else {
       createSprint.mutate(values, { onSuccess: onClose });
     }
@@ -78,140 +87,142 @@ export default function CreateSprintModal({
       title={sprint ? t("backlog.editSprint") : t("backlog.createSprint")}
       onClose={onClose}
     >
-      <form onSubmit={handleSubmit}>
-        <h2 className={DIALOG_TITLE}>
-          {sprint ? t("backlog.editSprint") : t("backlog.createSprint")}
-        </h2>
+      <form onSubmit={handleSubmit} aria-busy={mutation.isPending}>
+        <fieldset disabled={mutation.isPending} className="contents">
+          <h2 className={DIALOG_TITLE}>
+            {sprint ? t("backlog.editSprint") : t("backlog.createSprint")}
+          </h2>
 
-        <label htmlFor="sprint-name" className={`${DIALOG_LABEL} mt-5`}>
-          {t("common.name")}
-        </label>
+          <label htmlFor="sprint-name" className={`${DIALOG_LABEL} mt-5`}>
+            {t("common.name")}
+          </label>
 
-        <input
-          id="sprint-name"
-          autoFocus
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className={FIELD_INPUT}
-          placeholder={t("backlog.sprintNamePlaceholder")}
-        />
+          <input
+            id="sprint-name"
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className={FIELD_INPUT}
+            placeholder={t("backlog.sprintNamePlaceholder")}
+          />
 
-        <label htmlFor="sprint-goal" className={`${DIALOG_LABEL} mt-4`}>
-          {t("backlog.goal")}
-        </label>
+          <label htmlFor="sprint-goal" className={`${DIALOG_LABEL} mt-4`}>
+            {t("backlog.goal")}
+          </label>
 
-        <textarea
-          id="sprint-goal"
-          value={goal}
-          onChange={(e) => setGoal(e.target.value)}
-          rows={2}
-          className={`${FIELD_INPUT} resize-none`}
-          placeholder={t("backlog.goalPlaceholder")}
-        />
+          <textarea
+            id="sprint-goal"
+            value={goal}
+            onChange={(e) => setGoal(e.target.value)}
+            rows={2}
+            className={`${FIELD_INPUT} resize-none`}
+            placeholder={t("backlog.goalPlaceholder")}
+          />
 
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <div>
-            <label htmlFor="sprint-start" className={DIALOG_LABEL}>
-              {t("fields.startDate")}
-            </label>
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="sprint-start" className={DIALOG_LABEL}>
+                {t("fields.startDate")}
+              </label>
 
-            <input
-              id="sprint-start"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className={FIELD_INPUT}
-            />
+              <input
+                id="sprint-start"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className={FIELD_INPUT}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="sprint-end" className={DIALOG_LABEL}>
+                {t("backlog.endDate")}
+              </label>
+
+              <input
+                id="sprint-end"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className={FIELD_INPUT}
+              />
+            </div>
           </div>
 
-          <div>
-            <label htmlFor="sprint-end" className={DIALOG_LABEL}>
-              {t("backlog.endDate")}
-            </label>
+          <div className="mt-2 flex items-center gap-2">
+            <span
+              id="sprint-duration"
+              className="text-ink-3 text-mini font-medium"
+            >
+              {t("backlog.duration")}
+            </span>
 
-            <input
-              id="sprint-end"
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className={FIELD_INPUT}
-            />
+            <div
+              role="group"
+              aria-labelledby="sprint-duration"
+              className={SEGMENTED}
+            >
+              {SPRINT_WEEKS.map((weeks) => {
+                const start = startDate || todayISO();
+                const end = sprintEnd(start, weeks);
+                const active = startDate !== "" && endDate === end;
+
+                return (
+                  <button
+                    key={weeks}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => {
+                      setStartDate(start);
+                      setEndDate(end);
+                    }}
+                    className={cn(
+                      SEGMENT,
+                      active ? SEGMENT_ACTIVE : SEGMENT_IDLE,
+                    )}
+                  >
+                    {t("backlog.weeks", { count: weeks })}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
 
-        <div className="mt-2 flex items-center gap-2">
-          <span
-            id="sprint-duration"
-            className="text-ink-3 text-mini font-medium"
-          >
-            {t("backlog.duration")}
-          </span>
+          {inverted && (
+            <p className={`${DIALOG_ERROR} mt-3`}>
+              {t("backlog.endBeforeStart")}
+            </p>
+          )}
 
-          <div
-            role="group"
-            aria-labelledby="sprint-duration"
-            className={SEGMENTED}
-          >
-            {SPRINT_WEEKS.map((weeks) => {
-              const start = startDate || todayISO();
-              const end = sprintEnd(start, weeks);
-              const active = startDate !== "" && endDate === end;
+          {mutation.error && (
+            <p role="alert" className={DIALOG_ERROR}>
+              {mutation.error.message}
+            </p>
+          )}
 
-              return (
-                <button
-                  key={weeks}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => {
-                    setStartDate(start);
-                    setEndDate(end);
-                  }}
-                  className={cn(
-                    SEGMENT,
-                    active ? SEGMENT_ACTIVE : SEGMENT_IDLE,
-                  )}
-                >
-                  {t("backlog.weeks", { count: weeks })}
-                </button>
-              );
-            })}
+          <div className={DIALOG_ACTIONS}>
+            <button type="button" onClick={onClose} className={DIALOG_CANCEL}>
+              {t("common.cancel")}
+            </button>
+
+            <button
+              type="submit"
+              disabled={!trimmed || inverted || mutation.isPending}
+              className={DIALOG_CONFIRM}
+            >
+              {mutation.isPending && (
+                <Loader2 className="size-3.5 animate-spin" />
+              )}
+              {mutation.isPending
+                ? sprint
+                  ? t("common.saving")
+                  : t("common.creating")
+                : sprint
+                  ? t("common.save")
+                  : t("backlog.createSprint")}
+            </button>
           </div>
-        </div>
-
-        {inverted && (
-          <p className={`${DIALOG_ERROR} mt-3`}>
-            {t("backlog.endBeforeStart")}
-          </p>
-        )}
-
-        {mutation.error && (
-          <p role="alert" className={DIALOG_ERROR}>
-            {mutation.error.message}
-          </p>
-        )}
-
-        <div className={DIALOG_ACTIONS}>
-          <button type="button" onClick={onClose} className={DIALOG_CANCEL}>
-            {t("common.cancel")}
-          </button>
-
-          <button
-            type="submit"
-            disabled={!trimmed || inverted || mutation.isPending}
-            className={DIALOG_CONFIRM}
-          >
-            {mutation.isPending && (
-              <Loader2 className="size-3.5 animate-spin" />
-            )}
-            {mutation.isPending
-              ? sprint
-                ? t("common.saving")
-                : t("common.creating")
-              : sprint
-                ? t("common.save")
-                : t("backlog.createSprint")}
-          </button>
-        </div>
+        </fieldset>
       </form>
     </Modal>
   );

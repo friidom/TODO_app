@@ -2,16 +2,25 @@ import { useTranslation } from "react-i18next";
 import { useId, useRef, useState, type ReactNode } from "react";
 import { FloatingPortal } from "@floating-ui/react";
 import {
+  CalendarCheckIcon,
+  CalendarClockIcon,
   CalendarIcon,
+  CalendarPlusIcon,
+  CalendarSyncIcon,
   ChevronDownIcon,
+  CircleDotIcon,
+  FolderIcon,
   GaugeIcon,
   HashIcon,
-  LayersIcon,
+  Loader2Icon,
+  RotateCcwIcon,
   ListTreeIcon,
   ShapesIcon,
   SignalIcon,
+  TagIcon,
   TextIcon,
   UserIcon,
+  UserPenIcon,
   XIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -21,7 +30,6 @@ import { useCardPopover } from "@/components/todo/TodoItem/useCardPopover";
 import IconButton from "@/components/ui/IconButton";
 import { MENU_ITEM, POPOVER_PANEL } from "@/components/ui/controlChrome";
 import { workTypeOf } from "@/constants/workTypes";
-import { useSprintsEnabled } from "@/hooks/useSprintsEnabled";
 import { matchOptions } from "@/services/todos/filterOptions";
 import {
   CARD_FIELD_LABELS,
@@ -33,7 +41,9 @@ import {
   type HideDoneAfter,
   type ScrollMode,
 } from "@/services/views/boardViewPrefs";
-import { useBoardViewPrefs } from "@/stores/boardViewPrefs";
+import { useBoardViewPrefs } from "@/hooks/useBoardViewPrefs";
+import { usePermissions } from "@/hooks/usePermissions";
+import { useSaveBoardView } from "@/hooks/useSaveBoardView";
 import { cn } from "@/utils/cn";
 
 const FIELD_ICONS: Record<CardField, LucideIcon> = {
@@ -46,7 +56,14 @@ const FIELD_ICONS: Record<CardField, LucideIcon> = {
   subtasks: ListTreeIcon,
   assignee: UserIcon,
   parent: workTypeOf("Epic").icon,
-  sprint: LayersIcon,
+  space: FolderIcon,
+  status: CircleDotIcon,
+  start: CalendarClockIcon,
+  created: CalendarPlusIcon,
+  updated: CalendarSyncIcon,
+  resolved: CalendarCheckIcon,
+  reporter: UserPenIcon,
+  labels: TagIcon,
 };
 
 const HINT = "text-ink-3 text-meta leading-relaxed";
@@ -54,14 +71,16 @@ const HINT = "text-ink-3 text-meta leading-relaxed";
 // The body of the ?panel=settings drawer. Every choice is per device (see boardViewPrefs) and applies to the Board view.
 export default function ViewSettings() {
   const { t } = useTranslation();
-  const columnSize = useBoardViewPrefs((state) => state.prefs.columnSize);
-  const scroll = useBoardViewPrefs((state) => state.prefs.scroll);
-  const hideDoneAfter = useBoardViewPrefs((state) => state.prefs.hideDoneAfter);
-  const setPrefs = useBoardViewPrefs((state) => state.setPrefs);
+  const {
+    prefs: { columnSize, scroll, hideDoneAfter },
+    setPrefs,
+  } = useBoardViewPrefs();
   const hideDoneId = useId();
 
   return (
     <div className="space-y-8 p-5">
+      <BoardViewState />
+
       <section className="space-y-2">
         <label htmlFor={hideDoneId} className={cn(SECTION_TITLE, "block")}>
           {t("viewSettings.hideDoneAfter")}
@@ -143,6 +162,82 @@ export default function ViewSettings() {
         {t("viewSettings.deviceNote")}
       </p>
     </div>
+  );
+}
+
+// Personal versus saved: what this device shows, whether it differs from the board's saved view, and the two ways to
+// settle that. Only admins may publish (PATCH /boards is admin-gated); anyone may drop their own changes.
+function BoardViewState() {
+  const { t } = useTranslation();
+  const { boardId, prefs, dirty, saved, reset } = useBoardViewPrefs();
+  const { canEditBoard } = usePermissions();
+  const { save, isPending } = useSaveBoardView();
+
+  const hint = dirty
+    ? canEditBoard
+      ? t("viewSettings.unsavedHintAdmin")
+      : t("viewSettings.unsavedHintMember")
+    : saved
+      ? t("viewSettings.savedHint")
+      : t("viewSettings.notSavedHint");
+
+  return (
+    <section
+      aria-labelledby="board-view-state"
+      className={cn(
+        "rounded-card border p-3.5 transition-colors duration-150",
+        dirty ? "border-brand/40 bg-brand-wash" : "border-hairline bg-surface",
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <h3 id="board-view-state" className="text-ink text-sm font-semibold">
+          {t("viewSettings.boardView")}
+        </h3>
+
+        <span
+          className={cn(
+            "text-micro rounded-full px-1.5 py-0.5 font-semibold tracking-wide uppercase",
+            dirty
+              ? "bg-brand-soft text-brand"
+              : saved
+                ? "bg-status-green/12 text-status-green"
+                : "bg-wash-strong text-ink-2",
+          )}
+        >
+          {dirty
+            ? t("viewSettings.unsaved")
+            : saved
+              ? t("viewSettings.saved")
+              : t("viewSettings.notSaved")}
+        </span>
+      </div>
+
+      <p className={cn(HINT, "mt-1.5")}>{hint}</p>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {canEditBoard && (
+          <button
+            type="button"
+            disabled={!boardId || isPending || (!dirty && saved)}
+            onClick={() => boardId && save(boardId, prefs)}
+            className="bg-brand text-brand-fg hover:bg-brand/90 focus-visible:ring-brand rounded-control inline-flex h-8 items-center gap-1.5 px-3 text-sm font-medium transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+          >
+            {isPending && <Loader2Icon className="size-4 animate-spin" />}
+            {t("viewSettings.saveBoard")}
+          </button>
+        )}
+
+        <button
+          type="button"
+          disabled={!dirty}
+          onClick={reset}
+          className="border-ink/15 text-ink-2 hover:bg-brand-wash hover:text-ink focus-visible:ring-brand rounded-control inline-flex h-8 items-center gap-1.5 border px-3 text-sm font-medium transition-colors duration-150 outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50"
+        >
+          <RotateCcwIcon className="size-4" />
+          {t("viewSettings.resetToSaved")}
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -245,23 +340,20 @@ function SizeDrawing({
 // Fields offered by search and listed below it, both in label order, so each language reads alphabetically.
 function ShowFields() {
   const { t } = useTranslation();
-  const shown = useBoardViewPrefs((state) => state.prefs.cardFields);
-  const setPrefs = useBoardViewPrefs((state) => state.setPrefs);
-  const sprintsEnabled = useSprintsEnabled();
+  const {
+    prefs: { cardFields: shown },
+    setPrefs,
+  } = useBoardViewPrefs();
 
   const byLabel = (a: CardField, b: CardField) =>
     CARD_FIELD_LABELS[a].localeCompare(CARD_FIELD_LABELS[b]);
 
-  const offered = CARD_FIELDS.filter(
-    (field) => field !== "sprint" || sprintsEnabled,
+  const selected = CARD_FIELDS.filter((field) => shown.includes(field)).sort(
+    byLabel,
   );
-
-  const selected = offered
-    .filter((field) => shown.includes(field))
-    .sort(byLabel);
-  const hidden = offered
-    .filter((field) => !shown.includes(field))
-    .sort(byLabel);
+  const hidden = CARD_FIELDS.filter((field) => !shown.includes(field)).sort(
+    byLabel,
+  );
 
   function toggle(field: CardField) {
     setPrefs({ cardFields: toggleCardField(shown, field) });
@@ -272,8 +364,11 @@ function ShowFields() {
       <FieldSearch fields={hidden} onPick={toggle} />
 
       <div>
-        <p className="text-ink text-meta mb-1.5 font-semibold">
+        <p className="text-ink text-meta mb-1.5 flex items-center gap-1.5 font-semibold">
           {t("viewSettings.selectedFields")}
+          <span className="bg-wash-strong text-ink-2 text-micro rounded-full px-1.5 tabular-nums">
+            {selected.length}/{CARD_FIELDS.length}
+          </span>
         </p>
 
         {selected.length === 0 ? (
@@ -287,9 +382,9 @@ function ShowFields() {
               return (
                 <li
                   key={field}
-                  className="hover:bg-wash rounded-control animate-in fade-in-0 flex h-10 items-center gap-3 px-1.5 transition-colors duration-150"
+                  className="group/field hover:bg-brand-wash focus-within:bg-brand-wash rounded-control animate-in fade-in-0 flex h-10 items-center gap-3 px-1.5 transition-colors duration-150"
                 >
-                  <span className="bg-wash-strong text-ink-2 grid size-7 shrink-0 place-items-center rounded-md">
+                  <span className="bg-wash-strong text-ink-2 group-hover/field:bg-brand-soft group-hover/field:text-brand grid size-7 shrink-0 place-items-center rounded-md transition-colors duration-150">
                     <Icon className="size-4" />
                   </span>
 

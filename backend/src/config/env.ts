@@ -267,6 +267,10 @@ if (env.MAIL_DRIVER === "smtp" && !env.SMTP_HOST) {
   throw new Error("Invalid backend environment: MAIL_DRIVER=smtp requires SMTP_HOST.");
 }
 
+if (env.MAIL_DRIVER === "smtp" && env.SMTP_USER !== undefined && env.SMTP_PASS === undefined) {
+  throw new Error("Invalid backend environment: SMTP_USER is set but SMTP_PASS is not.");
+}
+
 // new URL() splits the authority on the LAST "@", so a password containing a
 // literal "@" still parses -- it just relies on pg's parser happening to split
 // in the same place. That coincidence is what made an unencoded password

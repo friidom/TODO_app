@@ -15,19 +15,27 @@ export const HIDE_DONE_DAYS = [1, 3, 7, 14, 30] as const;
 
 export type HideDoneAfter = (typeof HIDE_DONE_DAYS)[number] | null;
 
-// Only what a board card can show from data the board already holds. Development, labels and flags would each need a
-// request or a column the board does not load, so they are not offered.
+// Only what a board card can show from data the board already holds. Development and flags would each need a
+// request or a column the board does not load, so they are not offered. Sprint is not offered either: the board is
+// the running sprint (isOnBoard), so it read the same on every card; a stored "sprint" is dropped on read.
 export const CARD_FIELDS = [
   "summary",
   "key",
   "type",
+  "status",
   "priority",
   "estimate",
+  "start",
   "due",
+  "created",
+  "updated",
+  "resolved",
   "subtasks",
   "assignee",
+  "reporter",
   "parent",
-  "sprint",
+  "space",
+  "labels",
 ] as const;
 
 export type CardField = (typeof CARD_FIELDS)[number];
@@ -36,13 +44,20 @@ export const CARD_FIELD_LABELS = translated<CardField>({
   summary: "fields.title",
   key: "viewSettings.workItemKey",
   type: "fields.workType",
+  status: "fields.status",
+  start: "fields.startDate",
+  created: "fields.created",
+  updated: "fields.updated",
+  resolved: "fields.completed",
+  reporter: "fields.reporter",
   priority: "fields.priority",
   estimate: "task.storyPoints",
   due: "fields.dueDate",
   subtasks: "subtasks.title",
   assignee: "fields.assignee",
   parent: "fields.parent",
-  sprint: "fields.sprint",
+  space: "boards.space",
+  labels: "fields.labels",
 });
 
 // Everything a card showed before the setting existed, so the default changes nothing.
@@ -55,6 +70,7 @@ export const DEFAULT_CARD_FIELDS: readonly CardField[] = [
   "due",
   "subtasks",
   "assignee",
+  "labels",
 ];
 
 export interface BoardViewPrefs {
@@ -151,7 +167,70 @@ export function hideStaleDone(
   return kept.length === todos.length ? todos : kept;
 }
 
+export function sameBoardViewPrefs(
+  a: BoardViewPrefs,
+  b: BoardViewPrefs,
+): boolean {
+  return (
+    a.columnSize === b.columnSize &&
+    a.scroll === b.scroll &&
+    a.hideDoneAfter === b.hideDoneAfter &&
+    a.cardFields.length === b.cardFields.length &&
+    a.cardFields.every((field, index) => b.cardFields[index] === field)
+  );
+}
+
+export type ViewPrefsSource = "personal" | "saved" | "device" | "default";
+
+export interface ResolvedBoardViewPrefs {
+  prefs: BoardViewPrefs;
+  // What Reset returns to: the board's saved view, else this device's settings, else the default.
+  baseline: BoardViewPrefs;
+  source: ViewPrefsSource;
+  // Unsaved changes on this board, which Save would publish and Reset would drop.
+  dirty: boolean;
+  saved: boolean;
+}
+
+// The one rule for which settings a board shows. A personal change wins on this device until it is saved or reset;
+// a saved board view wins over a device's own settings, so everyone opening the board sees what the admin saved.
+export function resolveBoardViewPrefs({
+  personal,
+  saved,
+  device,
+}: {
+  personal: BoardViewPrefs | undefined;
+  saved: BoardViewPrefs | null;
+  device: BoardViewPrefs | null;
+}): ResolvedBoardViewPrefs {
+  const baseline = saved ?? device ?? DEFAULT_BOARD_VIEW_PREFS;
+  const baselineSource: ViewPrefsSource = saved
+    ? "saved"
+    : device
+      ? "device"
+      : "default";
+
+  if (personal !== undefined && !sameBoardViewPrefs(personal, baseline)) {
+    return {
+      prefs: personal,
+      baseline,
+      source: "personal",
+      dirty: true,
+      saved: saved !== null,
+    };
+  }
+
+  return {
+    prefs: baseline,
+    baseline,
+    source: baselineSource,
+    dirty: false,
+    saved: saved !== null,
+  };
+}
+
 const KEY = "board:view-prefs";
+const PERSONAL_KEY = "board:view-prefs:boards";
 
 // Per-device for the reason toolbar:controls is: how wide a column is and where the board scrolls are reading
 // habits, not facts about the board. Guarded because a private window throws on access rather than returning null.
@@ -164,6 +243,50 @@ export function readBoardViewPrefs(): BoardViewPrefs {
     return normalizeBoardViewPrefs(JSON.parse(stored));
   } catch {
     return normalizeBoardViewPrefs(null);
+  }
+}
+
+// The device's own settings from before boards could save a view, or null when there are none.
+export function readDeviceViewPrefs(): BoardViewPrefs | null {
+  try {
+    const stored = localStorage.getItem(KEY);
+
+    return stored === null ? null : normalizeBoardViewPrefs(JSON.parse(stored));
+  } catch {
+    return null;
+  }
+}
+
+// Unsaved changes, per board, on this device.
+export function readPersonalViewPrefs(): Record<string, BoardViewPrefs> {
+  try {
+    const stored = JSON.parse(
+      localStorage.getItem(PERSONAL_KEY) ?? "{}",
+    ) as unknown;
+
+    if (typeof stored !== "object" || stored === null || Array.isArray(stored))
+      return {};
+
+    return Object.fromEntries(
+      Object.entries(stored).map(([boardId, prefs]) => [
+        boardId,
+        normalizeBoardViewPrefs(prefs),
+      ]),
+    );
+  } catch {
+    return {};
+  }
+}
+
+export function writePersonalViewPrefs(
+  byBoard: Record<string, BoardViewPrefs>,
+): void {
+  try {
+    if (Object.keys(byBoard).length === 0)
+      localStorage.removeItem(PERSONAL_KEY);
+    else localStorage.setItem(PERSONAL_KEY, JSON.stringify(byBoard));
+  } catch {
+    // A preference that cannot be remembered is not worth failing a render for.
   }
 }
 

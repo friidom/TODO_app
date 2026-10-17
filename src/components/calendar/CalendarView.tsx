@@ -13,6 +13,7 @@ import { useTranslation } from "react-i18next";
 
 import ViewNotice from "@/components/board/ViewNotice";
 import ViewSkeleton from "@/components/loading/ViewSkeleton";
+import ViewError from "@/components/loading/ViewError";
 import { useBoardId } from "@/hooks/useBoardId";
 import { useBoardView } from "@/hooks/useBoardView";
 import { useCalendarView } from "@/hooks/useCalendarView";
@@ -102,7 +103,7 @@ export default function CalendarView() {
 
   if (isLoading) return <ViewSkeleton mode="calendar" />;
 
-  if (error) return <p className="text-status-red text-sm">{error.message}</p>;
+  if (error) return <ViewError error={error} />;
 
   return (
     <DndContext

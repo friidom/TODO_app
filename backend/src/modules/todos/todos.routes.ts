@@ -7,7 +7,14 @@ import { validate } from "../../middleware/validate.js";
 import * as controller from "./todos.controller.js";
 import { todoActivitiesRoutes } from "../activities/activities.routes.js";
 import { todoCommentsRoutes } from "../comments/comments.routes.js";
-import { createTodoSchema, moveTodoSchema, todoParamsSchema, upsertTodoSchema } from "./todos.schema.js";
+import {
+  addLabelSchema,
+  createTodoSchema,
+  labelQuerySchema,
+  moveTodoSchema,
+  todoParamsSchema,
+  upsertTodoSchema,
+} from "./todos.schema.js";
 import { todoAttachmentsRoutes } from "../attachments/attachments.routes.js";
 import { todoDevelopmentRoutes } from "../gitlab/gitlab.routes.js";
 
@@ -62,6 +69,28 @@ todosRoutes.delete(
   requireRole("editor"),
   validate({ params: todoParamsSchema }),
   controller.remove,
+);
+
+// Two atomic writes and no whole-array PATCH, so concurrent edits never
+// overwrite each other's labels (0038).
+todosRoutes.post(
+  "/:todoId/labels",
+  requireAuth,
+  boardAccess(),
+  requireRole("editor"),
+  validate({ params: todoParamsSchema, body: addLabelSchema }),
+  controller.addLabel,
+);
+
+// The name rides in the query: as a path segment, a label called ".." makes
+// the browser resolve the URL to DELETE /todos/:todoId, deleting the work item.
+todosRoutes.delete(
+  "/:todoId/labels",
+  requireAuth,
+  boardAccess(),
+  requireRole("editor"),
+  validate({ params: todoParamsSchema, query: labelQuerySchema }),
+  controller.removeLabel,
 );
 
 todosRoutes.use("/:todoId/comments", todoCommentsRoutes);

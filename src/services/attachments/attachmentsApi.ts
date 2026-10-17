@@ -67,3 +67,13 @@ export async function downloadAttachment(
 
   setTimeout(() => URL.revokeObjectURL(url), REVOKE_DELAY_MS);
 }
+
+export function setAttachmentPinned(
+  todoId: string,
+  id: string,
+  pinned: boolean,
+): Promise<Attachment> {
+  const path = `/todos/${todoId}/attachments/${id}/pin`;
+
+  return pinned ? api.put<Attachment>(path) : api.del<Attachment>(path);
+}

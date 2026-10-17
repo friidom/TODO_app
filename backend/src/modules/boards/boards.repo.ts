@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 
 import { prisma } from "../../db/prisma.js";
 import type { Actor } from "../../types/actor.js";
+import type { BoardViewSettings } from "./boards.schema.js";
 
 // THE SWAP POINT (§10.7). This is the Express replacement for the
 // accessible_board_ids() SQL helper, and it must appear exactly once in the
@@ -51,6 +52,7 @@ const BOARD_FIELDS = {
   sprints_enabled: true,
   workflow_enabled: true,
   view_tabs: true,
+  view_settings: true,
   created_at: true,
   updated_at: true,
   next_key: true,
@@ -132,6 +134,7 @@ export interface BoardPatch {
   sprints_enabled?: boolean;
   workflow_enabled?: boolean;
   view_tabs?: ViewTabEntry[] | null;
+  view_settings?: BoardViewSettings | null;
 }
 
 export function update(
@@ -159,6 +162,9 @@ export function update(
       // boards_view_tabs_is_array refuses.
       ...(patch.view_tabs !== undefined && {
         view_tabs: patch.view_tabs ?? Prisma.DbNull,
+      }),
+      ...(patch.view_settings !== undefined && {
+        view_settings: patch.view_settings ?? Prisma.DbNull,
       }),
     },
     select: BOARD_FIELDS,

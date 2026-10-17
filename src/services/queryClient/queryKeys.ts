@@ -97,6 +97,9 @@ export const queryKeys = {
 
   notifications: () => NOTIFICATION_ROOT,
 
+  // Per user, never on the board rows: those are shared by every member.
+  starred: () => ["starred"] as const,
+
   // Not board-scoped: connected providers are a property of the account, like
   // forYou and notifications.
   oauthConnections: () => ["oauth-connections"] as const,

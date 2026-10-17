@@ -36,6 +36,11 @@ export function useBoardRealtime(boardId: string | undefined): string[] {
       queryClient.setQueryData<Todo[]>(todosKey, (old) =>
         old ? applyTodoEvent(old, change) : old,
       );
+
+      // the event carries the narrow list row, so an open detail view refetches rather than being patched
+      const id = change.new?.id ?? change.old?.id;
+
+      if (id) void queryClient.invalidateQueries({ queryKey: queryKeys.todo(id) });
     }
 
     // Only a column's limits still change row by row; anything structural is a

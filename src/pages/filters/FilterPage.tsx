@@ -74,7 +74,7 @@ function Filter({ id }: { id: FilterId }) {
 
     if (definition.source === "viewed") {
       // The set comes from this browser; the order is when it saw each card.
-      const seen = readViewed();
+      const seen = readViewed(context.userId);
       const at = new Map(seen.map((entry) => [entry.id, entry.at]));
       const byId = new Map(all.map((todo) => [todo.id, todo]));
 

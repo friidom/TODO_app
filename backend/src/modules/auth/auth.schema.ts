@@ -34,6 +34,10 @@ export const forgotPasswordSchema = z.object({ email: z.string().trim().min(1).m
 
 export const resetPasswordSchema = z.object({ token: z.string().min(1), password });
 
+export const verifyEmailSchema = z.object({ token: z.string().min(1).max(200) });
+
+export const resendVerificationSchema = forgotPasswordSchema;
+
 export const usernameAvailableSchema = z.object({ username: z.string().min(1).max(100) });
 
 export const logoutSchema = z.object({ all: z.enum(["true", "false"]).optional() });
@@ -44,3 +48,4 @@ export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type LogoutQuery = z.infer<typeof logoutSchema>;
 export type UsernameAvailableQuery = z.infer<typeof usernameAvailableSchema>;
+export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;

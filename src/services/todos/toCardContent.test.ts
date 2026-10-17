@@ -36,6 +36,11 @@ describe("toCardContent", () => {
       priority: "high",
       dueDate: "2026-08-20T00:00:00.000Z",
       estimate: null,
+      labels: [],
+      startDate: null,
+      createdAt: "2026-08-01T00:00:00.000Z",
+      updatedAt: null,
+      completedAt: null,
     });
   });
 
@@ -93,6 +98,11 @@ describe("TodoCardProps", () => {
       priority: null,
       dueDate: null,
       estimate: null,
+      labels: [],
+      startDate: null,
+      createdAt: null,
+      updatedAt: null,
+      completedAt: null,
       draft: "A card with no row behind it",
       editing: false,
       canEdit: true,

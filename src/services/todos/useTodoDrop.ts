@@ -9,9 +9,9 @@ import {
   columnIdOf,
   type StatusIndex,
 } from "@/services/workflow/statuses";
-import type { Todo } from "@/types/data";
+import type { Todo, TodoDetail } from "@/types/data";
 import { rankForDrop } from "@/utils/rank";
-import { applyTodoMoved } from "./cache";
+import { applyDetailPatched, applyTodoMoved } from "./cache";
 import { isGenuineSubtask } from "./subtasks";
 import { useBoardId } from "@/hooks/useBoardId";
 
@@ -89,6 +89,7 @@ export function useTodoDrop() {
   };
 
   return useMutation({
+    mutationKey: ["todo-write"],
     mutationFn: async (vars: TodoDropVars) => {
       if (!boardId) throw new Error("useTodoDrop ran without a board");
 
@@ -112,10 +113,21 @@ export function useTodoDrop() {
       index,
       rank: kept,
     }) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.todos(boardId) });
+      const detailKey = queryKeys.todo(activeTodo.id);
+
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: queryKeys.todos(boardId) }),
+        queryClient.cancelQueries({ queryKey: detailKey }),
+      ]);
 
       const previousTodos = queryClient.getQueryData<Todo[]>(
         queryKeys.todos(boardId),
+      );
+      const previousDetail = queryClient.getQueryData<TodoDetail>(detailKey);
+
+      // the status is known now even when the rank is not, so an open detail view never shows the old one
+      queryClient.setQueryData<TodoDetail>(detailKey, (old) =>
+        applyDetailPatched(old, activeTodo.id, { status_id: statusId }),
       );
 
       // recomputed sync (not shared with mutationFn, which can go async on rebalance) — null means no room,
@@ -135,7 +147,7 @@ export function useTodoDrop() {
         );
       }
 
-      return { previousTodos };
+      return { previousTodos, previousDetail };
     },
 
     onSuccess: (rank, { activeTodo, statusId }) => {
@@ -150,8 +162,15 @@ export function useTodoDrop() {
     },
 
     // restore only — the toast comes from the global MutationCache handler
-    onError: (_err, _vars, context) => {
+    onError: (_err, { activeTodo }, context) => {
       if (!context) return;
+
+      if (context.previousDetail) {
+        queryClient.setQueryData(
+          queryKeys.todo(activeTodo.id),
+          context.previousDetail,
+        );
+      }
 
       if (context.previousTodos) {
         queryClient.setQueryData(
@@ -165,6 +184,13 @@ export function useTodoDrop() {
       queryClient.removeQueries({
         queryKey: queryKeys.todos(boardId),
         exact: true,
+      });
+    },
+
+    // the triggers stamp completed_at / started_at / updated_at, which only the server knows
+    onSettled: (_data, _err, { activeTodo }) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.todo(activeTodo.id),
       });
     },
   });

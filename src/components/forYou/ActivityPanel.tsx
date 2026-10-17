@@ -83,7 +83,7 @@ export default function ActivityPanel({
       <div className="max-h-[32rem] overflow-y-auto p-1.5 lg:max-h-[calc(100svh-9rem)]">
         {isPending ? (
           <ActivitySkeleton />
-        ) : error ? (
+        ) : error && !data ? (
           <div
             role="alert"
             className="flex flex-col items-center gap-1 px-4 py-8 text-center"

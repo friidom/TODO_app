@@ -34,6 +34,8 @@ export default function RecentBoards({
   const shortcuts = recentBoards(boards, visits, SHOWN);
   const visited = shortcuts.some((shortcut) => shortcut.visitedAt !== null);
 
+  if (!loading && shortcuts.length === 0) return null;
+
   return (
     <section aria-labelledby="for-you-boards">
       <div className="mb-3 flex items-baseline justify-between gap-3">

@@ -51,3 +51,19 @@ export const remove: RequestHandler = async (req, res) => {
 
   res.status(204).end();
 };
+
+export const pin: RequestHandler = async (req, res) => {
+  const { commentId } = req.params as CommentParams;
+
+  res.json(
+    await commentsService.setPinned({ id: requireActor(req) }, requireBoard(req), commentId, true),
+  );
+};
+
+export const unpin: RequestHandler = async (req, res) => {
+  const { commentId } = req.params as CommentParams;
+
+  res.json(
+    await commentsService.setPinned({ id: requireActor(req) }, requireBoard(req), commentId, false),
+  );
+};

@@ -50,7 +50,30 @@ export const moveTodoSchema = z.object({
 
 export const todoParamsSchema = z.object({ todoId: z.uuid() });
 
+// Trimmed, inner whitespace collapsed, no control characters: a label is a
+// short word a person typed, and the same word must compare equal however it
+// was spaced.
+const labelName = z
+  .string()
+  .transform((raw) => raw.trim().replace(/\s+/g, " "))
+  .pipe(
+    z
+      .string()
+      .min(1)
+      .max(40)
+      .refine(
+        (value) => [...value].every((char) => char >= " " && char !== "\u007f"),
+        "must not contain control characters",
+      ),
+  );
+
+export const addLabelSchema = z.object({ name: labelName });
+
+export const labelQuerySchema = z.object({ name: labelName });
+
 export type CreateTodoInput = z.infer<typeof createTodoSchema>;
 export type UpsertTodoInput = z.infer<typeof upsertTodoSchema>;
 export type MoveTodoInput = z.infer<typeof moveTodoSchema>;
 export type TodoParams = z.infer<typeof todoParamsSchema>;
+export type AddLabelInput = z.infer<typeof addLabelSchema>;
+export type LabelQuery = z.infer<typeof labelQuerySchema>;

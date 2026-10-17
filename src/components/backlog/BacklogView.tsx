@@ -10,6 +10,7 @@ import { PlusIcon, LayersIcon } from "lucide-react";
 
 import ViewNotice from "@/components/board/ViewNotice";
 import ViewSkeleton from "@/components/loading/ViewSkeleton";
+import ViewError from "@/components/loading/ViewError";
 import EmptyState from "@/components/ui/EmptyState";
 import { workTypeOf } from "@/constants/workTypes";
 import useBacklogDnd, { type BacklogIndicator } from "@/hooks/useBacklogDnd";
@@ -87,7 +88,7 @@ export default function BacklogView() {
 
   if (isLoading || sprintsLoading) return <ViewSkeleton mode="backlog" />;
 
-  if (error) return <p className="text-status-red text-sm">{error.message}</p>;
+  if (error) return <ViewError error={error} />;
 
   function submitBacklogItem() {
     const trimmed = newItemTitle.trim();

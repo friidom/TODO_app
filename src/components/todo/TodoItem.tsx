@@ -18,7 +18,9 @@ import { useOpenTask } from "@/hooks/useOpenTask";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useTodoPatch } from "@/hooks/useTodoPatch";
 import { toCardContent } from "@/services/todos/toCardContent";
-import { useBoardViewPrefs } from "@/stores/boardViewPrefs";
+import { isDoneIn } from "@/services/workflow/statuses";
+import { useDoneStatusIds } from "@/services/workflow/useWorkflow";
+import { useBoardViewPrefs } from "@/hooks/useBoardViewPrefs";
 import { useCardLanding, type Landing } from "@/stores/cardLanding";
 import { useDoneFlash } from "@/stores/doneFlash";
 import type { Todo, TodoViewState } from "@/types/data";
@@ -32,7 +34,10 @@ const TodoItem = memo(function TodoItem({
   subtaskDone = 0,
   subtaskTotal = 0,
   parentLabel,
-  sprintLabel,
+  spaceLabel,
+  statusName,
+  statusCategory,
+  reporterName,
   selected = false,
 }: { todo: Todo; selected?: boolean } & TodoViewState &
   SubtaskCounts &
@@ -46,7 +51,10 @@ const TodoItem = memo(function TodoItem({
         subtaskDone={subtaskDone}
         subtaskTotal={subtaskTotal}
         parentLabel={parentLabel}
-        sprintLabel={sprintLabel}
+        spaceLabel={spaceLabel}
+        statusName={statusName}
+        statusCategory={statusCategory}
+        reporterName={reporterName}
       />
     );
   }
@@ -58,7 +66,10 @@ const TodoItem = memo(function TodoItem({
       subtaskDone={subtaskDone}
       subtaskTotal={subtaskTotal}
       parentLabel={parentLabel}
-      sprintLabel={sprintLabel}
+      spaceLabel={spaceLabel}
+      statusName={statusName}
+      statusCategory={statusCategory}
+      reporterName={reporterName}
       selected={selected}
     />
   );
@@ -70,10 +81,13 @@ export interface SubtaskCounts {
   subtaskTotal?: number;
 }
 
-// the Parent and Sprint card fields' text, looked up once per column (useCardLabels) for the same reason
+// the Parent, Space, Status and Reporter card fields' text, looked up once per column (useCardLabels) for the same reason
 export interface CardLabels {
   parentLabel?: string;
-  sprintLabel?: string;
+  spaceLabel?: string;
+  statusName?: string;
+  statusCategory?: string;
+  reporterName?: string;
 }
 
 export default TodoItem;
@@ -84,7 +98,10 @@ function DraggableTodo({
   subtaskDone,
   subtaskTotal,
   parentLabel,
-  sprintLabel,
+  spaceLabel,
+  statusName,
+  statusCategory,
+  reporterName,
   selected,
 }: {
   todo: Todo;
@@ -162,7 +179,10 @@ function DraggableTodo({
       subtaskDone={subtaskDone}
       subtaskTotal={subtaskTotal}
       parentLabel={parentLabel}
-      sprintLabel={sprintLabel}
+      spaceLabel={spaceLabel}
+      statusName={statusName}
+      statusCategory={statusCategory}
+      reporterName={reporterName}
       selected={selected}
       setNodeRef={setNodeRef}
       handleProps={handleProps}
@@ -179,7 +199,10 @@ const TodoContainer = memo(function TodoContainer({
   subtaskDone = 0,
   subtaskTotal = 0,
   parentLabel,
-  sprintLabel,
+  spaceLabel,
+  statusName,
+  statusCategory,
+  reporterName,
   selected = false,
   setNodeRef,
   handleProps,
@@ -200,7 +223,8 @@ const TodoContainer = memo(function TodoContainer({
   const keyPrefix = useKeyPrefix();
 
   // a store slice, not a prop or a URL read: the array keeps its identity until the setting changes, so the memo holds
-  const shownFields = useBoardViewPrefs((state) => state.prefs.cardFields);
+  const shownFields = useBoardViewPrefs().prefs.cardFields;
+  const { data: doneStatuses } = useDoneStatusIds();
 
   // only the real card celebrates, never the drag overlay's copy
   const celebrate = useDoneFlash(
@@ -256,6 +280,7 @@ const TodoContainer = memo(function TodoContainer({
       editing={editing}
       canEdit={canEditTodos}
       celebrate={celebrate}
+      done={doneStatuses !== undefined && isDoneIn(todo, doneStatuses)}
       selected={selected}
       overlay={overlay}
       dragging={dragging || (landing !== null && !landed)}
@@ -272,7 +297,10 @@ const TodoContainer = memo(function TodoContainer({
       subtaskTotal={subtaskTotal}
       shownFields={shownFields}
       parentLabel={parentLabel}
-      sprintLabel={sprintLabel}
+      spaceLabel={spaceLabel}
+      statusName={statusName}
+      statusCategory={statusCategory}
+      reporterName={reporterName}
       // opening the panel is a read, not gated on canEditTodos — just withheld on the overlay copy
       onOpen={overlay ? undefined : () => openTask(todo.id)}
       assignee={

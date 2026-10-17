@@ -4,6 +4,7 @@ import type { Readable } from "node:stream";
 import { minioStorage } from "../../infrastructure/storage/minio-storage.js";
 import { AppError } from "../../lib/errors.js";
 import { canDeleteAttachment } from "../../lib/permissions.js";
+import { emitInvalidate } from "../../realtime/emit.js";
 import type { Actor } from "../../types/actor.js";
 import type { BoardContext } from "../members/members.service.js";
 import {
@@ -104,4 +105,37 @@ export async function remove(
   await minioStorage.delete(row.storage_path);
 
   if ((await attachmentsRepo.remove(board.id, todoId, attachmentId)) === 0) throw notFound();
+}
+
+export async function setPinned(
+  actor: Actor,
+  board: BoardContext,
+  todoId: string,
+  attachmentId: string,
+  pinned: boolean,
+): Promise<AttachmentRow> {
+  const row = await attachmentsRepo.findOne(board.id, todoId, attachmentId);
+
+  if (row === null) throw notFound();
+
+  if (pinned) {
+    const result = await attachmentsRepo.pin(board.id, todoId, attachmentId, actor.id);
+
+    if (result === "full") {
+      throw new AppError(
+        "conflict",
+        `A work item can have up to ${attachmentsRepo.MAX_PINS} pinned files. Unpin one first.`,
+      );
+    }
+  } else {
+    await attachmentsRepo.unpin(attachmentId);
+  }
+
+  const updated = await attachmentsRepo.findOne(board.id, todoId, attachmentId);
+
+  if (updated === null) throw notFound();
+
+  emitInvalidate(board.id, ["attachments"]);
+
+  return updated;
 }

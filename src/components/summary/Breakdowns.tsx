@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { UserIcon } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -132,13 +132,46 @@ export function TeamWorkload({
   const { t } = useTranslation();
   const heaviest = Math.max(...entries.map((entry) => entry.open), 0);
   const totalOpen = entries.reduce((sum, entry) => sum + entry.open, 0);
+  // The row being read, shown in the header rather than a floating tip: the list scrolls, and would clip one.
+  const [active, setActive] = useState<WorkloadEntry | null>(null);
+
+  const nameOf = (entry: WorkloadEntry) => {
+    const member = entry.assigneeId
+      ? members.find((it) => it.id === entry.assigneeId)
+      : undefined;
+
+    // an assignee id with no roster row is someone removed from the board, not deleted
+    return member
+      ? memberName(member)
+      : entry.assigneeId
+        ? t("members.former")
+        : t("members.unassigned");
+  };
 
   return (
     <SummaryCard
       title={t("summary.workload")}
       className={className}
       action={
-        totalOpen > 0 ? (
+        active ? (
+          <span
+            aria-live="polite"
+            className="text-ink-2 text-mini flex min-w-0 items-center gap-2 tabular-nums"
+          >
+            <span className="text-ink max-w-28 truncate font-semibold">
+              {nameOf(active)}
+            </span>
+            <span>{t("summary.open", { count: active.open })}</span>
+            {active.overdue > 0 && (
+              <span className="text-status-red font-medium">
+                {t("summary.late", { count: active.overdue })}
+              </span>
+            )}
+            <span className="text-ink-3">
+              {t("summary.onTrack", { count: active.open - active.overdue })}
+            </span>
+          </span>
+        ) : totalOpen > 0 ? (
           <span className="text-ink-3 text-mini tabular-nums">
             {t("summary.open", { count: totalOpen })}
           </span>
@@ -157,7 +190,15 @@ export function TeamWorkload({
             return (
               <div
                 key={entry.assigneeId ?? "unassigned"}
-                className="flex items-center gap-2 py-0.5"
+                tabIndex={0}
+                onPointerEnter={() => setActive(entry)}
+                onPointerLeave={() => setActive(null)}
+                onFocus={() => setActive(entry)}
+                onBlur={() => setActive(null)}
+                className={cn(
+                  "rounded-control -mx-1.5 flex items-center gap-2 px-1.5 py-0.5 transition-colors duration-150 outline-none",
+                  "hover:bg-brand-wash focus-visible:bg-brand-wash focus-visible:ring-brand focus-visible:ring-2",
+                )}
               >
                 <div className="flex min-w-0 flex-[0_0_9rem] items-center gap-1.5">
                   {member ? (
@@ -177,12 +218,7 @@ export function TeamWorkload({
                   )}
 
                   <span className="text-ink-2 min-w-0 truncate text-xs">
-                    {/* an assignee id with no roster row is someone removed from the board, not deleted */}
-                    {member
-                      ? memberName(member)
-                      : entry.assigneeId
-                        ? t("members.former")
-                        : t("members.unassigned")}
+                    {nameOf(entry)}
                   </span>
                 </div>
 
@@ -205,7 +241,9 @@ export function TeamWorkload({
 
                 {/* fixed width even when empty, so the count column stays aligned */}
                 <span className="text-status-red text-mini w-11 shrink-0 text-right font-medium tabular-nums">
-                  {entry.overdue > 0 ? `${entry.overdue} late` : ""}
+                  {entry.overdue > 0
+                    ? t("summary.late", { count: entry.overdue })
+                    : ""}
                 </span>
               </div>
             );

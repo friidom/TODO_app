@@ -33,6 +33,7 @@ export const LIST_FIELDS = {
   created_at: true,
   updated_at: true,
   completed_at: true,
+  labels: true,
 } satisfies Prisma.todosSelect;
 
 const DETAIL_FIELDS = {
@@ -284,4 +285,44 @@ export async function rebalanceColumn(
       from ordered
      where ordered.id = t.id
        and t.rank is distinct from ordered.new_rank`;
+}
+
+export const MAX_LABELS = 20;
+
+// One statement each, so two people labelling one card at once both win: the
+// append re-checks presence and the cap against the row it locks, never
+// against a copy the client read earlier.
+export async function addLabel(
+  tx: Prisma.TransactionClient,
+  boardId: string,
+  todoId: string,
+  name: string,
+): Promise<number> {
+  return tx.$executeRaw`
+    update public.todos
+       set labels = labels || ${name}::text
+     where id = ${todoId}::uuid
+       and board_id = ${boardId}::uuid
+       and cardinality(labels) < ${MAX_LABELS}
+       and not exists (select 1 from unnest(labels) l where lower(l) = lower(${name}))
+  `;
+}
+
+export async function removeLabel(
+  tx: Prisma.TransactionClient,
+  boardId: string,
+  todoId: string,
+  name: string,
+): Promise<number> {
+  return tx.$executeRaw`
+    update public.todos
+       set labels = array(
+             select l from unnest(labels) with ordinality as u(l, i)
+              where lower(l) <> lower(${name})
+              order by i
+           )
+     where id = ${todoId}::uuid
+       and board_id = ${boardId}::uuid
+       and exists (select 1 from unnest(labels) l where lower(l) = lower(${name}))
+  `;
 }

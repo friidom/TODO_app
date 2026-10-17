@@ -18,6 +18,7 @@ export const LIST_COLUMN_IDS = [
   "estimate",
   "sprint",
   "parent",
+  "labels",
   "created",
   "updated",
   "completed",
@@ -127,6 +128,14 @@ export const LIST_COLUMNS: Record<ListColumnId, ListColumnDef> = {
       return i18n.t("fields.parent");
     },
     width: 152,
+    sort: null,
+  },
+  labels: {
+    id: "labels",
+    get label() {
+      return i18n.t("fields.labels");
+    },
+    width: 200,
     sort: null,
   },
   created: {

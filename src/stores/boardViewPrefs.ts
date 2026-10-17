@@ -2,26 +2,42 @@ import { create } from "zustand";
 
 import {
   normalizeBoardViewPrefs,
-  readBoardViewPrefs,
-  writeBoardViewPrefs,
+  readDeviceViewPrefs,
+  readPersonalViewPrefs,
+  sameBoardViewPrefs,
+  writePersonalViewPrefs,
   type BoardViewPrefs,
 } from "@/services/views/boardViewPrefs";
 
 interface BoardViewPrefsStore {
-  prefs: BoardViewPrefs;
-  setPrefs: (patch: Partial<BoardViewPrefs>) => void;
+  device: BoardViewPrefs | null;
+  personal: Record<string, BoardViewPrefs>;
+  // A change equal to what Reset would return to is no change, and is dropped rather than kept.
+  setPersonal: (
+    boardId: string,
+    prefs: BoardViewPrefs | null,
+    baseline: BoardViewPrefs,
+  ) => void;
 }
 
 // A store because the settings drawer writes it and the board, several components away, reads it.
-export const useBoardViewPrefs = create<BoardViewPrefsStore>((set) => ({
-  prefs: readBoardViewPrefs(),
+export const useBoardViewPrefsStore = create<BoardViewPrefsStore>((set) => ({
+  device: readDeviceViewPrefs(),
+  personal: readPersonalViewPrefs(),
 
-  setPrefs: (patch) =>
+  setPersonal: (boardId, prefs, baseline) =>
     set((state) => {
-      const prefs = normalizeBoardViewPrefs({ ...state.prefs, ...patch });
+      const next = { ...state.personal };
+      const normalized = prefs && normalizeBoardViewPrefs(prefs);
 
-      writeBoardViewPrefs(prefs);
+      if (normalized === null || sameBoardViewPrefs(normalized, baseline)) {
+        delete next[boardId];
+      } else {
+        next[boardId] = normalized;
+      }
 
-      return { prefs };
+      writePersonalViewPrefs(next);
+
+      return { personal: next };
     }),
 }));

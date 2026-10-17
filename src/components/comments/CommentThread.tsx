@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
-import { MessageSquareIcon } from "lucide-react";
+import { MessageSquareIcon, PinIcon } from "lucide-react";
 
 import SectionHeader, { EmptyLine } from "@/components/todo/SectionHeader";
 import {
@@ -22,6 +22,7 @@ import { useAddComment } from "@/services/comments/useAddComment";
 import { useComments } from "@/services/comments/useComments";
 import { useDeleteComment } from "@/services/comments/useDeleteComment";
 import { useUpdateComment } from "@/services/comments/useUpdateComment";
+import { usePinComment } from "@/services/pins/usePins";
 import {
   canDeleteComment,
   canEditComment,
@@ -114,10 +115,12 @@ export function CommentRow({
 }) {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
-  const { role } = usePermissions();
+  const { role, canEditTodos } = usePermissions();
 
   const update = useUpdateComment();
   const remove = useDeleteComment();
+  const pin = usePinComment(todoId);
+  const pinned = Boolean(comment.pinned_at);
 
   const [draft, setDraft] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -143,7 +146,11 @@ export function CommentRow({
   }
 
   return (
-    <article className="flex gap-2.5">
+    <article
+      id={`comment-${comment.id}`}
+      tabIndex={-1}
+      className="rounded-control flex scroll-mt-4 gap-2.5 outline-none"
+    >
       <Avatar size="sm" className="mt-0.5 shrink-0">
         <AvatarImage src={author?.avatar_url ?? undefined} alt="" />
         <AvatarFallback className="bg-elevated text-ink-2 text-micro font-semibold">
@@ -173,6 +180,13 @@ export function CommentRow({
               className="text-ink-3 text-xs"
             >
               {t("comments.edited")}
+            </span>
+          )}
+
+          {pinned && (
+            <span className="text-brand inline-flex items-center gap-0.5 self-center text-xs">
+              <PinIcon aria-hidden className="size-3 fill-current" />
+              {t("pins.title")}
             </span>
           )}
         </div>
@@ -230,8 +244,21 @@ export function CommentRow({
               {comment.content}
             </p>
 
-            {(mayEdit || mayDelete) && (
+            {(mayEdit || mayDelete || canEditTodos) && (
               <div className="mt-0.5 -ml-1.5 flex items-center gap-1 text-xs">
+                {canEditTodos && (
+                  <button
+                    type="button"
+                    aria-pressed={pinned}
+                    onClick={() =>
+                      pin.mutate({ itemId: comment.id, pinned: !pinned })
+                    }
+                    className={INLINE_ACTION}
+                  >
+                    {pinned ? t("pins.unpin") : t("pins.pin")}
+                  </button>
+                )}
+
                 {mayEdit && (
                   <button
                     type="button"

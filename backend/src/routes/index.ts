@@ -16,6 +16,7 @@ import {
 } from "../modules/invites/invites.routes.js";
 import { membersRoutes } from "../modules/members/members.routes.js";
 import { boardSprintsRoutes, sprintsRoutes } from "../modules/sprints/sprints.routes.js";
+import { boardStarRoutes, myStarsRoutes } from "../modules/stars/stars.routes.js";
 import { taskRefsRoutes } from "../modules/taskRefs/taskRefs.routes.js";
 import { boardTodosRoutes, todosRoutes } from "../modules/todos/todos.routes.js";
 import { boardWorkflowRoutes } from "../modules/workflow/workflow.routes.js";
@@ -48,6 +49,7 @@ apiRouter.use("/task-refs", taskRefsRoutes);
 apiRouter.use("/sprints", sprintsRoutes);
 apiRouter.use("/comments", commentsRoutes);
 apiRouter.use("/notifications", notificationsRoutes);
+apiRouter.use("/me/starred", myStarsRoutes);
 apiRouter.use("/me", meRoutes);
 
 // Order matters only in that the collection router has no matching route for
@@ -65,3 +67,4 @@ boardScoped.use("/todos", boardTodosRoutes);
 boardScoped.use("/sprints", boardSprintsRoutes);
 boardScoped.use("/activities", boardActivitiesRoutes);
 boardScoped.use("/integrations/gitlab", boardGitlabRoutes);
+boardScoped.use("/star", boardStarRoutes);

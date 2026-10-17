@@ -11,6 +11,7 @@ import type {
   LogoutQuery,
   RegisterInput,
   ResetPasswordInput,
+  VerifyEmailInput,
   UsernameAvailableQuery,
 } from "./auth.schema.js";
 import * as authService from "./auth.service.js";
@@ -107,6 +108,22 @@ export const forgotPassword: RequestHandler = async (req, res) => {
   const { email } = req.body as ForgotPasswordInput;
 
   await authService.forgotPassword(email);
+
+  res.json({ ok: true });
+};
+
+export const verifyEmail: RequestHandler = async (req, res) => {
+  const { token } = req.body as VerifyEmailInput;
+
+  await authService.verifyEmail(token);
+
+  res.json({ ok: true });
+};
+
+export const resendVerification: RequestHandler = async (req, res) => {
+  const { email } = req.body as ForgotPasswordInput;
+
+  await authService.resendVerification(email);
 
   res.json({ ok: true });
 };

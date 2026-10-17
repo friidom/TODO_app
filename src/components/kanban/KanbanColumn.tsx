@@ -103,6 +103,9 @@ export default function KanbanColumn({
   // column.id, not id: a swimlane passes a lane-scoped id for its droppable.
   const category = columnCategory(statuses, column.id);
 
+  // Only a column that offers a status stretches for its zones; a refused one keeps its height and says so once.
+  const offersChoice = choices?.some((choice) => choice.allowed) ?? false;
+
   // A new card is a first placement, not a transition, so it takes the
   // column's first visible status whatever the workflow says. A column with no
   // visible status cannot receive work, and offers no way to create any.
@@ -114,6 +117,10 @@ export default function KanbanColumn({
 
   const [creatingAt, setCreatingAt] = useState<number | null>(null);
   const [title, setTitle] = useState("");
+
+  // a rolled-back create can leave creatingAt past the column's end; the form then sits at the end
+  const formAt =
+    creatingAt === null ? null : Math.min(creatingAt, todos.length);
 
   const addTodoMutation = useAddTodo();
   const formRef = useRef<HTMLDivElement>(null);
@@ -152,7 +159,7 @@ export default function KanbanColumn({
   }, [creatingAt]);
 
   useEffect(() => {
-    if (creatingAt !== todos.length) return;
+    if (formAt !== todos.length) return;
 
     requestAnimationFrame(() => {
       listRef.current?.scrollTo({
@@ -160,19 +167,19 @@ export default function KanbanColumn({
         behavior: "smooth",
       });
     });
-  }, [todos.length, creatingAt]);
+  }, [todos.length, formAt]);
 
   const handleAddTodo = (draft: CreateDraft) => {
     const trimmedTitle = title.trim();
 
-    if (!trimmedTitle || creatingAt === null || newCardStatus === null) return;
+    if (!trimmedTitle || formAt === null || newCardStatus === null) return;
 
     addTodoMutation.mutate(
       {
         title: trimmedTitle,
         status_id: newCardStatus.id,
         // creatingAt counts visible cards; append when the list is filtered so the index can't be wrong
-        index: exactOrder ? creatingAt : undefined,
+        index: exactOrder ? formAt : undefined,
         ...draft,
       },
       {
@@ -180,14 +187,16 @@ export default function KanbanColumn({
       },
     );
     setTitle("");
-    setCreatingAt(creatingAt + 1);
+    setCreatingAt(formAt + 1);
   };
   const listRef = useRef<HTMLDivElement>(null);
 
   const isIndicatorHere = indicator?.columnId === id;
+  // a status-zone target carries index 0 too, and must not also light the column's first gap
+  const isGapHere = isIndicatorHere && indicator.statusId === undefined;
 
   const canAddAt = (gap: number) =>
-    canCreate && exactOrder && gap < todos.length && creatingAt !== gap;
+    canCreate && exactOrder && gap < todos.length && formAt !== gap;
 
   const createForm = (
     <TodoCreateForm
@@ -211,7 +220,7 @@ export default function KanbanColumn({
         // height comes from the flex row, not a hardcoded pixel sum, so it survives changes to the bars above the board
         lane
           ? "h-fit"
-          : choices
+          : offersChoice
             ? "h-full"
             : wholeBoard
               ? "h-fit"
@@ -263,7 +272,8 @@ export default function KanbanColumn({
           // with gaps on, the first and last DropZone already pad the list by their own height
           dragDisabled && "py-2.5",
           // not unmounted, so the cards keep their scroll position under the zones
-          choices && "invisible",
+          offersChoice && "invisible",
+          choices && !offersChoice && "opacity-40",
         )}
       >
         {/* a card that throws only costs this column its list, not the rest of the board */}
@@ -279,7 +289,7 @@ export default function KanbanColumn({
               <DropZone
                 columnId={id}
                 index={0}
-                active={isIndicatorHere && indicator.index === 0}
+                active={isGapHere && indicator.index === 0}
                 afterId={todos[0]?.id}
                 dragging={dragging}
                 canAdd={canAddAt(0)}
@@ -287,7 +297,7 @@ export default function KanbanColumn({
               />
             )}
 
-            {creatingAt === 0 && createForm}
+            {formAt === 0 && createForm}
 
             {todos.length === 0 && creatingAt === null && (
               <p
@@ -311,14 +321,21 @@ export default function KanbanColumn({
                   subtaskDone={subtaskProgress.get(todo.id)?.done ?? 0}
                   subtaskTotal={subtaskProgress.get(todo.id)?.total ?? 0}
                   parentLabel={cardLabels.parents.get(todo.parent_id ?? "")}
-                  sprintLabel={cardLabels.sprints.get(todo.sprint_id ?? "")}
+                  spaceLabel={cardLabels.space}
+                  statusName={
+                    cardLabels.statuses.get(todo.status_id ?? "")?.name
+                  }
+                  statusCategory={
+                    cardLabels.statuses.get(todo.status_id ?? "")?.category
+                  }
+                  reporterName={cardLabels.people.get(todo.creator_id ?? "")}
                 />
 
                 {!dragDisabled && (
                   <DropZone
                     columnId={id}
                     index={index + 1}
-                    active={isIndicatorHere && indicator.index === index + 1}
+                    active={isGapHere && indicator.index === index + 1}
                     beforeId={todo.id}
                     afterId={todos[index + 1]?.id}
                     dragging={dragging}
@@ -327,7 +344,7 @@ export default function KanbanColumn({
                   />
                 )}
 
-                {creatingAt === index + 1 && createForm}
+                {formAt === index + 1 && createForm}
               </React.Fragment>
             ))}
           </div>

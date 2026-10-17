@@ -41,6 +41,7 @@ model attachments {
   created_at   DateTime  @default(now()) @db.Timestamptz(6)
   todos        todos     @relation(fields: [todo_id, board_id], references: [id, board_id], onDelete: Cascade, onUpdate: NoAction, map: "attachments_todo_id_fkey")
   profiles     profiles? @relation(fields: [uploader_id], references: [id], onUpdate: NoAction)
+  attachment_pins attachment_pins?
 
   @@index([todo_id, created_at], map: "attachments_todo_created_idx")
 }
@@ -102,10 +103,36 @@ model board_members {
   joined_at DateTime @default(now()) @db.Timestamptz(6)
   boards    boards   @relation(fields: [board_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   profiles  profiles @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  board_stars board_stars[]
 
   @@id([board_id, user_id])
   @@index([board_id])
   @@index([user_id])
+}
+
+model attachment_pins {
+  attachment_id String      @id @db.Uuid
+  pinned_by     String?     @db.Uuid
+  created_at    DateTime    @default(now()) @db.Timestamptz(6)
+  attachments   attachments @relation(fields: [attachment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  profiles      profiles?   @relation(fields: [pinned_by], references: [id], onUpdate: NoAction)
+}
+
+model comment_pins {
+  comment_id String    @id @db.Uuid
+  pinned_by  String?   @db.Uuid
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  comments   comments  @relation(fields: [comment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  profiles   profiles? @relation(fields: [pinned_by], references: [id], onUpdate: NoAction)
+}
+
+model board_stars {
+  user_id       String        @db.Uuid
+  board_id      String        @db.Uuid
+  created_at    DateTime      @default(now()) @db.Timestamptz(6)
+  board_members board_members @relation(fields: [board_id, user_id], references: [board_id, user_id], onDelete: Cascade, onUpdate: NoAction, map: "board_stars_member_fkey")
+
+  @@id([user_id, board_id], map: "board_stars_pkey")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -122,6 +149,7 @@ model boards {
   workflow_enabled Boolean         @default(true)
   workflow_version Int             @default(1)
   view_tabs        Json?
+  view_settings    Json?
   created_at       DateTime        @default(now()) @db.Timestamptz(6)
   updated_at       DateTime        @default(now()) @db.Timestamptz(6)
   next_key         Int             @default(1)
@@ -224,6 +252,7 @@ model comments {
   updated_at DateTime @default(now()) @db.Timestamptz(6)
   profiles   profiles @relation(fields: [author_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   todos      todos    @relation(fields: [todo_id, board_id], references: [id, board_id], onDelete: Cascade, onUpdate: NoAction, map: "comments_todo_id_fkey")
+  comment_pins comment_pins?
 
   @@index([todo_id, created_at], map: "comments_todo_created_idx")
   @@index([author_id, created_at(sort: Desc)], map: "comments_author_created_idx")
@@ -284,6 +313,18 @@ model oauth_link_tokens {
   @@index([user_id], map: "oauth_link_tokens_user_id_idx")
 }
 
+model email_verification_tokens {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String    @db.Uuid
+  token_hash String    @unique
+  expires_at DateTime  @db.Timestamptz(6)
+  used_at    DateTime? @db.Timestamptz(6)
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  users      users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id])
+}
+
 model password_reset_tokens {
   id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id    String    @db.Uuid
@@ -322,6 +363,8 @@ model profiles {
   todos_todos_assignee_idToprofiles              todos[]         @relation("todos_assignee_idToprofiles")
   todos_todos_completed_byToprofiles             todos[]         @relation("todos_completed_byToprofiles")
   todos_todos_creator_idToprofiles               todos[]         @relation("todos_creator_idToprofiles")
+  comment_pins    comment_pins[]
+  attachment_pins attachment_pins[]
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -460,6 +503,7 @@ model todos {
   creator_id                            String?       @db.Uuid
   assignee_id                           String?       @db.Uuid
   parent_id                             String?       @db.Uuid
+  labels                                String[]      @default([])
   sprint_id                             String?       @db.Uuid
   created_at                            DateTime      @default(now()) @db.Timestamptz(6)
   updated_at                            DateTime?     @default(now()) @db.Timestamptz(6)
@@ -507,6 +551,7 @@ model users {
   oauth_accounts        oauth_accounts[]
   oauth_link_tokens     oauth_link_tokens[]
   password_reset_tokens password_reset_tokens[]
+  email_verification_tokens email_verification_tokens[]
   profiles              profiles?
   sessions              sessions[]
 }

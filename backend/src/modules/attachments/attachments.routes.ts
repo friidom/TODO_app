@@ -53,3 +53,22 @@ todoAttachmentsRoutes.delete(
   validate({ params: attachmentParamsSchema }),
   controller.remove,
 );
+
+// Pinning is curation of the shared item, a rank like uploading.
+todoAttachmentsRoutes.put(
+  "/:attachmentId/pin",
+  requireAuth,
+  boardAccess(),
+  requireRole("editor"),
+  validate({ params: attachmentParamsSchema }),
+  controller.pin,
+);
+
+todoAttachmentsRoutes.delete(
+  "/:attachmentId/pin",
+  requireAuth,
+  boardAccess(),
+  requireRole("editor"),
+  validate({ params: attachmentParamsSchema }),
+  controller.unpin,
+);

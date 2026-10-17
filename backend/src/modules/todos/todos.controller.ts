@@ -6,7 +6,9 @@ import { requireBoard } from "../../middleware/boardAccess.js";
 import { requireActor } from "../../middleware/requireAuth.js";
 import * as todosService from "./todos.service.js";
 import type {
+  AddLabelInput,
   CreateTodoInput,
+  LabelQuery,
   MoveTodoInput,
   TodoParams,
   UpsertTodoInput,
@@ -64,4 +66,20 @@ export const move: RequestHandler = async (req, res) => {
   );
 
   res.status(204).end();
+};
+
+export const addLabel: RequestHandler = async (req, res) => {
+  const { todoId } = req.params as TodoParams;
+  const { name } = req.body as AddLabelInput;
+
+  res.json(await todosService.addLabel({ id: requireActor(req) }, requireBoard(req), todoId, name));
+};
+
+export const removeLabel: RequestHandler = async (req, res) => {
+  const { todoId } = req.params as unknown as TodoParams;
+  const { name } = req.query as unknown as LabelQuery;
+
+  res.json(
+    await todosService.removeLabel({ id: requireActor(req) }, requireBoard(req), todoId, name),
+  );
 };

@@ -83,3 +83,37 @@ export async function remove(
 
   emitDeleted(board.id, "comment", commentId);
 }
+
+// Curation of the shared thread rather than an edit of anyone's words, so it
+// is a rank (editor, at the route) and not the author rule above.
+export async function setPinned(
+  actor: Actor,
+  board: BoardContext,
+  commentId: string,
+  pinned: boolean,
+): Promise<CommentRow> {
+  const comment = await commentsRepo.findOne(board.id, commentId);
+
+  if (comment === null) throw notFound();
+
+  if (pinned) {
+    const result = await commentsRepo.pin(board.id, comment.todo_id, commentId, actor.id);
+
+    if (result === "full") {
+      throw new AppError(
+        "conflict",
+        `A work item can have up to ${commentsRepo.MAX_PINS} pinned comments. Unpin one first.`,
+      );
+    }
+  } else {
+    await commentsRepo.unpin(commentId);
+  }
+
+  const updated = await commentsRepo.findOne(board.id, commentId);
+
+  if (updated === null) throw notFound();
+
+  emitChange(board.id, "comment", "UPDATE", updated);
+
+  return updated;
+}

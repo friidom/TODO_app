@@ -1,12 +1,22 @@
 import { useTranslation } from "react-i18next";
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
-import { LayersIcon, ListTree, Pencil } from "lucide-react";
+import {
+  CheckIcon,
+  CircleCheck,
+  FolderIcon,
+  ListTree,
+  Pencil,
+  UserIcon,
+  XIcon,
+} from "lucide-react";
 
+import LabelChip from "./LabelChip";
 import DueDateControl from "./TodoItem/DueDateControl";
 import EstimateControl from "./TodoItem/EstimateControl";
 import PriorityControl from "./TodoItem/PriorityControl";
 import WorkTypeControl from "./TodoItem/WorkTypeControl";
 import IconButton from "@/components/ui/IconButton";
+import { categoryOf } from "@/constants/columns";
 import { toPriority, type Priority } from "@/constants/priorities";
 import { workTypeOf, type WorkType } from "@/constants/workTypes";
 import {
@@ -14,6 +24,8 @@ import {
   type CardField,
 } from "@/services/views/boardViewPrefs";
 import { cn } from "@/utils/cn";
+import { formatDayFull, formatDue } from "@/utils/dueDate";
+import { relativeTime } from "@/utils/relativeTime";
 import type { TodoCardContent, TodoViewState } from "@/types/data";
 
 const EPIC = workTypeOf("Epic");
@@ -24,6 +36,8 @@ export interface TodoCardProps extends TodoCardContent, TodoViewState {
   canEdit: boolean;
   // just landed in a done column — play the ring once
   celebrate?: boolean;
+  // its status's category is done: the key is struck through and checked, the title stays fully legible
+  done?: boolean;
   // the card whose task panel is open
   selected?: boolean;
 
@@ -43,7 +57,10 @@ export interface TodoCardProps extends TodoCardContent, TodoViewState {
   // View settings › Show fields: a field left out is not rendered at all, set or empty
   shownFields?: readonly CardField[];
   parentLabel?: string;
-  sprintLabel?: string;
+  spaceLabel?: string;
+  statusName?: string;
+  statusCategory?: string;
+  reporterName?: string;
 
   // absent on the drag overlay, which has no chrome to open anything from
   onOpen?: () => void;
@@ -63,10 +80,16 @@ export default function TodoCard({
   priority,
   dueDate,
   estimate,
+  labels,
+  startDate,
+  createdAt,
+  updatedAt,
+  completedAt,
   draft,
   editing,
   canEdit,
   celebrate = false,
+  done = false,
   selected = false,
   overlay = false,
   dragging = false,
@@ -83,7 +106,10 @@ export default function TodoCard({
   subtaskTotal = 0,
   shownFields = DEFAULT_CARD_FIELDS,
   parentLabel,
-  sprintLabel,
+  spaceLabel,
+  statusName,
+  statusCategory,
+  reporterName,
   onOpen,
   assignee,
   menu,
@@ -153,7 +179,73 @@ export default function TodoCard({
   const header = show("type") || show("key");
   const subtasks = show("subtasks") && subtaskTotal > 0;
   const parent = show("parent") && parentLabel !== undefined;
-  const sprint = show("sprint") && sprintLabel !== undefined;
+  const space = show("space") && spaceLabel !== undefined;
+  const status = show("status") && statusName !== undefined;
+  const reporter = show("reporter") && reporterName !== undefined;
+
+  // Each date is "Label value", with the full day in its title: an icon alone cannot tell created from updated.
+  const dates = (
+    [
+      [
+        "start",
+        "fields.startDate",
+        startDate,
+        startDate && formatDue(startDate),
+      ],
+      ["created", "fields.created", createdAt, relativeTime(createdAt)],
+      ["updated", "fields.updated", updatedAt, relativeTime(updatedAt)],
+      ["resolved", "fields.completed", completedAt, relativeTime(completedAt)],
+    ] as const
+  ).filter(([field, , iso, text]) => show(field) && iso && text);
+
+  const context = [
+    status && (
+      <span
+        key="status"
+        title={statusName}
+        className="inline-flex max-w-full min-w-0 items-center gap-1.5"
+      >
+        <span
+          className={cn(
+            "size-1.5 shrink-0 rounded-full",
+            categoryOf(statusCategory).dot,
+          )}
+        />
+        <span className="truncate">{statusName}</span>
+      </span>
+    ),
+    parent && (
+      <span
+        key="parent"
+        title={parentLabel}
+        className="inline-flex max-w-full min-w-0 items-center gap-1"
+      >
+        <EPIC.icon className={cn("size-3 shrink-0", EPIC.tone)} />
+        <span className="truncate">{parentLabel || t("common.untitled")}</span>
+      </span>
+    ),
+    reporter && (
+      <span
+        key="reporter"
+        title={`${t("fields.reporter")}: ${reporterName}`}
+        className="inline-flex max-w-full min-w-0 items-center gap-1"
+      >
+        <UserIcon className="size-3 shrink-0" />
+        <span className="truncate">{reporterName}</span>
+      </span>
+    ),
+    space && (
+      <span
+        key="space"
+        title={spaceLabel}
+        className="inline-flex max-w-full min-w-0 items-center gap-1"
+      >
+        <FolderIcon className="size-3 shrink-0" />
+        <span className="truncate">{spaceLabel}</span>
+      </span>
+    ),
+  ].filter(Boolean);
+  const labelChips = show("labels") && labels.length > 0;
   const footer = fields.length > 0 || subtasks || show("assignee");
 
   const actions = !editing && canEdit && (
@@ -214,7 +306,7 @@ export default function TodoCard({
           ? "shadow-e3 pointer-events-none rotate-[1.5deg]"
           : cn(
               // the wash is a gradient layer, not a background colour: --wash is translucent and would show the column through
-              "hover:border-ink/15 hover:shadow-e2 hover:from-wash hover:to-wash hover:bg-linear-to-b",
+              "hover:border-brand/30 hover:shadow-e2 hover:from-wash hover:to-wash hover:bg-linear-to-b",
               onOpen && "cursor-pointer",
             ),
         selected &&
@@ -248,6 +340,7 @@ export default function TodoCard({
               title={`Open ${taskKey}`}
               className={cn(
                 "text-ink-3 hover:text-brand focus-visible:ring-brand rounded-control text-mini font-medium tabular-nums transition-colors duration-150 outline-none focus-visible:ring-2",
+                done && "decoration-ink-3/70 line-through",
                 wasPending &&
                   "motion-safe:animate-in motion-safe:fade-in-0 duration-300",
               )}
@@ -255,9 +348,22 @@ export default function TodoCard({
               {taskKey}
             </button>
           ) : (
-            <span className="text-ink-3 text-mini font-medium tabular-nums">
+            <span
+              className={cn(
+                "text-ink-3 text-mini font-medium tabular-nums",
+                done && "decoration-ink-3/70 line-through",
+              )}
+            >
               {taskKey}
             </span>
+          )}
+
+          {done && (
+            <CircleCheck
+              role="img"
+              aria-label={t("columnCategory.done")}
+              className="text-status-green size-3.5 shrink-0"
+            />
           )}
 
           {actions}
@@ -267,52 +373,101 @@ export default function TodoCard({
       )}
 
       {editing ? (
-        <input
-          ref={inputRef}
-          value={draft}
-          onChange={(e) => onDraftChange(e.target.value)}
-          onBlur={onSave}
-          onKeyDown={(e) => {
-            // the card root has dnd-kit's KeyboardSensor listening too, which treats Enter/Space as "pick up" — stop it here
-            e.stopPropagation();
+        <div className="flex flex-col gap-1.5">
+          <input
+            ref={inputRef}
+            value={draft}
+            onChange={(e) => onDraftChange(e.target.value)}
+            onBlur={onSave}
+            onKeyDown={(e) => {
+              // the card root has dnd-kit's KeyboardSensor listening too, which treats Enter/Space as "pick up" — stop it here
+              e.stopPropagation();
 
-            if (e.key === "Enter") onSave();
-            if (e.key === "Escape") onCancel();
-          }}
-          onPointerDown={(e) => e.stopPropagation()}
-          className="bg-elevated text-ink rounded-control ring-brand -mx-1 w-[calc(100%+0.5rem)] px-1 text-sm leading-snug font-medium ring-2 outline-none"
-        />
+              if (e.key === "Enter") onSave();
+              if (e.key === "Escape") onCancel();
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="bg-elevated text-ink rounded-control ring-brand -mx-1 w-[calc(100%+0.5rem)] px-1 text-sm leading-snug font-medium ring-2 outline-none"
+          />
+
+          {/* preventDefault on pointerdown keeps focus in the field: its blur saves, and would beat Cancel to it */}
+          <div className="flex justify-end gap-1">
+            <IconButton
+              size="sm"
+              label={t("common.save")}
+              onPointerDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onClick={onSave}
+              className="border-hairline bg-elevated shadow-e1 hover:text-brand border"
+            >
+              <CheckIcon />
+            </IconButton>
+
+            <IconButton
+              size="sm"
+              label={t("common.cancel")}
+              onPointerDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onClick={onCancel}
+              className="border-hairline bg-elevated shadow-e1 border"
+            >
+              <XIcon />
+            </IconButton>
+          </div>
+        </div>
       ) : (
         show("summary") && (
-          <p className="text-ink line-clamp-3 text-sm leading-snug font-medium break-words">
+          <p
+            className={cn(
+              "line-clamp-3 text-sm leading-snug font-medium break-words",
+              done ? "text-ink-2" : "text-ink",
+            )}
+          >
             {title}
           </p>
         )
       )}
 
-      {(parent || sprint) && (
-        <div className="flex min-w-0 flex-wrap items-center gap-1">
-          {parent && (
+      {labelChips && (
+        <div className="flex min-w-0 items-center gap-1">
+          {labels.slice(0, 2).map((name) => (
+            <span key={name} className="min-w-0 shrink">
+              <LabelChip name={name} size="sm" />
+            </span>
+          ))}
+          {labels.length > 2 && (
             <span
-              title={parentLabel}
-              className="border-hairline text-ink-2 text-mini rounded-control inline-flex h-5 max-w-full min-w-0 items-center gap-1 border px-1.5 font-medium"
+              title={labels.slice(2).join(", ")}
+              className="text-ink-3 text-micro shrink-0 font-medium tabular-nums"
             >
-              <EPIC.icon className={cn("size-3 shrink-0", EPIC.tone)} />
-              <span className="truncate">
-                {parentLabel || t("common.untitled")}
-              </span>
+              +{labels.length - 2}
             </span>
           )}
+        </div>
+      )}
 
-          {sprint && (
+      {context.length > 0 && (
+        <div className="text-ink-3 text-mini flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 font-medium">
+          {context}
+        </div>
+      )}
+
+      {dates.length > 0 && (
+        <div className="text-ink-3 text-mini flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
+          {dates.map(([field, label, iso, text]) => (
             <span
-              title={sprintLabel}
-              className="border-hairline text-ink-2 text-mini rounded-control inline-flex h-5 max-w-full min-w-0 items-center gap-1 border px-1.5 font-medium"
+              key={field}
+              title={iso ? formatDayFull(iso) : undefined}
+              className="tabular-nums"
             >
-              <LayersIcon className="text-ink-3 size-3 shrink-0" />
-              <span className="truncate">{sprintLabel}</span>
+              <span className="text-ink-3/80">{t(label)}</span>{" "}
+              <span className="text-ink-2 font-medium">{text}</span>
             </span>
-          )}
+          ))}
         </div>
       )}
 

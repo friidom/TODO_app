@@ -62,7 +62,7 @@ describe("the registry", () => {
 
 describe("normalizeListColumns", () => {
   it("drops ids the registry no longer has", () => {
-    expect(normalizeListColumns(["work", "labels", "status"])).toEqual([
+    expect(normalizeListColumns(["work", "flags", "status"])).toEqual([
       "work",
       "status",
     ]);
@@ -275,7 +275,7 @@ describe("storage", () => {
   });
 
   it("repairs a stored entry written by an older registry", () => {
-    store["list:columns"] = JSON.stringify(["status", "labels", "status"]);
+    store["list:columns"] = JSON.stringify(["status", "flags", "status"]);
 
     expect(readListColumns()).toEqual(["work", "status"]);
   });

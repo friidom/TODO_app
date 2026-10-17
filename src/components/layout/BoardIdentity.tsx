@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 
 import MemberStack from "@/components/board/MemberStack";
 import PresenceStack from "@/components/board/PresenceStack";
+import StarButton from "@/components/stars/StarButton";
 import { ICON_BUTTON } from "@/components/ui/controlChrome";
 import { SidebarTrigger } from "@/components/ui/SideBarUI/sidebar";
 import {
@@ -65,6 +66,8 @@ export default function BoardIdentity({
         <h1 className="text-ink min-w-0 truncate text-lg font-semibold tracking-tight md:text-xl">
           {board.title || t("common.untitledBoard")}
         </h1>
+
+        <StarButton boardId={board.id} className="shrink-0 self-center" />
 
         <p className="text-mini text-ink-3 ml-1 hidden shrink-0 items-baseline gap-1.5 whitespace-nowrap @3xl:flex">
           <span>{t("board.columnCount", { count: columnCount })}</span>

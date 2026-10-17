@@ -14,3 +14,5 @@ export function stepKey(onStep: (delta: -1 | 1) => void) {
     requestAnimationFrame(() => target.focus());
   };
 }
+
+export const REORDER_KEYS = "Alt+ArrowUp Alt+ArrowDown";

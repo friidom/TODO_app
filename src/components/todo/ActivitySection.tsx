@@ -18,6 +18,7 @@ import {
 } from "./detailChrome";
 import { Skeleton } from "@/components/ui/skeleton";
 import { memberName } from "@/components/members/memberLabels";
+import { useOnReveal } from "@/hooks/useReveal";
 import { useAuth } from "@/services/auth/useAuth";
 import { describeHistoryChange } from "@/services/activities/historyText";
 import { mergeActivityFeed } from "@/services/activities/mergeActivityFeed";
@@ -45,6 +46,12 @@ export default function ActivitySection({
 }) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<ActivityTab>("all");
+
+  useOnReveal(({ kind }) => {
+    if (kind === "comment" && tab !== "all" && tab !== "comments") {
+      setTab("comments");
+    }
+  });
   const { user } = useAuth();
   const id = useId();
 

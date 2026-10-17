@@ -38,6 +38,7 @@ import {
   RegisterPage,
   ResetPasswordPage,
   SpaceSettingsPage,
+  VerifyEmailPage,
   TaskRefPage,
 } from "./lazyPages";
 
@@ -174,6 +175,13 @@ export const router = createBrowserRouter([
   {
     path: "/reset-password",
     element: deferred(<ResetPasswordPage />),
+    errorElement: <RouteErrorPage />,
+  },
+
+  // outside both guards, like the reset link
+  {
+    path: "/verify-email",
+    element: deferred(<VerifyEmailPage />),
     errorElement: <RouteErrorPage />,
   },
 

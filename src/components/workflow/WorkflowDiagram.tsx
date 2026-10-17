@@ -12,6 +12,7 @@ import {
   EyeOffIcon,
   MaximizeIcon,
   MinusIcon,
+  PlayIcon,
   PlusIcon,
   SparklesIcon,
   Trash2Icon,
@@ -37,7 +38,7 @@ import {
   type Point,
   type Viewport,
 } from "@/services/workflow/diagramLayout";
-import type { WorkflowDraft } from "@/services/workflow/draft";
+import { startStatusOf, type WorkflowDraft } from "@/services/workflow/draft";
 import { cn } from "@/utils/cn";
 
 export type Selection =
@@ -78,6 +79,7 @@ export default function WorkflowDiagram({
   edges,
   anyTargets,
   flagged,
+  counts,
   selection,
   onSelect,
   onMove,
@@ -91,6 +93,8 @@ export default function WorkflowDiagram({
   edges: DisplayEdge[];
   anyTargets: ReadonlySet<string>;
   flagged: ReadonlySet<string>;
+  // Work items in each status now, which the modal already counts for its warnings.
+  counts: ReadonlyMap<string, number>;
   selection: Selection;
   onSelect: (selection: Selection) => void;
   onMove: (id: string, at: Point) => void;
@@ -105,6 +109,7 @@ export default function WorkflowDiagram({
   const [view, setView] = useState<Viewport>({ zoom: 1, x: 0, y: 0 });
   const [hover, setHover] = useState<string | null>(null);
   const { t } = useTranslation();
+  const startId = startStatusOf(draft)?.id ?? null;
 
   // Held in a ref so "fit to screen" stays a stable callback: depending on the
   // layout directly would re-fit on every node drag and undo the reader's pan.
@@ -591,7 +596,13 @@ export default function WorkflowDiagram({
                   <div
                     role="button"
                     tabIndex={0}
-                    aria-label={`Status ${status.name}`}
+                    aria-label={t("workflow.statusNode", { name: status.name })}
+                    onFocus={() => setHover(status.id)}
+                    onBlur={() =>
+                      setHover((current) =>
+                        current === status.id ? null : current,
+                      )
+                    }
                     aria-pressed={selected}
                     onPointerDown={(event) => startMove(event, status.id)}
                     onKeyDown={(event) => {
@@ -637,14 +648,25 @@ export default function WorkflowDiagram({
                         )}
                       </span>
 
-                      <span className="text-ink-3 text-micro truncate">
-                        {t(categoryLabelKey(status.category))}
-                        {!column
-                          ? ` · ${t("workflow.notOnBoard")}`
-                          : column.title.toLowerCase() !==
-                              status.name.toLowerCase()
-                            ? ` · ${column.title}`
-                            : null}
+                      <span className="text-ink-3 text-micro flex min-w-0 items-center gap-1">
+                        <span className="truncate">
+                          {t(categoryLabelKey(status.category))}
+                          {!column
+                            ? ` · ${t("workflow.notOnBoard")}`
+                            : column.title.toLowerCase() !==
+                                status.name.toLowerCase()
+                              ? ` · ${column.title}`
+                              : null}
+                        </span>
+
+                        {(counts.get(status.id) ?? 0) > 0 && (
+                          <span
+                            title={t("workflow.itemsHere")}
+                            className="bg-ink/[0.08] text-ink-2 ml-auto shrink-0 rounded-full px-1.5 font-semibold tabular-nums"
+                          >
+                            {counts.get(status.id)}
+                          </span>
+                        )}
                       </span>
                     </div>
                   </div>
@@ -668,6 +690,24 @@ export default function WorkflowDiagram({
                       )}
                     >
                       {t("workflow.fromAny")}
+                    </span>
+                  </foreignObject>
+                )}
+
+                {status.id === startId && (
+                  <foreignObject
+                    x={0}
+                    y={NODE_H + 4}
+                    width={NODE_W}
+                    height={18}
+                    className="overflow-visible"
+                  >
+                    <span
+                      title={t("workflow.startHint", { name: status.name })}
+                      className="bg-status-green/15 text-status-green text-micro inline-flex h-[18px] items-center gap-1 rounded px-1.5 font-semibold tracking-wide uppercase"
+                    >
+                      <PlayIcon aria-hidden className="size-2.5 fill-current" />
+                      {t("workflow.start")}
                     </span>
                   </foreignObject>
                 )}

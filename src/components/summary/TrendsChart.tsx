@@ -1,6 +1,9 @@
 import { useTranslation } from "react-i18next";
 
+import { useChartCursor } from "@/hooks/useChartCursor";
 import { trendPeak, type TrendPoint } from "@/services/views/trends";
+import { formatDayFull } from "@/utils/dueDate";
+import { ChartTooltip, TooltipRow } from "./ChartTooltip";
 import SummaryCard, { WidgetEmpty } from "./SummaryCard";
 
 // hand-rolled SVG rather than a charting lib — one chart doesn't justify a ~90kB dependency
@@ -42,6 +45,12 @@ export default function TrendsChart({
   const yOf = (count: number) =>
     PLOT_HEIGHT - (count / peak) * (PLOT_HEIGHT - HEADROOM);
 
+  // A day is a slot, so the pointer anywhere across it picks that day.
+  const cursor = useChartCursor(points.length, (ratio) =>
+    Math.floor(ratio * points.length),
+  );
+  const focus = cursor.index === null ? null : points[cursor.index];
+
   return (
     <SummaryCard
       title={t("summary.trends")}
@@ -73,104 +82,146 @@ export default function TrendsChart({
           </div>
 
           <div className="min-w-0 flex-1">
-            <svg
-              viewBox={`0 0 100 ${PLOT_HEIGHT}`}
-              preserveAspectRatio="none"
-              role="img"
-              aria-label={SERIES.map((series) =>
-                t("summary.perDay", {
-                  name: t(series.labelKey),
-                  values: points.map((point) => point[series.key]).join(", "),
-                }),
-              ).join(". ")}
-              className="h-28 w-full"
+            <div
+              {...cursor.bind}
+              aria-label={t("summary.trendsExplore")}
+              className="focus-visible:ring-brand rounded-control relative touch-none outline-none focus-visible:ring-2 focus-visible:ring-offset-4"
             >
-              <defs>
-                {/* the tone class lives on the gradient itself — currentColor in a stop resolves against its own inherited color */}
-                <linearGradient
-                  id="summary-trend-created"
-                  x1="0"
-                  y1="0"
-                  x2="0"
-                  y2="1"
-                  className="text-brand"
-                >
-                  <stop
-                    offset="0%"
-                    stopColor="currentColor"
-                    stopOpacity="0.22"
-                  />
-                  <stop
-                    offset="100%"
-                    stopColor="currentColor"
-                    stopOpacity="0"
-                  />
-                </linearGradient>
-
-                <linearGradient
-                  id="summary-trend-updated"
-                  x1="0"
-                  y1="0"
-                  x2="0"
-                  y2="1"
-                  className="text-status-blue"
-                >
-                  <stop
-                    offset="0%"
-                    stopColor="currentColor"
-                    stopOpacity="0.16"
-                  />
-                  <stop
-                    offset="100%"
-                    stopColor="currentColor"
-                    stopOpacity="0"
-                  />
-                </linearGradient>
-              </defs>
-
-              {GRID_LINES.map((share) => (
-                <line
-                  key={share}
-                  x1="0"
-                  x2="100"
-                  y1={yOf(peak * share)}
-                  y2={yOf(peak * share)}
-                  stroke="currentColor"
-                  strokeWidth="1"
-                  vectorEffect="non-scaling-stroke"
-                  className="text-ink/[0.07]"
-                />
-              ))}
-
-              {SERIES.map((series) => {
-                const coords = points.map(
-                  (point, i) =>
-                    `${xOf(i).toFixed(2)},${yOf(point[series.key]).toFixed(2)}`,
-                );
-
-                const line = `M ${coords.join(" L ")}`;
-
-                return (
-                  <g key={series.key} className={series.tone}>
-                    {/* closed to the floor at both ends so the fill sits under the line, not the whole box */}
-                    <path
-                      d={`${line} L ${xOf(points.length - 1).toFixed(2)},${PLOT_HEIGHT} L ${xOf(0).toFixed(2)},${PLOT_HEIGHT} Z`}
-                      fill={series.fill}
+              <svg
+                viewBox={`0 0 100 ${PLOT_HEIGHT}`}
+                preserveAspectRatio="none"
+                role="img"
+                aria-label={SERIES.map((series) =>
+                  t("summary.perDay", {
+                    name: t(series.labelKey),
+                    values: points.map((point) => point[series.key]).join(", "),
+                  }),
+                ).join(". ")}
+                className="h-28 w-full"
+              >
+                <defs>
+                  {/* the tone class lives on the gradient itself — currentColor in a stop resolves against its own inherited color */}
+                  <linearGradient
+                    id="summary-trend-created"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                    className="text-brand"
+                  >
+                    <stop
+                      offset="0%"
+                      stopColor="currentColor"
+                      stopOpacity="0.22"
                     />
-
-                    <path
-                      d={line}
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      vectorEffect="non-scaling-stroke"
+                    <stop
+                      offset="100%"
+                      stopColor="currentColor"
+                      stopOpacity="0"
                     />
-                  </g>
-                );
-              })}
-            </svg>
+                  </linearGradient>
+
+                  <linearGradient
+                    id="summary-trend-updated"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                    className="text-status-blue"
+                  >
+                    <stop
+                      offset="0%"
+                      stopColor="currentColor"
+                      stopOpacity="0.16"
+                    />
+                    <stop
+                      offset="100%"
+                      stopColor="currentColor"
+                      stopOpacity="0"
+                    />
+                  </linearGradient>
+                </defs>
+
+                {GRID_LINES.map((share) => (
+                  <line
+                    key={share}
+                    x1="0"
+                    x2="100"
+                    y1={yOf(peak * share)}
+                    y2={yOf(peak * share)}
+                    stroke="currentColor"
+                    strokeWidth="1"
+                    vectorEffect="non-scaling-stroke"
+                    className="text-ink/[0.07]"
+                  />
+                ))}
+
+                {SERIES.map((series) => {
+                  const coords = points.map(
+                    (point, i) =>
+                      `${xOf(i).toFixed(2)},${yOf(point[series.key]).toFixed(2)}`,
+                  );
+
+                  const line = `M ${coords.join(" L ")}`;
+
+                  return (
+                    <g key={series.key} className={series.tone}>
+                      {/* closed to the floor at both ends so the fill sits under the line, not the whole box */}
+                      <path
+                        d={`${line} L ${xOf(points.length - 1).toFixed(2)},${PLOT_HEIGHT} L ${xOf(0).toFixed(2)},${PLOT_HEIGHT} Z`}
+                        fill={series.fill}
+                      />
+
+                      <path
+                        d={line}
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    </g>
+                  );
+                })}
+              </svg>
+
+              {focus !== null && cursor.index !== null && (
+                <>
+                  <span
+                    aria-hidden
+                    style={{ left: `${xOf(cursor.index)}%` }}
+                    className="bg-brand/40 pointer-events-none absolute inset-y-0 w-px"
+                  />
+
+                  {SERIES.map((series) => (
+                    <span
+                      key={series.key}
+                      aria-hidden
+                      style={{
+                        left: `${xOf(cursor.index!)}%`,
+                        top: `${(yOf(focus[series.key]) / PLOT_HEIGHT) * 100}%`,
+                      }}
+                      className={`${series.dot} ring-elevated pointer-events-none absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2`}
+                    />
+                  ))}
+
+                  <ChartTooltip
+                    x={xOf(cursor.index)}
+                    title={formatDayFull(focus.day, i18n.language)}
+                  >
+                    {SERIES.map((series) => (
+                      <TooltipRow
+                        key={series.key}
+                        dot={series.dot}
+                        label={t(series.labelKey)}
+                        value={focus[series.key]}
+                      />
+                    ))}
+                  </ChartTooltip>
+                </>
+              )}
+            </div>
 
             <div className="mt-1.5 flex">
               {points.map((point) => (

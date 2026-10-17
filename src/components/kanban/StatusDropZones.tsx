@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { useDroppable } from "@dnd-kit/core";
-import { ArrowDown } from "lucide-react";
+import { ArrowDown, Ban } from "lucide-react";
 
 import CategoryPill from "../columns/CategoryPill";
 import type { DropChoice } from "@/services/workflow/statuses";
@@ -18,6 +18,21 @@ export default function StatusDropZones({
   choices,
   activeStatusId,
 }: Props) {
+  const { t } = useTranslation();
+
+  // A column with nothing to offer is one droppable over its own cards, so the drop is still refused while in the
+  // air, with a single quiet note instead of a full-height box per status.
+  if (choices.every((choice) => !choice.allowed)) {
+    return (
+      <RefusedZone
+        columnId={columnId}
+        statusId={choices[0].status.id}
+        label={t("kanban.noTransitionTo")}
+        names={choices.map((choice) => choice.status)}
+      />
+    );
+  }
+
   return (
     <div className="animate-in fade-in absolute inset-x-0 top-12 bottom-0 z-10 flex flex-col gap-2 p-2 duration-150">
       {choices.map(({ status, allowed }, index) => (
@@ -32,6 +47,43 @@ export default function StatusDropZones({
           active={status.id === activeStatusId}
         />
       ))}
+    </div>
+  );
+}
+
+function RefusedZone({
+  columnId,
+  statusId,
+  label,
+  names,
+}: {
+  columnId: string;
+  statusId: string;
+  label: string;
+  names: { id: string; name: string; category: string }[];
+}) {
+  const { setNodeRef } = useDroppable({
+    id: `status-zone:${columnId}:${statusId}`,
+    data: { type: "status-zone", columnId, index: 0, statusId },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className="animate-in fade-in absolute inset-x-0 top-12 bottom-0 z-10 cursor-not-allowed p-2 duration-150"
+    >
+      <div className="border-hairline bg-elevated text-ink-3 rounded-control shadow-e1 flex flex-wrap items-center justify-center gap-1.5 border px-2 py-1.5 text-center">
+        <Ban className="size-3.5 shrink-0" />
+        <span className="text-meta font-medium">{label}</span>
+        {names.map((status) => (
+          <CategoryPill
+            key={status.id}
+            title={status.name}
+            category={status.category}
+            className="max-w-full"
+          />
+        ))}
+      </div>
     </div>
   );
 }

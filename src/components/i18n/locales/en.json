@@ -185,7 +185,14 @@
     "autoLayout": "Auto-layout",
     "fit": "Fit to screen",
     "zoomOut": "Zoom out",
-    "zoomIn": "Zoom in"
+    "zoomIn": "Zoom in",
+    "statusNode": "Status {{name}}",
+    "start": "Start",
+    "startHint": "Work items created without picking a column start in {{name}}.",
+    "anyStatus": "Any status",
+    "fromMany": "From statuses",
+    "itemsHere": "Work items here",
+    "alreadyAllowed": "Already allowed"
   },
   "activity": {
     "statusCreated": "created the status {{name}}",
@@ -238,7 +245,8 @@
     "memberRemoved": "removed {{who}}",
     "roleMade": "made {{who}} {{role}}",
     "roleChanged": "changed {{who}}'s role",
-    "changedSomething": "changed something"
+    "changedSomething": "changed something",
+    "labelsChanged": "changed the labels of {{item}}"
   },
   "loading": "Loading...",
   "common": {
@@ -428,7 +436,8 @@
     "updated": "Updated",
     "completed": "Completed",
     "title": "Title",
-    "workType": "Work type"
+    "workType": "Work type",
+    "labels": "Labels"
   },
   "due": {
     "none": "No due date",
@@ -505,7 +514,8 @@
     "noneActive": "No active sprint",
     "noneActiveHint": "Start a sprint to see work on this board.",
     "goToBacklog": "Go to Backlog",
-    "endDate": "End date"
+    "endDate": "End date",
+    "updated": "Sprint updated"
   },
   "task": {
     "fallbackName": "work item",
@@ -532,7 +542,10 @@
     "openInNewTab": "Open in new tab",
     "copyLink": "Copy link",
     "linkCopied": "Link copied",
-    "copyLinkFailed": "Could not copy the link."
+    "copyLinkFailed": "Could not copy the link.",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "saveFailed": "Couldn't save — changes were reverted."
   },
   "view": {
     "ascending": "Ascending",
@@ -703,7 +716,9 @@
     "taskRemoved": "removed task",
     "madeSubtask": "made this a subtask",
     "madeTopLevel": "made this a top-level work item",
-    "estimateField": "Story point estimate"
+    "estimateField": "Story point estimate",
+    "labelAdded": "added the label",
+    "labelRemoved": "removed the label"
   },
   "taskActivity": {
     "all": "All",
@@ -847,7 +862,10 @@
     "none": "No parent epic",
     "label": "Parent epic",
     "noEpics": "No epics on this board yet.",
-    "remove": "Remove parent"
+    "remove": "Remove parent",
+    "showDone": "Show done work items",
+    "noMatches": "No epics match",
+    "refine": "Showing the first {{count}}; refine your search."
   },
   "estimate": {
     "set": "Set a story point estimate",
@@ -981,7 +999,16 @@
     "trends": "Activity trends",
     "trendsHint": "Items created, and items whose most recent change fell on that day",
     "trendsEmpty": "Nothing to chart yet.",
-    "perDay": "{{name}} per day: {{values}}"
+    "perDay": "{{name}} per day: {{values}}",
+    "items_one": "item",
+    "items_other": "items",
+    "late_one": "{{count}} late",
+    "late_other": "{{count}} late",
+    "onTrack_one": "{{count}} on track",
+    "onTrack_other": "{{count}} on track",
+    "trendsExplore": "Created and updated per day. Use the arrow keys to read each day.",
+    "itemsShare_one": "{{count}} item, {{percent}}%",
+    "itemsShare_other": "{{count}} items, {{percent}}%"
   },
   "forYou": {
     "filterLabel": "Filter your work",
@@ -1205,7 +1232,17 @@
     "newPassword": "New password",
     "confirmNewPassword": "Confirm new password",
     "updating": "Updating…",
-    "updatePassword": "Update password"
+    "updatePassword": "Update password",
+    "resendVerification": "Resend confirmation email",
+    "verificationResent": "If that address is waiting for confirmation, a new link is on its way.",
+    "noEmailYet": "No email after a few minutes? Check spam, or send it again.",
+    "emailVerifiedTitle": "Email confirmed",
+    "emailVerifiedSubtitle": "Your account is ready. Sign in to continue.",
+    "verifyingTitle": "Confirming your email",
+    "verifyingSubtitle": "One moment…",
+    "verifyLinkInvalidTitle": "That link has expired",
+    "verifyLinkInvalidSubtitle": "Confirmation links work once and last 24 hours. Enter your email and we will send a new one.",
+    "verifiedSubtitle": "Email confirmed. Sign in with your new account."
   },
   "profile": {
     "title": "Profile",
@@ -1420,7 +1457,18 @@
     "selectedFields": "Selected fields",
     "noFieldsSelected": "Cards show no fields. Search above to add some back.",
     "allFieldsShown": "Every field is already shown.",
-    "removeField": "Remove {{name}}"
+    "removeField": "Remove {{name}}",
+    "boardView": "Board view",
+    "saved": "Saved",
+    "unsaved": "Unsaved changes",
+    "notSaved": "Not saved",
+    "savedHint": "Everyone opening this board sees this saved view.",
+    "notSavedHint": "This board has no saved view yet, so each person sees their own settings.",
+    "unsavedHintAdmin": "Your changes are only on this device. Save them to show this view to everyone on the board.",
+    "unsavedHintMember": "Your changes are only on this device. Only board admins can save the board view for everyone.",
+    "saveBoard": "Save for everyone",
+    "resetToSaved": "Reset to last saved",
+    "boardViewSaved": "Board view saved for everyone."
   },
   "insights": {
     "title": "Sprint insights",
@@ -1445,7 +1493,13 @@
     "noStartDate": "Give the sprint a start date to see its burndown.",
     "noWork": "There's no work in this sprint yet.",
     "epicsSummary_one": "This sprint is working towards {{count}} epic.",
-    "epicsSummary_other": "This sprint is working towards {{count}} epics."
+    "epicsSummary_other": "This sprint is working towards {{count}} epics.",
+    "pointsCount_one": "{{count}} point",
+    "pointsCount_other": "{{count}} points",
+    "itemsCount_one": "{{count}} item",
+    "itemsCount_other": "{{count}} items",
+    "doneSoFar": "Done so far",
+    "burndownExplore": "Sprint burndown. Use the arrow keys to read each day."
   },
   "apiErrors": {
     "network": "Could not reach the server. Check your connection and try again.",
@@ -1497,7 +1551,9 @@
       "internal": "The server ran into a problem. Please try again.",
       "unknown": "Something went wrong. Please try again."
     },
-    "boardKeyTaken": "Board key {{key}} is already in use."
+    "boardKeyTaken": "Board key {{key}} is already in use.",
+    "emailNotVerified": "Confirm your email address to sign in. Check your inbox, or ask for a new link.",
+    "verifyLinkInvalid": "This confirmation link is invalid or has expired."
   },
   "adminActions": {
     "created": "Created",
@@ -1844,5 +1900,71 @@
       "hintLoading": "Factual metrics, side by side",
       "gridLabel": "Developers and their metrics"
     }
+  },
+  "starred": {
+    "title": "Starred",
+    "star": "Star board",
+    "unstar": "Remove from starred",
+    "search": "Search starred boards",
+    "empty": "Nothing starred yet",
+    "emptyHint": "Star a board from its ••• menu or the star beside its name.",
+    "noMatches": "No starred boards match “{{query}}”",
+    "showAll": "Show all ({{count}})",
+    "expand": "Show starred boards",
+    "collapse": "Hide starred boards",
+    "loadFailed": "Couldn't load your starred boards."
+  },
+  "recent": {
+    "title": "Recent",
+    "search": "Search recent items",
+    "filterAll": "All",
+    "filterBoards": "Boards",
+    "filterTasks": "Tasks",
+    "empty": "Nothing recent yet",
+    "emptyHint": "Boards and tasks you open will show up here.",
+    "noMatches": "Nothing recent matches “{{query}}”",
+    "viewAll": "View all recent items",
+    "workedOn": "Items you worked on",
+    "loadFailed": "Couldn't load recent tasks."
+  },
+  "labels": {
+    "add": "Add labels",
+    "search": "Search or create a label",
+    "all": "All labels",
+    "create": "Create “{{name}}”",
+    "none": "No labels yet. Type to create one.",
+    "noMatches": "No label matches “{{query}}”",
+    "remove": "Remove label {{name}}",
+    "limit": "A work item can have up to 20 labels.",
+    "tooLong": "Labels can be up to 40 characters.",
+    "inFlight": "Available once the task is saved."
+  },
+  "pins": {
+    "title": "Pinned",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "goTo": "Go to original",
+    "fields": "My pinned fields",
+    "pinField": "Pin field to the top",
+    "unpinField": "Unpin field"
+  },
+  "createItem": {
+    "title": "Create work item",
+    "requiredNote": "Required fields are marked with an asterisk *",
+    "summary": "Summary",
+    "summaryPlaceholder": "What needs to be done?",
+    "summaryRequired": "Enter a summary.",
+    "summaryTooLong": "Keep the summary under {{max}} characters.",
+    "descriptionPlaceholder": "Add more detail, links or acceptance criteria",
+    "estimateInvalid": "Story points must be zero or more.",
+    "datesOrder": "The due date cannot be before the start date.",
+    "noParent": "No parent",
+    "labelsHint": "Separate labels with commas.",
+    "labelsPlaceholder": "e.g. frontend, bug-bash",
+    "another": "Create another",
+    "shortcut": "⌘/Ctrl + Enter to create",
+    "creating": "Creating…",
+    "created": "Work item created.",
+    "labelFailed": "The label “{{label}}” could not be added."
   }
 }

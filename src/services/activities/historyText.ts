@@ -1,7 +1,7 @@
 import i18n from "@/components/i18n";
 import { PRIORITIES, type Priority } from "@/constants/priorities";
 import { WORK_TYPE_LABELS, type WorkType } from "@/constants/workTypes";
-import { num, str } from "./activityText";
+import { labelDiff, num, str } from "./activityText";
 import type { Activity } from "@/types/data";
 import { formatDue } from "@/utils/dueDate";
 
@@ -168,6 +168,21 @@ export function describeHistoryChange(
 
     case "description_changed":
       return changed(i18n.t("task.description"), null, null);
+
+    case "labels_changed": {
+      const { added, removed } = labelDiff(activity.payload);
+
+      if (added.length === 0 && removed.length === 0) return null;
+
+      return {
+        verb: i18n.t(
+          added.length > 0 ? "history.labelAdded" : "history.labelRemoved",
+        ),
+        field: (added.length > 0 ? added : removed).join(", "),
+        from: null,
+        to: null,
+      };
+    }
 
     case "estimate_changed": {
       const from = num(activity.payload, "from");

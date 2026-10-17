@@ -1,3 +1,4 @@
+import { hasLabel, labelsOf } from "./labels";
 import i18n, { translated } from "@/components/i18n";
 import { memberName } from "@/components/members/memberLabels";
 import {
@@ -29,6 +30,7 @@ export const FILTER_CATEGORIES = [
   "priority",
   "due",
   "status",
+  "label",
 ] as const;
 
 export type FilterCategory = (typeof FILTER_CATEGORIES)[number];
@@ -39,6 +41,7 @@ export const FILTER_LABELS = translated<FilterCategory>({
   type: "fields.workType",
   priority: "fields.priority",
   due: "fields.dueDate",
+  label: "fields.labels",
 });
 
 // an empty array means the category is off, not that it excludes everything
@@ -50,6 +53,7 @@ export const EMPTY_FILTERS: TodoFilters = {
   priority: [],
   due: [],
   status: [],
+  label: [],
 };
 
 export const UNSET = "none";
@@ -120,6 +124,16 @@ function matchesStatus(todo: Todo, selected: string[]) {
   return todo.status_id !== null && selected.includes(todo.status_id);
 }
 
+function matchesLabel(todo: Todo, selected: string[]) {
+  if (!selected.length) return true;
+
+  const labels = labelsOf(todo);
+
+  return selected.some((value) =>
+    value === UNSET ? labels.length === 0 : hasLabel(labels, value),
+  );
+}
+
 // AND between categories, OR within one — "Bug or Story, assigned to me", not "Bug and Story"
 export function filterTodos(
   todos: Todo[],
@@ -135,7 +149,8 @@ export function filterTodos(
       matchesType(todo, filters.type) &&
       matchesPriority(todo, filters.priority) &&
       matchesDue(todo, filters.due, today) &&
-      matchesStatus(todo, filters.status),
+      matchesStatus(todo, filters.status) &&
+      matchesLabel(todo, filters.label),
   );
 }
 
@@ -171,7 +186,11 @@ export function searchTodos(todos: Todo[], query: string): Todo[] {
     );
   }
 
-  return todos.filter((todo) => normalise(todo.title ?? "").includes(needle));
+  return todos.filter(
+    (todo) =>
+      normalise(todo.title ?? "").includes(needle) ||
+      labelsOf(todo).some((label) => normalise(label).includes(needle)),
+  );
 }
 
 // ---------------------------------------------------------------------------

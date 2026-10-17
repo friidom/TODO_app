@@ -16,6 +16,8 @@ type BoardPatch = Partial<
     | "workflow_enabled"
     // The board's tab set, admin-edited (migration 0027).
     | "view_tabs"
+    // The saved board view (migration 0041).
+    | "view_settings"
   >
 >;
 

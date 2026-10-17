@@ -28,6 +28,7 @@ import { usePanel } from "@/hooks/usePanel";
 import { useVisibleTodos } from "@/hooks/useVisibleTodos";
 import { useColumns } from "@/services/columns/useColumnsApi";
 import { useBoardRealtime } from "@/services/realtime/useBoardRealtime";
+import { useAuth } from "@/services/auth/useAuth";
 import { recordBoardVisit } from "@/services/forYou/viewed";
 import { useTaskLayout } from "@/stores/taskLayout";
 import { relativeTime } from "@/utils/relativeTime";
@@ -59,10 +60,19 @@ function BoardView({ boardId }: { boardId: string }) {
   const viewers = useBoardRealtime(boardId);
 
   const visitedId = board?.id;
+  const userId = useAuth().user?.id;
+  const visitedMode = view.mode;
 
   useEffect(() => {
-    if (visitedId) recordBoardVisit(visitedId, new Date().toISOString());
-  }, [visitedId]);
+    if (visitedId) {
+      recordBoardVisit(
+        userId,
+        visitedId,
+        new Date().toISOString(),
+        visitedMode,
+      );
+    }
+  }, [userId, visitedId, visitedMode]);
 
   if (isPending) return <BoardPageSkeleton />;
 

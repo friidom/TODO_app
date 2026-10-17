@@ -290,3 +290,60 @@ export async function rebalanceColumn(
 
   return count;
 }
+
+// A label already there (in any case) and a label already gone are both
+// success: the second click of a double-click lands on the state it asked for.
+export async function addLabel(
+  actor: Actor,
+  board: BoardContext,
+  todoId: string,
+  name: string,
+): Promise<TodoDetailRow> {
+  const changed = await withActor(actor.id, (tx) =>
+    todosRepo.addLabel(tx, board.id, todoId, name),
+  );
+
+  const row = await todosRepo.findOne(board.id, todoId);
+
+  if (row === null) throw notFound();
+
+  if (changed === 0) {
+    const present = row.labels.some((label) => label.toLowerCase() === name.toLowerCase());
+
+    if (!present) {
+      throw new AppError(
+        "conflict",
+        `A work item can have up to ${todosRepo.MAX_LABELS} labels.`,
+      );
+    }
+
+    return row;
+  }
+
+  await invalidateBoard(board.id, CARDS_CHANGED);
+  emitChange(board.id, "todo", "UPDATE", row);
+
+  return row;
+}
+
+export async function removeLabel(
+  actor: Actor,
+  board: BoardContext,
+  todoId: string,
+  name: string,
+): Promise<TodoDetailRow> {
+  const changed = await withActor(actor.id, (tx) =>
+    todosRepo.removeLabel(tx, board.id, todoId, name),
+  );
+
+  const row = await todosRepo.findOne(board.id, todoId);
+
+  if (row === null) throw notFound();
+
+  if (changed > 0) {
+    await invalidateBoard(board.id, CARDS_CHANGED);
+    emitChange(board.id, "todo", "UPDATE", row);
+  }
+
+  return row;
+}

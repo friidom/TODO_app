@@ -61,7 +61,7 @@ export default function WorkflowToolbar({
   mode,
   onMode,
   onAddStatus,
-  onAddTransition,
+  onAddTransitions,
   onUndo,
   onRedo,
   onDiscard,
@@ -78,7 +78,7 @@ export default function WorkflowToolbar({
   mode: EditorMode;
   onMode: (mode: EditorMode) => void;
   onAddStatus: (status: NewStatus) => void;
-  onAddTransition: (from: string, to: string) => void;
+  onAddTransitions: (froms: string[], to: string) => void;
   onUndo: () => void;
   onRedo: () => void;
   onDiscard: () => void;
@@ -140,8 +140,8 @@ export default function WorkflowToolbar({
           <TransitionComposer
             draft={draft}
             initialFrom={selectedStatusId}
-            onSubmit={(from, to) => {
-              onAddTransition(from, to);
+            onSubmit={(froms, to) => {
+              onAddTransitions(froms, to);
               setOpen(null);
             }}
             onCancel={() => setOpen(null)}
@@ -392,7 +392,8 @@ function AddStatusPanel({
 }
 
 // Jira's "Add transition": name both ends up front, rather than making the
-// reader find the source on the canvas and drag from it.
+// reader find the source on the canvas and drag from it. Several sources at
+// once become several edges in one edit; "Any status" ticks every other one.
 function TransitionComposer({
   draft,
   initialFrom,
@@ -401,24 +402,35 @@ function TransitionComposer({
 }: {
   draft: WorkflowDraft;
   initialFrom: string | null;
-  onSubmit: (from: string, to: string) => void;
+  onSubmit: (froms: string[], to: string) => void;
   onCancel: () => void;
 }) {
   const { t } = useTranslation();
-  const [from, setFrom] = useState(initialFrom ?? draft.statuses[0]?.id ?? "");
+  const first = initialFrom ?? draft.statuses[0]?.id ?? "";
+  const [froms, setFroms] = useState<string[]>(first ? [first] : []);
   const [to, setTo] = useState(
-    draft.statuses.find((status) => status.id !== from)?.id ?? "",
+    draft.statuses.find((status) => status.id !== first)?.id ?? "",
   );
 
-  const duplicate = hasEdge(draft, from, to);
-  const invalid = from === "" || to === "" || from === to || duplicate;
+  const sources = draft.statuses.filter((status) => status.id !== to);
+  const chosen = froms.filter((id) => id !== to);
+  const fresh = chosen.filter((from) => !hasEdge(draft, from, to));
+  const everyOther =
+    sources.length > 0 && sources.every((s) => chosen.includes(s.id));
+  const invalid = to === "" || fresh.length === 0;
+
+  function toggle(id: string, on: boolean) {
+    setFroms((current) =>
+      on ? [...current, id] : current.filter((it) => it !== id),
+    );
+  }
 
   return (
     <form
       onSubmit={(event) => {
         event.preventDefault();
 
-        if (!invalid) onSubmit(from, to);
+        if (!invalid) onSubmit(fresh, to);
       }}
       className="grid gap-3"
     >
@@ -426,46 +438,70 @@ function TransitionComposer({
         {t("workflow.newTransition")}
       </p>
 
-      <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
-        <label className={LABEL}>
-          {t("workflow.from")}
-          <select
+      <fieldset className="grid gap-1">
+        <legend className={cn(LABEL, "mb-1")}>{t("workflow.fromMany")}</legend>
+
+        <label className="text-ink text-meta hover:bg-wash-strong rounded-control flex items-center gap-2 px-1.5 py-1 font-medium">
+          <input
+            type="checkbox"
             autoFocus
-            value={from}
-            onChange={(event) => setFrom(event.target.value)}
-            className={SELECT}
-          >
-            {draft.statuses.map((status) => (
-              <option key={status.id} value={status.id}>
-                {status.name}
-              </option>
-            ))}
-          </select>
+            checked={everyOther}
+            onChange={(event) =>
+              setFroms(event.target.checked ? sources.map((s) => s.id) : [])
+            }
+            className="accent-brand size-3.5"
+          />
+          {t("workflow.anyStatus")}
         </label>
 
-        <ArrowRightIcon aria-hidden className="text-ink-3 mb-2 size-4" />
+        <div className="border-hairline max-h-40 overflow-y-auto border-t pt-1">
+          {sources.map((status) => (
+            <label
+              key={status.id}
+              className="text-ink-2 text-meta hover:bg-wash-strong rounded-control flex items-center gap-2 px-1.5 py-1"
+            >
+              <input
+                type="checkbox"
+                checked={chosen.includes(status.id)}
+                onChange={(event) => toggle(status.id, event.target.checked)}
+                className="accent-brand size-3.5"
+              />
+              <span className="min-w-0 flex-1 truncate">{status.name}</span>
+              {hasEdge(draft, status.id, to) && (
+                <span className="text-ink-3 text-mini">
+                  {t("workflow.alreadyAllowed")}
+                </span>
+              )}
+            </label>
+          ))}
+        </div>
+      </fieldset>
 
-        <label className={LABEL}>
-          {t("workflow.to")}
-          <select
-            value={to}
-            onChange={(event) => setTo(event.target.value)}
-            className={SELECT}
-          >
-            {draft.statuses.map((status) => (
-              <option key={status.id} value={status.id}>
-                {status.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+      <label className={LABEL}>
+        {t("workflow.to")}
+        <select
+          value={to}
+          onChange={(event) => setTo(event.target.value)}
+          className={SELECT}
+        >
+          {draft.statuses.map((status) => (
+            <option key={status.id} value={status.id}>
+              {status.name}
+            </option>
+          ))}
+        </select>
+      </label>
 
-      {(from === to || duplicate) && from !== "" && (
-        <p role="status" className="text-ink-3 text-mini">
-          {from === to
-            ? t("workflow.selfTransition")
-            : t("workflow.transitionExists")}
+      {fresh.length > 0 && (
+        <p className="text-ink-3 text-mini flex flex-wrap items-center gap-1">
+          <span className="font-medium">{t("workflow.path")}:</span>
+          {everyOther
+            ? t("workflow.anyStatus")
+            : fresh
+                .map((id) => draft.statuses.find((s) => s.id === id)?.name)
+                .join(", ")}
+          <ArrowRightIcon aria-hidden className="size-3" />
+          {draft.statuses.find((s) => s.id === to)?.name}
         </p>
       )}
 

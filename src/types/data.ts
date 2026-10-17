@@ -40,6 +40,9 @@ export const TODO_FIELDS = [
 // started_at. Bolted on here for the same reason IBoard's feature flags are.
 export type Todo = Pick<TodoRow, (typeof TODO_FIELDS)[number]> & {
   completed_at: string | null;
+  // Optional for one cache TTL after deploy: a response cached before 0038
+  // has no labels. Read it through labelsOf().
+  labels?: string[];
 };
 
 // GET /todos/:id — the list projection plus description (backend DETAIL_FIELDS).
@@ -49,10 +52,11 @@ export type Sprint = Row<"sprints">;
 
 export type Activity = Row<"activities">;
 
-export type Comment = Row<"comments">;
+// pinned_at (0039) is read from a side table; optional for one cache TTL.
+export type Comment = Row<"comments"> & { pinned_at?: string | null };
 
 // board_id is here for the RLS policy, not for readers — denormalised from the todo.
-export type Attachment = Row<"attachments">;
+export type Attachment = Row<"attachments"> & { pinned_at?: string | null };
 
 export type ISupabaseProfile = Row<"profiles">;
 
@@ -112,6 +116,8 @@ export type IBoard = Row<"boards"> & {
   // Optional because an optimistic board is built before the server answers;
   // absent reads as null, the default tab set.
   view_tabs?: StoredViewTab[] | null;
+  // The board view an admin saved for everyone (0041). unknown: normalizeBoardViewPrefs is what reads it.
+  view_settings?: unknown;
 };
 
 // Owner-only by RLS and not a permission scope — filing a board into a space grants nobody access to it.
@@ -138,4 +144,9 @@ export interface TodoCardContent {
   dueDate: string | null;
   // null means unestimated, distinct from a written 0.
   estimate: number | null;
+  labels: string[];
+  startDate: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  completedAt: string | null;
 }

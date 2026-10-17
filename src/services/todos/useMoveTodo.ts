@@ -1,4 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "@/stores/toasts";
+
+import i18n from "@/components/i18n";
 
 import { queryKeys } from "@/services/queryClient/queryKeys";
 import { useWorkflow } from "@/services/workflow/useWorkflow";
@@ -22,9 +25,17 @@ export function useMoveTodo(todoId: string) {
     const todos =
       queryClient.getQueryData<Todo[]>(queryKeys.todos(boardId)) ?? [];
 
-    const activeTodo = todos.find((todo) => todo.id === todoId);
+    // a deep link can open the task before the board list has loaded
+    const activeTodo =
+      todos.find((todo) => todo.id === todoId) ??
+      queryClient.getQueryData<Todo>(queryKeys.todo(todoId));
 
-    if (!activeTodo || activeTodo.status_id === status.id) return;
+    if (!activeTodo) {
+      toast.error(i18n.t("task.loadFailed"));
+      return;
+    }
+
+    if (activeTodo.status_id === status.id) return;
 
     const targetColumnId = status.column_id;
 

@@ -72,10 +72,11 @@ html {
   --hairline: oklch(0.15 0.02 260 / 9%);
   --ink: oklch(0.24 0.02 265);
   --ink-2: oklch(0.48 0.02 265);
-  --ink-3: oklch(0.62 0.015 265);
+  --ink-3: oklch(0.53 0.015 265);
   --brand: oklch(0.58 0.21 292);
   --brand-fg: oklch(0.99 0 0);
   --brand-soft: oklch(0.58 0.21 292 / 12%);
+  --brand-wash: oklch(0.58 0.21 292 / 7%);
   --status-blue: oklch(0.62 0.19 255);
   --status-orange: oklch(0.72 0.16 62);
   --status-green: oklch(0.68 0.17 149);
@@ -153,10 +154,11 @@ html {
   --hairline: oklch(1 0 0 / 8%);
   --ink: oklch(0.94 0.006 267);
   --ink-2: oklch(0.72 0.022 267);
-  --ink-3: oklch(0.58 0.024 267);
+  --ink-3: oklch(0.62 0.024 267);
   --brand: oklch(0.62 0.2 292);
   --brand-fg: oklch(0.99 0 0);
   --brand-soft: oklch(0.62 0.2 292 / 18%);
+  --brand-wash: oklch(0.62 0.2 292 / 11%);
   --status-blue: oklch(0.66 0.17 253);
   --status-orange: oklch(0.76 0.15 65);
   --status-green: oklch(0.72 0.16 152);
@@ -354,6 +356,7 @@ html {
   --color-brand: var(--brand);
   --color-brand-fg: var(--brand-fg);
   --color-brand-soft: var(--brand-soft);
+  --color-brand-wash: var(--brand-wash);
   --color-status-blue: var(--status-blue);
   --color-status-orange: var(--status-orange);
   --color-status-green: var(--status-green);
@@ -502,36 +505,39 @@ html {
   animation: done-flash 1.4s ease-out;
 }
 
-/* transform, not background-position, so the sweep never repaints */
-.skeleton {
-  position: relative;
-  overflow: hidden;
-  background-color: var(--wash-strong);
-}
+/* In the components layer so a utility on <Skeleton> still wins over it. */
+@layer components {
+  /* transform, not background-position, so the sweep never repaints */
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    background-color: var(--wash-strong);
+  }
 
-.skeleton::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  transform: translateX(-100%);
-  background-image: linear-gradient(
-    90deg,
-    transparent,
-    var(--skeleton-sheen),
-    transparent
-  );
-  animation: skeleton-sweep 1.6s ease-in-out infinite;
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background-image: linear-gradient(
+      90deg,
+      transparent,
+      var(--skeleton-sheen),
+      transparent
+    );
+    animation: skeleton-sweep 1.6s ease-in-out infinite;
+  }
+
+  /* delayed so a fast load goes straight to content instead of flashing grey */
+  .skeleton-in {
+    animation: skeleton-in 0.2s ease-out 0.15s both;
+  }
 }
 
 @keyframes skeleton-sweep {
   to {
     transform: translateX(100%);
   }
-}
-
-/* delayed so a fast load goes straight to content instead of flashing grey */
-.skeleton-in {
-  animation: skeleton-in 0.2s ease-out 0.15s both;
 }
 
 @keyframes skeleton-in {
@@ -560,6 +566,34 @@ html {
   transform-box: fill-box;
   transform-origin: left;
   animation: chart-reveal 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes star-pop {
+  50% {
+    transform: scale(1.25);
+  }
+}
+
+.star-pop {
+  animation: star-pop 0.18s var(--ease-emphasized);
+}
+
+/* "Go to original" from a pinned item: an outline, so the row never resizes. */
+@keyframes jump-flash {
+  0%,
+  60% {
+    outline-color: var(--brand);
+  }
+
+  100% {
+    outline-color: transparent;
+  }
+}
+
+.jump-flash {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  animation: jump-flash 1.2s ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {

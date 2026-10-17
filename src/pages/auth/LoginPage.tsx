@@ -17,6 +17,9 @@ export default function LoginPage() {
   // set by useUpdatePassword after a reset, so the bounce back doesn't read as a failure
   const justReset = searchParams.get("reset") === "1";
 
+  // set by VerifyEmailPage once the link has been used
+  const justVerified = searchParams.get("verified") === "1";
+
   const { t } = useTranslation();
   const oauthError = oauthErrorMessage(searchParams.get("error"));
 
@@ -55,6 +58,8 @@ export default function LoginPage() {
     }
 
     if (justReset) return t("auth.resetSubtitle");
+
+    if (justVerified) return t("auth.verifiedSubtitle");
 
     return t("auth.loginSubtitle");
   }

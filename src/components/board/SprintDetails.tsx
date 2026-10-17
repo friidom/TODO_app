@@ -1,10 +1,14 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FloatingPortal } from "@floating-ui/react";
-import { IterationCcwIcon, TargetIcon } from "lucide-react";
+import { IterationCcwIcon, PencilIcon, TargetIcon } from "lucide-react";
+
+import CreateSprintModal from "@/components/backlog/CreateSprintModal";
 
 import { useCardPopover } from "@/components/todo/TodoItem/useCardPopover";
 import IconButton from "@/components/ui/IconButton";
 import { POPOVER_PANEL } from "@/components/ui/controlChrome";
+import { usePermissions } from "@/hooks/usePermissions";
 import { daysLeft } from "@/services/sprints/insights";
 import type { Sprint } from "@/types/data";
 import { cn } from "@/utils/cn";
@@ -13,9 +17,11 @@ import { formatDayFull, todayISO } from "@/utils/dueDate";
 // The quick look: which sprint, and its dates. Progress and burndown live in the Insights drawer beside it.
 export default function SprintDetails({ sprint }: { sprint: Sprint }) {
   const { t } = useTranslation();
-  const { mounted, triggerProps, panelProps } = useCardPopover({
+  const { mounted, triggerProps, panelProps, close } = useCardPopover({
     placement: "bottom-end",
   });
+  const { canEditTodos } = usePermissions();
+  const [editing, setEditing] = useState(false);
 
   const left = daysLeft(sprint.end_date, todayISO());
 
@@ -48,6 +54,19 @@ export default function SprintDetails({ sprint }: { sprint: Sprint }) {
                 <span className="bg-status-green/15 text-status-green text-micro mt-0.5 shrink-0 rounded px-1.5 py-0.5 font-semibold tracking-wide uppercase">
                   {t("sprint.active")}
                 </span>
+
+                {canEditTodos && (
+                  <IconButton
+                    label={t("backlog.editSprint")}
+                    className="-mt-1 -mr-2 shrink-0"
+                    onClick={() => {
+                      close();
+                      setEditing(true);
+                    }}
+                  >
+                    <PencilIcon />
+                  </IconButton>
+                )}
               </div>
 
               {left !== null && (
@@ -86,6 +105,10 @@ export default function SprintDetails({ sprint }: { sprint: Sprint }) {
             </dl>
           </div>
         </FloatingPortal>
+      )}
+
+      {editing && (
+        <CreateSprintModal sprint={sprint} onClose={() => setEditing(false)} />
       )}
     </>
   );

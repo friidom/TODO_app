@@ -119,7 +119,7 @@ export function orderBy<T>(
 
 export const spaceKeyOf = (group: SpaceGroup) => group.space?.id ?? UNFILED;
 
-// Unfiled stays last: it is not a space of the reader.s to arrange.
+// Unfiled stays last: it is not a space of the reader's to arrange.
 export function arrangeGroups(
   groups: SpaceGroup[],
   layout: SidebarLayout,

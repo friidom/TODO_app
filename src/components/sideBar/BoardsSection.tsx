@@ -46,8 +46,10 @@ import {
 import type { SpaceGroup } from "@/services/spaces/groupBoards";
 import type { IBoard, ISpace } from "@/types/data";
 import { cn } from "@/utils/cn";
+import StarButton from "@/components/stars/StarButton";
+import { useIsStarred } from "@/services/stars/useStars";
 import Section, { Collapse, Grip } from "./Section";
-import { stepKey } from "./stepKey";
+import { REORDER_KEYS, stepKey } from "./stepKey";
 
 // gated on board.owner_id, not a roster fetch — filing/deleting is owner-only in the db anyway, and the row already has this field
 type Dialog =
@@ -223,7 +225,6 @@ function SpaceRow({
   const { space, boards } = group;
   const key = spaceKeyOf(group);
 
-  // Unfiled is pinned last: it is not a space of the reader's to arrange
   const { setNodeRef, pointerProps, isDragging, edge } = useReorderItem(key, {
     group: SIDEBAR_DND.space,
     axis: "y",
@@ -251,6 +252,7 @@ function SpaceRow({
           onKeyDown={
             space ? stepKey((delta) => onStep("space", key, delta)) : undefined
           }
+          aria-keyshortcuts={space ? REORDER_KEYS : undefined}
           aria-expanded={!collapsed}
           aria-label={t(collapsed ? "sidebar.expand" : "sidebar.collapse", {
             name: title,
@@ -396,6 +398,7 @@ function BoardRow({
     location.pathname === to || location.pathname.startsWith(`${to}/`);
 
   const title = board.title || t("common.untitledBoard");
+  const starred = useIsStarred(board.id);
 
   return (
     <SidebarMenuItem
@@ -411,14 +414,21 @@ function BoardRow({
         onKeyDown={stepKey((delta) =>
           onStep("board", board.id, delta, container),
         )}
-        className={cn("pl-8", owned && "coarse:pr-10 pr-8")}
+        aria-keyshortcuts={REORDER_KEYS}
+        className={cn(
+          "pl-8",
+          owned ? "coarse:pr-18 pr-14" : "coarse:pr-10 pr-8",
+        )}
       >
         <KanbanIcon />
         <span>{title}</span>
       </SidebarMenuButton>
 
-      {owned && (
-        <SidebarMenuActions>
+      {/* a starred board keeps its star showing; the rest of the cluster still waits for hover */}
+      <SidebarMenuActions className={cn(starred && "opacity-100")}>
+        <StarButton boardId={board.id} size="xs" tooltipSide="right" />
+
+        {owned && (
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
@@ -427,6 +437,10 @@ function BoardRow({
                   label={t("common.optionsFor", {
                     name: board.title || t("sidebar.board"),
                   })}
+                  className={cn(
+                    starred &&
+                      "coarse:opacity-100 opacity-0 group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 aria-expanded:opacity-100",
+                  )}
                 />
               }
             >
@@ -452,8 +466,8 @@ function BoardRow({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </SidebarMenuActions>
-      )}
+        )}
+      </SidebarMenuActions>
 
       <DropLine edge={edge} axis="y" />
     </SidebarMenuItem>

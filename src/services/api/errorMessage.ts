@@ -6,6 +6,10 @@ import i18n from "@/components/i18n";
 // less but is never wrong.
 const KNOWN: Record<string, string> = {
   "Invalid login credentials": "apiErrors.invalidCredentials",
+  "Confirm your email address to sign in. Check your inbox, or ask for a new link.":
+    "apiErrors.emailNotVerified",
+  "This confirmation link is invalid or has expired.":
+    "apiErrors.verifyLinkInvalid",
   "Not authenticated.": "apiErrors.notAuthenticated",
   "Session expired. Please sign in again.": "apiErrors.sessionExpired",
   "Too many attempts. Try again later.": "apiErrors.tooManyAttempts",
