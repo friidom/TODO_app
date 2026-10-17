@@ -1173,7 +1173,10 @@
       "providerFailed": "That provider's response could not be verified. Please try again.",
       "invalidState": "That sign-in attempt expired or could not be verified. Please try again.",
       "invalidRequest": "That sign-in link was incomplete. Please try again.",
-      "oauthFailed": "Something went wrong while signing in. Please try again."
+      "oauthFailed": "Something went wrong while signing in. Please try again.",
+      "linkExpired": "That connection request expired or was already used. Connect the account again from here.",
+      "linkWrongAccount": "That connection request belongs to a different account, so nothing was connected.",
+      "linkFailed": "The account could not be connected. Try again from here."
     }
   },
   "auth": {
@@ -1204,6 +1207,8 @@
     "usernameTaken": "That username is already taken.",
     "usernameCheckFailed": "Could not check that username right now.",
     "linkingSubtitle": "An account already exists for that email address. Sign in to connect your new sign-in method to it.",
+    "linkingSubtitleProvider": "An account already exists for that email address. Sign in to it with your password or another sign-in method you already use, and {{provider}} will be connected to it.",
+    "linkingCancel": "Cancel and sign in normally",
     "unconfirmedSubtitle": "Confirm your email address first — check your inbox for the link we sent.",
     "resetSubtitle": "Your password has been updated. Sign in with the new one.",
     "loginSubtitle": "Sign in to pick up where your board left off.",
@@ -1323,12 +1328,14 @@
     "connecting": "Connecting…",
     "openProject": "Open {{project}} in GitLab",
     "status": {
+      "serverSetup": "Server setup needed",
       "awaitingToken": "Needs signing token",
       "awaitingDelivery": "Waiting for GitLab",
       "active": "Active",
       "failing": "Failing"
     },
     "statusDetail": {
+      "serverSetup": "This server can't receive GitLab events until an administrator sets it up. The project and its webhook URL are saved; you can add the signing token afterwards.",
       "awaitingToken": "Add the webhook in GitLab, then save its signing token here.",
       "awaitingDelivery": "Token saved. Nothing has arrived from GitLab yet — push a commit, or use Test → Push events on the webhook in GitLab.",
       "active": "Receiving events. Last delivery {{time}}.",

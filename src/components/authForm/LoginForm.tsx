@@ -10,6 +10,7 @@ import ResendVerification from "@/components/authForm/ResendVerification";
 import { ApiError } from "@/services/api/client";
 import { FORM_SUBMIT } from "@/components/ui/fieldInput";
 import { useLogin } from "@/services/auth/useLogin";
+import { linkingProviderOf } from "@/services/auth/pendingLink";
 import { useSearchParams } from "react-router";
 import {
   hasErrors,
@@ -121,6 +122,8 @@ export default function LoginForm() {
         next={searchParams.get("next")}
         disabled={login.isPending}
         divider="above"
+        // while linking, that provider's button would only issue the same challenge again
+        exclude={linkingProviderOf(searchParams.get("linking"))}
       />
     </form>
   );

@@ -4,8 +4,13 @@ import { Link, useLocation, useSearchParams } from "react-router";
 
 import AuthShell from "@/components/authForm/AuthShell";
 import LoginForm from "@/components/authForm/LoginForm";
+import { OAUTH_PROVIDER_LABEL } from "@/services/auth/oauthApi";
 import { oauthErrorMessage } from "@/services/auth/oauthErrors";
-import { storePendingLink } from "@/services/auth/pendingLink";
+import {
+  clearPendingLink,
+  linkingProviderOf,
+  storePendingLink,
+} from "@/services/auth/pendingLink";
 
 export default function LoginPage() {
   const location = useLocation();
@@ -37,18 +42,31 @@ export default function LoginPage() {
     const next = new URLSearchParams(searchParams);
 
     next.delete("link");
+    next.delete("provider");
     // Replaced by a marker rather than simply removed: this navigation
     // re-renders immediately, and without it the page would flip back to
     // "Welcome back" and stop explaining why a sign-in is being asked for.
-    next.set("linking", "1");
+    next.set("linking", linkingProviderOf(searchParams.get("provider")) ?? "1");
     setSearchParams(next, { replace: true });
   }, [link, searchParams, setSearchParams]);
 
-  const linking = link !== null || searchParams.get("linking") === "1";
+  const linking = link !== null || searchParams.has("linking");
+  const linkingProvider = linkingProviderOf(
+    searchParams.get("linking") ?? searchParams.get("provider"),
+  );
+
+  function cancelLinking() {
+    clearPendingLink();
+    setSearchParams({}, { replace: true });
+  }
 
   function subtitle() {
     if (linking) {
-      return t("auth.linkingSubtitle");
+      return linkingProvider
+        ? t("auth.linkingSubtitleProvider", {
+            provider: OAUTH_PROVIDER_LABEL[linkingProvider],
+          })
+        : t("auth.linkingSubtitle");
     }
 
     if (unconfirmed) {
@@ -67,15 +85,26 @@ export default function LoginPage() {
       title={linking ? t("auth.confirmItsYou") : t("auth.welcomeBack")}
       subtitle={subtitle()}
       footer={
-        <>
-          {t("auth.noAccount")}{" "}
-          <Link
-            to={{ pathname: "/register", search: location.search }}
+        linking ? (
+          // a second account is exactly what this page exists to avoid, so it offers a way out instead
+          <button
+            type="button"
+            onClick={cancelLinking}
             className="text-ink hover:text-brand font-medium transition-colors"
           >
-            {t("auth.createOne")}
-          </Link>
-        </>
+            {t("auth.linkingCancel")}
+          </button>
+        ) : (
+          <>
+            {t("auth.noAccount")}{" "}
+            <Link
+              to={{ pathname: "/register", search: location.search }}
+              className="text-ink hover:text-brand font-medium transition-colors"
+            >
+              {t("auth.createOne")}
+            </Link>
+          </>
+        )
       }
     >
       {oauthError !== null && !linking && (

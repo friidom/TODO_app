@@ -392,9 +392,23 @@ describe("a board's GitLab settings", () => {
     const alice = await makeUser("alice");
 
     expect((await client.get(boardPath(alice.boardId), { token: alice.token })).body).toEqual({
+      configured: true,
       space_link: null,
       board_links: [],
     });
+
+    const writable = env as { INTEGRATION_SECRET_KEY?: string };
+    const key = writable.INTEGRATION_SECRET_KEY;
+
+    writable.INTEGRATION_SECRET_KEY = undefined;
+
+    try {
+      const unconfigured = await client.get<{ configured: boolean }>(boardPath(alice.boardId), { token: alice.token });
+
+      expect(unconfigured.body.configured).toBe(false);
+    } finally {
+      writable.INTEGRATION_SECRET_KEY = key;
+    }
 
     await connected(alice);
 

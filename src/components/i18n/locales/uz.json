@@ -1173,7 +1173,10 @@
       "providerFailed": "Provayder javobini tekshirib bo'lmadi. Qayta urinib ko'ring.",
       "invalidState": "Kirish urinishining muddati tugagan yoki uni tekshirib bo'lmadi. Qayta urinib ko'ring.",
       "invalidRequest": "Kirish havolasi to'liq emas edi. Qayta urinib ko'ring.",
-      "oauthFailed": "Kirishda nimadir xato ketdi. Qayta urinib ko'ring."
+      "oauthFailed": "Kirishda nimadir xato ketdi. Qayta urinib ko'ring.",
+      "linkExpired": "Ulash so'rovining muddati tugagan yoki u allaqachon ishlatilgan. Hisobni shu yerdan qayta ulang.",
+      "linkWrongAccount": "Bu ulash so'rovi boshqa hisobga tegishli, shuning uchun hech narsa ulanmadi.",
+      "linkFailed": "Hisobni ulab bo'lmadi. Shu yerdan qayta urinib ko'ring."
     }
   },
   "auth": {
@@ -1204,6 +1207,8 @@
     "usernameTaken": "Bu foydalanuvchi nomi allaqachon band.",
     "usernameCheckFailed": "Hozir bu foydalanuvchi nomini tekshirib bo'lmadi.",
     "linkingSubtitle": "Bu email manzili uchun hisob allaqachon mavjud. Yangi kirish usulingizni unga ulash uchun tizimga kiring.",
+    "linkingSubtitleProvider": "Bu email manzili uchun hisob allaqachon mavjud. Unga parolingiz yoki allaqachon foydalanayotgan boshqa kirish usuli bilan kiring, shunda {{provider}} unga ulanadi.",
+    "linkingCancel": "Bekor qilish va odatdagidek kirish",
     "unconfirmedSubtitle": "Avval email manzilingizni tasdiqlang — biz yuborgan havolani pochtangizdan qidiring.",
     "resetSubtitle": "Parolingiz yangilandi. Yangi parol bilan kiring.",
     "loginSubtitle": "Doskangizda qolgan joyingizdan davom etish uchun tizimga kiring.",
@@ -1323,12 +1328,14 @@
     "connecting": "Ulanmoqda…",
     "openProject": "{{project}} loyihasini GitLab'da ochish",
     "status": {
+      "serverSetup": "Server sozlanishi kerak",
       "awaitingToken": "Imzo tokeni kerak",
       "awaitingDelivery": "GitLab kutilmoqda",
       "active": "Faol",
       "failing": "Xatolik"
     },
     "statusDetail": {
+      "serverSetup": "Administrator serverni sozlamaguncha u GitLab hodisalarini qabul qila olmaydi. Loyiha va webhook manzili saqlangan, imzo tokenini keyinroq qo'shishingiz mumkin.",
       "awaitingToken": "GitLab'da webhook qo'shing, so'ng uning imzo tokenini shu yerda saqlang.",
       "awaitingDelivery": "Token saqlandi. GitLab'dan hali hech narsa kelmadi — commit yuboring yoki GitLab'dagi webhook uchun Test → Push events'ni bosing.",
       "active": "Hodisalar kelmoqda. Oxirgi yetkazma {{time}}.",

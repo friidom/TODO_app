@@ -16,8 +16,10 @@ import type {
 } from "@/services/gitlab/gitlabApi";
 import {
   LINK_STATUS_LABEL,
+  displayStatus,
   failureMessageKey,
   signingTokenProblem,
+  type GitLabDisplayStatus,
   type SigningTokenProblem,
 } from "@/services/gitlab/gitlabLinks";
 import {
@@ -37,7 +39,9 @@ const DANGER =
 export const SUBMIT =
   "bg-brand text-brand-fg rounded-control inline-flex h-9 items-center gap-2 px-3.5 text-[13px] font-medium transition-opacity disabled:opacity-60";
 
-const STATUS_TONE: Record<GitLabLinkStatus, string> = {
+const STATUS_TONE: Record<GitLabDisplayStatus, string> = {
+  server_setup:
+    "border-status-orange/30 bg-status-orange/10 text-status-orange",
   awaiting_token:
     "border-status-orange/30 bg-status-orange/10 text-status-orange",
   awaiting_delivery: "border-status-blue/30 bg-status-blue/10 text-status-blue",
@@ -58,17 +62,24 @@ const SETUP_STEPS = [
   "gitlab.setup.save",
 ] as const;
 
-export function StatusBadge({ status }: { status: GitLabLinkStatus }) {
+export function StatusBadge({
+  status,
+  configured,
+}: {
+  status: GitLabLinkStatus;
+  configured: boolean;
+}) {
   const { t } = useTranslation();
+  const shown = displayStatus(status, configured);
 
   return (
     <span
       className={cn(
         "text-mini rounded-full border px-2 py-0.5 font-medium whitespace-nowrap",
-        STATUS_TONE[status],
+        STATUS_TONE[shown],
       )}
     >
-      {t(LINK_STATUS_LABEL[status])}
+      {t(LINK_STATUS_LABEL[shown])}
     </span>
   );
 }
@@ -101,12 +112,14 @@ export function ProjectName({ path, url }: { path: string; url: string }) {
 export default function GitLabLinkCard({
   link,
   owner,
+  configured,
   disconnectMessage,
   actions,
   note,
 }: {
   link: GitLabLink;
   owner: GitLabOwner;
+  configured: boolean;
   disconnectMessage: string;
   actions?: ReactNode;
   note?: ReactNode;
@@ -119,7 +132,7 @@ export default function GitLabLinkCard({
       <header className="border-hairline flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-3">
         <ProjectName path={link.project_path} url={link.project_url} />
 
-        <StatusBadge status={link.status} />
+        <StatusBadge status={link.status} configured={configured} />
 
         <div className="ml-auto flex items-center gap-2">
           {actions}
@@ -148,20 +161,37 @@ export default function GitLabLinkCard({
           />
         )}
 
-        <StatusLine link={link} />
+        <StatusLine link={link} configured={configured} />
 
         <WebhookUrl url={link.webhook_url} />
 
-        {link.status !== "active" && <SetupSteps project={link.project_path} />}
+        {/* until the server can store a token, steps ending in "paste the token" would end in a refusal */}
+        {configured && link.status !== "active" && (
+          <SetupSteps project={link.project_path} />
+        )}
 
-        <SigningTokenForm owner={owner} link={link} />
+        {configured && <SigningTokenForm owner={owner} link={link} />}
       </div>
     </article>
   );
 }
 
-function StatusLine({ link }: { link: GitLabLink }) {
+function StatusLine({
+  link,
+  configured,
+}: {
+  link: GitLabLink;
+  configured: boolean;
+}) {
   const { t } = useTranslation();
+
+  if (!configured) {
+    return (
+      <p className="text-ink-2 text-xs">
+        {t("gitlab.statusDetail.serverSetup")}
+      </p>
+    );
+  }
 
   if (link.status === "failing") {
     return (

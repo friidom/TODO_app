@@ -180,7 +180,9 @@ export const callback: RequestHandler = async (req, res) => {
     }
 
     if (result.kind === "link_challenge") {
-      res.redirect(frontendUrl(`/login?link=${encodeURIComponent(result.token)}`));
+      // The provider is named so the page can say what is being connected and
+      // not offer that same button, which would only mint another challenge.
+      res.redirect(frontendUrl(`/login?link=${encodeURIComponent(result.token)}&provider=${provider}`));
 
       return;
     }
