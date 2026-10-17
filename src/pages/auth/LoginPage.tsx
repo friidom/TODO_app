@@ -51,8 +51,6 @@ export default function LoginPage() {
       return t("auth.linkingSubtitle");
     }
 
-    if (oauthError !== null) return oauthError;
-
     if (unconfirmed) {
       return t("auth.unconfirmedSubtitle");
     }
@@ -80,6 +78,15 @@ export default function LoginPage() {
         </>
       }
     >
+      {oauthError !== null && !linking && (
+        <p
+          role="alert"
+          className="border-status-red/30 bg-status-red/10 text-status-red rounded-control mb-4 border px-3 py-2 text-xs"
+        >
+          {oauthError}
+        </p>
+      )}
+
       <LoginForm />
     </AuthShell>
   );

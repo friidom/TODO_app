@@ -13,7 +13,6 @@ import ViewOptions from "@/components/board/ViewOptions";
 import DropLine, { DragChip } from "@/components/dnd/DropLine";
 import ReorderContext from "@/components/dnd/ReorderContext";
 import { useReorderItem } from "@/components/dnd/reorderDnd";
-import HeaderTodoForm from "@/components/layout/header/HeaderTodoForm";
 import type { BoardView } from "@/hooks/useBoardView";
 import { capabilitiesOf } from "@/services/views/registry";
 import {
@@ -108,11 +107,10 @@ export default function ViewToolbar({ view }: { view: BoardView }) {
           <ViewOptions view={view} className="@5xl:hidden" />
         )}
 
-        {/* shrink-0: the search box is what gives way, not the actions, whose overflow would cut New task off */}
+        {/* shrink-0: the search box is what gives way, not the actions, whose overflow would cut the last of them off */}
         <div className="ml-auto flex shrink-0 items-center gap-2 @max-md:gap-1.5">
           {view.mode === "board" && <SprintControls />}
           <BoardActions showViewSettings={view.mode === "board"} />
-          {view.mode !== "list" && <HeaderTodoForm />}
         </div>
       </div>
     </div>
