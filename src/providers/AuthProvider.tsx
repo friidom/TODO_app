@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { refreshSession, setSessionEndedHandler } from "../services/api/client";
-import { fetchMe } from "../services/auth/authApi";
+import { setSessionEndedHandler } from "../services/api/client";
+import { restoreSession } from "../services/auth/authApi";
 import {
   getSessionUser,
   setSessionUser,
@@ -30,11 +30,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(next);
     });
 
-    // The access token lives in memory only, so a reload always starts by
-    // spending the refresh cookie. A failure here is "not signed in", not an
-    // error worth surfacing.
     async function restore() {
-      const restored = (await refreshSession()) ? await fetchMe().catch(() => null) : null;
+      const restored = await restoreSession();
 
       if (!mounted) return;
 

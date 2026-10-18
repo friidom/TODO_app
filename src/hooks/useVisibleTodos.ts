@@ -26,7 +26,8 @@ export function useVisibleTodos(scope?: ViewScope) {
     error,
   } = useScopedTodos(scope ?? { kind: "board", boardId });
 
-  const { data: workflow = EMPTY_WORKFLOW } = useWorkflow();
+  const { data: workflow = EMPTY_WORKFLOW, isLoading: workflowLoading } =
+    useWorkflow();
   const { filters, query, sort, dir } = useBoardView();
   const { user } = useAuth();
 
@@ -46,7 +47,8 @@ export function useVisibleTodos(scope?: ViewScope) {
     all,
     total: all.length,
     hidden: all.length - todos.length,
-    isLoading,
+    // Without the workflow there are no columns, so a view would render empty for a frame.
+    isLoading: isLoading || workflowLoading,
     error,
   };
 }

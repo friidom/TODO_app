@@ -1,6 +1,7 @@
 import { Navigate, Outlet } from "react-router";
 
 import Loading from "../loading/LoadingPage";
+import { canEnterAdmin } from "@/services/admin/access";
 import { useAuth } from "@/services/auth/useAuth";
 
 // Defence in depth, not the real gate — requireSuperadmin reads users.org_role
@@ -13,7 +14,7 @@ export default function SuperadminRoute() {
 
   // Not found rather than a redirect to a "forbidden" page, matching the API:
   // a dedicated denial screen would confirm the area exists.
-  if (!user || user.org_role !== "superadmin") {
+  if (!canEnterAdmin(user)) {
     return <Navigate to="/" replace />;
   }
 

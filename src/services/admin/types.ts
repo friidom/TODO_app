@@ -208,12 +208,39 @@ export interface AuditEntry {
   action: string;
   target_type: string;
   target_id: string | null;
+  target_username: string | null;
   payload: unknown;
   created_at: string;
 }
 
 export interface AdminAudit {
   entries: AuditEntry[];
+}
+
+export type AccountStatus = "active" | "unverified" | "deactivated";
+
+export interface AdminAccount {
+  id: string;
+  username: string | null;
+  full_name: string | null;
+  avatar_url: string | null;
+  email: string;
+  org_role: string;
+  status: AccountStatus;
+  created_at: string;
+}
+
+export interface AdminAccounts {
+  accounts: AdminAccount[];
+  superadmins: AdminAccount[];
+  active_superadmins: number;
+}
+
+export type RoleOutcome = "granted" | "revoked" | "unchanged";
+
+export interface RoleChange {
+  account: AdminAccount;
+  outcome: RoleOutcome;
 }
 
 export interface AdminScope {

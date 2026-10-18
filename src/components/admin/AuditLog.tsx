@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import SummaryCard, { WidgetEmpty } from "@/components/summary/SummaryCard";
+import { SYSTEM_ACTOR_ID } from "@/services/admin/access";
 import { actionLabel } from "@/services/admin/format";
 import { useAdminAudit } from "@/services/admin/useAdmin";
 import { relativeTime } from "@/utils/relativeTime";
@@ -27,11 +28,16 @@ export default function AuditLog() {
             >
               <span className="text-ink text-meta min-w-0 flex-1 truncate">
                 <span className="font-medium">
-                  {entry.actor_username ?? t("admin.removedAccount")}
+                  {entry.actor_id === SYSTEM_ACTOR_ID
+                    ? t("admin.access.systemActor")
+                    : (entry.actor_username ?? t("admin.removedAccount"))}
                 </span>{" "}
                 <span className="text-ink-2">{actionLabel(entry.action)}</span>
                 {entry.target_id && (
-                  <span className="text-ink-3"> · {entry.target_id}</span>
+                  <span className="text-ink-3">
+                    {" "}
+                    · {entry.target_username ?? entry.target_id}
+                  </span>
                 )}
               </span>
 

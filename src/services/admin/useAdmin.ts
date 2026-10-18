@@ -18,14 +18,17 @@ import {
   fetchAdminUser,
   fetchAdminUsers,
   boardsQuery,
+  fetchAccounts,
   fetchAudit,
   fetchFlow,
+  fetchRoleAudit,
   fetchKpi,
   flowQuery,
   usersQuery,
   fetchOverview,
   saveKpiTarget,
   saveSeniority,
+  saveSuperadmin,
 } from "./adminApi";
 import type { AdminPeriod } from "./periods";
 import type {
@@ -173,6 +176,35 @@ export function useSaveKpiTarget() {
         weekly_points: input.weekly_points,
       }),
     onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin() }),
+  });
+}
+
+export function useAdminAccounts(search: string) {
+  return useQuery({
+    queryKey: queryKeys.adminAccounts(search),
+    queryFn: () => fetchAccounts(search),
+    // Typing a search keeps the last answer on screen rather than a skeleton.
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useAdminRoleAudit() {
+  return useQuery({
+    queryKey: queryKeys.adminRoleAudit(),
+    queryFn: fetchRoleAudit,
+  });
+}
+
+export function useSaveSuperadmin() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: { id: string; superadmin: boolean }) =>
+      saveSuperadmin(input.id, input.superadmin),
+    // The dialog shows the refusal itself; a toast as well would say it twice.
+    meta: { silent: true },
+    onSettled: () =>
       queryClient.invalidateQueries({ queryKey: queryKeys.admin() }),
   });
 }

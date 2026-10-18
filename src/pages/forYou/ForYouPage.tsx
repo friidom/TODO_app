@@ -97,7 +97,7 @@ export default function ForYouPage() {
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
-      <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 ease-emphasized mx-auto flex w-full max-w-6xl flex-col gap-8 px-5 pt-5 pb-12 duration-300 md:px-8 md:pt-8">
+      <div className="motion-safe:animate-in motion-safe:slide-in-from-bottom-1 ease-emphasized mx-auto flex w-full max-w-6xl flex-col gap-8 px-5 pt-5 pb-12 duration-300 md:px-8 md:pt-8">
         <header className="flex items-start gap-3">
           <SidebarTrigger className="coarse:size-9 text-ink-2 hover:bg-ink/[0.06] mt-0.5 -ml-1 shrink-0 md:hidden" />
 

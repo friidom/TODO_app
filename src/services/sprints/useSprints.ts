@@ -17,17 +17,21 @@ import {
 
 // one cache entry per board, shared by Backlog, Task Detail's Sprint field, and Sprint Details.
 // no realtime channel — sprint fields change rarely enough that the mutations below patching their own cache is enough for now.
-export function useSprints() {
-  const boardId = useBoardId();
-
-  return useQuery({
+export function sprintsQuery(boardId: string | undefined) {
+  return {
     queryKey: queryKeys.sprints(boardId),
     queryFn: () => {
       if (!boardId) throw new Error("useSprints ran without a board");
       return fetchSprints(boardId);
     },
     enabled: Boolean(boardId),
-  });
+  };
+}
+
+export function useSprints() {
+  const boardId = useBoardId();
+
+  return useQuery(sprintsQuery(boardId));
 }
 
 // found in the already-loaded list rather than a second query — a sprint is small enough that fetching one alone is pointless

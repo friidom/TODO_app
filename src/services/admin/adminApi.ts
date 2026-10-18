@@ -1,6 +1,8 @@
 import { api, toQuery } from "@/services/api/client";
+import { ROLE_AUDIT_ACTIONS } from "./access";
 import type { AdminPeriod } from "./periods";
 import type {
+  AdminAccounts,
   AdminActivity,
   AdminActivityFilters,
   AdminAudit,
@@ -17,6 +19,7 @@ import type {
   ActivityCursor,
   BoardFilters,
   FlowFilters,
+  RoleChange,
   Seniority,
   UserFilters,
 } from "./types";
@@ -138,4 +141,22 @@ export function saveSeniority(id: string, seniority: Seniority | null) {
 
 export function fetchAudit(): Promise<AdminAudit> {
   return api.get<AdminAudit>("/admin/audit");
+}
+
+export function fetchRoleAudit(): Promise<AdminAudit> {
+  return api.get<AdminAudit>(
+    `/admin/audit${toQuery({ action: ROLE_AUDIT_ACTIONS, limit: 50 })}`,
+  );
+}
+
+export function fetchAccounts(search: string): Promise<AdminAccounts> {
+  return api.get<AdminAccounts>(
+    `/admin/accounts${toQuery({ q: search.trim() || undefined })}`,
+  );
+}
+
+export function saveSuperadmin(id: string, superadmin: boolean) {
+  return api.put<RoleChange>(`/admin/accounts/${id}/superadmin`, {
+    superadmin,
+  });
 }

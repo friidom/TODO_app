@@ -93,6 +93,16 @@ async function leaveBoard(
   syncPresence(io, boardId);
 }
 
+// admin:join reads the role once. A revoked superadmin's open tabs would
+// otherwise keep receiving the system-wide feed until they reconnected.
+export async function evictFromAdminRoom(userId: string): Promise<void> {
+  const io = realtime();
+
+  if (io === null) return;
+
+  io.in(userRoom(userId)).socketsLeave(adminRoom());
+}
+
 // A deleted board has no membership left to check, so eviction by user would
 // have nobody to name. Everyone still in the room is turned out at once.
 export async function closeBoardRoom(boardId: string): Promise<void> {

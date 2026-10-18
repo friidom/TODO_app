@@ -1,4 +1,11 @@
-import { api, broadcastSignOut, setAccessToken, toQuery } from "../api/client";
+import {
+  api,
+  broadcastSignOut,
+  refreshSession,
+  setAccessToken,
+  takeRefreshedUser,
+  toQuery,
+} from "../api/client";
 import { setSessionUser, type AuthUser } from "./session";
 
 interface SessionResponse {
@@ -57,6 +64,18 @@ export async function fetchMe(): Promise<AuthUser> {
   const { user } = await api.get<{ user: AuthUser }>("/auth/me");
 
   return user;
+}
+
+// A reload starts with no token in memory, so it spends the refresh cookie.
+// Any failure is "not signed in", not an error worth surfacing.
+export async function restoreSession(): Promise<AuthUser | null> {
+  // A dropped request rejects rather than answering false, and left the
+  // session gate's spinner up for good.
+  if (!(await refreshSession().catch(() => false))) return null;
+
+  const user = takeRefreshedUser() as AuthUser | null;
+
+  return user ?? fetchMe().catch(() => null);
 }
 
 export async function requestPasswordReset(email: string): Promise<void> {

@@ -6,6 +6,7 @@ import { validate } from "../../middleware/validate.js";
 import { publishWorkflowSchema } from "../workflow/workflow.schema.js";
 import * as controller from "./admin.controller.js";
 import {
+  accountsQuerySchema,
   activityQuerySchema,
   auditQuerySchema,
   boardParamsSchema,
@@ -15,6 +16,7 @@ import {
   kpiTargetSchema,
   periodQuerySchema,
   spaceParamsSchema,
+  superadminBodySchema,
   todoParamsSchema,
   updateUserSchema,
   userParamsSchema,
@@ -122,3 +124,19 @@ adminRoutes.put(
 );
 
 adminRoutes.get("/audit", ...gate, validate({ query: auditQuerySchema }), controller.listAudit);
+
+// Account administration, and only the one global role: the M34 surface above
+// reports on people, this decides who may read the whole system.
+adminRoutes.get(
+  "/accounts",
+  ...gate,
+  validate({ query: accountsQuerySchema }),
+  controller.listAccounts,
+);
+
+adminRoutes.put(
+  "/accounts/:id/superadmin",
+  ...gate,
+  validate({ params: userParamsSchema, body: superadminBodySchema }),
+  controller.setSuperadmin,
+);

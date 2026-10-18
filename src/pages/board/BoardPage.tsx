@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 import BoardIdentity from "@/components/layout/BoardIdentity";
 import Drawer from "@/components/layout/Drawer";
@@ -20,6 +21,14 @@ import BacklogView from "@/components/backlog/BacklogView";
 import NotFoundPage from "@/pages/error/NotFoundPage";
 import { BoardPageSkeleton } from "@/components/loading/ViewSkeleton";
 import { useBoard } from "@/services/boards/useBoard";
+import { membersQuery } from "@/services/members/useBoardMembers";
+import { sprintsQuery } from "@/services/sprints/useSprints";
+import { todosQuery } from "@/services/todos/useTodos";
+import { workflowQuery } from "@/services/workflow/useWorkflow";
+import {
+  FIRST_LOAD_PROPS,
+  awaitingFirstAnswer,
+} from "@/services/queryClient/firstLoad";
 import { useBoardId } from "@/hooks/useBoardId";
 import { useBoardView } from "@/hooks/useBoardView";
 import { useOpenTask } from "@/hooks/useOpenTask";
@@ -34,6 +43,8 @@ import { useTaskLayout } from "@/stores/taskLayout";
 import { relativeTime } from "@/utils/relativeTime";
 import { isUuid } from "@/utils/uuid";
 
+const FIRST_LOAD = [...FIRST_LOAD_PROPS];
+
 // split in two so the hooks in BoardView run unconditionally — an early return before calling useBoard would break hook order
 export default function BoardPage() {
   const boardId = useBoardId();
@@ -46,6 +57,17 @@ export default function BoardPage() {
 
 function BoardView({ boardId }: { boardId: string }) {
   const { data: board, isPending, error } = useBoard(boardId);
+
+  // The views cannot draw anything true without these, and none of them needs
+  // the board row, so they load beside it and the page keeps one skeleton until
+  // all have answered. Waiting on the row alone handed off to a second skeleton.
+  // Narrow notifyOnChangeProps, so a card edit does not re-render the whole page.
+  const viewDataPending = [
+    useQuery({ ...workflowQuery(boardId), notifyOnChangeProps: FIRST_LOAD }),
+    useQuery({ ...todosQuery(boardId), notifyOnChangeProps: FIRST_LOAD }),
+    useQuery({ ...sprintsQuery(boardId), notifyOnChangeProps: FIRST_LOAD }),
+    useQuery({ ...membersQuery(boardId), notifyOnChangeProps: FIRST_LOAD }),
+  ].some(awaitingFirstAnswer);
 
   const view = useBoardView();
   // A stale ?view=backlog must not outlive the feature being switched off.
@@ -74,7 +96,7 @@ function BoardView({ boardId }: { boardId: string }) {
     }
   }, [userId, visitedId, visitedMode]);
 
-  if (isPending) return <BoardPageSkeleton />;
+  if (isPending || viewDataPending) return <BoardPageSkeleton />;
 
   // real failures (offline, RLS) go to the route's errorElement — telling the user "board not found" would be a lie
   if (error) throw error;

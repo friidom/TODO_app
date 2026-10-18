@@ -1560,7 +1560,10 @@
     },
     "boardKeyTaken": "Board key {{key}} is already in use.",
     "emailNotVerified": "Confirm your email address to sign in. Check your inbox, or ask for a new link.",
-    "verifyLinkInvalid": "This confirmation link is invalid or has expired."
+    "verifyLinkInvalid": "This confirmation link is invalid or has expired.",
+    "accountDeactivated": "This account is deactivated.",
+    "roleNeedsConfirmed": "Only an account with a confirmed email can be given global admin access.",
+    "lastSuperadmin": "This is the last superadmin. Give the role to someone else first."
   },
   "adminActions": {
     "created": "Created",
@@ -1589,7 +1592,10 @@
       "updated": "KPI updated"
     },
     "user": {
-      "seniority_changed": "User seniority changed"
+      "seniority_changed": "User seniority changed",
+      "superadmin_granted": "Superadmin granted",
+      "superadmin_revoked": "Superadmin removed",
+      "superadmin_refused": "Role change refused"
     },
     "board": {
       "workflow_published": "Board workflow published"
@@ -1604,7 +1610,8 @@
       "flow": "Flow",
       "leaderboards": "Leaderboards",
       "users": "Developers",
-      "kpi": "KPI settings"
+      "kpi": "KPI settings",
+      "access": "Access"
     },
     "metrics": {
       "completedTasks": "Completed tasks",
@@ -1906,6 +1913,62 @@
       "hint_other": "{{count}} people · {{range}}",
       "hintLoading": "Factual metrics, side by side",
       "gridLabel": "Developers and their metrics"
+    },
+    "access": {
+      "hint": "Who can read the whole of Veylo, and every change to that",
+      "accounts": "Accounts",
+      "accountsHint": "Everyone registered, newest first",
+      "searchPlaceholder": "Search by name or email",
+      "noMatch": "No account matches “{{query}}”.",
+      "noAccounts": "No accounts yet.",
+      "superadmins": "Superadmins",
+      "activeCount_one": "{{count}} active",
+      "activeCount_other": "{{count}} active",
+      "you": "Signed in as",
+      "youLabel": "you",
+      "youHint": "Your role is checked on every request: if it is removed, this area closes at once.",
+      "status": {
+        "active": "Active",
+        "unverified": "Unverified",
+        "deactivated": "Deactivated"
+      },
+      "grant": "Make superadmin",
+      "revoke": "Remove superadmin",
+      "grantTitle": "Give {{name}} global admin access?",
+      "grantBody": "They will be able to read every board, space, person and audit record in Veylo, and give or remove this access for others. Board permissions do not change: they still cannot edit a board they are not a member of.",
+      "revokeTitle": "Remove global admin access from {{name}}?",
+      "revokeBody": "They lose the admin area on their next request. Their own boards and memberships are not affected.",
+      "revokeSelfWarning": "This is your own access. You will leave the admin area as soon as you confirm.",
+      "grantConfirm": "Grant access",
+      "revokeConfirm": "Remove access",
+      "blocked": {
+        "unverified": "Needs a confirmed email first",
+        "deactivated": "This account is deactivated",
+        "last": "The last superadmin cannot be removed. Give the role to someone else first."
+      },
+      "toast": {
+        "granted": "{{name}} is now a superadmin",
+        "revoked": "{{name}} is no longer a superadmin",
+        "unchanged": "Nothing changed: {{name}} already had that role",
+        "revokedSelf": "You are no longer a superadmin"
+      },
+      "history": "Role changes",
+      "historyHint": "Every grant, removal and refused attempt",
+      "historyEmpty": "No role changes yet.",
+      "historyAction": {
+        "granted": "granted superadmin to",
+        "revoked": "removed superadmin from",
+        "refused": "could not change the role of",
+        "other": "changed the role of"
+      },
+      "refusal": {
+        "last_superadmin": "it would have left no superadmin",
+        "unverified": "email not confirmed",
+        "deactivated": "account deactivated",
+        "superadmin_exists": "a superadmin already existed"
+      },
+      "systemActor": "Server bootstrap",
+      "lost": "Your global admin access is no longer active."
     }
   },
   "starred": {

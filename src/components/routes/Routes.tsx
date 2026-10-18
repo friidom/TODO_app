@@ -15,6 +15,7 @@ import {
   RowsSkeleton,
 } from "@/components/loading/ViewSkeleton";
 import {
+  AdminAccessPage,
   AdminActivityPage,
   AdminBoardPage,
   AdminBoardsPage,
@@ -140,6 +141,7 @@ export const router = createBrowserRouter([
           { path: "/admin/spaces/:id", element: deferred(<AdminSpacePage />) },
           { path: "/admin/activity", element: deferred(<AdminActivityPage />) },
           { path: "/admin/kpi", element: deferred(<AdminKpiPage />) },
+          { path: "/admin/access", element: deferred(<AdminAccessPage />) },
         ],
       },
     ],

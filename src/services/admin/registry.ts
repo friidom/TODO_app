@@ -12,6 +12,7 @@ export const ADMIN_SECTIONS = [
   "spaces",
   "activity",
   "kpi",
+  "access",
 ] as const;
 
 export type AdminSection = (typeof ADMIN_SECTIONS)[number];
@@ -81,6 +82,13 @@ export const ADMIN_SECTION_DEFINITIONS: Record<
       return i18n.t("admin.sections.kpi");
     },
     path: "/admin/kpi",
+  },
+  access: {
+    section: "access",
+    get label() {
+      return i18n.t("admin.sections.access");
+    },
+    path: "/admin/access",
   },
 };
 

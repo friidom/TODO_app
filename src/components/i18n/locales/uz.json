@@ -1560,7 +1560,10 @@
     },
     "boardKeyTaken": "{{key}} doska kaliti allaqachon band.",
     "emailNotVerified": "Kirish uchun elektron pochtangizni tasdiqlang. Pochtangizni tekshiring yoki yangi havola so‘rang.",
-    "verifyLinkInvalid": "Bu tasdiqlash havolasi yaroqsiz yoki muddati o‘tgan."
+    "verifyLinkInvalid": "Bu tasdiqlash havolasi yaroqsiz yoki muddati o‘tgan.",
+    "accountDeactivated": "Bu hisob o'chirilgan.",
+    "roleNeedsConfirmed": "Global administrator huquqini faqat emaili tasdiqlangan hisobga berish mumkin.",
+    "lastSuperadmin": "Bu oxirgi superadmin. Avval rolni boshqa birovga bering."
   },
   "adminActions": {
     "created": "Yaratildi",
@@ -1589,7 +1592,10 @@
       "updated": "KPI yangilandi"
     },
     "user": {
-      "seniority_changed": "Foydalanuvchi darajasi o'zgartirildi"
+      "seniority_changed": "Foydalanuvchi darajasi o'zgartirildi",
+      "superadmin_granted": "Superadmin roli berildi",
+      "superadmin_revoked": "Superadmin roli olindi",
+      "superadmin_refused": "Rol o'zgarishi rad etildi"
     },
     "board": {
       "workflow_published": "Doska ish jarayoni e'lon qilindi"
@@ -1604,7 +1610,8 @@
       "flow": "Oqim",
       "leaderboards": "Reytinglar",
       "users": "Dasturchilar",
-      "kpi": "KPI sozlamalari"
+      "kpi": "KPI sozlamalari",
+      "access": "Kirish huquqi"
     },
     "metrics": {
       "completedTasks": "Bajarilgan vazifalar",
@@ -1906,6 +1913,62 @@
       "hint_other": "{{count}} kishi · {{range}}",
       "hintLoading": "Faktik ko'rsatkichlar, yonma-yon",
       "gridLabel": "Dasturchilar va ularning ko'rsatkichlari"
+    },
+    "access": {
+      "hint": "Butun Veyloni kim ko'ra oladi va bu huquqdagi har bir o'zgarish",
+      "accounts": "Hisoblar",
+      "accountsHint": "Barcha ro'yxatdan o'tganlar, avval yangilari",
+      "searchPlaceholder": "Ism yoki email bo'yicha qidirish",
+      "noMatch": "“{{query}}” bo'yicha hisob topilmadi.",
+      "noAccounts": "Hozircha hisoblar yo'q.",
+      "superadmins": "Superadminlar",
+      "activeCount_one": "{{count}} ta faol",
+      "activeCount_other": "{{count}} ta faol",
+      "you": "Siz kirgansiz",
+      "youLabel": "siz",
+      "youHint": "Rolingiz har bir so'rovda tekshiriladi: u olib tashlansa, bu bo'lim darhol yopiladi.",
+      "status": {
+        "active": "Faol",
+        "unverified": "Tasdiqlanmagan",
+        "deactivated": "O'chirilgan"
+      },
+      "grant": "Superadmin qilish",
+      "revoke": "Superadminlikdan olish",
+      "grantTitle": "{{name}} ga global administrator huquqi berilsinmi?",
+      "grantBody": "U Veylodagi barcha doskalar, maydonlar, odamlar va audit yozuvlarini ko'ra oladi hamda boshqalarga bu huquqni bera yoki olib tashlay oladi. Doska huquqlari o'zgarmaydi: a'zo bo'lmagan doskasini tahrirlay olmaydi.",
+      "revokeTitle": "{{name}} dan global administrator huquqi olinsinmi?",
+      "revokeBody": "Administrator bo'limi keyingi so'rovdayoq yopiladi. Uning o'z doskalari va a'zoliklari o'zgarmaydi.",
+      "revokeSelfWarning": "Bu sizning o'z huquqingiz. Tasdiqlashingiz bilan administrator bo'limidan chiqasiz.",
+      "grantConfirm": "Huquq berish",
+      "revokeConfirm": "Huquqni olish",
+      "blocked": {
+        "unverified": "Avval email tasdiqlanishi kerak",
+        "deactivated": "Bu hisob o'chirilgan",
+        "last": "Oxirgi superadminni olib bo'lmaydi. Avval rolni boshqa birovga bering."
+      },
+      "toast": {
+        "granted": "{{name}} endi superadmin",
+        "revoked": "{{name}} endi superadmin emas",
+        "unchanged": "Hech narsa o'zgarmadi: {{name}} da bu rol allaqachon bor edi",
+        "revokedSelf": "Siz endi superadmin emassiz"
+      },
+      "history": "Rol o'zgarishlari",
+      "historyHint": "Har bir berish, olish va rad etilgan urinish",
+      "historyEmpty": "Hozircha rol o'zgarishlari yo'q.",
+      "historyAction": {
+        "granted": "superadmin rolini berdi:",
+        "revoked": "superadmin rolini oldi:",
+        "refused": "rolni o'zgartira olmadi:",
+        "other": "rolni o'zgartirdi:"
+      },
+      "refusal": {
+        "last_superadmin": "birorta ham superadmin qolmas edi",
+        "unverified": "email tasdiqlanmagan",
+        "deactivated": "hisob o'chirilgan",
+        "superadmin_exists": "superadmin allaqachon mavjud edi"
+      },
+      "systemActor": "Serverni dastlabki sozlash",
+      "lost": "Global administrator huquqingiz endi amal qilmaydi."
     }
   },
   "starred": {

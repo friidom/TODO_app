@@ -87,6 +87,19 @@ function withRefreshLock<T>(run: () => Promise<T>): Promise<T> {
   return locks ? locks.request("kan:auth-refresh", run) : run();
 }
 
+let refreshedUser: unknown = null;
+
+// The refresh response already names its user. A reload restores the session
+// from it rather than spending a second round trip on /auth/me; null when the
+// token arrived from another tab, and the caller asks /auth/me instead.
+export function takeRefreshedUser(): unknown {
+  const user = refreshedUser;
+
+  refreshedUser = null;
+
+  return user;
+}
+
 async function postRefresh(): Promise<boolean> {
   const response = await fetch(`${baseUrl}/auth/refresh`, {
     method: "POST",
@@ -95,10 +108,14 @@ async function postRefresh(): Promise<boolean> {
 
   if (!response.ok) return false;
 
-  const body = (await response.json()) as { accessToken?: unknown };
+  const body = (await response.json()) as {
+    accessToken?: unknown;
+    user?: unknown;
+  };
 
   if (typeof body.accessToken !== "string") return false;
 
+  refreshedUser = body.user ?? null;
   setAccessToken(body.accessToken);
   channel?.postMessage({
     type: "refreshed",

@@ -1,4 +1,11 @@
 import { query } from "../../db/client.js";
+import { prisma } from "../../db/prisma.js";
+import {
+  decideSuperadmin,
+  type RoleChangeVia,
+  type RoleTarget,
+  type RoleVerdict,
+} from "./superadmin.js";
 
 // EVERY QUERY IN THIS FILE IS DELIBERATELY NOT BOARD-SCOPED, and this is the
 // only file in the project of which that is true.
@@ -671,22 +678,162 @@ export interface AuditRow {
   action: string;
   target_type: string;
   target_id: string | null;
+  target_username: string | null;
   payload: unknown;
   created_at: Date;
 }
 
-export async function auditLog(limit: number): Promise<AuditRow[]> {
+// `_` is a LIKE wildcard and every action name has one.
+const escapeLike = (text: string) => text.replace(/[\\%_]/g, (char) => `\\${char}`);
+
+export async function auditLog(limit: number, actionPrefix?: string): Promise<AuditRow[]> {
   const { rows } = await query<AuditRow>(
     `select l.id, l.actor_id, p.username as actor_username, l.action,
-            l.target_type, l.target_id, l.payload, l.created_at
+            l.target_type, l.target_id, tp.username as target_username,
+            l.payload, l.created_at
        from admin_audit_log l
        left join profiles p on p.id = l.actor_id
+       left join profiles tp on l.target_type = 'user' and tp.id::text = l.target_id
+      where $2::text is null or l.action like $2 escape '\\'
       order by l.created_at desc, l.id desc
       limit $1`,
-    [limit],
+    [limit, actionPrefix === undefined ? null : `${escapeLike(actionPrefix)}%`],
   );
 
   return rows;
+}
+
+// The account directory: who exists, whether they can sign in, and their
+// global role. Deliberately not userMetrics' row: no activity figures, and
+// nothing from users beyond what deciding a role needs — no password hash, no
+// tokens, no OAuth identities.
+export interface AccountRow {
+  id: string;
+  username: string | null;
+  full_name: string | null;
+  avatar_url: string | null;
+  email: string;
+  org_role: string;
+  email_verified_at: Date | null;
+  deactivated_at: Date | null;
+  created_at: Date;
+}
+
+const ACCOUNT_SELECT = `
+  select u.id, p.username, p.full_name, p.avatar_url, u.email::text as email,
+         u.org_role, u.email_verified_at, u.deactivated_at, u.created_at
+    from users u
+    left join profiles p on p.id = u.id`;
+
+export async function accounts(search: string | undefined, limit: number): Promise<AccountRow[]> {
+  const pattern = search === undefined ? null : `%${escapeLike(search)}%`;
+
+  const { rows } = await query<AccountRow>(
+    `${ACCOUNT_SELECT}
+      where $2::text is null
+         or p.username ilike $2 escape '\\'
+         or p.full_name ilike $2 escape '\\'
+         or u.email::text ilike $2 escape '\\'
+      order by u.created_at desc, u.id
+      limit $1`,
+    [limit, pattern],
+  );
+
+  return rows;
+}
+
+export async function superadmins(): Promise<AccountRow[]> {
+  const { rows } = await query<AccountRow>(
+    `${ACCOUNT_SELECT} where u.org_role = 'superadmin' order by u.created_at, u.id`,
+  );
+
+  return rows;
+}
+
+export async function accountByEmail(email: string): Promise<AccountRow | null> {
+  const { rows } = await query<AccountRow>(`${ACCOUNT_SELECT} where u.email = $1`, [email]);
+
+  return rows[0] ?? null;
+}
+
+export async function activeSuperadminCount(): Promise<number> {
+  const { rows } = await query<{ count: number }>(
+    `select count(*)::int as count from users
+      where org_role = 'superadmin' and deactivated_at is null`,
+  );
+
+  return rows[0]?.count ?? 0;
+}
+
+export interface RoleChange {
+  verdict: RoleVerdict;
+  account: AccountRow;
+}
+
+// Decided and applied in one transaction, with its audit row, over locked
+// rows. Every active superadmin is locked in id order first: two revocations
+// racing each other would otherwise each count the other and leave nobody.
+// A refusal is recorded and committed too — it is the attempt that matters.
+export async function changeSuperadmin(input: {
+  targetId: string;
+  grant: boolean;
+  actorId: string;
+  via: RoleChangeVia;
+  bootstrap: boolean;
+}): Promise<RoleChange | null> {
+  return prisma.$transaction(async (tx) => {
+    const admins = await tx.$queryRaw<{ id: string }[]>`
+      select id from users
+       where org_role = 'superadmin' and deactivated_at is null
+       order by id
+         for update`;
+
+    const [target] = await tx.$queryRaw<RoleTarget[]>`
+      select org_role, email_verified_at, deactivated_at from users
+       where id = ${input.targetId}::uuid
+         for update`;
+
+    if (target === undefined) return null;
+
+    const verdict = decideSuperadmin({
+      grant: input.grant,
+      target,
+      activeSuperadmins: admins.length,
+      bootstrap: input.bootstrap,
+    });
+
+    if (verdict.kind === "apply") {
+      await tx.$executeRaw`
+        update users set org_role = ${verdict.to}, updated_at = now()
+         where id = ${input.targetId}::uuid`;
+    }
+
+    if (verdict.kind !== "unchanged") {
+      const action =
+        verdict.kind === "refuse"
+          ? "user.superadmin_refused"
+          : verdict.to === "superadmin"
+            ? "user.superadmin_granted"
+            : "user.superadmin_revoked";
+
+      const payload =
+        verdict.kind === "refuse"
+          ? { grant: input.grant, reason: verdict.reason, via: input.via }
+          : { from: verdict.from, to: verdict.to, via: input.via };
+
+      await tx.$executeRaw`
+        insert into admin_audit_log (actor_id, action, target_type, target_id, payload)
+        values (${input.actorId}::uuid, ${action}, 'user', ${input.targetId},
+                ${JSON.stringify(payload)}::jsonb)`;
+    }
+
+    const [account] = await tx.$queryRawUnsafe<AccountRow[]>(
+      `${ACCOUNT_SELECT} where u.id = $1::uuid`,
+      input.targetId,
+    );
+
+    return { verdict, account: account! };
+  });
 }
 
 export interface FlowScope {

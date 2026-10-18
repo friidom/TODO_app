@@ -4,6 +4,8 @@ import { requireActor } from "../../middleware/requireAuth.js";
 import type { PublishWorkflowInput } from "../workflow/workflow.schema.js";
 import * as adminService from "./admin.service.js";
 import type {
+  AccountsQuery,
+  SuperadminBody,
   ActivityQuery,
   AuditQuery,
   BoardParams,
@@ -120,7 +122,20 @@ export const putKpi: RequestHandler = async (req, res) => {
 };
 
 export const listAudit: RequestHandler = async (req, res) => {
-  const { limit } = req.query as unknown as AuditQuery;
+  const { limit, action } = req.query as unknown as AuditQuery;
 
-  res.json(await adminService.audit(limit));
+  res.json(await adminService.audit(limit, action));
+};
+
+export const listAccounts: RequestHandler = async (req, res) => {
+  const { q, limit } = req.query as unknown as AccountsQuery;
+
+  res.json(await adminService.accounts(q, limit));
+};
+
+export const setSuperadmin: RequestHandler = async (req, res) => {
+  const { id } = req.params as unknown as UserParams;
+  const { superadmin } = req.body as SuperadminBody;
+
+  res.json(await adminService.setSuperadmin(id, superadmin, requireActor(req)));
 };

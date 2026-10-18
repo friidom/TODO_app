@@ -1,7 +1,38 @@
-import { lazy } from "react";
+import { createElement, lazy, useState, type ComponentType } from "react";
+
+// React.lazy suspends on its first render even when the module has already
+// arrived, and a Suspense fallback that commits holds the page back by React's
+// reveal throttle (~300ms). Once loaded, the page renders directly instead.
+// Chosen once per mount: switching type later would remount the page.
+function preloadable(load: () => Promise<{ default: ComponentType }>) {
+  let loaded: ComponentType | null = null;
+
+  const preload = () =>
+    load().then((module) => {
+      loaded = module.default;
+
+      return module;
+    });
+
+  const Lazy = lazy(preload);
+
+  function Page() {
+    const [Component] = useState<ComponentType>(() => loaded ?? Lazy);
+
+    return createElement(Component);
+  }
+
+  return { Page, preload };
+}
 
 // own module because react-refresh/only-export-components can't fast-refresh a file mixing components with the router export
-export const BoardPage = lazy(() => import("@/pages/board/BoardPage"));
+const board = preloadable(() => import("@/pages/board/BoardPage"));
+
+export const BoardPage = board.Page;
+
+// Most reloads land on a board; fetch its chunk beside the session refresh
+// instead of after it.
+if (/^\/boards\/[^/]+\/?$/.test(window.location.pathname)) void board.preload();
 
 export const ProfilePage = lazy(() => import("@/pages/profile/ProfilePage"));
 
@@ -50,6 +81,10 @@ export const AdminDashboardPage = lazy(
 );
 
 export const AdminFlowPage = lazy(() => import("@/pages/admin/AdminFlowPage"));
+
+export const AdminAccessPage = lazy(
+  () => import("@/pages/admin/AdminAccessPage"),
+);
 
 export const AdminLeaderboardsPage = lazy(
   () => import("@/pages/admin/AdminLeaderboardsPage"),

@@ -10,6 +10,8 @@ import { defaultViewOf } from "@/services/views/tabs";
 import { useDefaultViews } from "@/stores/defaultView";
 import { cn } from "@/utils/cn";
 
+import { useSkeletonFade } from "./skeletonFade";
+
 export function SkeletonRegion({
   className,
   children,
@@ -18,11 +20,13 @@ export function SkeletonRegion({
   children: ReactNode;
 }) {
   const { t } = useTranslation();
+  const fade = useSkeletonFade<HTMLDivElement>();
 
   return (
     <div
       role="status"
       aria-label={t("common.loading")}
+      ref={fade}
       className={cn("skeleton-in", className)}
     >
       {children}
@@ -196,9 +200,23 @@ export function BoardPageSkeleton() {
 
   const raw = params.get("view");
   const mode = isViewMode(raw) ? raw : fallback;
+  const fade = useSkeletonFade<HTMLDivElement>();
 
+  const toolbar = (
+    <div className="flex shrink-0 items-center gap-2">
+      <Skeleton className="rounded-control h-9 w-56" />
+      <Skeleton className="rounded-control h-9 w-20" />
+      <Skeleton className="rounded-control h-9 w-20" />
+    </div>
+  );
+
+  // Mirrors ViewShell, framed panel included for the List, so nothing moves
+  // when the real page replaces it.
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+    <div
+      ref={fade}
+      className="skeleton-in flex min-h-0 min-w-0 flex-1 flex-col"
+    >
       <div className="flex h-14 shrink-0 items-center gap-3 px-5 md:px-6">
         <Skeleton className="h-3 w-20 rounded-full" />
         <Skeleton className="h-5 w-44 rounded-md" />
@@ -214,15 +232,21 @@ export function BoardPageSkeleton() {
         ))}
       </div>
 
-      <div className="flex shrink-0 items-center gap-2 px-5 pt-4 pb-1 md:px-6">
-        <Skeleton className="rounded-control h-9 w-56" />
-        <Skeleton className="rounded-control h-9 w-20" />
-        <Skeleton className="rounded-control h-9 w-20" />
-      </div>
-
-      <div className="min-h-0 min-w-0 flex-1 px-5 pt-3 md:px-6">
-        <ViewSkeleton mode={mode} />
-      </div>
+      {mode === "list" ? (
+        <div className="bg-elevated dark:bg-surface mx-5 my-4 flex min-h-0 min-w-0 flex-1 flex-col rounded-xl px-5 pt-4 pb-5 md:mx-6">
+          <div className="pb-4">{toolbar}</div>
+          <div className="min-h-0 min-w-0 flex-1">
+            <ViewSkeleton mode={mode} />
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="px-5 pt-4 pb-1 md:px-6">{toolbar}</div>
+          <div className="min-h-0 min-w-0 flex-1 px-5 pt-3 md:px-6">
+            <ViewSkeleton mode={mode} />
+          </div>
+        </>
+      )}
     </div>
   );
 }

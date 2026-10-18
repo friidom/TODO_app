@@ -59,6 +59,11 @@ const KNOWN: Record<string, string> = {
   "This is the only way into your account. Set a password first, or connect another provider.":
     "profile.lastWayIn",
   "That already exists.": "apiErrors.alreadyExists",
+  "This account is deactivated.": "apiErrors.accountDeactivated",
+  "Only an account with a confirmed email can be given global admin access.":
+    "apiErrors.roleNeedsConfirmed",
+  "This is the last superadmin. Give the role to someone else first.":
+    "apiErrors.lastSuperadmin",
   "That is still in use.": "apiErrors.stillInUse",
   "A referenced record is missing or still in use.": "apiErrors.stillInUse",
   "That value is not allowed.": "apiErrors.notAllowed",

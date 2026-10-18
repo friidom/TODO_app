@@ -3,10 +3,8 @@ import { fetchTodos } from "./todoApi";
 import { queryKeys } from "@/services/queryClient/queryKeys";
 import { useBoardId } from "@/hooks/useBoardId";
 
-export function useTodos() {
-  const boardId = useBoardId();
-
-  return useQuery({
+export function todosQuery(boardId: string | undefined) {
+  return {
     queryKey: queryKeys.todos(boardId),
     // keyed on the board, not the user — RLS is the real boundary, a user_id filter here would hide teammates' cards
     queryFn: () => {
@@ -14,5 +12,11 @@ export function useTodos() {
       return fetchTodos(boardId);
     },
     enabled: Boolean(boardId),
-  });
+  };
+}
+
+export function useTodos() {
+  const boardId = useBoardId();
+
+  return useQuery(todosQuery(boardId));
 }

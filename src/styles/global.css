@@ -532,6 +532,11 @@ html {
   .skeleton-in {
     animation: skeleton-in 0.2s ease-out 0.15s both;
   }
+
+  /* the outer one already fades; two at once compound into a slower ramp */
+  .skeleton-in .skeleton-in {
+    animation: none;
+  }
 }
 
 @keyframes skeleton-sweep {

@@ -22,7 +22,7 @@ import {
 import type { AdminUser } from "./types";
 
 describe("the admin section registry", () => {
-  it("lists exactly the eight sections the nav renders", () => {
+  it("lists exactly the nine sections the nav renders", () => {
     expect(ADMIN_SECTIONS).toEqual([
       "dashboard",
       "flow",
@@ -32,6 +32,7 @@ describe("the admin section registry", () => {
       "spaces",
       "activity",
       "kpi",
+      "access",
     ]);
   });
 

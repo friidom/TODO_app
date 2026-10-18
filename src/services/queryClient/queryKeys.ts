@@ -150,4 +150,7 @@ export const queryKeys = {
   adminKpi: () => [...ADMIN_ROOT, "kpi"] as const,
 
   adminAudit: () => [...ADMIN_ROOT, "audit"] as const,
+  adminRoleAudit: () => [...ADMIN_ROOT, "audit", "roles"] as const,
+  adminAccounts: (search: string) =>
+    [...ADMIN_ROOT, "accounts", search] as const,
 };
