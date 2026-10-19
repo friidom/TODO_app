@@ -1,3 +1,17 @@
+import {
+  ActivityIcon,
+  ChartNoAxesColumnIcon,
+  FolderIcon,
+  LayoutGridIcon,
+  type LucideIcon,
+  ScrollTextIcon,
+  ShieldCheckIcon,
+  SquareKanbanIcon,
+  TargetIcon,
+  TrophyIcon,
+  UsersIcon,
+} from "lucide-react";
+
 import i18n from "@/components/i18n";
 
 // The admin area declared as values, the shape services/views/registry.ts
@@ -5,22 +19,33 @@ import i18n from "@/components/i18n";
 // so a section cannot be added to one and forgotten in the other.
 export const ADMIN_SECTIONS = [
   "dashboard",
+  "users",
+  "spaces",
+  "boards",
   "flow",
   "leaderboards",
-  "users",
-  "boards",
-  "spaces",
   "activity",
   "kpi",
   "access",
+  "audit",
 ] as const;
 
 export type AdminSection = (typeof ADMIN_SECTIONS)[number];
+
+// null is the ungrouped head of the nav: the objects an admin opens.
+export const ADMIN_GROUPS = [null, "insights", "security"] as const;
+
+export type AdminGroup = (typeof ADMIN_GROUPS)[number];
 
 export interface AdminSectionDefinition {
   section: AdminSection;
   label: string;
   path: string;
+  group: AdminGroup;
+  icon: LucideIcon;
+  // Whether the reporting period changes what the page shows. The header
+  // offers the period selector only where it does.
+  periodScoped: boolean;
 }
 
 export const ADMIN_SECTION_DEFINITIONS: Record<
@@ -33,20 +58,9 @@ export const ADMIN_SECTION_DEFINITIONS: Record<
       return i18n.t("admin.sections.dashboard");
     },
     path: "/admin",
-  },
-  flow: {
-    section: "flow",
-    get label() {
-      return i18n.t("admin.sections.flow");
-    },
-    path: "/admin/flow",
-  },
-  leaderboards: {
-    section: "leaderboards",
-    get label() {
-      return i18n.t("admin.sections.leaderboards");
-    },
-    path: "/admin/leaderboards",
+    group: null,
+    icon: LayoutGridIcon,
+    periodScoped: true,
   },
   users: {
     section: "users",
@@ -54,13 +68,9 @@ export const ADMIN_SECTION_DEFINITIONS: Record<
       return i18n.t("admin.sections.users");
     },
     path: "/admin/users",
-  },
-  boards: {
-    section: "boards",
-    get label() {
-      return i18n.t("boards.title");
-    },
-    path: "/admin/boards",
+    group: null,
+    icon: UsersIcon,
+    periodScoped: true,
   },
   spaces: {
     section: "spaces",
@@ -68,6 +78,39 @@ export const ADMIN_SECTION_DEFINITIONS: Record<
       return i18n.t("sidebar.spaces");
     },
     path: "/admin/spaces",
+    group: null,
+    icon: FolderIcon,
+    periodScoped: true,
+  },
+  boards: {
+    section: "boards",
+    get label() {
+      return i18n.t("boards.title");
+    },
+    path: "/admin/boards",
+    group: null,
+    icon: SquareKanbanIcon,
+    periodScoped: true,
+  },
+  flow: {
+    section: "flow",
+    get label() {
+      return i18n.t("admin.sections.flow");
+    },
+    path: "/admin/flow",
+    group: "insights",
+    icon: ChartNoAxesColumnIcon,
+    periodScoped: true,
+  },
+  leaderboards: {
+    section: "leaderboards",
+    get label() {
+      return i18n.t("admin.sections.leaderboards");
+    },
+    path: "/admin/leaderboards",
+    group: "insights",
+    icon: TrophyIcon,
+    periodScoped: true,
   },
   activity: {
     section: "activity",
@@ -75,6 +118,9 @@ export const ADMIN_SECTION_DEFINITIONS: Record<
       return i18n.t("board.activity");
     },
     path: "/admin/activity",
+    group: "insights",
+    icon: ActivityIcon,
+    periodScoped: true,
   },
   kpi: {
     section: "kpi",
@@ -82,6 +128,9 @@ export const ADMIN_SECTION_DEFINITIONS: Record<
       return i18n.t("admin.sections.kpi");
     },
     path: "/admin/kpi",
+    group: "insights",
+    icon: TargetIcon,
+    periodScoped: false,
   },
   access: {
     section: "access",
@@ -89,11 +138,42 @@ export const ADMIN_SECTION_DEFINITIONS: Record<
       return i18n.t("admin.sections.access");
     },
     path: "/admin/access",
+    group: "security",
+    icon: ShieldCheckIcon,
+    periodScoped: false,
+  },
+  audit: {
+    section: "audit",
+    get label() {
+      return i18n.t("admin.sections.audit");
+    },
+    path: "/admin/audit",
+    group: "security",
+    icon: ScrollTextIcon,
+    periodScoped: false,
   },
 };
 
 export function adminSections(): AdminSectionDefinition[] {
   return ADMIN_SECTIONS.map((section) => ADMIN_SECTION_DEFINITIONS[section]);
+}
+
+export function adminGroupLabel(group: AdminGroup): string | null {
+  return group === null ? null : i18n.t(`admin.groups.${group}`);
+}
+
+// The section a URL belongs to, detail pages included: /admin/users/:id is
+// People. "/admin" itself only matches exactly, or it would own every path.
+export function sectionForPath(pathname: string): AdminSectionDefinition {
+  const path = pathname.replace(/\/+$/, "");
+
+  return (
+    adminSections().find(
+      (definition) =>
+        definition.path !== "/admin" &&
+        (path === definition.path || path.startsWith(`${definition.path}/`)),
+    ) ?? ADMIN_SECTION_DEFINITIONS.dashboard
+  );
 }
 
 // The four factual series one chart switches between (E2, V2). A fifth metric

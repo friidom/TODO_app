@@ -10,6 +10,35 @@ export function seriesPeak(
   return Math.max(1, ...points.map((point) => point[metric]));
 }
 
+const NICE_STEPS = [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 7, 8, 10];
+
+function niceWhole(value: number): number {
+  if (value <= 1) return 1;
+
+  const magnitude = 10 ** Math.floor(Math.log10(value));
+
+  for (const step of NICE_STEPS) {
+    const candidate = Math.round(step * magnitude);
+
+    if (candidate >= value && Math.abs(candidate - step * magnitude) < 1e-9) {
+      return candidate;
+    }
+  }
+
+  return 10 * magnitude;
+}
+
+// The labels of a count axis, top first. The middle one is a whole number,
+// so a peak of 1 reads "1, 0" rather than "1, 1, 0", and the top is a round
+// figure rather than the raw peak. Charts scale to the first value.
+export function countAxis(peak: number): number[] {
+  if (peak <= 1) return [1, 0];
+
+  const half = niceWhole(Math.ceil(peak / 2));
+
+  return [half * 2, half, 0];
+}
+
 export function barHeight(value: number, peak: number): string {
   if (value <= 0) return "0%";
 

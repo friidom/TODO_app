@@ -12,6 +12,7 @@ import {
   proportionOf,
 } from "@/services/admin/flow";
 import { binLabel, dash, formatDuration } from "@/services/admin/format";
+import { countAxis } from "@/services/admin/series";
 import type { DurationBin, DurationStats } from "@/services/admin/types";
 import { cn } from "@/utils/cn";
 
@@ -48,7 +49,8 @@ export default function Histogram({
     setSelected((current) => (current === index ? null : index)),
   );
 
-  const peak = histogramPeak(bins);
+  const axis = countAxis(histogramPeak(bins));
+  const peak = axis[0]!;
   const total = bins.reduce((sum, bin) => sum + bin.count, 0);
   const active = hover.index ?? selected;
 
@@ -75,10 +77,11 @@ export default function Histogram({
       ) : (
         <>
           <ChartFrame
-            axis={[dash(peak), dash(Math.round(peak / 2)), "0"]}
+            axis={axis.map(dash)}
             labels={bins.map(binLabel)}
             highlight={active}
             plotClassName="h-32"
+            grid
           >
             <div className="absolute inset-0 flex items-end gap-1">
               {bins.map((bin, index) => (
@@ -105,19 +108,26 @@ export default function Histogram({
               ))}
             </div>
 
-            {MARKERS.map((marker) => {
-              const offset = percentileOffset(marker.read(stats), bins);
+            {markerRows(
+              MARKERS.map((marker) =>
+                percentileOffset(marker.read(stats), bins),
+              ),
+            ).map((row, index) => {
+              const marker = MARKERS[index]!;
 
-              if (offset === null) return null;
+              if (row === null) return null;
 
               return (
                 <span
                   key={marker.key}
                   className="pointer-events-none absolute inset-y-0"
-                  style={{ left: `${offset}%` }}
+                  style={{ left: `${row.offset}%` }}
                 >
                   <span className="border-ink/45 absolute inset-y-0 border-l border-dashed" />
-                  <span className="text-ink-3 text-micro bg-surface absolute -top-1 left-1 px-1 whitespace-nowrap">
+                  <span
+                    className="text-ink-3 text-micro bg-surface absolute left-1 px-1 leading-4 whitespace-nowrap"
+                    style={{ top: `${row.line * 16 - 4}px` }}
+                  >
                     {marker.label}
                   </span>
                 </span>
@@ -183,4 +193,23 @@ export default function Histogram({
       )}
     </SummaryCard>
   );
+}
+
+// Close percentiles share a bucket, and their labels landed on top of each
+// other; a label within reach of the previous one drops a line.
+function markerRows(
+  offsets: (number | null)[],
+): ({ offset: number; line: number } | null)[] {
+  let previous: { offset: number; line: number } | null = null;
+
+  return offsets.map((offset) => {
+    if (offset === null) return null;
+
+    const line =
+      previous !== null && offset - previous.offset < 9 ? previous.line + 1 : 0;
+
+    previous = { offset, line };
+
+    return previous;
+  });
 }

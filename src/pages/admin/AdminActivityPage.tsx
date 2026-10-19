@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router";
 
-import AdminShell from "@/components/admin/AdminShell";
+import AdminPage from "@/components/admin/AdminPage";
 import {
   AdminCell,
   AdminEmpty,
@@ -11,7 +11,8 @@ import {
 } from "@/components/admin/AdminTable";
 import { HEADER_CONTROL } from "@/components/board/headerControl";
 import AdminTaskPanel from "@/components/admin/AdminTaskPanel";
-import { useAdminActivityRealtime } from "@/hooks/useAdminActivityRealtime";
+import SelectControl from "@/components/admin/SelectControl";
+import { useAdminFeedScope } from "@/hooks/useAdminActivityRealtime";
 import { useAdminPeriod } from "@/hooks/useAdminPeriod";
 import { useOpenTask } from "@/hooks/useOpenTask";
 import { actionOptions } from "@/services/admin/activityFilters";
@@ -42,18 +43,12 @@ export default function AdminActivityPage() {
   const from = params.get("from") ?? undefined;
   const to = params.get("to") ?? undefined;
 
-  const {
-    data,
-    isFetching,
-    error,
-    hasNextPage,
-    fetchNextPage,
-    isFetchingNextPage,
-  } = useAdminActivity({ period, user, board, action, space, from, to });
+  const { data, error, hasNextPage, fetchNextPage, isFetchingNextPage } =
+    useAdminActivity({ period, user, board, action, space, from, to });
   const { data: users } = useAdminUsers(period);
   const { data: boards } = useAdminBoards(period);
 
-  useAdminActivityRealtime(
+  useAdminFeedScope(
     {
       board,
       space,
@@ -92,9 +87,9 @@ export default function AdminActivityPage() {
   const actions = actionOptions(rows, action);
 
   return (
-    <AdminShell
+    <AdminPage
       title={t("board.activity")}
-      hint={
+      description={
         firstPage
           ? t("admin.activity.hint", {
               count: rows.length,
@@ -103,12 +98,11 @@ export default function AdminActivityPage() {
             })
           : t("admin.activity.hintLoading")
       }
-      busy={isFetching}
-      actions={
+      toolbar={
         <div className="flex flex-wrap gap-1.5">
-          <select
+          <SelectControl
             aria-label={t("admin.activity.byDeveloper")}
-            className={HEADER_CONTROL}
+            active={Boolean(user)}
             value={user ?? ""}
             onChange={(event) => setFilter("user", event.target.value)}
           >
@@ -118,11 +112,11 @@ export default function AdminActivityPage() {
                 {row.username}
               </option>
             ))}
-          </select>
+          </SelectControl>
 
-          <select
+          <SelectControl
             aria-label={t("admin.activity.byBoard")}
-            className={HEADER_CONTROL}
+            active={Boolean(board)}
             value={board ?? ""}
             onChange={(event) => setFilter("board", event.target.value)}
           >
@@ -132,11 +126,11 @@ export default function AdminActivityPage() {
                 {row.title ?? t("common.untitledBoard")}
               </option>
             ))}
-          </select>
+          </SelectControl>
 
-          <select
+          <SelectControl
             aria-label={t("admin.activity.byAction")}
-            className={HEADER_CONTROL}
+            active={Boolean(action)}
             value={action ?? ""}
             onChange={(event) => setFilter("action", event.target.value)}
           >
@@ -146,7 +140,7 @@ export default function AdminActivityPage() {
                 {actionLabel(value)}
               </option>
             ))}
-          </select>
+          </SelectControl>
         </div>
       }
     >
@@ -208,7 +202,7 @@ export default function AdminActivityPage() {
 
                 <AdminCell>
                   {taskKey(row.key_prefix, row.board_key) !== null && (
-                    <span className="text-ink-3 text-micro mr-1.5 tabular-nums">
+                    <span className="text-ink-3 text-mini mr-1.5 tabular-nums">
                       {taskKey(row.key_prefix, row.board_key)}
                     </span>
                   )}
@@ -222,10 +216,7 @@ export default function AdminActivityPage() {
                 </AdminCell>
 
                 <AdminCell align="right">
-                  <span
-                    className="text-ink-3 text-micro"
-                    title={row.created_at}
-                  >
+                  <span className="text-ink-3 text-mini" title={row.created_at}>
                     {relativeTime(row.created_at)}
                   </span>
                 </AdminCell>
@@ -249,7 +240,7 @@ export default function AdminActivityPage() {
       )}
 
       {taskId && <AdminTaskPanel todoId={taskId} onClose={closeTask} />}
-    </AdminShell>
+    </AdminPage>
   );
 }
 

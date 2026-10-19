@@ -1,8 +1,12 @@
 import { useTranslation } from "react-i18next";
 import { useState } from "react";
 
+import ChartFrame from "@/components/admin/chart/ChartFrame";
+import ChartTooltip from "@/components/admin/chart/ChartTooltip";
+import { useChartHover } from "@/components/admin/chart/useChartHover";
+import Segmented from "@/components/admin/Segmented";
 import SummaryCard, { WidgetEmpty } from "@/components/summary/SummaryCard";
-import { barHeight, seriesPeak } from "@/services/admin/series";
+import { barHeight, countAxis, seriesPeak } from "@/services/admin/series";
 import { bucketLabel, dash } from "@/services/admin/format";
 import {
   SERIES_METRIC_DEFINITIONS,
@@ -29,9 +33,11 @@ export default function BarSeries({
 }) {
   const { t } = useTranslation();
   const [metric, setMetric] = useState<SeriesMetric>("completed_todos");
+  const hover = useChartHover(points.length);
 
   const definition = SERIES_METRIC_DEFINITIONS[metric];
-  const peak = seriesPeak(points, metric);
+  const axis = countAxis(seriesPeak(points, metric));
+  const top = axis[0]!;
   const total = points.reduce((sum, point) => sum + point[metric], 0);
   const unestimated = points.reduce(
     (sum, point) => sum + point.unestimated_completed,
@@ -41,6 +47,7 @@ export default function BarSeries({
   // Every nth label, so a year of months and a month of days both stay legible
   // without the axis turning into a smear.
   const step = Math.max(1, Math.ceil(points.length / LABEL_SLOTS));
+  const hovered = hover.index === null ? null : points[hover.index];
 
   return (
     <SummaryCard
@@ -55,46 +62,38 @@ export default function BarSeries({
       }
       className={className}
       action={
-        <div
-          role="group"
-          aria-label={t("admin.metric")}
-          className="flex flex-wrap gap-1"
-        >
-          {seriesMetrics().map((option) => (
-            <button
-              key={option.metric}
-              type="button"
-              onClick={() => setMetric(option.metric)}
-              aria-pressed={option.metric === metric}
-              className={cn(
-                "text-ink-3 hover:text-ink text-mini rounded px-1.5 py-0.5 transition-colors",
-                option.metric === metric && `bg-wash ${option.tone}`,
-              )}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
+        <Segmented
+          size="sm"
+          label={t("admin.metric")}
+          value={metric}
+          options={seriesMetrics().map((option) => ({
+            value: option.metric,
+            label: option.label,
+          }))}
+          onChange={setMetric}
+        />
       }
     >
       {points.length === 0 ? (
         <WidgetEmpty>{t("summary.trendsEmpty")}</WidgetEmpty>
+      ) : total === 0 ? (
+        <WidgetEmpty>
+          {t("admin.bars.empty", { name: definition.label })}
+        </WidgetEmpty>
       ) : (
-        <div className="flex gap-2.5 px-3.5 pb-3">
-          {/* h-28, matching the plot exactly. Without it this column stretches
-              over the axis labels and the note below them, and justify-between
-              drops the "0" a row and a half beneath the baseline. */}
-          <div className="text-ink-3/70 text-micro flex h-28 w-7 shrink-0 flex-col justify-between text-right tabular-nums">
-            <span>{dash(peak)}</span>
-            <span>{dash(Math.round((peak / 2) * 10) / 10)}</span>
-            <span>0</span>
-          </div>
-
-          <div className="min-w-0 flex-1">
+        <>
+          <ChartFrame
+            axis={axis.map(dash)}
+            labels={points.map((point) => bucketLabel(point.bucket, bucket))}
+            labelStep={step}
+            highlight={hover.index}
+            plotClassName="h-40"
+            grid
+          >
             {/* Bars, not a line: the buckets are discrete counts, and a line
                 would assert values between them that do not exist. */}
             <ol
-              className="flex h-28 items-end gap-0.5"
+              className="absolute inset-0 flex items-end"
               aria-label={t("admin.perBucket", {
                 name: definition.label,
                 values: points
@@ -105,37 +104,63 @@ export default function BarSeries({
                   .join(", "),
               })}
             >
-              {points.map((point) => (
+              {points.map((point, index) => (
                 <li
                   key={point.bucket}
-                  className="flex h-full min-w-0 flex-1 items-end"
-                  title={`${bucketLabel(point.bucket, bucket)} — ${point[metric]}`}
+                  className={cn(
+                    "flex h-full min-w-0 flex-1 items-end justify-center px-px transition-colors",
+                    index === hover.index && "bg-ink/[0.04]",
+                  )}
                 >
                   <span
                     className={cn(
-                      "w-full rounded-t-xs transition-[height]",
+                      "w-full max-w-3 rounded-t-[3px] transition-[height]",
                       definition.fill,
                     )}
-                    style={{ height: barHeight(point[metric], peak) }}
+                    style={{ height: barHeight(point[metric], top) }}
                   />
                 </li>
               ))}
             </ol>
 
-            <div className="mt-1.5 flex gap-0.5">
-              {points.map((point, index) => (
-                <span
-                  key={point.bucket}
-                  className="text-ink-3/70 text-micro min-w-0 flex-1 truncate text-center"
-                >
-                  {index % step === 0 ? bucketLabel(point.bucket, bucket) : ""}
-                </span>
-              ))}
-            </div>
+            <div
+              {...hover.surface}
+              aria-hidden
+              tabIndex={-1}
+              className="absolute inset-0"
+            />
 
-            {note && <p className="text-ink-3 text-mini mt-2">{note}</p>}
-          </div>
-        </div>
+            {hovered && hover.index !== null && (
+              <ChartTooltip
+                index={hover.index}
+                count={points.length}
+                title={bucketLabel(hovered.bucket, bucket)}
+                rows={[
+                  {
+                    key: metric,
+                    label: definition.label,
+                    value: dash(hovered[metric]),
+                  },
+                  ...(definition.countsUnestimated &&
+                  hovered.unestimated_completed > 0
+                    ? [
+                        {
+                          key: "unestimated",
+                          label: t("admin.unestimatedCount", {
+                            count: hovered.unestimated_completed,
+                          }),
+                          value: "",
+                          muted: true,
+                        },
+                      ]
+                    : []),
+                ]}
+              />
+            )}
+          </ChartFrame>
+
+          {note && <p className="text-ink-3 text-mini px-3.5 pb-3">{note}</p>}
+        </>
       )}
     </SummaryCard>
   );

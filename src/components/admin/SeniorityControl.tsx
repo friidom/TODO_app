@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { HEADER_CONTROL } from "@/components/board/headerControl";
+import SelectControl from "@/components/admin/SelectControl";
 import { useSaveSeniority } from "@/services/admin/useAdmin";
 import {
   SENIORITIES,
@@ -15,9 +15,8 @@ export default function SeniorityControl({ user }: { user: AdminUser }) {
     <label className="flex shrink-0 items-center gap-2">
       <span className="text-ink-3 text-mini">{t("admin.level")}</span>
 
-      <select
+      <SelectControl
         aria-label={t("admin.seniorityFor", { name: user.username })}
-        className={HEADER_CONTROL}
         value={user.seniority ?? ""}
         disabled={save.isPending}
         onChange={(event) =>
@@ -38,7 +37,7 @@ export default function SeniorityControl({ user }: { user: AdminUser }) {
             {t(`admin.seniority.${value}`)}
           </option>
         ))}
-      </select>
+      </SelectControl>
     </label>
   );
 }

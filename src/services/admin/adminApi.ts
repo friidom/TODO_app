@@ -139,8 +139,8 @@ export function saveSeniority(id: string, seniority: Seniority | null) {
   );
 }
 
-export function fetchAudit(): Promise<AdminAudit> {
-  return api.get<AdminAudit>("/admin/audit");
+export function fetchAudit(action?: string): Promise<AdminAudit> {
+  return api.get<AdminAudit>(`/admin/audit${toQuery({ action })}`);
 }
 
 export function fetchRoleAudit(): Promise<AdminAudit> {

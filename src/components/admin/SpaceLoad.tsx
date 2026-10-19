@@ -21,7 +21,8 @@ export default function SpaceLoad({
   className?: string;
 }) {
   const { t } = useTranslation();
-  const ranked = [...spaces]
+  const delivering = spaces.filter((space) => space.completed_todos > 0);
+  const ranked = delivering
     .sort((a, b) => b.completed_todos - a.completed_todos)
     .slice(0, TOP);
 
@@ -33,14 +34,16 @@ export default function SpaceLoad({
   return (
     <SummaryCard
       title={t("admin.spaceLoad.title")}
-      hint={t("admin.topOf", {
-        top: Math.min(TOP, ranked.length),
+      hint={t("admin.loadHint", {
+        active: delivering.length,
         total: spaces.length,
       })}
       className={className}
     >
-      {ranked.length === 0 ? (
+      {spaces.length === 0 ? (
         <WidgetEmpty>{t("admin.noSpaces")}</WidgetEmpty>
+      ) : ranked.length === 0 ? (
+        <WidgetEmpty>{t("admin.loadEmpty")}</WidgetEmpty>
       ) : (
         <div className="flex flex-col gap-2 px-3.5 pt-1 pb-3.5">
           {ranked.map((space) => {

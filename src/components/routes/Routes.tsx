@@ -17,6 +17,8 @@ import {
 import {
   AdminAccessPage,
   AdminActivityPage,
+  AdminAuditPage,
+  AdminLayout,
   AdminBoardPage,
   AdminBoardsPage,
   AdminDashboardPage,
@@ -47,6 +49,12 @@ import {
 const deferred = (element: ReactNode, fallback: ReactNode = <Loading />) => (
   <Suspense fallback={fallback}>{element}</Suspense>
 );
+
+const adminPage = (path: string, element: ReactNode) => ({
+  path,
+  element,
+  errorElement: <RouteErrorPage />,
+});
 
 export const router = createBrowserRouter([
   {
@@ -91,7 +99,7 @@ export const router = createBrowserRouter([
         element: deferred(<ManageBoardsPage />),
       },
       // Flat, not nested under the board — each settings page renders the
-      // shell itself, the way the admin pages render AdminShell.
+      // shell itself.
       // The param stays :boardId because useBoardId and usePermissions read it.
       {
         path: "/boards/:boardId/settings",
@@ -123,25 +131,31 @@ export const router = createBrowserRouter([
       },
 
       // Nested inside ProtectedRoute so sign-in and verification still run
-      // first; every page is lazy, so a normal user never fetches the bundle.
+      // first; the layout and every page are lazy, so a normal user never
+      // fetches the bundle. The layout holds the Suspense for its pages, so
+      // the admin chrome stays up while one loads, and errorElement sits on
+      // each page for the reason it does in the app shell above.
       {
         element: <SuperadminRoute />,
         children: [
-          { path: "/admin", element: deferred(<AdminDashboardPage />) },
-          { path: "/admin/flow", element: deferred(<AdminFlowPage />) },
           {
-            path: "/admin/leaderboards",
-            element: deferred(<AdminLeaderboardsPage />),
+            element: deferred(<AdminLayout />),
+            children: [
+              adminPage("/admin", <AdminDashboardPage />),
+              adminPage("/admin/flow", <AdminFlowPage />),
+              adminPage("/admin/leaderboards", <AdminLeaderboardsPage />),
+              adminPage("/admin/users", <AdminUsersPage />),
+              adminPage("/admin/users/:id", <AdminUserPage />),
+              adminPage("/admin/boards", <AdminBoardsPage />),
+              adminPage("/admin/boards/:id", <AdminBoardPage />),
+              adminPage("/admin/spaces", <AdminSpacesPage />),
+              adminPage("/admin/spaces/:id", <AdminSpacePage />),
+              adminPage("/admin/activity", <AdminActivityPage />),
+              adminPage("/admin/kpi", <AdminKpiPage />),
+              adminPage("/admin/access", <AdminAccessPage />),
+              adminPage("/admin/audit", <AdminAuditPage />),
+            ],
           },
-          { path: "/admin/users", element: deferred(<AdminUsersPage />) },
-          { path: "/admin/users/:id", element: deferred(<AdminUserPage />) },
-          { path: "/admin/boards", element: deferred(<AdminBoardsPage />) },
-          { path: "/admin/boards/:id", element: deferred(<AdminBoardPage />) },
-          { path: "/admin/spaces", element: deferred(<AdminSpacesPage />) },
-          { path: "/admin/spaces/:id", element: deferred(<AdminSpacePage />) },
-          { path: "/admin/activity", element: deferred(<AdminActivityPage />) },
-          { path: "/admin/kpi", element: deferred(<AdminKpiPage />) },
-          { path: "/admin/access", element: deferred(<AdminAccessPage />) },
         ],
       },
     ],

@@ -8,8 +8,10 @@ import {
   PERIOD_LABELS,
 } from "./periods";
 import {
+  ADMIN_GROUPS,
   ADMIN_SECTIONS,
   adminSections,
+  sectionForPath,
   SERIES_METRICS,
   seriesMetrics,
 } from "./registry";
@@ -22,18 +24,54 @@ import {
 import type { AdminUser } from "./types";
 
 describe("the admin section registry", () => {
-  it("lists exactly the nine sections the nav renders", () => {
+  it("lists exactly the sections the nav renders, in nav order", () => {
     expect(ADMIN_SECTIONS).toEqual([
       "dashboard",
+      "users",
+      "spaces",
+      "boards",
       "flow",
       "leaderboards",
-      "users",
-      "boards",
-      "spaces",
       "activity",
       "kpi",
       "access",
+      "audit",
     ]);
+  });
+
+  it("groups the analytics under Insights and access under Security", () => {
+    const byGroup = (group: string | null) =>
+      adminSections()
+        .filter((section) => section.group === group)
+        .map((section) => section.section);
+
+    expect(byGroup(null)).toEqual(["dashboard", "users", "spaces", "boards"]);
+    expect(byGroup("insights")).toEqual([
+      "flow",
+      "leaderboards",
+      "activity",
+      "kpi",
+    ]);
+    expect(byGroup("security")).toEqual(["access", "audit"]);
+    expect(ADMIN_GROUPS).toEqual([null, "insights", "security"]);
+  });
+
+  it("offers the period only where it changes what the page shows", () => {
+    const unscoped = adminSections()
+      .filter((section) => !section.periodScoped)
+      .map((section) => section.section);
+
+    expect(unscoped).toEqual(["kpi", "access", "audit"]);
+  });
+
+  it("finds the section a detail page belongs to", () => {
+    expect(sectionForPath("/admin").section).toBe("dashboard");
+    expect(sectionForPath("/admin/").section).toBe("dashboard");
+    expect(sectionForPath("/admin/users/abc").section).toBe("users");
+    expect(sectionForPath("/admin/boards/abc").section).toBe("boards");
+    expect(sectionForPath("/admin/audit").section).toBe("audit");
+    // A prefix of another word is not the section.
+    expect(sectionForPath("/admin/usersettings").section).toBe("dashboard");
   });
 
   it("gives every section a label and a path, and no two share a path", () => {

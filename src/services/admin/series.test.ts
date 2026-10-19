@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   HEATMAP_LEVELS,
   barHeight,
+  countAxis,
   heatmapLevel,
   heatmapMax,
   heatmapWeeks,
@@ -137,5 +138,27 @@ describe("heatmapWeeks", () => {
   it("returns nothing for a window that makes no sense", () => {
     expect(heatmapWeeks("2026-09-20", "2026-09-06", [])).toEqual([]);
     expect(heatmapWeeks("not-a-date", "2026-09-06", [])).toEqual([]);
+  });
+});
+
+describe("countAxis", () => {
+  it("never repeats a label, and keeps the middle one whole", () => {
+    expect(countAxis(1)).toEqual([1, 0]);
+    expect(countAxis(0)).toEqual([1, 0]);
+    expect(countAxis(2)).toEqual([2, 1, 0]);
+    expect(countAxis(3)).toEqual([4, 2, 0]);
+    expect(countAxis(12)).toEqual([12, 6, 0]);
+  });
+
+  it("rounds a raw peak up to a figure worth reading", () => {
+    expect(countAxis(1201)).toEqual([1400, 700, 0]);
+    expect(countAxis(33)).toEqual([40, 20, 0]);
+    expect(countAxis(100)).toEqual([100, 50, 0]);
+  });
+
+  it("always reaches the peak, so nothing is drawn above the top line", () => {
+    for (let peak = 1; peak <= 5000; peak += 7) {
+      expect(countAxis(peak)[0]).toBeGreaterThanOrEqual(peak);
+    }
   });
 });

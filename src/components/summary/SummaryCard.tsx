@@ -1,6 +1,7 @@
-import type { ReactNode } from "react";
+import { use, type ReactNode } from "react";
 
 import { cn } from "@/utils/cn";
+import { SummaryCardSize } from "./summaryCardSize";
 
 // no flex-1 on the body — used to be, and every widget stretched to the tallest one in the grid row
 export default function SummaryCard({
@@ -16,6 +17,8 @@ export default function SummaryCard({
   children: ReactNode;
   className?: string;
 }) {
+  const roomy = use(SummaryCardSize) === "roomy";
+
   return (
     <section
       className={cn(
@@ -23,18 +26,37 @@ export default function SummaryCard({
         className,
       )}
     >
-      <header className="flex items-baseline gap-3 px-3.5 pt-2.5 pb-2">
+      <header
+        className={cn(
+          "flex items-baseline gap-3 px-3.5",
+          roomy ? "flex-wrap pt-3.5 pb-3" : "pt-2.5 pb-2",
+        )}
+      >
         <div className="min-w-0 flex-1">
-          <h2 className="text-ink truncate text-xs font-semibold tracking-tight">
+          <h2
+            className={cn(
+              "text-ink truncate tracking-tight",
+              roomy ? "text-sm font-medium" : "text-xs font-semibold",
+            )}
+          >
             {title}
           </h2>
 
           {hint && (
-            <p className="text-ink-3 text-mini mt-0.5 truncate">{hint}</p>
+            <p
+              className={cn(
+                "text-ink-3 truncate",
+                roomy ? "text-mini mt-1" : "text-mini mt-0.5",
+              )}
+            >
+              {hint}
+            </p>
           )}
         </div>
 
-        {action && <div className="shrink-0">{action}</div>}
+        {action && (
+          <div className={cn("shrink-0", roomy && "max-w-full")}>{action}</div>
+        )}
       </header>
 
       <div className="min-w-0">{children}</div>

@@ -1,11 +1,19 @@
 import { useTranslation } from "react-i18next";
 import { useDeferredValue, useState } from "react";
-import { Loader2, SearchIcon, ShieldCheckIcon } from "lucide-react";
+import {
+  CheckIcon,
+  Loader2,
+  MinusIcon,
+  SearchIcon,
+  ShieldCheckIcon,
+} from "lucide-react";
 import { Link, useNavigate } from "react-router";
 
-import AdminShell from "@/components/admin/AdminShell";
-import { AdminEmpty, AdminSkeleton } from "@/components/admin/AdminTable";
+import AdminPage from "@/components/admin/AdminPage";
+import { AdminEmpty } from "@/components/admin/AdminTable";
+import RoleChip from "@/components/admin/RoleChip";
 import SummaryCard, { WidgetEmpty } from "@/components/summary/SummaryCard";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Modal from "@/components/ui/Modal";
 import {
   DIALOG_ACTIONS,
@@ -42,6 +50,12 @@ interface Pending {
   action: RoleAction;
 }
 
+// The server's default page of /admin/accounts; past it, search finds the rest.
+const ACCOUNTS_SHOWN = 50;
+const HISTORY_SHOWN = 5;
+// The newest few until asked: granting is rare, and search finds anyone.
+const CANDIDATES_SHOWN = 8;
+
 const nameOf = (account: Pick<AdminAccount, "username" | "email">) =>
   account.username ?? account.email;
 
@@ -49,8 +63,9 @@ export default function AdminAccessPage() {
   const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const query = useDeferredValue(search);
-  const { data, error, isFetching } = useAdminAccounts(query);
+  const { data, error } = useAdminAccounts(query);
   const [pending, setPending] = useState<Pending | null>(null);
+  const [expanded, setExpanded] = useState(false);
 
   // Every /admin endpoint answers 404 to a caller without the role, so a 404
   // here means it was taken away while this page was open.
@@ -62,12 +77,22 @@ export default function AdminAccessPage() {
       action: roleActionFor(account, data?.active_superadmins ?? 0),
     });
 
+  // Superadmins have their own list above; this one is who could join it.
+  const candidates = (data?.accounts ?? []).filter(
+    (account) => account.org_role !== "superadmin",
+  );
+  const searching = query.trim() !== "";
+  const shown =
+    searching || expanded ? candidates : candidates.slice(0, CANDIDATES_SHOWN);
+  const lastStanding = data?.superadmins.some(
+    (account) =>
+      roleActionFor(account, data.active_superadmins).blocked === "last",
+  );
+
   return (
-    <AdminShell
+    <AdminPage
       title={t("admin.sections.access")}
-      hint={t("admin.access.hint")}
-      showPeriod={false}
-      busy={isFetching}
+      description={t("admin.access.hint")}
     >
       {lost ? (
         <AdminEmpty>
@@ -77,50 +102,8 @@ export default function AdminAccessPage() {
           </Link>
         </AdminEmpty>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
-          <SummaryCard
-            title={t("admin.access.accounts")}
-            hint={t("admin.access.accountsHint")}
-          >
-            <label className="border-hairline bg-elevated rounded-control focus-within:border-brand mx-3.5 mb-2 flex h-8 items-center gap-2 border px-2.5 transition-colors">
-              <SearchIcon className="text-ink-3 size-3.5 shrink-0" />
-              <input
-                type="search"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder={t("admin.access.searchPlaceholder")}
-                aria-label={t("admin.access.searchPlaceholder")}
-                className="text-ink placeholder:text-ink-3 text-meta min-w-0 flex-1 bg-transparent outline-none"
-              />
-            </label>
-
-            {error ? (
-              <WidgetEmpty>{t("admin.loadFailedRetry")}</WidgetEmpty>
-            ) : !data ? (
-              <AdminSkeleton rows={6} />
-            ) : data.accounts.length === 0 ? (
-              <WidgetEmpty>
-                {query.trim()
-                  ? t("admin.access.noMatch", { query: query.trim() })
-                  : t("admin.access.noAccounts")}
-              </WidgetEmpty>
-            ) : (
-              <ul className="flex flex-col">
-                {data.accounts.map((account) => (
-                  <AccountRow
-                    key={account.id}
-                    account={account}
-                    action={roleActionFor(account, data.active_superadmins)}
-                    onAct={() => ask(account)}
-                  />
-                ))}
-              </ul>
-            )}
-          </SummaryCard>
-
+        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
           <div className="flex min-w-0 flex-col gap-4">
-            <SignedInAs />
-
             <SummaryCard
               title={t("admin.access.superadmins")}
               hint={
@@ -131,23 +114,95 @@ export default function AdminAccessPage() {
                   : undefined
               }
             >
-              {!data ? (
-                <AdminSkeleton rows={2} />
+              {error ? (
+                <WidgetEmpty>{t("admin.loadFailedRetry")}</WidgetEmpty>
+              ) : !data ? (
+                <RowsSkeleton rows={2} />
               ) : (
-                <ul className="flex flex-col">
+                <ul className="border-hairline divide-hairline divide-y border-t">
                   {data.superadmins.map((account) => (
                     <AccountRow
                       key={account.id}
                       account={account}
                       action={roleActionFor(account, data.active_superadmins)}
                       onAct={() => ask(account)}
-                      compact
                     />
                   ))}
                 </ul>
               )}
+
+              {lastStanding && (
+                <p className="border-hairline text-ink-3 text-mini border-t px-3.5 py-2.5">
+                  {t("admin.access.blocked.last")}
+                </p>
+              )}
             </SummaryCard>
 
+            <SummaryCard
+              title={t("admin.access.add")}
+              hint={t("admin.access.addHint")}
+            >
+              <div className="px-3.5 pb-3">
+                <label className="border-hairline bg-elevated rounded-control focus-within:border-brand focus-within:ring-brand/30 flex h-8 items-center gap-2 border px-2.5 transition-colors focus-within:ring-2">
+                  <SearchIcon className="text-ink-3 size-3.5 shrink-0" />
+                  <input
+                    type="search"
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder={t("admin.access.searchPlaceholder")}
+                    aria-label={t("admin.access.searchPlaceholder")}
+                    className="text-ink placeholder:text-ink-3 text-meta min-w-0 flex-1 bg-transparent outline-none"
+                  />
+                </label>
+              </div>
+
+              {error ? (
+                <WidgetEmpty>{t("admin.loadFailedRetry")}</WidgetEmpty>
+              ) : !data ? (
+                <RowsSkeleton rows={6} />
+              ) : candidates.length === 0 ? (
+                <WidgetEmpty>
+                  {query.trim()
+                    ? t("admin.access.noGrantMatch", { query: query.trim() })
+                    : t("admin.access.noAccounts")}
+                </WidgetEmpty>
+              ) : (
+                <ul className="border-hairline divide-hairline divide-y border-t">
+                  {shown.map((account) => (
+                    <AccountRow
+                      key={account.id}
+                      account={account}
+                      action={roleActionFor(account, data.active_superadmins)}
+                      onAct={() => ask(account)}
+                    />
+                  ))}
+                </ul>
+              )}
+
+              {data && shown.length < candidates.length && (
+                <button
+                  type="button"
+                  onClick={() => setExpanded(true)}
+                  className="border-hairline text-ink-2 hover:text-ink hover:bg-wash text-mini focus-visible:ring-brand rounded-b-card w-full border-t px-3.5 py-2.5 text-left font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset"
+                >
+                  {t("admin.access.showAll", { count: candidates.length })}
+                </button>
+              )}
+
+              {data &&
+                !searching &&
+                shown.length === candidates.length &&
+                data.accounts.length >= ACCOUNTS_SHOWN && (
+                  <p className="border-hairline text-ink-3 text-mini border-t px-3.5 py-2.5">
+                    {t("admin.access.capped", { count: ACCOUNTS_SHOWN })}
+                  </p>
+                )}
+            </SummaryCard>
+          </div>
+
+          <div className="flex min-w-0 flex-col gap-4">
+            <SignedInAs />
+            <RoleScope />
             <RoleHistory />
           </div>
         </div>
@@ -156,7 +211,31 @@ export default function AdminAccessPage() {
       {pending && (
         <RoleDialog pending={pending} onClose={() => setPending(null)} />
       )}
-    </AdminShell>
+    </AdminPage>
+  );
+}
+
+function RowsSkeleton({ rows }: { rows: number }) {
+  return (
+    <div className="border-hairline divide-hairline divide-y border-t">
+      {Array.from({ length: rows }, (_, index) => (
+        <div key={index} className="flex items-center gap-3 px-3.5 py-3">
+          <span className="skeleton size-7 shrink-0 rounded-full" />
+          <span className="skeleton h-3 w-40 rounded" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AccountAvatar({ account }: { account: AdminAccount }) {
+  return (
+    <Avatar size="sm" className="shrink-0">
+      <AvatarImage src={account.avatar_url ?? undefined} alt="" />
+      <AvatarFallback className="bg-elevated text-ink-2 text-micro font-semibold">
+        {nameOf(account).charAt(0).toUpperCase()}
+      </AvatarFallback>
+    </Avatar>
   );
 }
 
@@ -168,18 +247,72 @@ function SignedInAs() {
 
   return (
     <SummaryCard title={t("admin.access.you")}>
-      <div className="flex items-start gap-3 px-3.5 pb-3.5">
-        <ShieldCheckIcon className="text-brand mt-0.5 size-4 shrink-0" />
-        <div className="min-w-0">
-          <p className="text-ink text-meta truncate font-medium">
-            {user.profile?.username ?? user.email}
-          </p>
-          <p className="text-ink-3 text-mini truncate">{user.email}</p>
-          <p className="text-ink-3 text-mini mt-2 leading-relaxed">
-            {t("admin.access.youHint")}
-          </p>
+      <div className="flex flex-col gap-2.5 px-3.5 pb-3.5">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <Avatar size="sm" className="shrink-0">
+            <AvatarImage src={user.profile?.avatar_url ?? undefined} alt="" />
+            <AvatarFallback className="bg-elevated text-ink-2 text-micro font-semibold">
+              {(user.profile?.username ?? user.email).charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+
+          <div className="min-w-0 flex-1">
+            <p className="text-ink text-meta flex items-center gap-1.5 font-medium">
+              <span className="truncate">
+                {user.profile?.username ?? user.email}
+              </span>
+              <RoleChip />
+            </p>
+            <p className="text-ink-3 text-mini truncate">{user.email}</p>
+          </div>
         </div>
+
+        <p className="text-ink-3 text-mini leading-relaxed">
+          {t("admin.access.youHint")}
+        </p>
       </div>
+    </SummaryCard>
+  );
+}
+
+// What a grant does and does not do, stated before anyone is asked to confirm
+// one. It restates the server's rules; it decides nothing.
+function RoleScope() {
+  const { t } = useTranslation();
+
+  const lines = [
+    { key: "analytics", allowed: true },
+    { key: "manage", allowed: true },
+    { key: "boards", allowed: false },
+  ] as const;
+
+  return (
+    <SummaryCard title={t("admin.access.scope.title")}>
+      <ul className="flex flex-col gap-2 px-3.5 pb-3">
+        {lines.map((line) => {
+          const Icon = line.allowed ? CheckIcon : MinusIcon;
+
+          return (
+            <li key={line.key} className="flex items-start gap-2">
+              <Icon
+                aria-hidden
+                className={cn(
+                  "mt-0.5 size-3.5 shrink-0",
+                  line.allowed ? "text-status-green" : "text-ink-3",
+                )}
+              />
+              <span className="text-ink-2 text-mini leading-relaxed">
+                {t(`admin.access.scope.${line.key}`)}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+
+      <p className="border-hairline text-ink-3 text-mini flex items-start gap-2 border-t px-3.5 py-2.5 leading-relaxed">
+        <ShieldCheckIcon aria-hidden className="mt-0.5 size-3.5 shrink-0" />
+        {t("admin.access.scope.audited")}
+      </p>
     </SummaryCard>
   );
 }
@@ -188,43 +321,48 @@ function AccountRow({
   account,
   action,
   onAct,
-  compact = false,
 }: {
   account: AdminAccount;
   action: RoleAction;
   onAct: () => void;
-  compact?: boolean;
 }) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const self = account.id === user?.id;
+  const grant = action.kind === "grant";
 
   return (
-    <li className="border-hairline flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b px-3.5 py-2.5 last:border-b-0">
-      <div className="min-w-0 flex-1 basis-40">
-        <p className="text-ink text-meta truncate font-medium">
-          {nameOf(account)}
+    <li className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 px-3.5 py-2.5 sm:grid-cols-[auto_minmax(0,1fr)_7.5rem_auto]">
+      <AccountAvatar account={account} />
+
+      <div className="min-w-0">
+        <p className="text-meta flex min-w-0 items-center gap-1.5">
+          <span
+            className="text-ink truncate font-medium"
+            title={nameOf(account)}
+          >
+            {nameOf(account)}
+          </span>
           {self && (
-            <span className="text-ink-3 font-normal">
-              {" "}
+            <span className="text-ink-3 shrink-0">
               · {t("admin.access.youLabel")}
             </span>
           )}
+          {account.status !== "active" && (
+            <StatusChip status={account.status} />
+          )}
         </p>
-        <p className="text-ink-3 text-mini truncate">{account.email}</p>
+        <p className="text-ink-3 text-mini truncate" title={account.email}>
+          {account.email}
+        </p>
       </div>
 
-      {!compact && <StatusChip status={account.status} />}
-      {!compact && account.org_role === "superadmin" && <SuperadminChip />}
-
-      {!compact && (
-        <span
-          className="text-ink-3 text-mini w-20 shrink-0 tabular-nums"
-          title={account.created_at}
-        >
-          {relativeTime(account.created_at)}
-        </span>
-      )}
+      <span
+        className="text-ink-3 text-mini hidden tabular-nums sm:block"
+        title={account.created_at}
+      >
+        {t("admin.access.joined", { when: relativeTime(account.created_at) })}
+      </span>
 
       <button
         type="button"
@@ -236,30 +374,22 @@ function AccountRow({
             : undefined
         }
         className={cn(
-          "rounded-control text-mini h-7 shrink-0 border px-2.5 font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
-          action.kind === "grant"
-            ? "border-brand/30 text-brand hover:bg-brand/10"
-            : "border-status-red/30 text-status-red hover:bg-status-red/10",
+          "rounded-control text-mini focus-visible:ring-brand h-7 shrink-0 border px-2.5 font-medium transition-colors outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-45",
+          grant
+            ? "border-hairline text-ink-2 hover:text-ink hover:bg-wash enabled:hover:border-ink/20"
+            : "border-status-red/25 text-status-red enabled:hover:bg-status-red/10",
         )}
       >
-        {action.kind === "grant"
-          ? t("admin.access.grant")
-          : t("admin.access.revoke")}
+        {grant ? t("admin.access.grant") : t("admin.access.revoke")}
       </button>
-
-      {action.blocked === "last" && (
-        <p className="text-ink-3 text-mini basis-full">
-          {t("admin.access.blocked.last")}
-        </p>
-      )}
     </li>
   );
 }
 
 const STATUS_TONE = {
-  active: "bg-status-green/12 text-status-green",
-  unverified: "bg-status-orange/12 text-status-orange",
-  deactivated: "bg-ink/[0.06] text-ink-3",
+  active: "text-status-green",
+  unverified: "text-status-orange",
+  deactivated: "text-ink-3",
 } as const;
 
 function StatusChip({ status }: { status: AdminAccount["status"] }) {
@@ -268,21 +398,12 @@ function StatusChip({ status }: { status: AdminAccount["status"] }) {
   return (
     <span
       className={cn(
-        "text-micro w-24 shrink-0 rounded px-1.5 py-0.5 text-center font-semibold tracking-wide uppercase",
+        "text-mini flex shrink-0 items-center gap-1",
         STATUS_TONE[status],
       )}
     >
+      <span aria-hidden className="size-1.5 rounded-full bg-current" />
       {t(`admin.access.status.${status}`)}
-    </span>
-  );
-}
-
-function SuperadminChip() {
-  const { t } = useTranslation();
-
-  return (
-    <span className="bg-brand/12 text-brand text-micro shrink-0 rounded px-1.5 py-0.5 font-semibold tracking-wide uppercase">
-      {t("sidebar.superadmin")}
     </span>
   );
 }
@@ -375,20 +496,29 @@ function RoleHistory() {
   const { t } = useTranslation();
   const { data, error } = useAdminRoleAudit();
 
+  const entries = (data?.entries ?? []).slice(0, HISTORY_SHOWN);
+
   return (
     <SummaryCard
-      title={t("admin.access.history")}
-      hint={t("admin.access.historyHint")}
+      title={t("admin.access.historyRecent")}
+      action={
+        <Link
+          to="/admin/audit?type=roles"
+          className="text-ink-3 hover:text-brand text-mini transition-colors"
+        >
+          {t("admin.auditLog.viewAll")}
+        </Link>
+      }
     >
       {error ? (
         <WidgetEmpty>{t("admin.loadFailed")}</WidgetEmpty>
       ) : !data ? (
-        <AdminSkeleton rows={3} />
-      ) : data.entries.length === 0 ? (
+        <RowsSkeleton rows={3} />
+      ) : entries.length === 0 ? (
         <WidgetEmpty>{t("admin.access.historyEmpty")}</WidgetEmpty>
       ) : (
-        <ul className="flex flex-col">
-          {data.entries.map((entry) => (
+        <ul className="border-hairline divide-hairline divide-y border-t">
+          {entries.map((entry) => (
             <HistoryRow key={entry.id} entry={entry} />
           ))}
         </ul>
@@ -397,9 +527,16 @@ function RoleHistory() {
   );
 }
 
+const OUTCOME_TONE = {
+  granted: "bg-status-green",
+  revoked: "bg-ink-3",
+  refused: "bg-status-orange",
+  other: "bg-ink-3",
+} as const;
+
 function HistoryRow({ entry }: { entry: AuditEntry }) {
   const { t } = useTranslation();
-  const outcome = roleAuditOutcome(entry.action);
+  const outcome = roleAuditOutcome(entry.action) ?? "other";
   const payload = (entry.payload ?? {}) as { reason?: string };
 
   const actor =
@@ -409,18 +546,27 @@ function HistoryRow({ entry }: { entry: AuditEntry }) {
   const target = entry.target_username ?? t("admin.removedAccount");
 
   return (
-    <li className="border-hairline flex flex-col gap-0.5 border-b px-3.5 py-2 last:border-b-0">
-      <p className="text-ink-2 text-meta">
-        <span className="text-ink font-medium">{actor}</span>{" "}
-        {t(`admin.access.historyAction.${outcome ?? "other"}`)}{" "}
-        <span className="text-ink font-medium">{target}</span>
-      </p>
-      <p className="text-ink-3 text-mini">
-        {outcome === "refused" && payload.reason
-          ? `${t(`admin.access.refusal.${payload.reason}`, { defaultValue: payload.reason })} · `
-          : ""}
-        <span title={entry.created_at}>{relativeTime(entry.created_at)}</span>
-      </p>
+    <li className="flex gap-2.5 px-3.5 py-2">
+      <span
+        aria-hidden
+        className={cn(
+          "mt-1.5 size-1.5 shrink-0 rounded-full",
+          OUTCOME_TONE[outcome],
+        )}
+      />
+      <div className="min-w-0">
+        <p className="text-ink-2 text-mini leading-relaxed">
+          <span className="text-ink font-medium">{actor}</span>{" "}
+          {t(`admin.access.historyAction.${outcome}`)}{" "}
+          <span className="text-ink font-medium">{target}</span>
+        </p>
+        <p className="text-ink-3 text-micro">
+          {outcome === "refused" && payload.reason
+            ? `${t(`admin.access.refusal.${payload.reason}`, { defaultValue: payload.reason })} · `
+            : ""}
+          <span title={entry.created_at}>{relativeTime(entry.created_at)}</span>
+        </p>
+      </div>
     </li>
   );
 }

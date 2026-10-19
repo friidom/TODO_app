@@ -3,10 +3,10 @@ import type { Activity } from "@/types/data";
 
 // pure, takes `now` instead of reading the clock — testable around midnight/DST/year-end edges.
 // groups by the viewer's local day, not UTC — opposite of due_date, which is a chosen day and reads the same everywhere.
-export type ActivityDay = {
+export type ActivityDay<T = Activity> = {
   key: string;
   label: string;
-  items: Activity[];
+  items: T[];
 };
 
 function localDay(date: Date): string {
@@ -25,16 +25,14 @@ function shiftDay(from: Date, offset: number): string {
   return localDay(shifted);
 }
 
-export function groupActivitiesByDay(
-  activities: Activity[],
-  now: Date = new Date(),
-  locale?: string,
-): ActivityDay[] {
+export function groupActivitiesByDay<
+  T extends { created_at: string } = Activity,
+>(activities: T[], now: Date = new Date(), locale?: string): ActivityDay<T>[] {
   const today = localDay(now);
   const yesterday = shiftDay(now, -1);
 
-  const days: ActivityDay[] = [];
-  const index = new Map<string, ActivityDay>();
+  const days: ActivityDay<T>[] = [];
+  const index = new Map<string, ActivityDay<T>>();
 
   for (const activity of activities) {
     const at = new Date(activity.created_at);

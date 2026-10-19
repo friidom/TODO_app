@@ -2,13 +2,16 @@ import { useTranslation } from "react-i18next";
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
 
-import AdminShell from "@/components/admin/AdminShell";
+import AdminPage from "@/components/admin/AdminPage";
+import RoleChip from "@/components/admin/RoleChip";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   AdminCell,
   AdminEmpty,
   AdminGrid,
   AdminRow,
   AdminSkeleton,
+  AdminSortButton as SortButton,
 } from "@/components/admin/AdminTable";
 import { useAdminPeriod } from "@/hooks/useAdminPeriod";
 import { useAdminUsers } from "@/services/admin/useAdmin";
@@ -36,7 +39,7 @@ const NUMERIC = [
 export default function AdminUsersPage() {
   const { t } = useTranslation();
   const { period } = useAdminPeriod();
-  const { data, isFetching, error } = useAdminUsers(period);
+  const { data, error } = useAdminUsers(period);
   const [sort, setSort] = useState<UserSortKey>(DEFAULT_USER_SORT);
 
   const rows = useMemo(() => sortUsers(data?.users ?? [], sort), [data, sort]);
@@ -55,9 +58,9 @@ export default function AdminUsersPage() {
   }, [rows]);
 
   return (
-    <AdminShell
+    <AdminPage
       title={t("admin.sections.users")}
-      hint={
+      description={
         data
           ? t("admin.users.hint", {
               count: rows.length,
@@ -65,7 +68,6 @@ export default function AdminUsersPage() {
             })
           : t("admin.users.hintLoading")
       }
-      busy={isFetching}
     >
       {error ? (
         <AdminEmpty>{t("admin.loadFailedRetry")}</AdminEmpty>
@@ -78,6 +80,7 @@ export default function AdminUsersPage() {
               <SortButton
                 active={sort === "username"}
                 onClick={() => setSort("username")}
+                direction="asc"
               >
                 {USER_SORT_LABELS.username}
               </SortButton>
@@ -112,34 +115,7 @@ export default function AdminUsersPage() {
           )}
         </AdminGrid>
       )}
-    </AdminShell>
-  );
-}
-
-function SortButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      // uppercase repeated here rather than inherited: Tailwind's preflight
-      // gives <button> `font: inherit` but not text-transform, so a sortable
-      // header rendered "Developer" beside a static "LEVEL".
-      className={cn(
-        "hover:text-ink uppercase transition-colors",
-        active && "text-brand",
-      )}
-    >
-      {children}
-    </button>
+    </AdminPage>
   );
 }
 
@@ -159,16 +135,38 @@ function UserRow({
       <AdminCell>
         <Link
           to={`/admin/users/${row.id}?period=${period}`}
-          className="text-ink hover:text-brand font-medium transition-colors"
+          title={`${row.username} · ${row.email}`}
+          className="group flex min-w-0 items-center gap-2.5"
         >
-          {row.username}
+          <Avatar size="sm" className="shrink-0">
+            <AvatarImage src={row.avatar_url ?? undefined} alt="" />
+            <AvatarFallback className="bg-elevated text-ink-2 text-micro font-semibold">
+              {row.username.charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+
+          <span className="min-w-0">
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span className="text-ink group-hover:text-brand truncate font-medium transition-colors">
+                {row.username}
+              </span>
+              {row.org_role === "superadmin" && <RoleChip />}
+            </span>
+            <span className="text-ink-3 text-mini block truncate">
+              {row.email}
+            </span>
+          </span>
         </Link>
       </AdminCell>
 
       <AdminCell>
-        <span className="text-ink-3 text-micro uppercase">
-          {row.seniority ? t(`admin.seniority.${row.seniority}`) : "—"}
-        </span>
+        {row.seniority ? (
+          <span className="border-hairline text-ink-2 text-mini rounded border px-1.5 py-px">
+            {t(`admin.seniority.${row.seniority}`)}
+          </span>
+        ) : (
+          <span className="text-ink-3">—</span>
+        )}
       </AdminCell>
 
       {NUMERIC.map((key) => (
@@ -197,16 +195,27 @@ function UserRow({
   );
 }
 
+// A zero gets neither a bar nor ink: in a quiet period most cells are zero,
+// and a column of empty tracks hid the few rows that did something.
 function MetricCell({ value, max }: { value: number; max: number }) {
   return (
     <span className="flex items-center justify-end gap-2">
-      <span className="bg-ink/[0.06] hidden h-1 w-12 overflow-hidden rounded-full lg:block">
-        <span
-          className="bg-brand/70 block h-full rounded-full"
-          style={{ width: barWidth(value, max) }}
-        />
+      <span className="hidden h-1 w-12 overflow-hidden rounded-full lg:block">
+        {value > 0 && (
+          <span
+            className="bg-brand/70 block h-full rounded-full"
+            style={{ width: barWidth(value, max) }}
+          />
+        )}
       </span>
-      <span className="text-ink-2 w-8 text-right tabular-nums">{value}</span>
+      <span
+        className={cn(
+          "w-8 text-right tabular-nums",
+          value > 0 ? "text-ink" : "text-ink-3/70",
+        )}
+      >
+        {value}
+      </span>
     </span>
   );
 }

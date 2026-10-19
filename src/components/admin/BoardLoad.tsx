@@ -19,7 +19,10 @@ export default function BoardLoad({
   className?: string;
 }) {
   const { t } = useTranslation();
-  const ranked = [...boards]
+  // Only boards that finished something: a list of faded zeros is noise, and
+  // the hint still says how many of the whole set delivered.
+  const delivering = boards.filter((board) => board.completed_todos > 0);
+  const ranked = delivering
     .sort((a, b) => b.completed_todos - a.completed_todos)
     .slice(0, TOP);
 
@@ -32,14 +35,16 @@ export default function BoardLoad({
   return (
     <SummaryCard
       title={t("admin.boardLoad.title")}
-      hint={t("admin.topOf", {
-        top: Math.min(TOP, ranked.length),
+      hint={t("admin.loadHint", {
+        active: delivering.length,
         total: boards.length,
       })}
       className={className}
     >
-      {ranked.length === 0 ? (
+      {boards.length === 0 ? (
         <WidgetEmpty>{t("sidebar.noBoardsYet")}</WidgetEmpty>
+      ) : ranked.length === 0 ? (
+        <WidgetEmpty>{t("admin.loadEmpty")}</WidgetEmpty>
       ) : (
         <div className="flex flex-col gap-2 px-3.5 pt-1 pb-3.5">
           {ranked.map((board) => (

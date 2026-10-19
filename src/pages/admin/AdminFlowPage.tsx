@@ -2,7 +2,8 @@ import { useTranslation } from "react-i18next";
 import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router";
 
-import AdminShell from "@/components/admin/AdminShell";
+import AdminPage from "@/components/admin/AdminPage";
+import Segmented from "@/components/admin/Segmented";
 import {
   AdminCell,
   AdminEmpty,
@@ -17,10 +18,7 @@ import FlowStats from "@/components/admin/FlowStats";
 import Histogram from "@/components/admin/Histogram";
 import ScopeFilter from "@/components/admin/ScopeFilter";
 import WipStrip from "@/components/admin/WipStrip";
-import {
-  HEADER_CONTROL,
-  HEADER_CONTROL_ACTIVE,
-} from "@/components/board/headerControl";
+import SummaryCard from "@/components/summary/SummaryCard";
 import { useAdminPeriod } from "@/hooks/useAdminPeriod";
 import { useAdminScope } from "@/hooks/useAdminScope";
 import { startedNote } from "@/services/admin/backfill";
@@ -57,7 +55,7 @@ export default function AdminFlowPage() {
 
   const boards = useAdminBoards(period, scope.space);
   const spaces = useAdminSpaces(period);
-  const { data, error, isFetching } = useAdminFlow({
+  const { data, error } = useAdminFlow({
     period,
     space: scope.space,
     board: scope.board,
@@ -85,15 +83,14 @@ export default function AdminFlowPage() {
   const drillQuery = scopeQuery(scope);
 
   return (
-    <AdminShell
+    <AdminPage
       title={t("admin.sections.flow")}
-      hint={
+      description={
         data === undefined
           ? t("admin.flow.hint")
           : `${periodLabel(period)} · ${rangeLabel(data.from, data.to)}`
       }
-      busy={isFetching}
-      actions={
+      toolbar={
         <ScopeFilter
           scope={scope}
           setScope={setScope}
@@ -139,7 +136,7 @@ export default function AdminFlowPage() {
             />
           </div>
 
-          <div className="grid gap-3 lg:grid-cols-2">
+          <div className="grid items-start gap-3 lg:grid-cols-2">
             <WipStrip
               slices={data.wip}
               scopeHint={
@@ -159,7 +156,7 @@ export default function AdminFlowPage() {
           />
         </div>
       )}
-    </AdminShell>
+    </AdminPage>
   );
 }
 
@@ -209,41 +206,23 @@ function SliceTable({
   const { t } = useTranslation();
 
   return (
-    <section className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <div>
-          <h2 className="text-ink text-xs font-semibold tracking-tight">
-            {t("admin.flow.byAttribute")}
-          </h2>
-          <p className="text-ink-3 text-mini mt-0.5">
-            {t("admin.flow.byAttributeHint")}
-          </p>
-        </div>
-
-        <div
-          role="group"
-          aria-label={t("admin.flow.slice")}
-          className="flex flex-wrap gap-1"
-        >
-          {FLOW_SLICES.map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => onSlice(option)}
-              aria-pressed={option === sliceBy}
-              className={cn(
-                HEADER_CONTROL,
-                "px-2",
-                option === sliceBy && HEADER_CONTROL_ACTIVE,
-              )}
-            >
-              {FLOW_SLICE_LABELS[option]}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <AdminGrid columns={COLUMNS} label={t("admin.flow.byAttribute")}>
+    <SummaryCard
+      title={t("admin.flow.byAttribute")}
+      hint={t("admin.flow.byAttributeHint")}
+      action={
+        <Segmented
+          size="sm"
+          label={t("admin.flow.slice")}
+          value={sliceBy}
+          onChange={onSlice}
+          options={FLOW_SLICES.map((option) => ({
+            value: option,
+            label: FLOW_SLICE_LABELS[option],
+          }))}
+        />
+      }
+    >
+      <AdminGrid columns={COLUMNS} label={t("admin.flow.byAttribute")} embedded>
         <AdminRow header>
           <AdminCell header>{t(SLICE_COLUMN[sliceBy])}</AdminCell>
           <AdminCell header align="right">
@@ -280,6 +259,6 @@ function SliceTable({
           ))
         )}
       </AdminGrid>
-    </section>
+    </SummaryCard>
   );
 }

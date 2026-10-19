@@ -20,6 +20,7 @@ import {
   type CfdBandKey,
 } from "@/services/admin/flow";
 import { bucketLabel, dash } from "@/services/admin/format";
+import { countAxis } from "@/services/admin/series";
 import type { Bucket, CfdPoint } from "@/services/admin/types";
 
 const PLOT_HEIGHT = 40;
@@ -63,13 +64,15 @@ export default function CumulativeFlow({
 
   const hover = useChartHover(points.length, drill);
 
-  const peak = cfdPeak(points, hidden);
+  const rawPeak = cfdPeak(points, hidden);
+  const axis = countAxis(rawPeak);
+  const peak = axis[0]!;
   const scale = { height: PLOT_HEIGHT, headroom: HEADROOM, peak };
   const bands = useMemo(() => cfdBands(points, hidden), [points, hidden]);
 
   const step = Math.max(1, Math.ceil(points.length / LABEL_SLOTS));
   const labels = points.map((point) => bucketLabel(point.bucket, bucket));
-  const empty = points.length === 0 || peak <= 1;
+  const empty = points.length === 0 || rawPeak <= 1;
 
   const toggle = (key: string) =>
     setHidden((current) => {
@@ -103,10 +106,11 @@ export default function CumulativeFlow({
       ) : (
         <>
           <ChartFrame
-            axis={[dash(peak), dash(Math.round(peak / 2)), "0"]}
+            axis={axis.map(dash)}
             labels={labels}
             labelStep={step}
             highlight={hover.index}
+            headroom={HEADROOM / PLOT_HEIGHT}
           >
             <svg
               viewBox={`0 0 100 ${PLOT_HEIGHT}`}
@@ -129,7 +133,7 @@ export default function CumulativeFlow({
                   strokeWidth="1"
                   strokeDasharray={share === 0 ? undefined : "2 3"}
                   vectorEffect="non-scaling-stroke"
-                  className={share === 0 ? "text-ink/15" : "text-ink/[0.06]"}
+                  className={share === 0 ? "text-ink/15" : "text-ink/10"}
                 />
               ))}
 

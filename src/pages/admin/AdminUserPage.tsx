@@ -2,8 +2,9 @@ import { useTranslation } from "react-i18next";
 import { useMemo } from "react";
 import { Link, useParams } from "react-router";
 
-import AdminCrumbs from "@/components/admin/AdminCrumbs";
-import AdminShell from "@/components/admin/AdminShell";
+import AdminPage from "@/components/admin/AdminPage";
+import RoleChip from "@/components/admin/RoleChip";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import AdminTaskPanel from "@/components/admin/AdminTaskPanel";
 import BarSeries from "@/components/admin/BarSeries";
 import BulletBar from "@/components/admin/BulletBar";
@@ -23,7 +24,7 @@ import SummaryCard, {
   DistributionRow,
   WidgetEmpty,
 } from "@/components/summary/SummaryCard";
-import { useAdminActivityRealtime } from "@/hooks/useAdminActivityRealtime";
+import { useAdminFeedScope } from "@/hooks/useAdminActivityRealtime";
 import { useAdminPeriod } from "@/hooks/useAdminPeriod";
 import { useAdminScope } from "@/hooks/useAdminScope";
 import { useOpenTask } from "@/hooks/useOpenTask";
@@ -70,7 +71,7 @@ export default function AdminUserPage() {
 
   // No feed on this page; the subscription is here so an open task panel
   // refreshes itself the way it does on every other surface that opens one.
-  useAdminActivityRealtime(
+  useAdminFeedScope(
     {
       board: scope.board,
       space: scope.space,
@@ -83,22 +84,22 @@ export default function AdminUserPage() {
 
   if (error || (!data && !isLoading)) {
     return (
-      <AdminShell title={t("admin.columns.developer")}>
+      <AdminPage title={t("admin.columns.developer")}>
         <AdminEmpty>
           {t("admin.user.loadFailed")}{" "}
           <Link to="/admin/users" className="text-brand">
             {t("admin.user.backToList")}
           </Link>
         </AdminEmpty>
-      </AdminShell>
+      </AdminPage>
     );
   }
 
   if (!data) {
     return (
-      <AdminShell title={t("admin.columns.developer")}>
+      <AdminPage title={t("admin.columns.developer")}>
         <AdminSkeleton />
-      </AdminShell>
+      </AdminPage>
     );
   }
 
@@ -106,11 +107,33 @@ export default function AdminUserPage() {
   const started = startedNote(data.from);
 
   return (
-    <AdminShell
+    <AdminPage
       title={user.username}
-      hint={`${user.full_name ?? user.email} · ${rangeLabel(data.from, data.to)}`}
-      breadcrumb={<AdminCrumbs trail={userTrail(user.username)} />}
-      actions={
+      leading={
+        <Avatar className="shrink-0">
+          <AvatarImage src={user.avatar_url ?? undefined} alt="" />
+          <AvatarFallback className="bg-elevated text-ink-2 text-xs font-semibold">
+            {user.username.charAt(0).toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
+      }
+      description={
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          {user.org_role === "superadmin" && <RoleChip />}
+          {user.seniority && (
+            <span className="border-hairline text-ink-2 text-micro rounded border px-1.5 py-px font-semibold">
+              {t(`admin.seniority.${user.seniority}`)}
+            </span>
+          )}
+          <span>
+            {[user.full_name, user.email].filter(Boolean).join(" · ")}
+          </span>
+          <span aria-hidden>·</span>
+          <span>{rangeLabel(data.from, data.to)}</span>
+        </span>
+      }
+      trail={userTrail(user.username)}
+      toolbar={
         <div className="flex flex-wrap items-center gap-1.5">
           <ScopeFilter
             scope={scope}
@@ -123,12 +146,12 @@ export default function AdminUserPage() {
       }
     >
       <div className="flex flex-col gap-4">
-        <div className="grid gap-4 xl:grid-cols-[1fr_22rem]">
+        <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
           <SummaryCard
             title={t("admin.user.thisPeriod")}
             hint={t("admin.user.thisPeriodHint")}
           >
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 px-3.5 pt-1 pb-3.5 sm:grid-cols-3">
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 px-3.5 pt-1 pb-3.5 sm:grid-cols-3 lg:grid-cols-5">
               <Fact
                 label={t("admin.metrics.completedTasks")}
                 value={dash(user.completed_todos)}
@@ -153,12 +176,6 @@ export default function AdminUserPage() {
                 value={dash(user.activities)}
               />
               <Fact label={t("boards.title")} value={dash(user.boards)} />
-              <Fact
-                label={t("admin.level")}
-                value={
-                  user.seniority ? t(`admin.seniority.${user.seniority}`) : "—"
-                }
-              />
             </dl>
           </SummaryCard>
 
@@ -204,7 +221,7 @@ export default function AdminUserPage() {
           />
         </div>
 
-        <div className="grid gap-4 xl:grid-cols-[22rem_1fr]">
+        <div className="grid items-start gap-4 xl:grid-cols-[22rem_minmax(0,1fr)]">
           <BoardSplit shares={data.board_share} period={period} />
           <RecentWork
             rows={data.recent}
@@ -221,7 +238,7 @@ export default function AdminUserPage() {
       </div>
 
       {taskId && <AdminTaskPanel todoId={taskId} onClose={closeTask} />}
-    </AdminShell>
+    </AdminPage>
   );
 }
 
@@ -235,14 +252,14 @@ function Fact({
   aside?: string;
 }) {
   return (
-    <div className="min-w-0">
-      <dt className="text-ink-3 text-micro truncate font-semibold tracking-wide uppercase">
-        {label}
-      </dt>
-      <dd className="text-ink truncate text-lg font-semibold tabular-nums">
+    <div className="flex min-w-0 flex-col">
+      <dt className="text-ink-3 text-mini order-2 truncate">{label}</dt>
+      <dd className="text-ink order-1 truncate text-xl font-semibold tracking-tight tabular-nums">
         {value}
       </dd>
-      {aside && <p className="text-ink-3 text-mini truncate">{aside}</p>}
+      {aside && (
+        <p className="text-ink-3 text-mini order-3 truncate">{aside}</p>
+      )}
     </div>
   );
 }
@@ -308,26 +325,23 @@ function RecentWork({
   const { t } = useTranslation();
 
   return (
-    <section className="flex flex-col gap-2">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="text-ink text-xs font-semibold tracking-tight">
-            {t("admin.user.recentTitle")}
-          </h2>
-          <p className="text-ink-3 text-mini mt-0.5">
-            {t("admin.user.recentHint")}
-          </p>
-        </div>
-
+    <SummaryCard
+      title={t("admin.user.recentTitle")}
+      hint={t("admin.user.recentHint")}
+      action={
         <Link
           to={activityHref}
-          className="text-ink-3 hover:text-brand text-mini shrink-0 transition-colors"
+          className="text-ink-3 hover:text-brand text-mini transition-colors"
         >
           {t("admin.user.seeActivity")}
         </Link>
-      </div>
-
-      <AdminGrid columns={RECENT_COLUMNS} label={t("admin.user.recentLabel")}>
+      }
+    >
+      <AdminGrid
+        columns={RECENT_COLUMNS}
+        label={t("admin.user.recentLabel")}
+        embedded
+      >
         <AdminRow header>
           <AdminCell header>{t("boards.key")}</AdminCell>
           <AdminCell header>{t("fields.title")}</AdminCell>
@@ -346,7 +360,7 @@ function RecentWork({
           rows.map((row) => (
             <AdminRow key={row.id} onOpen={() => onOpen(row.id)}>
               <AdminCell>
-                <span className="text-ink-3 text-micro tabular-nums">
+                <span className="text-ink-3 text-mini tabular-nums">
                   {taskKey(row.key_prefix, row.board_key) ?? "—"}
                 </span>
               </AdminCell>
@@ -379,6 +393,6 @@ function RecentWork({
           ))
         )}
       </AdminGrid>
-    </section>
+    </SummaryCard>
   );
 }

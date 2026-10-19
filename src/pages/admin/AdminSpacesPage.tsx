@@ -2,13 +2,15 @@ import { useTranslation } from "react-i18next";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 
-import AdminShell from "@/components/admin/AdminShell";
+import AdminPage from "@/components/admin/AdminPage";
 import {
   AdminCell,
   AdminEmpty,
   AdminGrid,
+  AdminNumber,
   AdminRow,
   AdminSkeleton,
+  AdminSortButton as SortButton,
 } from "@/components/admin/AdminTable";
 import SummaryCard, {
   DistributionRow,
@@ -17,7 +19,7 @@ import SummaryCard, {
 import { useAdminPeriod } from "@/hooks/useAdminPeriod";
 import { spaceName, spaceTarget } from "@/services/admin/drilldown";
 import { barShare, peakOf, proportionOf } from "@/services/admin/flow";
-import { dash, formatDuration, rangeLabel } from "@/services/admin/format";
+import { formatDuration, rangeLabel } from "@/services/admin/format";
 import { compareBy } from "@/services/admin/leaderboard";
 import { translated } from "@/components/i18n";
 import { useAdminSpaces } from "@/services/admin/useAdmin";
@@ -54,7 +56,7 @@ export default function AdminSpacesPage() {
   const { t } = useTranslation();
   const { period } = useAdminPeriod();
   const navigate = useNavigate();
-  const { data, isFetching, error } = useAdminSpaces(period);
+  const { data, error } = useAdminSpaces(period);
   const [sort, setSort] = useState<SpaceSortKey>("completed_todos");
 
   const rows = useMemo(() => {
@@ -76,9 +78,9 @@ export default function AdminSpacesPage() {
   const total = rows.reduce((sum, space) => sum + space.completed_todos, 0);
 
   return (
-    <AdminShell
+    <AdminPage
       title={t("sidebar.spaces")}
-      hint={
+      description={
         data
           ? t("admin.spaces.hint", {
               count: rows.length,
@@ -86,7 +88,6 @@ export default function AdminSpacesPage() {
             })
           : t("admin.spaces.hintLoading")
       }
-      busy={isFetching}
     >
       {error ? (
         <AdminEmpty>{t("admin.loadFailedRetry")}</AdminEmpty>
@@ -102,20 +103,24 @@ export default function AdminSpacesPage() {
               <WidgetEmpty>{t("admin.spaces.nothingCompleted")}</WidgetEmpty>
             ) : (
               <div className="flex flex-col gap-2 px-3.5 pb-3.5">
-                {rows.slice(0, 8).map((space) => (
-                  <DistributionRow
-                    key={space.id ?? "unfiled"}
-                    label={spaceName(space)}
-                    title={spaceName(space)}
-                    count={space.completed_todos}
-                    percent={barShare(space.completed_todos, peak)}
-                    share={proportionOf(space.completed_todos, total)}
-                    barClassName={
-                      space.id === null ? "bg-ink-3/50" : "bg-brand/70"
-                    }
-                    labelClassName="flex-[0_0_9rem]"
-                  />
-                ))}
+                {rows
+                  .filter((space) => space.completed_todos > 0)
+                  .sort((a, b) => b.completed_todos - a.completed_todos)
+                  .slice(0, 8)
+                  .map((space) => (
+                    <DistributionRow
+                      key={space.id ?? "unfiled"}
+                      label={spaceName(space)}
+                      title={spaceName(space)}
+                      count={space.completed_todos}
+                      percent={barShare(space.completed_todos, peak)}
+                      share={proportionOf(space.completed_todos, total)}
+                      barClassName={
+                        space.id === null ? "bg-ink-3/50" : "bg-brand/70"
+                      }
+                      labelClassName="flex-[0_0_9rem]"
+                    />
+                  ))}
               </div>
             )}
           </SummaryCard>
@@ -126,6 +131,7 @@ export default function AdminSpacesPage() {
                 <SortButton
                   active={sort === "title"}
                   onClick={() => setSort("title")}
+                  direction="asc"
                 >
                   {LABELS.title}
                 </SortButton>
@@ -136,6 +142,7 @@ export default function AdminSpacesPage() {
                   <SortButton
                     active={sort === key}
                     onClick={() => setSort(key)}
+                    direction={key === "median_cycle_days" ? "asc" : "desc"}
                   >
                     {LABELS[key]}
                   </SortButton>
@@ -177,15 +184,17 @@ export default function AdminSpacesPage() {
 
                   {NUMERIC.map((key) => (
                     <AdminCell key={key} align="right">
-                      <span
-                        className={
-                          space[key] === null ? "text-ink-3" : "text-ink-2"
-                        }
-                      >
-                        {key === "median_cycle_days"
-                          ? formatDuration(space[key])
-                          : dash(space[key])}
-                      </span>
+                      {key === "median_cycle_days" ? (
+                        <span
+                          className={
+                            space[key] === null ? "text-ink-3/70" : "text-ink"
+                          }
+                        >
+                          {formatDuration(space[key])}
+                        </span>
+                      ) : (
+                        <AdminNumber value={space[key]} />
+                      )}
                     </AdminCell>
                   ))}
 
@@ -200,30 +209,6 @@ export default function AdminSpacesPage() {
           </AdminGrid>
         </div>
       )}
-    </AdminShell>
-  );
-}
-
-function SortButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        "hover:text-ink uppercase transition-colors",
-        active && "text-brand",
-      )}
-    >
-      {children}
-    </button>
+    </AdminPage>
   );
 }

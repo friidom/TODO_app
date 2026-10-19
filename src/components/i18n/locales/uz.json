@@ -1603,15 +1603,16 @@
   },
   "admin": {
     "backToBoards": "Doskalarga qaytish",
-    "updating": "yangilanmoqda…",
-    "sectionsLabel": "Superadmin bo'limlari",
+    "updating": "Yangilanmoqda…",
+    "sectionsLabel": "Boshqaruv bo'limlari",
     "sections": {
-      "dashboard": "Boshqaruv paneli",
-      "flow": "Oqim",
+      "dashboard": "Umumiy ko'rinish",
+      "flow": "Yetkazish oqimi",
       "leaderboards": "Reytinglar",
-      "users": "Dasturchilar",
-      "kpi": "KPI sozlamalari",
-      "access": "Kirish huquqi"
+      "users": "Odamlar",
+      "kpi": "KPI maqsadlari",
+      "access": "Superadminlar",
+      "audit": "Audit jurnali"
     },
     "metrics": {
       "completedTasks": "Bajarilgan vazifalar",
@@ -1634,7 +1635,7 @@
       "year": "Joriy kalendar yil, bugungacha"
     },
     "columns": {
-      "developer": "Dasturchi",
+      "developer": "Odam",
       "tasks": "Vazifalar",
       "points": "Ballar",
       "cycle": "Sikl",
@@ -1674,7 +1675,7 @@
       "hint": "Tashkilot bo'yicha samaradorlik",
       "label": "Reyting",
       "orderBy": "Saralash",
-      "explainer": "Bir vaqtning o'zida bitta nomlangan ko'rsatkich bo'yicha tartiblangan. Birinchi ustundagi raqam faqat shu tartibdagi o'rinni bildiradi — umumlashgan ball yo'q va har bir raqam mustaqil.",
+      "explainer": "Bir vaqtning o'zida bitta nomlangan ko'rsatkich bo'yicha tartiblangan. Birinchi ustundagi raqam faqat shu tartibdagi o'rinni bildiradi — umumlashgan ball yo'q va har bir raqam mustaqil. Chiziqcha bu ko'rsatkich bo'yicha qatorda hech narsa yo'qligini bildiradi, shuning uchun u o'rin olmaydi.",
       "peopleLabel": "Bitta ko'rsatkich bo'yicha tartiblangan odamlar",
       "boardsLabel": "Bitta ko'rsatkich bo'yicha tartiblangan doskalar",
       "position": "O'rin"
@@ -1705,7 +1706,7 @@
       "empty": "Hozir jarayonda hech narsa yo'q."
     },
     "audit": {
-      "title": "So'nggi administrator o'zgarishlari",
+      "title": "So'nggi administrator amallari",
       "hint": "Faqat qo'shiladi — hech bir yozuvni tahrirlab bo'lmaydi",
       "empty": "Hali hech narsa o'zgartirilmagan."
     },
@@ -1715,7 +1716,8 @@
     "bars": {
       "title": "Vaqt bo'yicha yetkazish",
       "hint": "Shu davrda {{total}}",
-      "hintUnestimated": "Shu davrda {{total}} · {{count}} tasi bahosiz bajarilgan"
+      "hintUnestimated": "Shu davrda {{total}} · {{count}} tasi bahosiz bajarilgan",
+      "empty": "{{name}}: bu davrda hech narsa yo'q."
     },
     "metric": "Ko'rsatkich",
     "perBucket": "{{name}} oraliqlar bo'yicha: {{values}}",
@@ -1725,7 +1727,6 @@
     "spaceLoad": {
       "title": "Ishlar qaysi maydonlarga to'g'ri keladi"
     },
-    "topOf": "Bajarilgan vazifalar · {{total}} tadan eng yaxshi {{top}} tasi",
     "bullet": {
       "title": "Maqsad va haqiqiy natija",
       "noLevel": "Daraja belgilanmagan, shuning uchun maqsad yo'q — quyidagi faktlarga bu ta'sir qilmaydi",
@@ -1809,7 +1810,7 @@
     "nothingHappened": "Bu davrda hech narsa sodir bo'lmadi.",
     "unknown": "Noma'lum",
     "dashboard": {
-      "title": "Tizim ko'rinishi",
+      "title": "Umumiy ko'rinish",
       "hint": "{{range}} · oraliqlar {{timezone}} vaqt zonasida",
       "hintLoading": "Hamma narsa, hamma joyda",
       "recentLabel": "Butun tizimdagi so'nggi faollik"
@@ -1832,10 +1833,8 @@
       "loadFailed": "Bu doskani yuklab bo'lmadi.",
       "histogramHint": "Bu doskaning uzun “dumi” qayerda",
       "wipHint": "Bu doskadagi ochiq kartalar, ustunlar bo'yicha",
-      "recentLabel": "Bu doskadagi so'nggi faollik",
-      "completionRate": "{{total}} ta hisoblanadigan kartadan bajarilish darajasi {{rate}}."
+      "recentLabel": "Bu doskadagi so'nggi faollik"
     },
-    "ofTotal": "jami {{total}} tadan",
     "ownerNamed": "egasi {{name}}",
     "contributors": {
       "title": "Eng faol ishtirokchilar",
@@ -1866,7 +1865,8 @@
       "seeded": "Boshlang'ich qiymat, hech qachon tahrirlanmagan",
       "perDay": "Kuniga ball",
       "perWeek": "Haftasiga ball",
-      "nonNegative": "Nol yoki undan katta bo'lishi kerak."
+      "nonNegative": "Nol yoki undan katta bo'lishi kerak.",
+      "history": "Maqsad o'zgarishlari tarixi audit jurnalida →"
     },
     "pointsOverTarget": "bajarilgan ballar / maqsadli ballar",
     "space": {
@@ -1916,10 +1916,7 @@
     },
     "access": {
       "hint": "Butun Veyloni kim ko'ra oladi va bu huquqdagi har bir o'zgarish",
-      "accounts": "Hisoblar",
-      "accountsHint": "Barcha ro'yxatdan o'tganlar, avval yangilari",
       "searchPlaceholder": "Ism yoki email bo'yicha qidirish",
-      "noMatch": "“{{query}}” bo'yicha hisob topilmadi.",
       "noAccounts": "Hozircha hisoblar yo'q.",
       "superadmins": "Superadminlar",
       "activeCount_one": "{{count}} ta faol",
@@ -1952,8 +1949,6 @@
         "unchanged": "Hech narsa o'zgarmadi: {{name}} da bu rol allaqachon bor edi",
         "revokedSelf": "Siz endi superadmin emassiz"
       },
-      "history": "Rol o'zgarishlari",
-      "historyHint": "Har bir berish, olish va rad etilgan urinish",
       "historyEmpty": "Hozircha rol o'zgarishlari yo'q.",
       "historyAction": {
         "granted": "superadmin rolini berdi:",
@@ -1968,8 +1963,79 @@
         "superadmin_exists": "superadmin allaqachon mavjud edi"
       },
       "systemActor": "Serverni dastlabki sozlash",
-      "lost": "Global administrator huquqingiz endi amal qilmaydi."
-    }
+      "lost": "Global administrator huquqingiz endi amal qilmaydi.",
+      "add": "Superadmin qo'shish",
+      "addHint": "Rolni faqat elektron pochtasi tasdiqlangan faol hisobga berish mumkin",
+      "noGrantMatch": "“{{query}}” bo'yicha boshqa hisob topilmadi.",
+      "capped": "Eng yangi {{count}} ta hisob ko'rsatilmoqda. Boshqalarni qidiruv orqali toping.",
+      "joined": "Ro'yxatdan o'tgan: {{when}}",
+      "historyRecent": "Rolning so'nggi o'zgarishlari",
+      "scope": {
+        "title": "Rol nimalarga ruxsat beradi",
+        "analytics": "Har bir doska, maydon va odam bo'yicha butun tashkilot tahlilini ko'rish",
+        "manage": "Bu rolni berish yoki olib tashlash, darajalar va KPI maqsadlarini belgilash",
+        "boards": "Doskalarga kirish yo'q: a'zo bo'lmagan doskani ochib yoki tahrirlab bo'lmaydi",
+        "audited": "Har bir berish, olib tashlash va rad etilgan urinish audit jurnaliga yoziladi."
+      },
+      "showAll_one": "Barcha {{count}} ta hisobni ko'rsatish",
+      "showAll_other": "Barcha {{count}} ta hisobni ko'rsatish"
+    },
+    "title": "Boshqaruv",
+    "skipToContent": "Asosiy qismga o'tish",
+    "live": "Jonli",
+    "connecting": "Ulanmoqda…",
+    "groups": {
+      "insights": "Tahlil",
+      "security": "Xavfsizlik"
+    },
+    "attention": {
+      "title": "E'tibor talab qiladi",
+      "items": {
+        "single_superadmin_one": "ta faol superadmin. Hisob yo'qolsa ham kirish saqlanishi uchun ikkinchisini qo'shing.",
+        "single_superadmin_other": "ta faol superadmin. Hisob yo'qolsa ham kirish saqlanishi uchun ikkinchisini qo'shing.",
+        "stale_work_one": "ta vazifa 30 kun yoki undan ko'proq vaqtdan beri bajarilmoqda",
+        "stale_work_other": "ta vazifa 30 kun yoki undan ko'proq vaqtdan beri bajarilmoqda"
+      },
+      "share": "jarayondagi {{total}} tadan {{percent}}"
+    },
+    "auditLog": {
+      "viewAll": "Audit jurnalini ochish →",
+      "description": "Har bir yuqori huquqli amal, avval yangilari. Faqat qo'shiladi: hech kim yozuvni tahrirlay yoki o'chira olmaydi.",
+      "filterLabel": "O'zgarish turi",
+      "filters": {
+        "all": "Hammasi",
+        "roles": "Superadmin roli",
+        "seniority": "Darajalar",
+        "kpi": "KPI maqsadlari",
+        "workflow": "Jarayon tuzatishlari"
+      },
+      "actor": "Kim",
+      "target": "Obyekt",
+      "change": "O'zgarish",
+      "viaBootstrap": "server orqali boshlang'ich sozlash",
+      "kpiChange": "kuniga {{daily}} · haftasiga {{weekly}}",
+      "workflowChange": "versiya {{from}} → {{to}}",
+      "member": "A'zo",
+      "noLevel": "Darajasiz",
+      "time": "Vaqt",
+      "byLine": "bajaruvchi: {{name}}",
+      "complete_one": "{{count}} ta yozuv, avval yangilari — bu filtr bo'yicha yozilganlarning hammasi.",
+      "complete_other": "{{count}} ta yozuv, avval yangilari — bu filtr bo'yicha yozilganlarning hammasi.",
+      "capped_one": "Eng yangi {{count}} ta yozuv ko'rsatilgan. Eskilari saqlanadi, lekin bu sahifada ularga hali o'tib bo'lmaydi.",
+      "capped_other": "Eng yangi {{count}} ta yozuv ko'rsatilgan. Eskilari saqlanadi, lekin bu sahifada ularga hali o'tib bo'lmaydi.",
+      "empty": {
+        "title": "Hozircha hech narsa yozilmagan",
+        "all": "Superadmin rolini berish va olib tashlash, darajalar, KPI maqsadlari va ish jarayonini tuzatishlar shu yerda darhol paydo bo'ladi.",
+        "roles": "Superadmin rolini berish, olib tashlash va rad etilgan urinishlar shu yerda darhol paydo bo'ladi.",
+        "seniority": "Odam sahifasida o'zgartirilgan darajalar shu yerda paydo bo'ladi.",
+        "kpi": "KPI maqsadlariga kiritilgan o'zgarishlar shu yerda paydo bo'ladi.",
+        "workflow": "Administratsiya bo'limidan e'lon qilingan ish jarayoni tuzatishlari shu yerda paydo bo'ladi."
+      }
+    },
+    "loadHint": "Bajarilgan vazifalar · {{total}} tadan {{active}} tasi natija berdi",
+    "loadEmpty": "Bu davrda hech narsa bajarilmadi.",
+    "rightNow": "Hozir",
+    "ofTotalRate": "jami {{total}} tadan · {{rate}}"
   },
   "starred": {
     "title": "Saralanganlar",

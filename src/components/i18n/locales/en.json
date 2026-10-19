@@ -1603,15 +1603,16 @@
   },
   "admin": {
     "backToBoards": "Back to boards",
-    "updating": "updating…",
-    "sectionsLabel": "Superadmin sections",
+    "updating": "Updating…",
+    "sectionsLabel": "Administration sections",
     "sections": {
-      "dashboard": "Dashboard",
-      "flow": "Flow",
+      "dashboard": "Overview",
+      "flow": "Delivery",
       "leaderboards": "Leaderboards",
-      "users": "Developers",
-      "kpi": "KPI settings",
-      "access": "Access"
+      "users": "People",
+      "kpi": "KPI targets",
+      "access": "Superadmins",
+      "audit": "Audit log"
     },
     "metrics": {
       "completedTasks": "Completed tasks",
@@ -1634,7 +1635,7 @@
       "year": "This calendar year, to date"
     },
     "columns": {
-      "developer": "Developer",
+      "developer": "Person",
       "tasks": "Tasks",
       "points": "Points",
       "cycle": "Cycle",
@@ -1674,7 +1675,7 @@
       "hint": "Performance across the organisation",
       "label": "Leaderboard",
       "orderBy": "Order by",
-      "explainer": "Ordered by one named metric at a time. The number in the first column is the position under that ordering and nothing else — there is no combined score, and each figure stands on its own.",
+      "explainer": "Ordered by one named metric at a time. The number in the first column is the position under that ordering and nothing else — there is no combined score, and each figure stands on its own. A dash means the row has nothing under that metric, so it takes no place.",
       "peopleLabel": "People, ordered by one metric",
       "boardsLabel": "Boards, ordered by one metric",
       "position": "Position"
@@ -1705,7 +1706,7 @@
       "empty": "Nothing is in progress right now."
     },
     "audit": {
-      "title": "Recent admin changes",
+      "title": "Recent admin actions",
       "hint": "Append-only — no entry can be edited",
       "empty": "Nothing has been changed yet."
     },
@@ -1715,7 +1716,8 @@
     "bars": {
       "title": "Delivery over time",
       "hint": "{{total}} in this period",
-      "hintUnestimated": "{{total}} in this period · {{count}} completed with no estimate"
+      "hintUnestimated": "{{total}} in this period · {{count}} completed with no estimate",
+      "empty": "{{name}}: nothing in this period."
     },
     "metric": "Metric",
     "perBucket": "{{name}} per bucket: {{values}}",
@@ -1725,7 +1727,6 @@
     "spaceLoad": {
       "title": "Which spaces carry the work"
     },
-    "topOf": "Completed tasks · top {{top}} of {{total}}",
     "bullet": {
       "title": "Target vs actual",
       "noLevel": "No level set, so no target — the facts below are unaffected",
@@ -1809,7 +1810,7 @@
     "nothingHappened": "Nothing happened in this window.",
     "unknown": "Unknown",
     "dashboard": {
-      "title": "System overview",
+      "title": "Overview",
       "hint": "{{range}} · buckets in {{timezone}}",
       "hintLoading": "Everything, everywhere",
       "recentLabel": "Recent activity system-wide"
@@ -1832,10 +1833,8 @@
       "loadFailed": "That board could not be loaded.",
       "histogramHint": "Where this board's tail is",
       "wipHint": "Open cards on this board, by column",
-      "recentLabel": "Recent activity on this board",
-      "completionRate": "Completion rate {{rate}} over {{total}} countable cards."
+      "recentLabel": "Recent activity on this board"
     },
-    "ofTotal": "of {{total}} total",
     "ownerNamed": "owner {{name}}",
     "contributors": {
       "title": "Top contributors",
@@ -1866,7 +1865,8 @@
       "seeded": "Seeded, never edited",
       "perDay": "Points per day",
       "perWeek": "Points per week",
-      "nonNegative": "Must be zero or more."
+      "nonNegative": "Must be zero or more.",
+      "history": "History of target changes in the audit log →"
     },
     "pointsOverTarget": "completed points / target points",
     "space": {
@@ -1916,10 +1916,7 @@
     },
     "access": {
       "hint": "Who can read the whole of Veylo, and every change to that",
-      "accounts": "Accounts",
-      "accountsHint": "Everyone registered, newest first",
       "searchPlaceholder": "Search by name or email",
-      "noMatch": "No account matches “{{query}}”.",
       "noAccounts": "No accounts yet.",
       "superadmins": "Superadmins",
       "activeCount_one": "{{count}} active",
@@ -1952,8 +1949,6 @@
         "unchanged": "Nothing changed: {{name}} already had that role",
         "revokedSelf": "You are no longer a superadmin"
       },
-      "history": "Role changes",
-      "historyHint": "Every grant, removal and refused attempt",
       "historyEmpty": "No role changes yet.",
       "historyAction": {
         "granted": "granted superadmin to",
@@ -1968,8 +1963,79 @@
         "superadmin_exists": "a superadmin already existed"
       },
       "systemActor": "Server bootstrap",
-      "lost": "Your global admin access is no longer active."
-    }
+      "lost": "Your global admin access is no longer active.",
+      "add": "Add a superadmin",
+      "addHint": "Only an active account with a confirmed email can be given the role",
+      "noGrantMatch": "No other account matches “{{query}}”.",
+      "capped": "Showing the newest {{count}} accounts. Search to find anyone else.",
+      "joined": "Joined {{when}}",
+      "historyRecent": "Recent role changes",
+      "scope": {
+        "title": "What the role allows",
+        "analytics": "See organisation-wide analytics for every board, space and person",
+        "manage": "Give or remove this role, and set levels and KPI targets",
+        "boards": "No board access: they cannot open or edit a board they are not a member of",
+        "audited": "Every grant, removal and refused attempt is written to the audit log."
+      },
+      "showAll_one": "Show all {{count}} account",
+      "showAll_other": "Show all {{count}} accounts"
+    },
+    "title": "Administration",
+    "skipToContent": "Skip to content",
+    "live": "Live",
+    "connecting": "Connecting…",
+    "groups": {
+      "insights": "Insights",
+      "security": "Security"
+    },
+    "attention": {
+      "title": "Needs attention",
+      "items": {
+        "single_superadmin_one": "active superadmin. Add a second, so access survives a lost account.",
+        "single_superadmin_other": "active superadmin. Add a second, so access survives a lost account.",
+        "stale_work_one": "task has been in progress for 30 days or more",
+        "stale_work_other": "tasks have been in progress for 30 days or more"
+      },
+      "share": "{{percent}} of the {{total}} in flight"
+    },
+    "auditLog": {
+      "viewAll": "View audit log →",
+      "description": "Every elevated action, newest first. Append-only: no entry can be edited or removed, by anyone.",
+      "filterLabel": "Kind of change",
+      "filters": {
+        "all": "All",
+        "roles": "Superadmin role",
+        "seniority": "Levels",
+        "kpi": "KPI targets",
+        "workflow": "Workflow repairs"
+      },
+      "actor": "By",
+      "target": "Target",
+      "change": "Change",
+      "viaBootstrap": "server bootstrap",
+      "kpiChange": "{{daily}} per day · {{weekly}} per week",
+      "workflowChange": "version {{from}} → {{to}}",
+      "member": "Member",
+      "noLevel": "No level",
+      "time": "Time",
+      "byLine": "by {{name}}",
+      "complete_one": "{{count}} entry, newest first — everything recorded for this filter.",
+      "complete_other": "{{count}} entries, newest first — everything recorded for this filter.",
+      "capped_one": "The newest {{count}} entries are shown. Older entries are kept, but this page cannot page back to them yet.",
+      "capped_other": "The newest {{count}} entries are shown. Older entries are kept, but this page cannot page back to them yet.",
+      "empty": {
+        "title": "Nothing recorded yet",
+        "all": "Superadmin grants and removals, level changes, KPI target edits and workflow repairs appear here as they happen.",
+        "roles": "Superadmin grants, removals and refused attempts appear here as they happen.",
+        "seniority": "Level changes made on a person's page appear here.",
+        "kpi": "Edits to KPI targets appear here.",
+        "workflow": "Workflow repairs published from the admin area appear here."
+      }
+    },
+    "loadHint": "Completed tasks · {{active}} of {{total}} delivered",
+    "loadEmpty": "Nothing was completed in this period.",
+    "rightNow": "Right now",
+    "ofTotalRate": "of {{total}} total · {{rate}}"
   },
   "starred": {
     "title": "Starred",
