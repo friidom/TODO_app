@@ -1,6 +1,8 @@
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 import { MessageSquareIcon, PinIcon } from "lucide-react";
+import { IssueRefText } from "@/components/todo/IssueKey";
+import { useIssueResolver } from "@/hooks/useIssueResolver";
 
 import SectionHeader, { EmptyLine } from "@/components/todo/SectionHeader";
 import {
@@ -120,6 +122,7 @@ export function CommentRow({
   const update = useUpdateComment();
   const remove = useDeleteComment();
   const pin = usePinComment(todoId);
+  const resolve = useIssueResolver();
   const pinned = Boolean(comment.pinned_at);
 
   const [draft, setDraft] = useState<string | null>(null);
@@ -241,7 +244,7 @@ export function CommentRow({
         ) : (
           <>
             <p className="text-ink-2 mt-0.5 text-sm leading-relaxed break-words whitespace-pre-wrap">
-              {comment.content}
+              <IssueRefText text={comment.content} resolve={resolve} />
             </p>
 
             {(mayEdit || mayDelete || canEditTodos) && (

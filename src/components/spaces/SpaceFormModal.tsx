@@ -21,7 +21,7 @@ export default function SpaceFormModal({
   space,
   onClose,
 }: {
-  space?: ISpace;
+  space?: Pick<ISpace, "id" | "title">;
   onClose: () => void;
 }) {
   const { t } = useTranslation();

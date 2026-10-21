@@ -111,6 +111,7 @@ export default function MembersDrawer({ boardId }: { boardId: string }) {
       <InvitePeopleModal
         open={inviteOpen}
         onClose={() => setInviteOpen(false)}
+        boardId={boardId}
       />
     </div>
   );

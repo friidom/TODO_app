@@ -18,6 +18,8 @@ export interface Notification {
   actor_id: string | null;
   payload: {
     board_title?: string;
+    // set only on a space invitation (0042)
+    space_title?: string;
     todo_title?: string;
     actor_name?: string | null;
     role?: string;
@@ -86,8 +88,12 @@ export function notificationText(notification: Notification): {
     notification.payload.board_title || i18n.t("notifications.aBoard");
 
   if (notification.type === "invite") {
+    const space = notification.payload.space_title;
+
     return {
-      title: i18n.t("notifications.invited", { actor, board }),
+      title: space
+        ? i18n.t("notifications.invitedSpace", { actor, space })
+        : i18n.t("notifications.invited", { actor, board }),
       detail: notification.payload.role
         ? i18n.t("notifications.asRole", {
             role: roleLabel(notification.payload.role).toLowerCase(),

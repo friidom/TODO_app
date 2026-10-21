@@ -1,7 +1,55 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { type TodoPatch } from "./todoApi";
+import { addBacklogItem, addTodo, type TodoPatch } from "./todoApi";
 import { TODO_FIELDS } from "@/types/data";
+
+const { post } = vi.hoisted(() => ({
+  post: vi.fn((_path: string, body: unknown) => Promise.resolve(body)),
+}));
+
+vi.mock("../api/client", () => ({
+  api: { post },
+  ApiError: class ApiError extends Error {},
+}));
+
+const sentBody = () => post.mock.calls.at(-1)?.[1] as Record<string, unknown>;
+
+describe("a new work item's priority", () => {
+  const base = {
+    id: "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+    title: "New",
+    status_id: "s1",
+    board_id: "11111111-1111-4111-8111-111111111111",
+  };
+
+  beforeEach(() => post.mockClear());
+
+  it("is medium when the caller names none (quick create)", async () => {
+    await addTodo(base);
+
+    expect(sentBody().priority).toBe("medium");
+  });
+
+  it("is medium for a child item too", async () => {
+    await addTodo({ ...base, parent_id: "epic-1" });
+
+    expect(sentBody().priority).toBe("medium");
+  });
+
+  it("keeps an explicit choice, including an explicit none", async () => {
+    await addTodo({ ...base, priority: "highest" });
+    expect(sentBody().priority).toBe("highest");
+
+    await addTodo({ ...base, priority: null });
+    expect(sentBody().priority).toBeNull();
+  });
+
+  it("is medium for an item created in the Backlog", async () => {
+    await addBacklogItem({ ...base, backlog_rank: 1 });
+
+    expect(sentBody().priority).toBe("medium");
+  });
+});
 
 describe("TODO_FIELDS", () => {
   it("names no field twice", () => {

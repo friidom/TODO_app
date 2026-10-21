@@ -151,6 +151,22 @@ describe("what a notification says", () => {
     expect(detail).toBe("As editor");
   });
 
+  it("names the space for a space invitation", () => {
+    const { title } = notificationText(
+      notification({
+        type: "invite",
+        payload: {
+          actor_name: "Ada",
+          board_title: "Ops",
+          space_title: "Platform",
+          role: "viewer",
+        },
+      }),
+    );
+
+    expect(title).toBe("Ada invited you to Platform");
+  });
+
   it("survives an actor whose account has since been deleted", () => {
     // actor_id is on delete set null — "Someone" beats an empty string on screen
     const { title } = notificationText(

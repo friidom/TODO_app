@@ -13,7 +13,9 @@ import {
   MIN_COLUMN_WIDTH,
   MIN_PINNED_COLUMN_WIDTH,
   normalizeListColumnWidths,
+  isElasticColumn,
   withListColumnWidth,
+  withListColumnWidths,
   normalizeListColumns,
   offeredListColumns,
   readListColumnWidths,
@@ -164,6 +166,31 @@ describe("column widths", () => {
       withListColumnWidth({ status: 300 }, "status", LIST_COLUMNS.status.width),
     ).toEqual({});
     expect(withListColumnWidth({ status: 300 }, "status", null)).toEqual({});
+  });
+
+  it("keeps any explicit width for the elastic column, its default included", () => {
+    expect(withListColumnWidth({}, "work", LIST_COLUMNS.work.width)).toEqual({
+      work: LIST_COLUMNS.work.width,
+    });
+  });
+
+  it("treats the pinned column as elastic only until it has a width", () => {
+    expect(isElasticColumn(LIST_COLUMNS.work, {})).toBe(true);
+    expect(isElasticColumn(LIST_COLUMNS.work, { work: 400 })).toBe(false);
+    expect(isElasticColumn(LIST_COLUMNS.status, {})).toBe(false);
+  });
+
+  it("applies several widths at once, null resetting one", () => {
+    expect(
+      withListColumnWidths(
+        { status: 300, due: 200 },
+        {
+          work: 640,
+          status: 180,
+          due: null,
+        },
+      ),
+    ).toEqual({ work: 640, status: 180 });
   });
 
   it("repairs whatever storage hands back", () => {

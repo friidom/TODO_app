@@ -274,6 +274,24 @@ describe("POST /boards/:boardId/todos", () => {
     ).toBe(201);
   });
 
+  it("defaults an omitted priority to medium, nested items included", async () => {
+    const { actor, boardId, statusId } = await setup();
+    const epic = await makeTodo(actor, boardId, { title: "Epic", status_id: statusId, type: "Epic" });
+    const task = await makeTodo(actor, boardId, { title: "Task", status_id: statusId, parent_id: epic.id });
+    const subtask = await makeTodo(actor, boardId, { title: "Sub", status_id: statusId, parent_id: task.id });
+
+    expect([epic.priority, task.priority, subtask.priority]).toEqual(["medium", "medium", "medium"]);
+  });
+
+  it("keeps an explicit priority, and an explicit null", async () => {
+    const { actor, boardId, statusId } = await setup();
+    const high = await makeTodo(actor, boardId, { title: "x", status_id: statusId, priority: "high" });
+    const none = await makeTodo(actor, boardId, { title: "y", status_id: statusId, priority: null });
+
+    expect(high.priority).toBe("high");
+    expect(none.priority).toBeNull();
+  });
+
   it("rejects a type and a priority outside the CHECKs", async () => {
     const { actor, boardId, statusId } = await setup();
 
@@ -420,6 +438,24 @@ describe("PATCH /boards/:boardId/todos/:todoId — upsert semantics", () => {
 
     expect(response.body.title).toBe("After");
     expect(await prisma.todos.count({ where: { board_id: boardId } })).toBe(1);
+  });
+
+  it("leaves the priority alone when an edit does not name it", async () => {
+    const { actor, boardId, statusId } = await setup();
+    const low = await makeTodo(actor, boardId, { title: "Low", status_id: statusId, priority: "low" });
+    const none = await makeTodo(actor, boardId, { title: "None", status_id: statusId, priority: null });
+
+    for (const todo of [low, none]) {
+      await client.patch(todosUrl(boardId, `/${todo.id}`), { title: "Renamed" }, { token: actor.token });
+    }
+
+    const rows = await prisma.todos.findMany({
+      where: { id: { in: [low.id, none.id] } },
+      select: { id: true, priority: true },
+    });
+
+    expect(rows.find((row) => row.id === low.id)?.priority).toBe("low");
+    expect(rows.find((row) => row.id === none.id)?.priority).toBeNull();
   });
 
   it("keeps the board_key it was given rather than allocating a second", async () => {

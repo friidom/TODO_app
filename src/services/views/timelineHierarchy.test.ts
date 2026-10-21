@@ -3,11 +3,14 @@ import { describe, expect, it } from "vitest";
 import type { Sprint, Todo } from "@/types/data";
 import { timelineTicks } from "./timeline";
 import {
+  autoSlots,
+  branchIds,
   buildTimelineHierarchy,
-  countHierarchyItems,
-  countPlacedHierarchyItems,
-  placeTimelineHierarchy,
-  undatedTimelineTodos,
+  flattenTimeline,
+  placeSprints,
+  schedulePatches,
+  timelineCounts,
+  type TimelineNode,
 } from "./timelineHierarchy";
 
 let seq = 0;
@@ -56,630 +59,503 @@ function at(day: string): string {
   return `${day}T00:00:00.000Z`;
 }
 
-describe("buildTimelineHierarchy — grouping", () => {
-  it("gives every Epic its own group, even with no Tasks", () => {
-    const e = epic({ id: "e-1" });
+const dated = (start: string, end: string) => ({
+  start_date: at(start),
+  due_date: at(end),
+});
 
-    const hierarchy = buildTimelineHierarchy([e]);
+const build = (todos: Todo[], subtasks = new Map<string, Todo[]>()) =>
+  buildTimelineHierarchy(todos, { subtasks }).epics;
 
-    expect(hierarchy.epics).toHaveLength(1);
-    expect(hierarchy.epics[0].epic.id).toBe("e-1");
-    expect(hierarchy.epics[0].taskCount).toBe(0);
-    expect(hierarchy.epics[0].item).toBeNull();
-  });
-
-  it("shows multiple Epics, each with its own group", () => {
-    const a = epic({ id: "e-1" });
-    const b = epic({ id: "e-2" });
-    const c = epic({ id: "e-3" });
-
-    const hierarchy = buildTimelineHierarchy([a, b, c]);
-
-    expect(hierarchy.epics.map((group) => group.epic.id)).toEqual([
-      "e-1",
-      "e-2",
-      "e-3",
+describe("autoSlots", () => {
+  it("gives four children a 12-day parent's range three days each, in order", () => {
+    expect(autoSlots({ start: "2026-10-01", end: "2026-10-12" }, 4)).toEqual([
+      { start: "2026-10-01", end: "2026-10-03" },
+      { start: "2026-10-04", end: "2026-10-06" },
+      { start: "2026-10-07", end: "2026-10-09" },
+      { start: "2026-10-10", end: "2026-10-12" },
     ]);
   });
 
-  it("nests a Task under its Epic", () => {
-    const e = epic({ id: "e-1" });
-    const task = todo({
-      id: "t-1",
-      parent_id: "e-1",
-      start_date: at("2026-08-10"),
-      due_date: at("2026-08-12"),
-    });
+  it("covers the parent exactly, a remainder going to the later slots", () => {
+    const slots = autoSlots({ start: "2026-10-01", end: "2026-10-12" }, 5);
 
-    const hierarchy = buildTimelineHierarchy([e, task]);
+    expect(slots[0].start).toBe("2026-10-01");
+    expect(slots.at(-1)!.end).toBe("2026-10-12");
 
-    expect(hierarchy.epics[0].tasks.map((t) => t.item.todo.id)).toEqual([
-      "t-1",
-    ]);
+    for (let i = 1; i < slots.length; i += 1) {
+      expect(slots[i].start > slots[i - 1].end).toBe(true);
+    }
   });
 
-  it("does not give a Task with dates but no Epic any row at all", () => {
-    // top-level rows on this view are Epics only — an unparented Task is out of scope, not "top-level"
-    const solo = todo({
-      id: "t-1",
-      start_date: at("2026-08-10"),
-      due_date: at("2026-08-12"),
-    });
+  it("shares days rather than spilling out when children outnumber days", () => {
+    const slots = autoSlots({ start: "2026-10-01", end: "2026-10-02" }, 5);
 
-    const hierarchy = buildTimelineHierarchy([solo]);
+    expect(slots).toHaveLength(5);
 
-    expect(hierarchy.epics).toHaveLength(0);
-
-    const everyTaskId = hierarchy.epics.flatMap((group) =>
-      group.tasks.map((t) => t.item.todo.id),
-    );
-
-    expect(everyTaskId).not.toContain("t-1");
-  });
-
-  it("never appears — a genuine Subtask does not surface as its Task's row nor nested under any Epic", () => {
-    const e = epic({ id: "e-1" });
-    const task = todo({
-      id: "t-1",
-      parent_id: "e-1",
-      start_date: at("2026-08-10"),
-      due_date: at("2026-08-12"),
-    });
-    const subtask = todo({
-      id: "s-1",
-      parent_id: "t-1",
-      start_date: at("2026-08-10"),
-      due_date: at("2026-08-10"),
-    });
-
-    const hierarchy = buildTimelineHierarchy([e, task, subtask]);
-
-    expect(hierarchy.epics[0].tasks.map((t) => t.item.todo.id)).toEqual([
-      "t-1",
-    ]);
-    // Subtask is two levels down, must not inflate the Epic's direct-child taskCount
-    expect(hierarchy.epics[0].taskCount).toBe(1);
-  });
-
-  it("drops a Task whose Epic is not present, rather than making it top-level", () => {
-    const orphan = todo({
-      id: "t-1",
-      parent_id: "epic-not-in-array",
-      start_date: at("2026-08-10"),
-      due_date: at("2026-08-10"),
-    });
-
-    const hierarchy = buildTimelineHierarchy([orphan]);
-
-    expect(hierarchy.epics).toHaveLength(0);
-  });
-
-  it("counts every child toward taskCount, dated or not", () => {
-    const e = epic({ id: "e-1" });
-    const dated = todo({
-      id: "t-1",
-      parent_id: "e-1",
-      start_date: at("2026-08-10"),
-      due_date: at("2026-08-10"),
-    });
-    const undated = todo({ id: "t-2", parent_id: "e-1" });
-
-    const hierarchy = buildTimelineHierarchy([e, dated, undated]);
-
-    expect(hierarchy.epics[0].taskCount).toBe(2);
-    expect(hierarchy.epics[0].tasks).toHaveLength(1);
+    for (const slot of slots) {
+      expect(slot.start >= "2026-10-01" && slot.end <= "2026-10-02").toBe(true);
+      expect(slot.start <= slot.end).toBe(true);
+    }
   });
 });
 
-describe("buildTimelineHierarchy — Epic dates", () => {
-  it("uses the Epic's own explicit dates over any rollup", () => {
-    const e = epic({
-      id: "e-1",
-      start_date: at("2026-08-01"),
-      due_date: at("2026-08-31"),
-    });
-    const task = todo({
-      id: "t-1",
-      parent_id: "e-1",
-      start_date: at("2026-08-10"),
-      due_date: at("2026-08-12"),
-    });
+describe("buildTimelineHierarchy — rows", () => {
+  it("gives every Epic a row, dated or not, and nests its Tasks under it", () => {
+    const a = epic();
+    const b = epic();
+    const task = todo({ parent_id: a.id });
 
-    const hierarchy = buildTimelineHierarchy([e, task]);
-    const group = hierarchy.epics[0];
+    const [first, second] = build([a, b, task]);
 
-    expect(group.item).toMatchObject({
-      start: "2026-08-01",
-      end: "2026-08-31",
-    });
-    expect(group.isDerived).toBe(false);
+    expect(first.todo.id).toBe(a.id);
+    expect(first.children.map((child) => child.todo.id)).toEqual([task.id]);
+    expect(second.children).toEqual([]);
+    expect(first.depth).toBe(0);
+    expect(first.children[0].depth).toBe(1);
   });
 
-  it("rolls up from the earliest start to the latest due date of its Tasks", () => {
-    const e = epic({ id: "e-1" });
+  it("does not give a Task with no Epic a row — this view is the Epic breakdown", () => {
+    const loose = todo(dated("2026-08-21", "2026-08-25"));
+
+    expect(build([loose])).toEqual([]);
+  });
+
+  it("files a genuine Subtask under its Task, as the third level", () => {
+    const e = epic(dated("2026-10-01", "2026-10-31"));
+    const task = todo({ parent_id: e.id });
+    const sub = todo({ parent_id: task.id });
+
+    const [root] = build([e, task], new Map([[task.id, [sub]]]));
+
+    expect(root.children[0].children.map((child) => child.todo.id)).toEqual([
+      sub.id,
+    ]);
+    expect(root.children[0].children[0].depth).toBe(2);
+  });
+
+  it("keeps rows in creation order, so a bar dragged later does not jump rows", () => {
+    const e = epic();
     const early = todo({
-      id: "t-1",
-      parent_id: "e-1",
-      start_date: at("2026-08-05"),
-      due_date: at("2026-08-10"),
+      parent_id: e.id,
+      ...dated("2026-10-20", "2026-10-22"),
     });
     const late = todo({
-      id: "t-2",
-      parent_id: "e-1",
-      start_date: at("2026-08-08"),
-      due_date: at("2026-08-20"),
+      parent_id: e.id,
+      ...dated("2026-10-01", "2026-10-03"),
     });
 
-    const hierarchy = buildTimelineHierarchy([e, early, late]);
-    const group = hierarchy.epics[0];
-
-    expect(group.item).toMatchObject({
-      start: "2026-08-05",
-      end: "2026-08-20",
-    });
-    expect(group.isDerived).toBe(true);
-  });
-
-  it("has no item at all when neither the Epic nor any Task has a date", () => {
-    const e = epic({ id: "e-1" });
-    const undated = todo({ id: "t-1", parent_id: "e-1" });
-
-    const hierarchy = buildTimelineHierarchy([e, undated]);
-
-    expect(hierarchy.epics[0].item).toBeNull();
-    expect(hierarchy.epics[0].isDerived).toBe(false);
-  });
-
-  it("rolls up from a single dated Task, even a point", () => {
-    const e = epic({ id: "e-1" });
-    const point = todo({
-      id: "t-1",
-      parent_id: "e-1",
-      due_date: at("2026-08-14"),
-    });
-
-    const hierarchy = buildTimelineHierarchy([e, point]);
-
-    expect(hierarchy.epics[0].item).toMatchObject({
-      start: "2026-08-14",
-      end: "2026-08-14",
-      isPoint: false, // group's rolled-up span, not the child's own shape
-    });
-  });
-});
-
-describe("placeTimelineHierarchy", () => {
-  const ticks = timelineTicks("weeks", "2026-08-17"); // 2026-08-17 .. 09-27
-
-  it("keeps a bare Epic (no dates anywhere) regardless of the window", () => {
-    const e = epic({ id: "e-1" });
-
-    const hierarchy = buildTimelineHierarchy([e]);
-    const placed = placeTimelineHierarchy(hierarchy, ticks, "weeks");
-
-    expect(placed.epics).toHaveLength(1);
-    expect(placed.epics[0].place).toBeNull();
-  });
-
-  it("drops an Epic whose own range and every Task are off-window", () => {
-    const e = epic({
-      id: "e-1",
-      start_date: at("2026-01-01"),
-      due_date: at("2026-01-05"),
-    });
-
-    const hierarchy = buildTimelineHierarchy([e]);
-    const placed = placeTimelineHierarchy(hierarchy, ticks, "weeks");
-
-    expect(placed.epics).toHaveLength(0);
-  });
-
-  it("keeps the group when a Task is in-window even if the Epic's own range is not", () => {
-    const e = epic({
-      id: "e-1",
-      start_date: at("2026-01-01"),
-      due_date: at("2026-01-05"),
-    });
-    const task = todo({
-      id: "t-1",
-      parent_id: "e-1",
-      start_date: at("2026-08-18"),
-      due_date: at("2026-08-19"),
-    });
-
-    const hierarchy = buildTimelineHierarchy([e, task]);
-    const placed = placeTimelineHierarchy(hierarchy, ticks, "weeks");
-
-    expect(placed.epics).toHaveLength(1);
-    expect(placed.epics[0].place).toBeNull(); // Epic's own bar is still off-window
-    expect(placed.epics[0].tasks).toHaveLength(1);
-  });
-
-  it("never places a dated, unparented Task — there is no row for it to occupy", () => {
-    const solo = todo({
-      id: "t-1",
-      start_date: at("2026-08-18"),
-      due_date: at("2026-08-19"),
-    });
-
-    const hierarchy = buildTimelineHierarchy([solo]);
-    const placed = placeTimelineHierarchy(hierarchy, ticks, "weeks");
-
-    expect(placed.epics).toHaveLength(0);
-  });
-});
-
-describe("countHierarchyItems / countPlacedHierarchyItems", () => {
-  const ticks = timelineTicks("weeks", "2026-08-17");
-
-  it("agrees when everything is inside the window", () => {
-    const e = epic({
-      id: "e-1",
-      start_date: at("2026-08-17"),
-      due_date: at("2026-08-20"),
-    });
-    const task = todo({
-      id: "t-1",
-      parent_id: "e-1",
-      start_date: at("2026-08-18"),
-      due_date: at("2026-08-19"),
-    });
-
-    const hierarchy = buildTimelineHierarchy([e, task]);
-    const placed = placeTimelineHierarchy(hierarchy, ticks, "weeks");
-
-    expect(countHierarchyItems(hierarchy)).toBe(2);
-    expect(countPlacedHierarchyItems(placed)).toBe(2);
-  });
-
-  it("differs by exactly what the window drops", () => {
-    const here = epic({
-      id: "e-1",
-      start_date: at("2026-08-18"),
-      due_date: at("2026-08-19"),
-    });
-    const gone = epic({
-      id: "e-2",
-      start_date: at("2026-01-01"),
-      due_date: at("2026-01-05"),
-    });
-
-    const hierarchy = buildTimelineHierarchy([here, gone]);
-    const placed = placeTimelineHierarchy(hierarchy, ticks, "weeks");
-
-    expect(countHierarchyItems(hierarchy)).toBe(2);
-    expect(countPlacedHierarchyItems(placed)).toBe(1);
-  });
-
-  it("never counts a dated, unparented Task in either total", () => {
-    const solo = todo({
-      id: "t-1",
-      start_date: at("2026-08-18"),
-      due_date: at("2026-08-19"),
-    });
-
-    const hierarchy = buildTimelineHierarchy([solo]);
-    const placed = placeTimelineHierarchy(hierarchy, ticks, "weeks");
-
-    expect(countHierarchyItems(hierarchy)).toBe(0);
-    expect(countPlacedHierarchyItems(placed)).toBe(0);
-  });
-});
-
-describe("undatedTimelineTodos", () => {
-  it("excludes Epics — they already have a header row regardless of dates", () => {
-    const e = epic({ id: "e-1" });
-    const child = todo({ id: "t-1", parent_id: "e-1" });
-
-    expect(undatedTimelineTodos([e, child]).map((t) => t.id)).toEqual(["t-1"]);
-  });
-
-  it("still lists a dateless Task that belongs to an Epic", () => {
-    const e = epic({ id: "e-1" });
-    const child = todo({ id: "t-1", parent_id: "e-1" });
-
-    expect(undatedTimelineTodos([e, child]).map((t) => t.id)).toEqual(["t-1"]);
-  });
-
-  it("excludes a dateless, unparented Task — it is out of scope for this whole view", () => {
-    const orphan = todo({ id: "t-1" });
-
-    expect(undatedTimelineTodos([orphan])).toHaveLength(0);
-  });
-
-  it("is narrower than `unscheduledTodos`, by exactly the unparented Tasks", () => {
-    const e = epic({ id: "e-1" });
-    const owned = todo({ id: "t-1", parent_id: "e-1" });
-    const orphan = todo({ id: "t-2" });
-
-    expect(undatedTimelineTodos([e, owned, orphan]).map((t) => t.id)).toEqual([
-      "t-1",
+    expect(build([e, late, early])[0].children.map((c) => c.todo.id)).toEqual([
+      early.id,
+      late.id,
     ]);
   });
 });
 
-describe("buildTimelineHierarchy — Sprint rows", () => {
-  it("shows a Sprint with both dates as its own row", () => {
+describe("buildTimelineHierarchy — where a range comes from", () => {
+  it("uses an Epic's own dates over any rollup", () => {
+    const e = epic(dated("2026-10-05", "2026-10-30"));
+    todo({ parent_id: e.id });
+
+    const [root] = build([
+      e,
+      todo({ parent_id: e.id, ...dated("2026-11-01", "2026-11-02") }),
+    ]);
+
+    expect(root.source).toBe("explicit");
+    expect(root.range).toEqual({ start: "2026-10-05", end: "2026-10-30" });
+  });
+
+  it("derives an undated Epic from its dated children", () => {
+    const e = epic();
+    const a = todo({ parent_id: e.id, ...dated("2026-10-01", "2026-10-08") });
+    const b = todo({ parent_id: e.id, ...dated("2026-10-10", "2026-10-14") });
+
+    const [root] = build([e, a, b]);
+
+    expect(root.source).toBe("derived");
+    expect(root.range).toEqual({ start: "2026-10-01", end: "2026-10-14" });
+  });
+
+  it("reads a single date as a point, never as a range nobody set", () => {
+    const e = epic({ due_date: at("2026-10-22") });
+
+    expect(build([e])[0]).toMatchObject({
+      source: "point",
+      range: { start: "2026-10-22", end: "2026-10-22" },
+    });
+  });
+
+  it("has nothing to go on with no dates anywhere", () => {
+    const e = epic();
+    const task = todo({ parent_id: e.id });
+
+    const [root] = build([e, task]);
+
+    expect(root.source).toBe("none");
+    expect(root.range).toBeNull();
+    expect(root.children[0].source).toBe("none");
+  });
+
+  it("never lends a Sprint's dates to the work planned into it", () => {
     const s = sprint({
       id: "s-1",
-      start_date: at("2026-08-01"),
-      end_date: at("2026-09-01"),
+      start_date: at("2026-09-18"),
+      end_date: at("2026-10-02"),
     });
-
-    const hierarchy = buildTimelineHierarchy([], [s]);
-
-    expect(hierarchy.sprints).toHaveLength(1);
-    expect(hierarchy.sprints[0]).toMatchObject({
-      start: "2026-08-01",
-      end: "2026-09-01",
+    const e = epic(dated("2026-10-05", "2026-10-30"));
+    const own = todo({
+      parent_id: e.id,
+      sprint_id: "s-1",
+      ...dated("2026-10-12", "2026-10-20"),
     });
-    expect(hierarchy.sprints[0].sprint.id).toBe("s-1");
-  });
+    const bare = todo({ parent_id: e.id, sprint_id: "s-1" });
 
-  it("shows multiple Sprints, each with its own range", () => {
-    const s1 = sprint({
-      id: "s-1",
-      start_date: at("2026-08-01"),
-      end_date: at("2026-08-14"),
+    const [root] = buildTimelineHierarchy([e, own, bare], {
+      sprints: [s],
+    }).epics;
+
+    expect(root.children[0].range).toEqual({
+      start: "2026-10-12",
+      end: "2026-10-20",
     });
-    const s2 = sprint({
-      id: "s-2",
-      start_date: at("2026-08-15"),
-      end_date: at("2026-08-28"),
-    });
-
-    const hierarchy = buildTimelineHierarchy([], [s1, s2]);
-
-    expect(hierarchy.sprints.map((s) => s.sprint.id)).toEqual(["s-1", "s-2"]);
-    expect(hierarchy.sprints[0]).toMatchObject({
-      start: "2026-08-01",
-      end: "2026-08-14",
-    });
-    expect(hierarchy.sprints[1]).toMatchObject({
-      start: "2026-08-15",
-      end: "2026-08-28",
-    });
-  });
-
-  it("is not shown at all with no dates -- not a bare row like an Epic gets", () => {
-    const s = sprint({ id: "s-1" });
-
-    expect(buildTimelineHierarchy([], [s]).sprints).toHaveLength(0);
-  });
-
-  it("is not shown with only a start date", () => {
-    const s = sprint({ id: "s-1", start_date: at("2026-08-01") });
-
-    expect(buildTimelineHierarchy([], [s]).sprints).toHaveLength(0);
-  });
-
-  it("is not shown with only an end date", () => {
-    const s = sprint({ id: "s-1", end_date: at("2026-09-01") });
-
-    expect(buildTimelineHierarchy([], [s]).sprints).toHaveLength(0);
-  });
-
-  it("defaults to no Sprint rows when the argument is omitted", () => {
-    const e = epic({ id: "e-1" });
-
-    expect(buildTimelineHierarchy([e]).sprints).toEqual([]);
+    expect(root.children[0].source).toBe("explicit");
+    expect(root.children[1].source).toBe("auto");
+    expect(root.children[1].range!.start >= "2026-10-05").toBe(true);
   });
 });
 
-describe("buildTimelineHierarchy — Sprint-bound Tasks", () => {
-  it("clamps a Sprint-bound Task's range to its Sprint's, ignoring its own dates", () => {
-    const s = sprint({
-      id: "s-1",
-      start_date: at("2026-08-01"),
-      end_date: at("2026-09-01"),
-    });
-    const e = epic({ id: "e-1" });
-    const task = todo({
-      id: "t-1",
-      parent_id: "e-1",
-      sprint_id: "s-1",
-      // far from the Sprint's dates — must never win
-      start_date: at("2026-01-01"),
-      due_date: at("2026-01-02"),
-    });
+describe("buildTimelineHierarchy — auto-scheduled children", () => {
+  it("shares a 12-day Epic between four undated children, about 3 days each", () => {
+    const e = epic(dated("2026-10-01", "2026-10-12"));
+    const kids = [1, 2, 3, 4].map(() => todo({ parent_id: e.id }));
 
-    const hierarchy = buildTimelineHierarchy([e, task], [s]);
-    const bound = hierarchy.epics[0].tasks[0];
+    const [root] = build([e, ...kids]);
 
-    expect(bound.item).toMatchObject({ start: "2026-08-01", end: "2026-09-01" });
-    expect(bound.sprintBound).toBe(true);
-  });
-
-  it("clamps a Sprint-bound Task with no dates of its own the same way", () => {
-    const s = sprint({
-      id: "s-1",
-      start_date: at("2026-08-01"),
-      end_date: at("2026-09-01"),
-    });
-    const e = epic({ id: "e-1" });
-    const task = todo({ id: "t-1", parent_id: "e-1", sprint_id: "s-1" });
-
-    const hierarchy = buildTimelineHierarchy([e, task], [s]);
-
-    expect(hierarchy.epics[0].tasks[0].item).toMatchObject({
-      start: "2026-08-01",
-      end: "2026-09-01",
-    });
-  });
-
-  it("matches the Sprint's start exactly", () => {
-    const s = sprint({
-      id: "s-1",
-      start_date: at("2026-08-01"),
-      end_date: at("2026-09-01"),
-    });
-    const e = epic({ id: "e-1" });
-    const task = todo({
-      id: "t-1",
-      parent_id: "e-1",
-      sprint_id: "s-1",
-      start_date: at("2026-08-15"),
-      due_date: at("2026-08-20"),
-    });
-
-    const hierarchy = buildTimelineHierarchy([e, task], [s]);
-
-    expect(hierarchy.epics[0].tasks[0].item.start).toBe("2026-08-01");
-  });
-
-  it("matches the Sprint's end exactly", () => {
-    const s = sprint({
-      id: "s-1",
-      start_date: at("2026-08-01"),
-      end_date: at("2026-09-01"),
-    });
-    const e = epic({ id: "e-1" });
-    const task = todo({
-      id: "t-1",
-      parent_id: "e-1",
-      sprint_id: "s-1",
-      start_date: at("2026-08-15"),
-      due_date: at("2026-08-20"),
-    });
-
-    const hierarchy = buildTimelineHierarchy([e, task], [s]);
-
-    expect(hierarchy.epics[0].tasks[0].item.end).toBe("2026-09-01");
-  });
-
-  it("changing the Sprint's dates changes the bound Task's range with it", () => {
-    const e = epic({ id: "e-1" });
-    const task = todo({ id: "t-1", parent_id: "e-1", sprint_id: "s-1" });
-
-    const before = buildTimelineHierarchy(
-      [e, task],
-      [
-        sprint({
-          id: "s-1",
-          start_date: at("2026-08-01"),
-          end_date: at("2026-08-14"),
-        }),
-      ],
+    expect(root.children.map((child) => child.source)).toEqual([
+      "auto",
+      "auto",
+      "auto",
+      "auto",
+    ]);
+    expect(root.children.map((child) => child.range)).toEqual(
+      autoSlots({ start: "2026-10-01", end: "2026-10-12" }, 4),
     );
+  });
 
-    const after = buildTimelineHierarchy(
-      [e, task],
-      [
-        sprint({
-          id: "s-1",
-          start_date: at("2026-09-01"),
-          end_date: at("2026-09-30"),
-        }),
-      ],
-    );
-
-    expect(before.epics[0].tasks[0].item).toMatchObject({
-      start: "2026-08-01",
-      end: "2026-08-14",
+  it("re-flows when a fifth child arrives, and leaves a dated sibling alone", () => {
+    const e = epic(dated("2026-10-01", "2026-10-12"));
+    const manual = todo({
+      parent_id: e.id,
+      ...dated("2026-10-02", "2026-10-03"),
     });
-    expect(after.epics[0].tasks[0].item).toMatchObject({
-      start: "2026-09-01",
-      end: "2026-09-30",
+    const kids = [1, 2, 3, 4].map(() => todo({ parent_id: e.id }));
+
+    const before = build([e, manual, ...kids.slice(0, 3)])[0];
+    const after = build([e, manual, ...kids])[0];
+
+    expect(before.children.filter((c) => c.source === "auto")).toHaveLength(3);
+    expect(after.children.filter((c) => c.source === "auto")).toHaveLength(4);
+    expect(after.children[0].range).toEqual({
+      start: "2026-10-02",
+      end: "2026-10-03",
+    });
+    expect(after.children[0].source).toBe("explicit");
+  });
+
+  it("follows its parent: a resized parent re-flows its auto children", () => {
+    const narrow = epic(dated("2026-10-01", "2026-10-04"));
+    const kid = todo({ parent_id: narrow.id });
+
+    const wide = { ...narrow, ...dated("2026-10-01", "2026-10-20") };
+
+    expect(build([narrow, kid])[0].children[0].range).toEqual({
+      start: "2026-10-01",
+      end: "2026-10-04",
+    });
+    expect(build([wide, kid])[0].children[0].range).toEqual({
+      start: "2026-10-01",
+      end: "2026-10-20",
     });
   });
 
-  it("a Task without a Sprint keeps its own dates, unaffected by any Sprint present", () => {
-    const s = sprint({
-      id: "s-1",
-      start_date: at("2026-08-01"),
-      end_date: at("2026-09-01"),
+  it("nests: a Subtask shares its auto-scheduled Task's own share", () => {
+    const e = epic(dated("2026-10-01", "2026-10-12"));
+    const task = todo({ parent_id: e.id });
+    const subs = [todo({ parent_id: task.id }), todo({ parent_id: task.id })];
+
+    const [root] = build([e, task], new Map([[task.id, subs]]));
+    const [first, second] = root.children[0].children;
+
+    expect(root.children[0].range).toEqual({
+      start: "2026-10-01",
+      end: "2026-10-12",
     });
-    const e = epic({ id: "e-1" });
-    const unplanned = todo({
-      id: "t-1",
-      parent_id: "e-1",
-      sprint_id: null,
-      start_date: at("2026-01-01"),
-      due_date: at("2026-01-05"),
-    });
-
-    const hierarchy = buildTimelineHierarchy([e, unplanned], [s]);
-    const row = hierarchy.epics[0].tasks[0];
-
-    expect(row.item).toMatchObject({ start: "2026-01-01", end: "2026-01-05" });
-    expect(row.sprintBound).toBe(false);
-  });
-
-  it("a Task whose Sprint has no usable range is not bound -- own dates win", () => {
-    const s = sprint({ id: "s-1", start_date: at("2026-08-01") }); // no end_date
-    const e = epic({ id: "e-1" });
-    const task = todo({
-      id: "t-1",
-      parent_id: "e-1",
-      sprint_id: "s-1",
-      start_date: at("2026-01-01"),
-      due_date: at("2026-01-05"),
-    });
-
-    const hierarchy = buildTimelineHierarchy([e, task], [s]);
-    const row = hierarchy.epics[0].tasks[0];
-
-    expect(row.item).toMatchObject({ start: "2026-01-01", end: "2026-01-05" });
-    expect(row.sprintBound).toBe(false);
-  });
-
-  it("a derived Epic rollup reflects its Sprint-bound child's clamped range, not its stored one", () => {
-    const s = sprint({
-      id: "s-1",
-      start_date: at("2026-08-01"),
-      end_date: at("2026-09-01"),
-    });
-    const e = epic({ id: "e-1" });
-    const task = todo({
-      id: "t-1",
-      parent_id: "e-1",
-      sprint_id: "s-1",
-      start_date: at("2026-01-01"),
-      due_date: at("2026-01-02"),
-    });
-
-    const hierarchy = buildTimelineHierarchy([e, task], [s]);
-
-    expect(hierarchy.epics[0].item).toMatchObject({
-      start: "2026-08-01",
-      end: "2026-09-01",
-    });
-    expect(hierarchy.epics[0].isDerived).toBe(true);
+    expect(first.range).toEqual({ start: "2026-10-01", end: "2026-10-06" });
+    expect(second.range).toEqual({ start: "2026-10-07", end: "2026-10-12" });
   });
 });
 
-describe("undatedTimelineTodos — Sprint-bound Tasks", () => {
-  it("excludes a Sprint-bound Task with no dates of its own -- it has a range now", () => {
-    const s = sprint({
-      id: "s-1",
-      start_date: at("2026-08-01"),
-      end_date: at("2026-09-01"),
+describe("buildTimelineHierarchy — limits", () => {
+  it("bounds a child by its parent's own dates", () => {
+    const e = epic(dated("2026-10-01", "2026-10-12"));
+    const task = todo({
+      parent_id: e.id,
+      ...dated("2026-10-02", "2026-10-04"),
     });
-    const e = epic({ id: "e-1" });
-    const bound = todo({ id: "t-1", parent_id: "e-1", sprint_id: "s-1" });
 
-    expect(undatedTimelineTodos([e, bound], [s])).toHaveLength(0);
+    const [root] = build([e, task]);
+
+    expect(root.children[0].limits.bounds).toEqual({
+      start: "2026-10-01",
+      end: "2026-10-12",
+    });
+    expect(root.limits.bounds).toEqual({ start: null, end: null });
   });
 
-  it("still lists an undated Task whose Sprint has no usable range", () => {
-    const s = sprint({ id: "s-1", start_date: at("2026-08-01") }); // no end
-    const e = epic({ id: "e-1" });
-    const task = todo({ id: "t-1", parent_id: "e-1", sprint_id: "s-1" });
+  it("bounds a Subtask by the nearest ancestor that has a date, side by side", () => {
+    const e = epic(dated("2026-10-01", "2026-10-31"));
+    const task = todo({ parent_id: e.id, due_date: at("2026-10-20") });
+    const sub = todo({ parent_id: task.id });
 
-    expect(undatedTimelineTodos([e, task], [s]).map((t) => t.id)).toEqual([
-      "t-1",
+    const [root] = build([e, task], new Map([[task.id, [sub]]]));
+
+    expect(root.children[0].children[0].limits.bounds).toEqual({
+      start: "2026-10-01",
+      end: "2026-10-20",
+    });
+  });
+
+  it("does not bound children by a parent's derived range", () => {
+    const e = epic();
+    const task = todo({
+      parent_id: e.id,
+      ...dated("2026-10-02", "2026-10-04"),
+    });
+
+    expect(build([e, task])[0].children[0].limits.bounds).toEqual({
+      start: null,
+      end: null,
+    });
+  });
+
+  it("makes a parent's resize stop at the children that have dates of their own", () => {
+    const e = epic(dated("2026-10-01", "2026-10-31"));
+    const a = todo({ parent_id: e.id, ...dated("2026-10-05", "2026-10-09") });
+    const b = todo({ parent_id: e.id, ...dated("2026-10-15", "2026-10-20") });
+    const auto = todo({ parent_id: e.id });
+
+    expect(build([e, a, b, auto])[0].limits.contain).toEqual({
+      start: "2026-10-05",
+      end: "2026-10-20",
+    });
+  });
+
+  it("flags existing dates outside the parent without moving them", () => {
+    const e = epic(dated("2026-10-05", "2026-10-30"));
+    const stray = todo({
+      parent_id: e.id,
+      ...dated("2026-11-03", "2026-11-07"),
+    });
+
+    const [root] = build([e, stray]);
+
+    expect(root.children[0].outside).toBe(true);
+    expect(root.children[0].range).toEqual({
+      start: "2026-11-03",
+      end: "2026-11-07",
+    });
+    // an outlier is not what the parent's edge stops at
+    expect(root.limits.contain).toBeNull();
+  });
+});
+
+describe("schedulePatches", () => {
+  const node = (todos: Todo[], subtasks?: Map<string, Todo[]>) =>
+    build(todos, subtasks)[0];
+
+  it("writes both dates for a resize or a move of a dated row", () => {
+    const e = epic(dated("2026-10-01", "2026-10-12"));
+    const root = node([e]);
+
+    expect(
+      schedulePatches(
+        root,
+        root.range,
+        { start: "2026-10-01", end: "2026-10-15" },
+        "end",
+      ),
+    ).toEqual([{ id: e.id, board_id: "b-1", end: "2026-10-15" }]);
+  });
+
+  it("carries the whole branch on a move, keeping each length", () => {
+    const e = epic(dated("2026-10-01", "2026-10-12"));
+    const task = todo({
+      parent_id: e.id,
+      ...dated("2026-10-02", "2026-10-04"),
+    });
+    const pointed = todo({ parent_id: e.id, due_date: at("2026-10-10") });
+    const auto = todo({ parent_id: e.id });
+
+    const root = node([e, task, pointed, auto]);
+    const patches = schedulePatches(
+      root,
+      root.range,
+      { start: "2026-10-08", end: "2026-10-19" },
+      "move",
+    );
+
+    expect(patches).toHaveLength(3);
+    expect(patches).toEqual(
+      expect.arrayContaining([
+        { id: e.id, board_id: "b-1", start: "2026-10-08", end: "2026-10-19" },
+        {
+          id: task.id,
+          board_id: "b-1",
+          start: "2026-10-09",
+          end: "2026-10-11",
+        },
+        { id: pointed.id, board_id: "b-1", end: "2026-10-17" },
+      ]),
+    );
+  });
+
+  it("moves a derived row by moving its children, never inventing its own dates", () => {
+    const e = epic();
+    const task = todo({
+      parent_id: e.id,
+      ...dated("2026-10-02", "2026-10-04"),
+    });
+    const root = node([e, task]);
+
+    expect(
+      schedulePatches(
+        root,
+        root.range,
+        { start: "2026-10-03", end: "2026-10-05" },
+        "move",
+      ),
+    ).toEqual([
+      { id: task.id, board_id: "b-1", start: "2026-10-03", end: "2026-10-05" },
     ]);
   });
 
-  it("defaults to the pre-Sprint behaviour when the argument is omitted", () => {
-    const e = epic({ id: "e-1" });
-    const child = todo({ id: "t-1", parent_id: "e-1" });
+  it("gives a derived row dates of its own when an edge is dragged", () => {
+    const e = epic();
+    const task = todo({
+      parent_id: e.id,
+      ...dated("2026-10-02", "2026-10-04"),
+    });
+    const root = node([e, task]);
 
-    expect(undatedTimelineTodos([e, child]).map((t) => t.id)).toEqual(["t-1"]);
+    expect(
+      schedulePatches(
+        root,
+        root.range,
+        { start: "2026-10-02", end: "2026-10-09" },
+        "end",
+      ),
+    ).toEqual([
+      { id: e.id, board_id: "b-1", start: "2026-10-02", end: "2026-10-09" },
+    ]);
+  });
+
+  it("never invents the missing half of a point on a move", () => {
+    const e = epic({ due_date: at("2026-10-22") });
+    const root = node([e]);
+
+    expect(
+      schedulePatches(
+        root,
+        root.range,
+        { start: "2026-10-24", end: "2026-10-24" },
+        "move",
+      ),
+    ).toEqual([{ id: e.id, board_id: "b-1", end: "2026-10-24" }]);
+  });
+
+  it("turns an auto row into a dated one, and a drawn one too", () => {
+    const e = epic(dated("2026-10-01", "2026-10-12"));
+    const kid = todo({ parent_id: e.id });
+    const root = node([e, kid]);
+    const child = root.children[0];
+
+    expect(
+      schedulePatches(
+        child,
+        child.range,
+        { start: "2026-10-03", end: "2026-10-14" },
+        "move",
+      ),
+    ).toEqual([
+      { id: kid.id, board_id: "b-1", start: "2026-10-03", end: "2026-10-14" },
+    ]);
+
+    const bare = node([epic()]);
+
+    expect(
+      schedulePatches(
+        bare,
+        null,
+        { start: "2026-10-01", end: "2026-10-02" },
+        "draw",
+      ),
+    ).toEqual([
+      {
+        id: bare.todo.id,
+        board_id: "b-1",
+        start: "2026-10-01",
+        end: "2026-10-02",
+      },
+    ]);
+  });
+
+  it("writes nothing when a gesture ends where it began", () => {
+    const e = epic(dated("2026-10-01", "2026-10-12"));
+    const root = node([e]);
+
+    expect(schedulePatches(root, root.range, root.range!, "move")).toEqual([]);
   });
 });
 
-describe("placeTimelineHierarchy — Sprint rows", () => {
+describe("flattenTimeline / timelineCounts / branchIds", () => {
+  const e = epic(dated("2026-10-01", "2026-10-12"));
+  const task = todo({ parent_id: e.id });
+  const sub = todo({ parent_id: task.id });
+  const lonely = epic();
+  const tree = build([e, task, lonely], new Map([[task.id, [sub]]]));
+
+  it("hides a collapsed branch and shows an open one", () => {
+    const ids = (open: string[]) =>
+      flattenTimeline(tree, (node: TimelineNode) =>
+        open.includes(node.todo.id),
+      ).map((node) => node.todo.id);
+
+    expect(ids([])).toEqual([e.id, lonely.id]);
+    expect(ids([e.id])).toEqual([e.id, task.id, lonely.id]);
+    expect(ids([e.id, task.id])).toEqual([e.id, task.id, sub.id, lonely.id]);
+  });
+
+  it("counts undated rows and rows outside the window", () => {
+    const october = timelineTicks("weeks", "2026-10-05");
+    const later = timelineTicks("weeks", "2027-03-01");
+
+    expect(timelineCounts(tree, october, "weeks")).toEqual({
+      undated: 1,
+      offWindow: 0,
+    });
+    expect(timelineCounts(tree, later, "weeks")).toEqual({
+      undated: 1,
+      offWindow: 3,
+    });
+  });
+
+  it("names every row a move of the root carries", () => {
+    expect([...branchIds(tree[0])]).toEqual([task.id, sub.id]);
+  });
+});
+
+describe("placeSprints — Sprint rows", () => {
   const ticks = timelineTicks("weeks", "2026-08-17"); // 2026-08-17 .. 09-27
 
   it("places a Sprint whose range intersects the window", () => {
@@ -689,11 +565,11 @@ describe("placeTimelineHierarchy — Sprint rows", () => {
       end_date: at("2026-08-25"),
     });
 
-    const hierarchy = buildTimelineHierarchy([], [s]);
-    const placed = placeTimelineHierarchy(hierarchy, ticks, "weeks");
+    const hierarchy = buildTimelineHierarchy([], { sprints: [s] });
+    const placed = placeSprints(hierarchy.sprints, ticks, "weeks");
 
-    expect(placed.sprints).toHaveLength(1);
-    expect(placed.sprints[0].item.sprint.id).toBe("s-1");
+    expect(placed).toHaveLength(1);
+    expect(placed[0].item.sprint.id).toBe("s-1");
   });
 
   it("drops a Sprint entirely outside the window -- no fallback row", () => {
@@ -703,22 +579,21 @@ describe("placeTimelineHierarchy — Sprint rows", () => {
       end_date: at("2026-01-14"),
     });
 
-    const hierarchy = buildTimelineHierarchy([], [s]);
-    const placed = placeTimelineHierarchy(hierarchy, ticks, "weeks");
+    const hierarchy = buildTimelineHierarchy([], { sprints: [s] });
 
-    expect(placed.sprints).toHaveLength(0);
+    expect(placeSprints(hierarchy.sprints, ticks, "weeks")).toHaveLength(0);
   });
 });
 
-describe("placeTimelineHierarchy — Sprint lanes and angled ends", () => {
+describe("placeSprints — Sprint lanes and angled ends", () => {
   const ticks = timelineTicks("weeks", "2026-08-17"); // 2026-08-17 .. 09-27
 
   const placeAll = (sprints: Sprint[]) =>
-    placeTimelineHierarchy(
-      buildTimelineHierarchy([], sprints),
+    placeSprints(
+      buildTimelineHierarchy([], { sprints }).sprints,
       ticks,
       "weeks",
-    ).sprints;
+    );
 
   it("keeps every non-overlapping Sprint on one lane", () => {
     const first = sprint({
@@ -813,5 +688,28 @@ describe("placeTimelineHierarchy — Sprint lanes and angled ends", () => {
     expect(placeAll([first, overlapping, later]).map((s) => s.lane)).toEqual([
       0, 1, 0,
     ]);
+  });
+
+  it("hands over mid-week on one lane at the month scale, where both share a week column", () => {
+    const first = sprint({
+      id: "s-1",
+      start_date: at("2026-08-03"),
+      end_date: at("2026-08-12"),
+    });
+    const second = sprint({
+      id: "s-2",
+      start_date: at("2026-08-13"),
+      end_date: at("2026-08-26"),
+    });
+
+    const placed = placeSprints(
+      buildTimelineHierarchy([], { sprints: [first, second] }).sprints,
+      timelineTicks("months", "2026-08-17"),
+      "months",
+    );
+
+    expect(placed.map((s) => s.lane)).toEqual([0, 0]);
+    expect(placed[0].angledEnd).toBe(true);
+    expect(placed[1].angledStart).toBe(true);
   });
 });

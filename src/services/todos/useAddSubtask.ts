@@ -1,10 +1,15 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { DEFAULT_PRIORITY } from "@/constants/priorities";
 import { DEFAULT_WORK_TYPE } from "@/constants/workTypes";
 import { useBoardId } from "@/hooks/useBoardId";
 import { queryKeys } from "@/services/queryClient/queryKeys";
 import type { Todo } from "@/types/data";
-import { applySubtaskInserted, applyTodoUpdated } from "./cache";
+import {
+  applySubtaskInserted,
+  applyTodoDeleted,
+  applyTodoUpdated,
+} from "./cache";
 import { addTodo } from "./todoApi";
 
 export interface AddSubtaskVars {
@@ -53,7 +58,7 @@ export function useAddSubtask() {
         parent_id: parentId,
         board_key: null,
         type: DEFAULT_WORK_TYPE,
-        priority: null,
+        priority: DEFAULT_PRIORITY,
         assignee_id: null,
         estimate: null,
         start_date: null,
@@ -76,10 +81,13 @@ export function useAddSubtask() {
       return { previousTodos };
     },
 
-    onError: (_err, _vars, context) => {
-      if (!context) return;
-
-      queryClient.setQueryData(queryKeys.todos(boardId), context.previousTodos);
+    // Only this create's own row: restoring the snapshot would also undo a
+    // subtask added right after it, the way useAddTodo learned not to.
+    onError: (_err, { id }) => {
+      queryClient.setQueryData<Todo[]>(
+        queryKeys.todos(boardId),
+        (rows) => rows && applyTodoDeleted(rows, id),
+      );
     },
 
     onSuccess: (serverTodo) => {

@@ -13,6 +13,8 @@ import {
   boardInviteesRoutes,
   boardInvitesRoutes,
   invitesRoutes,
+  spaceInviteesRoutes,
+  spaceInvitesRoutes,
 } from "../modules/invites/invites.routes.js";
 import { membersRoutes } from "../modules/members/members.routes.js";
 import { boardSprintsRoutes, sprintsRoutes } from "../modules/sprints/sprints.routes.js";
@@ -42,6 +44,8 @@ apiRouter.use("/auth", authRoutes);
 apiRouter.use("/users", usersRoutes);
 apiRouter.use("/spaces", spacesRoutes);
 apiRouter.use("/spaces/:spaceId/integrations/gitlab", spaceGitlabRoutes);
+apiRouter.use("/spaces/:spaceId/invites", spaceInvitesRoutes);
+apiRouter.use("/spaces/:spaceId/invitees", spaceInviteesRoutes);
 apiRouter.use("/invites", invitesRoutes);
 apiRouter.use("/columns", columnsRoutes);
 apiRouter.use("/todos", todosRoutes);

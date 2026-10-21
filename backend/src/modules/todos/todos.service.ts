@@ -12,7 +12,12 @@ import type { BoardContext } from "../members/members.service.js";
 import * as todosRepo from "./todos.repo.js";
 import * as workflowRepo from "../workflow/workflow.repo.js";
 import type { TodoDetailRow, TodoRow, TodoWrite } from "./todos.repo.js";
-import type { CreateTodoInput, MoveTodoInput, UpsertTodoInput } from "./todos.schema.js";
+import {
+  DEFAULT_PRIORITY,
+  type CreateTodoInput,
+  type MoveTodoInput,
+  type UpsertTodoInput,
+} from "./todos.schema.js";
 
 function notFound(): AppError {
   return new AppError("not_found", "Not found.");
@@ -178,6 +183,8 @@ export async function create(
 
   const placements = await requirePlaceableStatus(board, null, input.status_id);
   const write = writeFrom(input);
+
+  if (input.priority === undefined) write.priority = DEFAULT_PRIORITY;
 
   // The append rank the client used to read for itself before sending. Only
   // computed when the card lands in a status and the client did not choose a

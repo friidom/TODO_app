@@ -1,24 +1,19 @@
 import { useTranslation } from "react-i18next";
 import { LayersIcon } from "lucide-react";
 
-import type { TimelineScale } from "@/services/views/timeline";
 import type { PlacedSprint } from "@/services/views/timelineHierarchy";
 import { cn } from "@/utils/cn";
 import { formatDue } from "@/utils/dueDate";
 import { Row } from "./TimelineRow";
-import { trackColumns } from "./timelineAxis";
+import { RAIL, spanStyle } from "./timelineAxis";
 
 export default function TimelineSprintBand({
   sprints,
-  ticks,
-  scale,
   locale,
   today,
   onOpen,
 }: {
   sprints: PlacedSprint[];
-  ticks: string[];
-  scale: TimelineScale;
   locale?: string;
   today: string;
   onOpen: (sprintId: string) => void;
@@ -35,10 +30,7 @@ export default function TimelineSprintBand({
         <Row key={index}>
           <BandRail labelled={index === 0} />
 
-          <div
-            className="grid flex-1 items-center"
-            style={{ gridTemplateColumns: trackColumns(ticks.length, scale) }}
-          >
+          <div className="relative flex-1">
             {lane.map((sprint) => (
               <SprintCapsule
                 key={sprint.item.sprint.id}
@@ -59,7 +51,7 @@ function BandRail({ labelled }: { labelled: boolean }) {
   const { t } = useTranslation();
 
   return (
-    <div className="border-hairline bg-surface sticky left-0 z-10 flex w-40 shrink-0 items-center border-r px-3 md:w-60">
+    <div className={cn(RAIL, "items-center px-3")}>
       {labelled && (
         <span className="text-ink-2 text-xs font-semibold">
           {t("timeline.sprints")}
@@ -113,8 +105,8 @@ function SprintCapsule({
 
   return (
     <div
-      style={{ gridColumn: `${place.index + 1} / span ${place.span}` }}
-      className="flex h-5 items-stretch px-px"
+      style={spanStyle(place.from, place.to, place.total)}
+      className="absolute top-1/2 flex h-5 -translate-y-1/2 items-stretch px-px"
     >
       <button
         type="button"

@@ -23,6 +23,22 @@ export function expiresLabel(
   return i18n.t("invites.expiresIn", { count: days });
 }
 
+// The server counts days from the moment it creates the invite, so this is the
+// instant the dialog can promise.
+export function expiryAfter(days: number, now: Date = new Date()): Date {
+  return new Date(now.getTime() + days * 86_400_000);
+}
+
+export function expiryDate(at: Date | string): string {
+  return new Intl.DateTimeFormat(i18n.language, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(at));
+}
+
 // whole calendar days, not a millisecond division — a 23:00 invite expiring in "7 days" is 6.96 by the clock, which floors wrong
 function daysBetween(from: Date, to: Date): number {
   const MS_PER_DAY = 86_400_000;

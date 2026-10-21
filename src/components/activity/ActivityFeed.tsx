@@ -3,6 +3,8 @@ import { ArrowRightIcon, HistoryIcon } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { IssueRefText } from "@/components/todo/IssueKey";
+import { useIssueResolver } from "@/hooks/useIssueResolver";
 import { memberInitial, memberName } from "@/components/members/memberLabels";
 import { useKeyPrefix } from "@/hooks/useKeyPrefix";
 import { useOpenTask } from "@/hooks/useOpenTask";
@@ -18,6 +20,7 @@ import { useBoardMembers } from "@/services/members/useBoardMembers";
 import type { BoardMember } from "@/services/members/membersApi";
 import { useTodos } from "@/services/todos/useTodos";
 import type { Activity } from "@/types/data";
+import type { IssueTarget } from "@/utils/taskRef";
 import { cn } from "@/utils/cn";
 import { relativeTime } from "@/utils/relativeTime";
 
@@ -37,6 +40,7 @@ export default function ActivityFeed({
   const { data: members = [] } = useBoardMembers(boardId);
   const { data: todos = [] } = useTodos();
   const keyPrefix = useKeyPrefix();
+  const resolve = useIssueResolver();
 
   const { i18n, t } = useTranslation();
 
@@ -139,6 +143,7 @@ export default function ActivityFeed({
                 activity={activity}
                 context={context}
                 members={members}
+                resolve={resolve}
                 compact={compact}
               />
             ))}
@@ -154,11 +159,13 @@ function ActivityRow({
   activity,
   context,
   members,
+  resolve,
   compact = false,
 }: {
   activity: Activity;
   context: ActivityContext;
   members: BoardMember[];
+  resolve: (key: string) => IssueTarget | null;
   compact?: boolean;
 }) {
   const { t } = useTranslation();
@@ -166,6 +173,7 @@ function ActivityRow({
 
   const line = describeActivity(activity, context);
   const actor = members.find((member) => member.id === activity.actor_id);
+  const name = actor ? memberName(actor) : t("presence.someone");
 
   const when = relativeTime(activity.created_at, undefined, { short: compact });
 
@@ -188,10 +196,12 @@ function ActivityRow({
 
   const sentence = (
     <p className="text-ink-2 text-meta min-w-0 leading-snug">
-      <span className="text-ink font-medium">
-        {actor ? memberName(actor) : t("presence.someone")}
-      </span>{" "}
-      {line.text}
+      <span className="text-ink font-medium">{name}</span>{" "}
+      <IssueRefText
+        text={line.text}
+        resolve={resolve}
+        linkClassName="pointer-events-auto relative"
+      />
     </p>
   );
 
@@ -237,22 +247,28 @@ function ActivityRow({
     compact ? "py-1" : "py-1.5",
   );
 
+  // The row's button sits behind its text rather than around it: the keys in
+  // the sentence are links of their own, and a link inside a button is not
+  // allowed. The text lets the pointer through to the row; the keys take it.
   return (
-    <li>
-      {line.taskId !== null ? (
+    <li className="relative">
+      {line.taskId !== null && (
         <button
           type="button"
           onClick={() => openTask(line.taskId!)}
-          className={cn(
-            shell,
-            "hover:bg-ink/[0.05] focus-visible:ring-brand transition-colors outline-none focus-visible:ring-2",
-          )}
-        >
-          {body}
-        </button>
-      ) : (
-        <div className={shell}>{body}</div>
+          aria-label={`${name} ${line.text}`}
+          className="hover:bg-ink/[0.05] focus-visible:ring-brand rounded-control absolute inset-0 transition-colors outline-none focus-visible:ring-2"
+        />
       )}
+
+      <div
+        className={cn(
+          shell,
+          line.taskId !== null && "pointer-events-none relative",
+        )}
+      >
+        {body}
+      </div>
     </li>
   );
 }

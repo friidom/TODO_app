@@ -88,9 +88,23 @@ model board_invites {
   created_by  String?   @db.Uuid
   accepted_at DateTime? @db.Timestamptz(6)
   created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  space_id    String?   @db.Uuid
   boards      boards    @relation(fields: [board_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   profiles    profiles? @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  spaces      spaces?   @relation(fields: [space_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  board_invite_boards board_invite_boards[]
 
+  @@index([board_id])
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model board_invite_boards {
+  invite_id     String        @db.Uuid
+  board_id      String        @db.Uuid
+  board_invites board_invites @relation(fields: [invite_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  boards        boards        @relation(fields: [board_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([invite_id, board_id])
   @@index([board_id])
 }
 
@@ -158,6 +172,7 @@ model boards {
   activities       activities[]
   board_gitlab_projects board_gitlab_projects[]
   board_invites    board_invites[]
+  board_invite_boards board_invite_boards[]
   board_keys       board_keys[]
   board_members    board_members[]
   profiles         profiles        @relation(fields: [owner_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -394,6 +409,7 @@ model spaces {
   updated_at DateTime @default(now()) @db.Timestamptz(6)
   boards     boards[]
   board_gitlab_projects board_gitlab_projects?
+  board_invites board_invites[]
   profiles   profiles @relation(fields: [owner_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([owner_id])

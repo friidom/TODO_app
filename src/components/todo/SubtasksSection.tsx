@@ -34,7 +34,9 @@ import { useStatuses } from "@/services/workflow/useWorkflow";
 import { useSubtaskTable } from "@/stores/subtaskTable";
 import type { IStatus, Todo } from "@/types/data";
 import { cn } from "@/utils/cn";
+import { issueHref } from "@/utils/taskRef";
 import { taskKey } from "@/utils/taskKey";
+import IssueKey from "./IssueKey";
 
 const NO_STATUSES: IStatus[] = [];
 
@@ -262,19 +264,15 @@ function SubtaskRow({
       <div role="cell" className="flex min-w-0 items-center gap-2">
         <WorkTypeIcon className={cn("size-4 shrink-0", workType.tone)} />
 
-        {key !== null ? (
-          <button
-            type="button"
-            onClick={() => openTask(subtask.id)}
-            title={t("list.open", { key })}
-            className="text-brand focus-visible:ring-brand text-meta shrink-0 rounded font-medium tabular-nums outline-none hover:underline focus-visible:ring-2"
-          >
-            {key}
-          </button>
-        ) : (
-          // no key yet means the create is still in flight
-          <span className="text-ink-3/50 text-mini shrink-0">—</span>
-        )}
+        <IssueKey
+          issueKey={key}
+          href={issueHref(key ?? "", {
+            boardId: subtask.board_id,
+            todoId: subtask.id,
+          })}
+          onOpen={() => openTask(subtask.id)}
+          className="text-meta"
+        />
 
         <button
           type="button"

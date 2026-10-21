@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 
+import IssueKey from "@/components/todo/IssueKey";
 import StatusLozenge from "@/components/workflow/StatusLozenge";
 import { PRIORITIES, toPriority } from "@/constants/priorities";
 import {
@@ -11,6 +12,7 @@ import type { FeedItem } from "@/services/forYou/feed";
 import { cn } from "@/utils/cn";
 import { dueStatus, formatDue } from "@/utils/dueDate";
 import { relativeTime } from "@/utils/relativeTime";
+import { issueHref } from "@/utils/taskRef";
 
 const DUE_TONE = {
   overdue: "bg-status-red/12 text-status-red",
@@ -55,13 +57,20 @@ export default function FeedRow({
       ? dueStatus(todo.due_date)
       : null;
 
+  // The row opens from a button behind its content, so the key can be a link
+  // of its own without nesting one interactive element in another.
   return (
-    <li>
+    <li className="relative">
       <button
         type="button"
         onClick={onOpen}
-        className="hover:bg-wash focus-visible:ring-brand rounded-control flex w-full items-center gap-3 px-2 py-2 text-left transition-colors duration-150 outline-none focus-visible:ring-2 sm:px-3"
-      >
+        aria-label={[item.key, todo.title || t("common.untitled")]
+          .filter(Boolean)
+          .join(" ")}
+        className="hover:bg-wash focus-visible:ring-brand rounded-control absolute inset-0 transition-colors duration-150 outline-none focus-visible:ring-2"
+      />
+
+      <div className="pointer-events-none relative flex w-full items-center gap-3 px-2 py-2 text-left sm:px-3">
         <span
           className={cn(
             "grid size-8 shrink-0 place-items-center rounded-lg",
@@ -83,9 +92,15 @@ export default function FeedRow({
 
           <span className="text-ink-3 text-mini mt-0.5 flex min-w-0 items-center gap-1.5">
             {item.key && (
-              <span className="shrink-0 font-medium tabular-nums">
-                {item.key}
-              </span>
+              <IssueKey
+                issueKey={item.key}
+                href={issueHref(item.key, {
+                  boardId: todo.board_id,
+                  todoId: todo.id,
+                })}
+                onOpen={onOpen}
+                className="pointer-events-auto relative shrink-0"
+              />
             )}
 
             {item.key && item.boardName && <span aria-hidden>·</span>}
@@ -144,7 +159,7 @@ export default function FeedRow({
             {relativeTime(item.at, now)}
           </span>
         </span>
-      </button>
+      </div>
     </li>
   );
 }

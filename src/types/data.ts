@@ -118,6 +118,8 @@ export type IBoard = Row<"boards"> & {
   view_tabs?: StoredViewTab[] | null;
   // The board view an admin saved for everyone (0041). unknown: normalizeBoardViewPrefs is what reads it.
   view_settings?: unknown;
+  // The only way a member learns the name of a space they do not own; absent on an optimistic board.
+  space_title?: string | null;
 };
 
 // Owner-only by RLS and not a permission scope — filing a board into a space grants nobody access to it.

@@ -3,6 +3,8 @@ import { z } from "zod";
 const WORK_TYPES = ["Bug", "Task", "Story", "Feature", "Epic"] as const;
 const PRIORITIES = ["lowest", "low", "medium", "high", "highest"] as const;
 
+export const DEFAULT_PRIORITY: (typeof PRIORITIES)[number] = "medium";
+
 const isoDate = z.coerce.date().nullable().optional();
 const rank = z.number().finite().nullable().optional();
 

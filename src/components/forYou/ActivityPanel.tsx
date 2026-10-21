@@ -10,9 +10,11 @@ import {
 import { SkeletonRegion } from "@/components/loading/ViewSkeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { IssueRefText } from "@/components/todo/IssueKey";
 import { groupActivitiesByDay } from "@/services/activities/activityGroups";
 import {
   describeActivity,
+  num,
   type ActivityContext,
 } from "@/services/activities/activityText";
 import type { ActivityPerson } from "@/services/forYou/forYouApi";
@@ -20,6 +22,7 @@ import { useMyActivity } from "@/services/forYou/useForYou";
 import type { Activity, IBoard } from "@/types/data";
 import { cn } from "@/utils/cn";
 import { relativeTime } from "@/utils/relativeTime";
+import { taskKey } from "@/utils/taskKey";
 
 const personName = (person: ActivityPerson) =>
   person.full_name || person.username;
@@ -178,6 +181,17 @@ function ActivityRow({
   const name = person ? personName(person) : t("presence.someone");
   const taskId = line.taskId;
 
+  // the row's own item is already known from the activity, so its key needs no
+  // lookup; any other key in the sentence resolves through /tasks/:ref
+  const itemKey = taskKey(
+    board?.key_prefix ?? "",
+    num(activity.payload, "board_key"),
+  );
+  const resolve = (key: string) =>
+    taskId && key === itemKey
+      ? { boardId: activity.board_id, todoId: taskId }
+      : null;
+
   const body = (
     <>
       <Avatar size="sm" className="mt-0.5 shrink-0">
@@ -189,7 +203,12 @@ function ActivityRow({
 
       <div className="min-w-0 flex-1">
         <p className="text-ink-2 text-meta leading-snug text-pretty">
-          <span className="text-ink font-medium">{name}</span> {line.text}
+          <span className="text-ink font-medium">{name}</span>{" "}
+          <IssueRefText
+            text={line.text}
+            resolve={resolve}
+            linkClassName="pointer-events-auto relative"
+          />
         </p>
 
         {line.detail && (
@@ -222,22 +241,21 @@ function ActivityRow({
 
   const shell = "rounded-control flex w-full gap-2.5 px-2.5 py-2 text-left";
 
+  // behind the text, not around it — see ActivityFeed's row for why
   return (
-    <li>
-      {taskId ? (
+    <li className="relative">
+      {taskId && (
         <button
           type="button"
           onClick={() => onOpen(activity.board_id, taskId)}
-          className={cn(
-            shell,
-            "hover:bg-wash focus-visible:ring-brand transition-colors duration-150 outline-none focus-visible:ring-2",
-          )}
-        >
-          {body}
-        </button>
-      ) : (
-        <div className={shell}>{body}</div>
+          aria-label={`${name} ${line.text}`}
+          className="hover:bg-wash focus-visible:ring-brand rounded-control absolute inset-0 transition-colors duration-150 outline-none focus-visible:ring-2"
+        />
       )}
+
+      <div className={cn(shell, taskId && "pointer-events-none relative")}>
+        {body}
+      </div>
     </li>
   );
 }

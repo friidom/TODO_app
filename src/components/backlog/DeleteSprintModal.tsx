@@ -1,14 +1,13 @@
 import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
 
+import DialogHeader from "@/components/ui/DialogHeader";
 import Modal from "@/components/ui/Modal";
 import {
   DIALOG_ACTIONS,
-  DIALOG_BODY,
   DIALOG_CANCEL,
   DIALOG_DANGER,
   DIALOG_ERROR,
-  DIALOG_TITLE,
 } from "@/components/ui/dialogChrome";
 import { useDeleteSprint } from "@/services/sprints/useSprints";
 import { useTodos } from "@/services/todos/useTodos";
@@ -37,15 +36,16 @@ export default function DeleteSprintModal({
   return (
     <Modal title={t("backlog.deleteSprint")} onClose={onClose}>
       <form onSubmit={handleSubmit}>
-        <h2 className={DIALOG_TITLE}>
-          {t("workflow.deleteQuestion", { name: sprint.name })}
-        </h2>
-
-        <p className={`${DIALOG_BODY} mt-1.5`}>
-          {items.length > 0
-            ? t("backlog.deleteReturns", { count: items.length })
-            : t("backlog.deleteEmpty")}
-        </p>
+        <DialogHeader
+          danger
+          title={t("workflow.deleteQuestion", { name: sprint.name })}
+          description={
+            items.length > 0
+              ? t("backlog.deleteReturns", { count: items.length })
+              : t("backlog.deleteEmpty")
+          }
+          onClose={onClose}
+        />
 
         {deleteSprint.error && (
           <p role="alert" className={DIALOG_ERROR}>

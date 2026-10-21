@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { spaceNameOf } from "./boardSpace";
 import { groupBoardsBySpace } from "./groupBoards";
 import type { IBoard, ISpace } from "@/types/data";
 
@@ -13,11 +14,17 @@ function space(id: string, title: string): ISpace {
   };
 }
 
-function board(id: string, title: string | null, spaceId: string | null) {
+function board(
+  id: string,
+  title: string | null,
+  spaceId: string | null,
+  spaceTitle?: string,
+) {
   return {
     id,
     title,
     space_id: spaceId,
+    space_title: spaceTitle,
     owner_id: "11111111-1111-4111-8111-111111111111",
     description: null,
     icon: null,
@@ -64,8 +71,24 @@ describe("groupBoardsBySpace", () => {
     expect(titles(groups)).toEqual([["Work", []]]);
   });
 
-  it("treats a board in someone else's space as unfiled", () => {
-    // spaces are owner-only, so a teammate's space_id never comes back to us
+  it("files a board in someone else's space under that space, not as unfiled", () => {
+    const theirs = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+    const groups = groupBoardsBySpace(
+      [
+        board("1", "Shared with me", theirs, "Design System"),
+        board("2", "Also shared", theirs, "Design System"),
+      ],
+      [work],
+    );
+
+    expect(titles(groups)).toEqual([
+      ["Design System", ["Also shared", "Shared with me"]],
+      ["Work", []],
+    ]);
+    expect(groups.map((group) => group.owned)).toEqual([false, true]);
+  });
+
+  it("falls back to unfiled only when the space's name never arrived", () => {
     const groups = groupBoardsBySpace(
       [board("1", "Shared with me", "cccccccc-cccc-4ccc-8ccc-cccccccccccc")],
       [work],
@@ -165,5 +188,31 @@ describe("groupBoardsBySpace", () => {
       "Personal",
       "Work",
     ]);
+  });
+});
+
+describe("spaceNameOf", () => {
+  it("names the space a board is filed in, whoever owns it", () => {
+    expect(
+      spaceNameOf(
+        board(
+          "1",
+          "Shared",
+          "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+          "Design System",
+        ),
+      ),
+    ).toBe("Design System");
+  });
+
+  it("finds an owned space for a board the server has not answered for yet", () => {
+    expect(spaceNameOf(board("1", "Draft", work.id), [work])).toBe("Work");
+  });
+
+  it("says unfiled for a board in no space, and nothing for a name it cannot know", () => {
+    expect(spaceNameOf(board("1", "Loose", null))).toBe("Unfiled");
+    expect(
+      spaceNameOf(board("1", "Shared", "cccccccc-cccc-4ccc-8ccc-cccccccccccc")),
+    ).toBeNull();
   });
 });

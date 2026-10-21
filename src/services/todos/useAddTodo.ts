@@ -10,6 +10,7 @@ import type { Todo } from "../../types/data";
 import { useBoardId } from "@/hooks/useBoardId";
 import { useAuth } from "@/services/auth/useAuth";
 import { recordView } from "@/services/forYou/viewed";
+import { DEFAULT_PRIORITY } from "@/constants/priorities";
 import { DEFAULT_WORK_TYPE } from "@/constants/workTypes";
 import { isGenuineSubtask } from "./subtasks";
 import { rankForAppend, rankForDrop } from "@/utils/rank";
@@ -63,7 +64,7 @@ export function useAddTodo() {
       type = DEFAULT_WORK_TYPE,
       parent_id = null,
       sprint_id,
-      priority = null,
+      priority = DEFAULT_PRIORITY,
       estimate = null,
       description = null,
     }: AddTodoInput) => {
@@ -97,7 +98,7 @@ export function useAddTodo() {
       type = DEFAULT_WORK_TYPE,
       parent_id = null,
       sprint_id,
-      priority = null,
+      priority = DEFAULT_PRIORITY,
       estimate = null,
     }) => {
       if (!boardId) throw new Error("useAddTodo ran without a board");

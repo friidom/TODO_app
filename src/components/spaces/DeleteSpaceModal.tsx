@@ -1,14 +1,13 @@
 import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
 
+import DialogHeader from "@/components/ui/DialogHeader";
 import Modal from "@/components/ui/Modal";
 import {
   DIALOG_ACTIONS,
-  DIALOG_BODY,
   DIALOG_CANCEL,
   DIALOG_DANGER,
   DIALOG_ERROR,
-  DIALOG_TITLE,
 } from "@/components/ui/dialogChrome";
 import { useDeleteSpace } from "@/services/spaces/useDeleteSpace";
 import type { ISpace } from "@/types/data";
@@ -19,7 +18,7 @@ export default function DeleteSpaceModal({
   boardCount,
   onClose,
 }: {
-  space: ISpace;
+  space: Pick<ISpace, "id" | "title">;
   boardCount: number;
   onClose: () => void;
 }) {
@@ -28,15 +27,20 @@ export default function DeleteSpaceModal({
 
   return (
     <Modal title={t("sidebar.deleteSpace")} onClose={onClose}>
-      <h2 className={DIALOG_TITLE}>{t("spaces.deleteQuestion")}</h2>
-
-      <p className={`${DIALOG_BODY} mt-2`}>
-        <span className="text-ink font-medium">{space.title}</span>{" "}
-        {t("spaces.willBeRemoved")}{" "}
-        {boardCount > 0
-          ? t("spaces.boardsKept", { count: boardCount })
-          : t("spaces.noBoards")}
-      </p>
+      <DialogHeader
+        danger
+        title={t("spaces.deleteQuestion")}
+        description={
+          <>
+            <span className="text-ink font-medium">{space.title}</span>{" "}
+            {t("spaces.willBeRemoved")}{" "}
+            {boardCount > 0
+              ? t("spaces.boardsKept", { count: boardCount })
+              : t("spaces.noBoards")}
+          </>
+        }
+        onClose={onClose}
+      />
 
       {deleteSpace.error && (
         <p role="alert" className={DIALOG_ERROR}>

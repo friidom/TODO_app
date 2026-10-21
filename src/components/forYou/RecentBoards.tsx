@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { ArrowRightIcon } from "lucide-react";
@@ -6,6 +5,7 @@ import { ArrowRightIcon } from "lucide-react";
 import { SkeletonRegion } from "@/components/loading/ViewSkeleton";
 import { Skeleton } from "@/components/ui/skeleton";
 import { recentBoards } from "@/services/forYou/feed";
+import { spaceNameOf } from "@/services/spaces/boardSpace";
 import type { BoardVisit } from "@/services/forYou/viewed";
 import type { IBoard, ISpace } from "@/types/data";
 
@@ -25,11 +25,6 @@ export default function RecentBoards({
   loading: boolean;
 }) {
   const { t } = useTranslation();
-
-  const spaceById = useMemo(
-    () => new Map(spaces.map((space) => [space.id, space.title])),
-    [spaces],
-  );
 
   const shortcuts = recentBoards(boards, visits, SHOWN);
   const visited = shortcuts.some((shortcut) => shortcut.visitedAt !== null);
@@ -71,9 +66,7 @@ export default function RecentBoards({
         <ul className={GRID}>
           {shortcuts.map(({ board }) => {
             const title = board.title || t("common.untitledBoard");
-            const space = board.space_id
-              ? spaceById.get(board.space_id)
-              : undefined;
+            const space = spaceNameOf(board, spaces);
 
             return (
               <li key={board.id} className="min-w-0">
@@ -93,7 +86,8 @@ export default function RecentBoards({
                       {title}
                     </span>
                     <span className="text-ink-3 text-mini block truncate">
-                      {space ?? t("common.unfiled")} · {board.key_prefix}
+                      {space && `${space} · `}
+                      {board.key_prefix}
                     </span>
                   </span>
                 </Link>

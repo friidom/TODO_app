@@ -32,7 +32,9 @@ import { groupTodos } from "@/services/todos/view";
 import {
   ACTION_COLUMN_WIDTH,
   LIST_COLUMNS,
+  PINNED_COLUMN,
   SELECT_COLUMN_WIDTH,
+  isElasticColumn,
   isListColumnId,
   listColumnWidth,
   resolveListColumns,
@@ -41,8 +43,10 @@ import {
 import { useListColumnWidths, useListColumns } from "@/stores/listColumns";
 import type { IStatus, Todo } from "@/types/data";
 import { cn } from "@/utils/cn";
+import { trackGripReach } from "@/utils/fitColumn";
+import ListBulkBar from "./ListBulkBar";
 import ListCreateRow from "./ListCreateRow";
-import ListHeader from "./ListHeader";
+import ListHeader, { ListColumnGrips } from "./ListHeader";
 import ListRow from "./ListRow";
 import {
   LIST_COLUMN_GROUP,
@@ -55,6 +59,13 @@ import { FRAME, GROUP_ROW_TOP, TABLE } from "./listTable";
 const NO_TODOS: Todo[] = [];
 const NO_CHILDREN: Todo[] = [];
 const NO_STATUSES: IStatus[] = [];
+
+// Module-level, so React sees one ref callback and does not re-observe on every render.
+function trackListGrips(table: HTMLTableElement | null) {
+  return table
+    ? trackGripReach(table, () => table.tHead?.offsetHeight ?? 0)
+    : undefined;
+}
 
 export default function ListView() {
   const { t } = useTranslation();
@@ -140,23 +151,38 @@ export default function ListView() {
     parents.length > 0 && parents.every((id) => expanded.has(id));
 
   // Counted over what the table can show, so a row a filter has since hidden
-  // does not keep "3 selected" alive with nothing ticked on screen.
-  const selectedCount = useMemo(() => {
-    let count = 0;
+  // does not keep "3 selected" alive with nothing ticked on screen — and a bulk
+  // action never reaches a row nobody can see.
+  const selectedTodos = useMemo(() => {
+    const rows: Todo[] = [];
 
     for (const todo of todos) {
-      if (selected.has(todo.id)) count += 1;
+      if (selected.has(todo.id)) rows.push(todo);
 
       for (const child of subtasks.get(todo.id) ?? NO_CHILDREN) {
-        if (selected.has(child.id)) count += 1;
+        if (selected.has(child.id)) rows.push(child);
       }
     }
 
-    return count;
+    return rows;
   }, [todos, subtasks, selected]);
+
+  const selectedCount = selectedTodos.length;
 
   const allSelected =
     todos.length > 0 && todos.every((todo) => selected.has(todo.id));
+
+  // The rows on screen: every top-level row, and the subtasks of the open parents.
+  const selectable = useMemo(
+    () =>
+      todos.flatMap((todo) => [
+        todo.id,
+        ...(expanded.has(todo.id)
+          ? (subtasks.get(todo.id) ?? NO_CHILDREN).map((child) => child.id)
+          : []),
+      ]),
+    [todos, subtasks, expanded],
+  );
 
   // Same target HeaderTodoForm picks.
   const createStatusId = useMemo(() => defaultStatus(statuses)?.id, [statuses]);
@@ -166,7 +192,8 @@ export default function ListView() {
   if (error) return <ViewError error={error} />;
 
   const grouped = view.group !== "none";
-  const span = visibleColumns.length + 2;
+  const span = visibleColumns.length + 3;
+  const pinnedElastic = isElasticColumn(LIST_COLUMNS[PINNED_COLUMN], widths);
   const rowsDraggable = canEditTodos && !view.dndDisabled;
 
   const todoById = (id: string) => rows.find((todo) => todo.id === id);
@@ -244,14 +271,22 @@ export default function ListView() {
   return (
     <div className="motion-safe:animate-in motion-safe:fade-in-0 flex h-full min-h-0 flex-col duration-200">
       <div
-        className={cn(FRAME, "flex min-h-0 flex-1 flex-col overflow-hidden")}
+        className={cn(
+          FRAME,
+          "relative flex min-h-0 flex-1 flex-col overflow-hidden",
+        )}
       >
         {todos.length === 0 ? (
           <div className="min-h-0 flex-1 overflow-auto">
             <EmptyList view={view} />
           </div>
         ) : (
-          <div className="min-h-0 flex-1 overflow-auto">
+          <div
+            className={cn(
+              "min-h-0 flex-1 overflow-auto",
+              selectedCount > 0 && "pb-14",
+            )}
+          >
             <ReorderContext
               onReorder={onReorder}
               describe={describe}
@@ -275,12 +310,15 @@ export default function ListView() {
               }}
             >
               <table
+                ref={trackListGrips}
                 className={TABLE}
                 style={{ minWidth: tableMinWidth(visibleColumns, widths) }}
               >
                 {/* table-fixed reads these, which is what keeps a long title from
                   widening a column and what makes the widths predictable. The
-                  elastic column is left auto so it absorbs the slack. */}
+                  slack goes to the work column until it has a width of its
+                  own, and to the filler after that — never to both, since two
+                  auto columns would split it. */}
                 <colgroup>
                   <col style={{ width: SELECT_COLUMN_WIDTH }} />
                   {visibleColumns.map((column) => (
@@ -288,12 +326,16 @@ export default function ListView() {
                       key={column.id}
                       data-column={column.id}
                       style={
-                        column.elastic
+                        isElasticColumn(column, widths)
                           ? undefined
                           : { width: listColumnWidth(column, widths) }
                       }
                     />
                   ))}
+                  <col
+                    data-filler
+                    style={pinnedElastic ? { width: 0 } : undefined}
+                  />
                   <col style={{ width: ACTION_COLUMN_WIDTH }} />
                 </colgroup>
 
@@ -339,6 +381,8 @@ export default function ListView() {
                       group.todos.flatMap(withSubtasks)}
                   </tbody>
                 ))}
+
+                <ListColumnGrips columns={visibleColumns} />
               </table>
             </ReorderContext>
           </div>
@@ -356,22 +400,18 @@ export default function ListView() {
               ? t("list.itemCount", { count: total })
               : t("list.visibleOf", { visible: todos.length, total })}
           </span>
-
-          {selectedCount > 0 && (
-            <span className="text-ink-2 flex items-center gap-2 justify-self-end text-sm">
-              <span className="tabular-nums">
-                {t("list.selected", { count: selectedCount })}
-              </span>
-              <button
-                type="button"
-                onClick={() => setSelected(new Set())}
-                className="text-brand focus-visible:ring-brand rounded font-medium outline-none hover:underline focus-visible:ring-2"
-              >
-                {t("common.clear")}
-              </button>
-            </span>
-          )}
         </div>
+
+        {selectedCount > 0 && (
+          <ListBulkBar
+            selected={selectedTodos}
+            allSelected={selectable.every((id) => selected.has(id))}
+            onSelectAll={() => setSelected(new Set(selectable))}
+            onClear={() => setSelected(new Set())}
+            canEdit={canEditTodos}
+            members={members}
+          />
+        )}
       </div>
     </div>
   );

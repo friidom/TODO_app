@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronRightIcon } from "lucide-react";
 
+import IssueKey from "@/components/todo/IssueKey";
 import LabelChip from "@/components/todo/LabelChip";
 import AssigneeControl from "@/components/todo/TodoItem/AssigneeControl";
 import DueDateControl from "@/components/todo/TodoItem/DueDateControl";
@@ -30,6 +31,7 @@ import type { ListColumnId } from "@/services/views/listColumns";
 import type { Todo } from "@/types/data";
 import { cn } from "@/utils/cn";
 import { relativeTime } from "@/utils/relativeTime";
+import { issueHref } from "@/utils/taskRef";
 import { taskKey } from "@/utils/taskKey";
 
 export interface ListCellProps {
@@ -281,24 +283,14 @@ function WorkCell({
         />
       </span>
 
-      {key !== null ? (
-        <button
-          type="button"
-          onClick={() => openTask(todo.id)}
-          title={t("list.open", { key })}
-          className={cn(
-            "text-brand focus-visible:ring-brand mr-2 shrink-0 rounded text-sm font-medium whitespace-nowrap underline-offset-[3px] outline-none focus-visible:ring-2",
-            // Jira's cue for resolved work, read straight off the status category
-            done
-              ? "decoration-brand/70 line-through"
-              : "decoration-brand/50 hover:decoration-brand underline",
-          )}
-        >
-          {key}
-        </button>
-      ) : (
-        <span className="text-ink-3/60 mr-2 shrink-0 text-sm">—</span>
-      )}
+      <IssueKey
+        issueKey={key}
+        href={issueHref(key ?? "", { boardId: todo.board_id, todoId: todo.id })}
+        onOpen={() => openTask(todo.id)}
+        // Jira's cue for resolved work, read straight off the status category
+        done={done}
+        className="mr-2 text-sm"
+      />
 
       {editing ? (
         <input

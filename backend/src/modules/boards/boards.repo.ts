@@ -58,20 +58,33 @@ const BOARD_FIELDS = {
   next_key: true,
   key_prefix: true,
   space_id: true,
+  spaces: { select: { title: true } },
 } satisfies Prisma.boardsSelect;
 
-export type BoardRow = Prisma.boardsGetPayload<{ select: typeof BOARD_FIELDS }>;
+type BoardRecord = Prisma.boardsGetPayload<{ select: typeof BOARD_FIELDS }>;
+
+export type BoardRow = Omit<BoardRecord, "spaces"> & { space_title: string | null };
+
+// /spaces lists only the caller's own spaces, so this is the one place a member
+// of a board can learn the name of the space it is filed in.
+function toRow({ spaces, ...board }: BoardRecord): BoardRow {
+  return { ...board, space_title: spaces?.title ?? null };
+}
 
 export function findMany(boardIds: string[]): Promise<BoardRow[]> {
-  return prisma.boards.findMany({
-    where: { id: { in: boardIds } },
-    orderBy: [{ created_at: "asc" }, { id: "asc" }],
-    select: BOARD_FIELDS,
-  });
+  return prisma.boards
+    .findMany({
+      where: { id: { in: boardIds } },
+      orderBy: [{ created_at: "asc" }, { id: "asc" }],
+      select: BOARD_FIELDS,
+    })
+    .then((rows) => rows.map(toRow));
 }
 
 export function findOne(boardId: string): Promise<BoardRow | null> {
-  return prisma.boards.findUnique({ where: { id: boardId }, select: BOARD_FIELDS });
+  return prisma.boards
+    .findUnique({ where: { id: boardId }, select: BOARD_FIELDS })
+    .then((row) => row && toRow(row));
 }
 
 // Held until the transaction ends, so two board creations cannot both find the
@@ -107,16 +120,18 @@ export interface BoardInsert {
 }
 
 export function insert(tx: Prisma.TransactionClient, board: BoardInsert): Promise<BoardRow> {
-  return tx.boards.create({
-    data: {
-      id: board.id,
-      owner_id: board.ownerId,
-      title: board.title,
-      space_id: board.spaceId,
-      key_prefix: board.keyPrefix,
-    },
-    select: BOARD_FIELDS,
-  });
+  return tx.boards
+    .create({
+      data: {
+        id: board.id,
+        owner_id: board.ownerId,
+        title: board.title,
+        space_id: board.spaceId,
+        key_prefix: board.keyPrefix,
+      },
+      select: BOARD_FIELDS,
+    })
+    .then(toRow);
 }
 
 export type ViewTabEntry = { mode: string; label: string | null; hidden: boolean };
@@ -168,7 +183,7 @@ export function update(
       }),
     },
     select: BOARD_FIELDS,
-  });
+  }).then(toRow);
 }
 
 export async function remove(tx: Prisma.TransactionClient, boardId: string): Promise<void> {

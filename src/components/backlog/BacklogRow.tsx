@@ -14,8 +14,10 @@ import { sprintAssignmentPatch } from "@/services/todos/backlog";
 import type { WorkflowModel } from "@/services/workflow/statuses";
 import type { Sprint, Todo } from "@/types/data";
 import { cn } from "@/utils/cn";
+import { issueHref } from "@/utils/taskRef";
 import { taskKey } from "@/utils/taskKey";
 import { activeSprintIdOf } from "@/services/sprints/activeSprint";
+import IssueKey from "@/components/todo/IssueKey";
 import AssigneeControl from "@/components/todo/TodoItem/AssigneeControl";
 import EstimateControl from "@/components/todo/TodoItem/EstimateControl";
 import StatusControl from "@/components/todo/TodoItem/StatusControl";
@@ -133,19 +135,16 @@ const BacklogRowContent = memo(function BacklogRowContent({
         isDragging && "opacity-50",
       )}
     >
-      <div role="cell" className="min-w-0">
-        {key !== null ? (
-          <button
-            type="button"
-            onClick={() => openTask(todo.id)}
-            title={`Open ${key}`}
-            className="text-ink-3/80 hover:text-brand focus-visible:ring-brand text-mini block truncate rounded font-medium tabular-nums transition-colors outline-none focus-visible:ring-2"
-          >
-            {key}
-          </button>
-        ) : (
-          <span className="text-ink-3/40 text-mini">—</span>
-        )}
+      <div role="cell" className="flex min-w-0 text-xs">
+        <IssueKey
+          issueKey={key}
+          href={issueHref(key ?? "", {
+            boardId: todo.board_id,
+            todoId: todo.id,
+          })}
+          onOpen={() => openTask(todo.id)}
+          className="truncate"
+        />
       </div>
 
       <div role="cell" className="flex min-w-0 items-center gap-1.5">

@@ -1,3 +1,4 @@
+import { DEFAULT_PRIORITY } from "@/constants/priorities";
 import { DEFAULT_WORK_TYPE } from "@/constants/workTypes";
 import { ApiError, api } from "../api/client";
 import type { Todo, TodoDetail, TodoRow } from "../../types/data";
@@ -30,7 +31,7 @@ export function addTodo({
   type = DEFAULT_WORK_TYPE,
   parent_id = null,
   sprint_id = null,
-  priority = null,
+  priority = DEFAULT_PRIORITY,
   estimate = null,
   description = null,
 }: {
@@ -91,6 +92,7 @@ export function addBacklogItem({
     backlog_rank,
     type,
     sprint_id,
+    priority: DEFAULT_PRIORITY,
   });
 }
 
@@ -144,7 +146,11 @@ export type TodoPatch = { id: string; board_id: string } & Partial<
 // PATCH is an upsert server-side: a freshly created card can be patched before
 // its insert lands, and an update would silently match zero rows. The board
 // would look correct and then revert.
-export function updateTodo({ id, board_id, ...patch }: TodoPatch): Promise<Todo> {
+export function updateTodo({
+  id,
+  board_id,
+  ...patch
+}: TodoPatch): Promise<Todo> {
   return api.patch<Todo>(`/boards/${board_id}/todos/${id}`, patch);
 }
 

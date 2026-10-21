@@ -33,7 +33,9 @@ import { useTodos } from "@/services/todos/useTodos";
 import { useUpdateTodo } from "@/services/todos/useUpdateTodo";
 import type { Todo } from "@/types/data";
 import { cn } from "@/utils/cn";
+import { issueHref } from "@/utils/taskRef";
 import { taskKey } from "@/utils/taskKey";
+import IssueKey from "./IssueKey";
 
 // Same shape as SubtasksSection's grid, kept separate so a column change to one isn't silently a change to both.
 const TASK_GRID =
@@ -141,19 +143,16 @@ function EpicTaskRow({ task }: { task: Todo }) {
 
   return (
     <div role="row" className={cn(TASK_GRID, TABLE_ROW, "group h-11")}>
-      <div role="cell" className="min-w-0">
-        {key !== null ? (
-          <button
-            type="button"
-            onClick={() => openTask(task.id)}
-            title={t("list.open", { key })}
-            className="text-ink-3 hover:text-brand focus-visible:ring-brand text-mini block truncate rounded font-medium tabular-nums transition-colors outline-none focus-visible:ring-2"
-          >
-            {key}
-          </button>
-        ) : (
-          <span className="text-ink-3/50 text-mini">—</span>
-        )}
+      <div role="cell" className="flex min-w-0 text-xs">
+        <IssueKey
+          issueKey={key}
+          href={issueHref(key ?? "", {
+            boardId: task.board_id,
+            todoId: task.id,
+          })}
+          onOpen={() => openTask(task.id)}
+          className="truncate"
+        />
       </div>
 
       <div role="cell" className="min-w-0">

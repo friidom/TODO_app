@@ -11,6 +11,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { usePanel } from "@/hooks/usePanel";
+import { spaceNameOf } from "@/services/spaces/boardSpace";
 import { useSpaces } from "@/services/spaces/useSpaces";
 import type { IBoard } from "@/types/data";
 import { cn } from "@/utils/cn";
@@ -41,7 +42,7 @@ export default function BoardIdentity({
   const { data: spaces = [] } = useSpaces();
   const { openPanel } = usePanel();
 
-  const space = spaces.find((it) => it.id === board.space_id);
+  const spaceName = spaceNameOf(board, spaces);
   const narrowed = visibleCount !== todoCount;
 
   return (
@@ -54,14 +55,14 @@ export default function BoardIdentity({
       </Tooltip>
 
       <div className="flex min-w-0 flex-1 items-baseline gap-2">
-        <span className="text-meta text-ink-3 hidden max-w-48 min-w-0 shrink-[2] items-baseline gap-2 @md:flex">
-          <span className="truncate">
-            {space ? space.title : t("common.unfiled")}
+        {spaceName !== null && (
+          <span className="text-meta text-ink-3 hidden max-w-48 min-w-0 shrink-[2] items-baseline gap-2 @md:flex">
+            <span className="truncate">{spaceName}</span>
+            <span aria-hidden className="text-ink-3/60">
+              /
+            </span>
           </span>
-          <span aria-hidden className="text-ink-3/60">
-            /
-          </span>
-        </span>
+        )}
 
         <h1 className="text-ink min-w-0 truncate text-lg font-semibold tracking-tight md:text-xl">
           {board.title || t("common.untitledBoard")}

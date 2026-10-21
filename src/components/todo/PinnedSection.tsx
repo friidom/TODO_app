@@ -1,5 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { ArrowDownRightIcon } from "lucide-react";
+import { IssueRefText } from "./IssueKey";
+import { useIssueResolver } from "@/hooks/useIssueResolver";
 
 import { memberInitial, memberName } from "@/components/members/memberLabels";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -26,6 +28,7 @@ export default function PinnedSection({
   const { data: comments = [] } = useComments(todoId);
   const { data: attachments = [] } = useAttachments(todoId);
   const { data: members = [] } = useBoardMembers(boardId);
+  const resolve = useIssueResolver();
 
   const pinnedComments = pinnedItems(comments);
   const pinnedFiles = pinnedItems(attachments);
@@ -60,7 +63,7 @@ export default function PinnedSection({
                   </span>
                 </p>
                 <p className="text-ink-2 text-meta line-clamp-2 break-words whitespace-pre-wrap">
-                  {comment.content}
+                  <IssueRefText text={comment.content} resolve={resolve} />
                 </p>
               </div>
 

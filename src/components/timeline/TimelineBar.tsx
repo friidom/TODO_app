@@ -5,17 +5,17 @@ import {
   categoryOf,
   type ColumnCategory,
 } from "@/constants/columns";
-import type { placeItem } from "@/services/views/timeline";
+import type { Placement } from "@/services/views/timeline";
 import {
   progressRatio,
   rangeLength,
   type DayRange,
   type DragMode,
 } from "@/services/views/timelineDrag";
+import type { DateSource } from "@/services/views/timelineHierarchy";
 import { cn } from "@/utils/cn";
 import { formatDayFull } from "@/utils/dueDate";
-
-type Placement = NonNullable<ReturnType<typeof placeItem>>;
+import { spanStyle } from "./timelineAxis";
 
 // no text in the bar itself — label doesn't fit a 2-day bar and repeats on a 3-month one. the drag readout names it instead.
 // progress fill is derived from the status category, never stored — same rule as everywhere else: the status is the one truth for doneness.
@@ -25,7 +25,11 @@ export default function TimelineBar({
   range,
   today,
   label,
+  hint,
   locale,
+  source,
+  outside,
+  saving,
   interactive,
   dragging,
   onOpen,
@@ -36,7 +40,12 @@ export default function TimelineBar({
   range: DayRange;
   today: string;
   label: string;
+  // why the bar looks the way it does, when it is not a range someone set
+  hint?: string;
   locale?: string;
+  source: DateSource;
+  outside: boolean;
+  saving: boolean;
   interactive: boolean;
   dragging: boolean;
   onOpen: () => void;
@@ -44,27 +53,27 @@ export default function TimelineBar({
 }) {
   const { t } = useTranslation();
 
-  const tone = categoryOf(category).dot;
+  const meta = categoryOf(category);
   const ratio = progressRatio(category, range, today);
+  const auto = source === "auto";
 
-  const status = t(
-    categoryLabelKey((category ?? "todo") as ColumnCategory),
-    { defaultValue: "" },
-  );
+  const status = t(categoryLabelKey((category ?? "todo") as ColumnCategory), {
+    defaultValue: "",
+  });
 
   const days = rangeLength(range);
 
   return (
     <div
-      style={{ gridColumn: `${place.index + 1} / span ${place.span}` }}
-      className="relative flex h-5 items-stretch px-px"
+      style={spanStyle(place.from, place.to, place.total)}
+      className="@container absolute top-1/2 flex h-6 min-w-1.5 -translate-y-1/2 items-stretch px-px"
     >
       {dragging && (
         <span
           aria-hidden
           className={cn(
             "pointer-events-none absolute -inset-1 rounded-sm opacity-25",
-            tone,
+            meta.dot,
           )}
         />
       )}
@@ -79,28 +88,34 @@ export default function TimelineBar({
       <DatePill
         side="end"
         show={dragging}
-        text={`${formatDayFull(range.end, locale)} (${days} ${days === 1 ? "day" : "days"})`}
+        text={`${formatDayFull(range.end, locale)} (${t("timeline.days", { count: days })})`}
       />
 
       <button
         type="button"
         onClick={onOpen}
-        aria-label={status ? `${label} — ${status}` : label}
-        title={label}
+        aria-label={[label, status, hint].filter(Boolean).join(" — ")}
+        title={hint ? `${label}\n${hint}` : label}
         onPointerDown={interactive ? (e) => onGrab(e, "move") : undefined}
         className={cn(
-          "focus-visible:ring-brand relative flex h-5 w-full min-w-0 items-center overflow-hidden ring-1 ring-white/10 transition-[opacity,box-shadow] duration-150 outline-none ring-inset focus-visible:ring-2",
-          tone,
+          "focus-visible:ring-brand relative flex h-full w-full min-w-0 items-center overflow-hidden transition-[opacity,box-shadow] duration-150 outline-none focus-visible:ring-2",
+          auto
+            ? cn("border border-dashed", meta.lozenge)
+            : cn("ring-1 ring-white/10 ring-inset", meta.dot),
+          source === "derived" && "timeline-derived opacity-85",
+          outside &&
+            "ring-status-red ring-2 ring-offset-1 ring-offset-transparent",
+          saving && "motion-safe:animate-pulse",
           place.openStart ? "rounded-l-none" : "rounded-l-[3px]",
           place.openEnd ? "rounded-r-none" : "rounded-r-[3px]",
           // grab, not move — the bar only travels on one axis
           interactive && "cursor-grab",
           dragging
-            ? "cursor-grabbing shadow-e3 ring-white/40"
-            : "group-hover:ring-white/25",
+            ? "shadow-e3 cursor-grabbing ring-white/40"
+            : !auto && "group-hover:ring-white/25",
         )}
       >
-        {ratio > 0 && (
+        {ratio > 0 && !auto && (
           <span
             aria-hidden
             className="absolute inset-x-0 bottom-0 h-1 bg-white/25"
@@ -168,10 +183,11 @@ function Handle({
         side === "start" ? "left-0" : "right-0",
         dragging
           ? "opacity-100"
-          : "coarse:opacity-100 opacity-0 group-hover:opacity-100",
+          : // too short for two handles and room to grab between them: it only moves
+            "coarse:opacity-100 coarse:@max-[2.5rem]:hidden opacity-0 group-hover:opacity-100 @max-[1.5rem]:hidden",
       )}
     >
-      <span className="coarse:h-4 coarse:w-1 h-2.5 w-0.75 rounded-full bg-black/30" />
+      <span className="coarse:h-4 coarse:w-1 h-2.5 w-0.75 rounded-full bg-black/30 dark:bg-white/50" />
     </span>
   );
 }

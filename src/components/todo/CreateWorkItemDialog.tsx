@@ -1,11 +1,17 @@
 import { useTranslation } from "react-i18next";
-import { useId, useState, type ReactNode } from "react";
-import { ChevronDownIcon, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { Loader2 } from "lucide-react";
 
+import DialogHeader from "@/components/ui/DialogHeader";
+import { Field, SelectBox } from "@/components/ui/FormField";
 import Modal from "@/components/ui/Modal";
 import { memberName } from "@/components/members/memberLabels";
 import { FIELD_INPUT, FIELD_INPUT_INVALID } from "@/components/ui/fieldInput";
-import { PRIORITIES, type Priority } from "@/constants/priorities";
+import {
+  DEFAULT_PRIORITY,
+  PRIORITIES,
+  type Priority,
+} from "@/constants/priorities";
 import {
   DEFAULT_WORK_TYPE,
   WORK_TYPE_LABELS,
@@ -25,7 +31,6 @@ import { toast } from "@/stores/toasts";
 import { cn } from "@/utils/cn";
 
 const TITLE_MAX = 500;
-const SELECT = cn(FIELD_INPUT, "h-10 cursor-pointer appearance-none pr-9");
 
 interface Draft {
   type: WorkType;
@@ -66,7 +71,7 @@ export default function CreateWorkItemDialog({
     title: "",
     description: "",
     assigneeId: "",
-    priority: "",
+    priority: DEFAULT_PRIORITY,
     startDate: "",
     dueDate: "",
     estimate: "",
@@ -178,12 +183,12 @@ export default function CreateWorkItemDialog({
         }}
         className="flex flex-col gap-5"
       >
-        <header className="flex flex-col gap-1">
-          <h2 className="text-ink text-lg font-semibold">
-            {t("createItem.title")}
-          </h2>
-          <p className="text-ink-3 text-meta">{t("createItem.requiredNote")}</p>
-        </header>
+        <DialogHeader
+          title={t("createItem.title")}
+          description={t("createItem.requiredNote")}
+          onClose={onClose}
+          className="mb-0"
+        />
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label={t("fields.workType")}>
@@ -421,78 +426,5 @@ export default function CreateWorkItemDialog({
         </footer>
       </form>
     </Modal>
-  );
-}
-
-function Field({
-  label,
-  required = false,
-  error,
-  hint,
-  children,
-}: {
-  label: string;
-  required?: boolean;
-  error?: string | null;
-  hint?: string;
-  children: (id: string, describedBy: string | undefined) => ReactNode;
-}) {
-  const id = useId();
-  const noteId = `${id}-note`;
-  const note = error ?? hint;
-
-  return (
-    <div className="flex min-w-0 flex-col gap-1.5">
-      <label htmlFor={id} className="text-ink-2 text-sm font-medium">
-        {label}
-        {required && (
-          <span aria-hidden className="text-status-red ml-0.5">
-            *
-          </span>
-        )}
-      </label>
-
-      {children(id, note ? noteId : undefined)}
-
-      {note && (
-        <p
-          id={noteId}
-          role={error ? "alert" : undefined}
-          className={cn("text-xs", error ? "text-status-red" : "text-ink-3")}
-        >
-          {note}
-        </p>
-      )}
-    </div>
-  );
-}
-
-function SelectBox({
-  id,
-  value,
-  onChange,
-  children,
-}: {
-  id: string;
-  value: string;
-  onChange: (value: string) => void;
-  children: ReactNode;
-}) {
-  return (
-    <div className="relative">
-      <select
-        id={id}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className={SELECT}
-      >
-        {children}
-      </select>
-
-      <ChevronDownIcon
-        aria-hidden
-        className="text-ink-3 pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2"
-      />
-    </div>
   );
 }

@@ -3,18 +3,69 @@ import { useTranslation } from "react-i18next";
 import { useEffect, useId, useRef, useState } from "react";
 import { Loader2, Search, X } from "lucide-react";
 
+import { roleLabel } from "@/components/members/roleStyles";
+import { expiresLabel } from "@/services/invites/inviteLink";
 import { useInviteeSearch } from "@/services/invites/useInviteeSearch";
-import type { Invitee } from "@/services/invites/invitesApi";
+import type { Invitee, InviteScope } from "@/services/invites/invitesApi";
 import { cn } from "@/utils/cn";
+import { inviteeName } from "./inviteOptions";
+
+// Whether a result can be picked, and what to say about it either way. For a
+// space, being on some of the chosen boards is worth saying but blocks nothing.
+function availability(
+  invitee: Invitee,
+  chosen: readonly string[] | undefined,
+): { blocked: boolean; note: string | null } {
+  if (invitee.member_role) {
+    return {
+      blocked: true,
+      note: i18n.t("invites.alreadyOnBoard", {
+        role: roleLabel(invitee.member_role),
+      }),
+    };
+  }
+
+  if (invitee.invited_until) {
+    return {
+      blocked: true,
+      note: i18n.t("invites.alreadyInvited", {
+        when: expiresLabel(invitee.invited_until).toLowerCase(),
+      }),
+    };
+  }
+
+  const on = chosen?.filter((id) => invitee.member_board_ids?.includes(id));
+
+  if (chosen && on && on.length > 0) {
+    return on.length === chosen.length
+      ? { blocked: true, note: i18n.t("invites.onEveryBoard") }
+      : {
+          blocked: false,
+          note: i18n.t("invites.onSomeBoards", {
+            count: on.length,
+            total: chosen.length,
+          }),
+        };
+  }
+
+  return { blocked: false, note: null };
+}
 
 // Registered users only for now, so "no users found" is terminal here — no "invite anyway" fallback yet.
 export default function InviteeCombobox({
-  boardId,
+  id,
+  describedBy,
+  scope,
+  chosen,
   value,
   onChange,
   disabled = false,
 }: {
-  boardId: string | undefined;
+  id?: string;
+  describedBy?: string;
+  scope: InviteScope | null;
+  // the boards a space invitation would grant, which decide who is already on all of them
+  chosen?: readonly string[];
   value: Invitee | null;
   onChange: (invitee: Invitee | null) => void;
   disabled?: boolean;
@@ -30,11 +81,14 @@ export default function InviteeCombobox({
   const listId = useId();
 
   const {
-    data: results = [],
+    data: found = [],
     error,
     searching,
     tooShort,
-  } = useInviteeSearch(boardId, query);
+  } = useInviteeSearch(scope, query);
+
+  // the previous answer is kept as placeholder data, which must not reappear once the query is cleared
+  const results = query.trim().length >= 2 ? found : [];
 
   // clamped here rather than an effect — a shorter result set can strand the highlight past the end
   const activeIndex = active < results.length ? active : -1;
@@ -52,6 +106,8 @@ export default function InviteeCombobox({
   }, [open]);
 
   function select(invitee: Invitee) {
+    if (availability(invitee, chosen).blocked) return;
+
     onChange(invitee);
     setQuery("");
     setOpen(false);
@@ -100,14 +156,14 @@ export default function InviteeCombobox({
 
   if (value) {
     return (
-      <div className="border-hairline mb-6 flex items-center gap-2.5 rounded-lg border px-3 py-2">
+      <div className="border-hairline rounded-control flex h-10 items-center gap-2.5 border px-2">
         <Avatar invitee={value} />
 
         <span className="min-w-0 flex-1">
           <span className="text-ink block truncate text-sm font-medium">
-            {displayName(value)}
+            {inviteeName(value)}
           </span>
-          {value.email && displayName(value) !== value.email && (
+          {value.email && inviteeName(value) !== value.email && (
             <span className="text-ink-3 block truncate text-xs">
               {value.email}
             </span>
@@ -118,8 +174,8 @@ export default function InviteeCombobox({
           type="button"
           onClick={clear}
           disabled={disabled}
-          aria-label={`Remove ${displayName(value)}`}
-          className="text-ink-2 hover:bg-ink/10 shrink-0 rounded p-1"
+          aria-label={t("invites.removePerson", { name: inviteeName(value) })}
+          className="text-ink-2 hover:bg-ink/10 focus-visible:ring-brand shrink-0 rounded p-1 outline-none focus-visible:ring-2"
         >
           <X size={16} />
         </button>
@@ -136,12 +192,15 @@ export default function InviteeCombobox({
     !results.length;
 
   return (
-    <div ref={wrapRef} className="relative mb-6">
-      <div className="border-hairline focus-within:border-brand/50 focus-within:ring-brand/30 rounded-control flex items-center gap-2 border px-3 transition-colors focus-within:ring-2">
+    <div ref={wrapRef} className="relative">
+      <div className="border-hairline focus-within:border-brand/50 focus-within:ring-brand/30 rounded-control flex h-10 items-center gap-2 border px-3 transition-colors focus-within:ring-2">
         <Search size={15} className="text-ink-3 shrink-0" />
 
         <input
           ref={inputRef}
+          id={id}
+          autoFocus
+          aria-describedby={describedBy}
           value={query}
           disabled={disabled}
           onChange={(e) => {
@@ -158,7 +217,7 @@ export default function InviteeCombobox({
           aria-activedescendant={
             activeIndex >= 0 ? `${listId}-${activeIndex}` : undefined
           }
-          className="text-ink placeholder:text-ink-3 w-full bg-transparent py-2.5 text-sm outline-none"
+          className="text-ink placeholder:text-ink-3 h-full w-full bg-transparent text-sm outline-none"
         />
 
         {searching && (
@@ -185,38 +244,53 @@ export default function InviteeCombobox({
               {t("invites.noUsers")}
             </li>
           ) : (
-            results.map((invitee, index) => (
-              <li
-                key={invitee.id}
-                id={`${listId}-${index}`}
-                role="option"
-                aria-selected={index === activeIndex}
-              >
-                <button
-                  type="button"
-                  onClick={() => select(invitee)}
-                  onMouseEnter={() => setActive(index)}
-                  className={cn(
-                    "flex w-full items-center gap-2.5 px-3 py-2 text-left",
-                    index === activeIndex && "bg-ink/[0.06]",
-                  )}
-                >
-                  <Avatar invitee={invitee} />
+            results.map((invitee, index) => {
+              const { blocked, note } = availability(invitee, chosen);
 
-                  <span className="min-w-0 flex-1">
-                    <span className="text-ink block truncate text-sm">
-                      {displayName(invitee)}
-                    </span>
-                    {invitee.email &&
-                      displayName(invitee) !== invitee.email && (
-                        <span className="text-ink-3 block truncate text-xs">
-                          {invitee.email}
+              return (
+                <li
+                  key={invitee.id}
+                  id={`${listId}-${index}`}
+                  role="option"
+                  aria-selected={index === activeIndex}
+                  aria-disabled={blocked}
+                >
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    onClick={() => select(invitee)}
+                    onMouseEnter={() => setActive(index)}
+                    className={cn(
+                      "flex w-full items-center gap-2.5 px-3 py-2 text-left",
+                      index === activeIndex && "bg-ink/[0.06]",
+                      blocked && "cursor-not-allowed",
+                    )}
+                  >
+                    <span className={cn("contents", blocked && "opacity-60")}>
+                      <Avatar invitee={invitee} />
+
+                      <span className="min-w-0 flex-1">
+                        <span className="text-ink block truncate text-sm">
+                          {inviteeName(invitee)}
                         </span>
-                      )}
-                  </span>
-                </button>
-              </li>
-            ))
+                        {invitee.email &&
+                          inviteeName(invitee) !== invitee.email && (
+                            <span className="text-ink-3 block truncate text-xs">
+                              {invitee.email}
+                            </span>
+                          )}
+                      </span>
+                    </span>
+
+                    {note && (
+                      <span className="text-ink-3 text-mini shrink-0">
+                        {note}
+                      </span>
+                    )}
+                  </button>
+                </li>
+              );
+            })
           )}
         </ul>
       )}
@@ -224,17 +298,8 @@ export default function InviteeCombobox({
   );
 }
 
-function displayName(invitee: Invitee) {
-  return (
-    invitee.full_name ||
-    invitee.username ||
-    invitee.email ||
-    i18n.t("members.unnamed")
-  );
-}
-
 function Avatar({ invitee }: { invitee: Invitee }) {
-  const initial = displayName(invitee).charAt(0).toUpperCase();
+  const initial = inviteeName(invitee).charAt(0).toUpperCase();
 
   if (invitee.avatar_url) {
     return (

@@ -277,8 +277,14 @@ function BacklogUnplannedSection({
   }
 
   return (
-    <section className="border-hairline rounded-card overflow-hidden border">
-      <header className="px-3 py-2.5">
+    <section
+      ref={setNodeRef}
+      className={cn(
+        "border-hairline rounded-card bg-surface overflow-clip border transition-shadow",
+        isOver && "ring-brand/40 ring-2",
+      )}
+    >
+      <header className="bg-surface sticky top-0 z-10 px-3 py-2.5">
         <h3 className="text-ink text-sm font-semibold">{t("views.backlog")}</h3>
         <p className="text-ink-3 text-mini mt-0.5">
           {t("backlog.unplannedCount", { count: items.length })}
@@ -286,7 +292,6 @@ function BacklogUnplannedSection({
       </header>
 
       <div
-        ref={setNodeRef}
         className={cn(
           "border-hairline border-t transition-colors",
           isOver && "bg-brand/5",

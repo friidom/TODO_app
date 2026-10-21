@@ -3,6 +3,7 @@ import { Loader2 } from "lucide-react";
 
 import type { MyInvite } from "@/services/invites/invitesApi";
 import { inviteErrorMessage } from "@/services/invites/inviteError";
+import { expiresLabel } from "@/services/invites/inviteLink";
 import { useAcceptInvite } from "@/services/invites/useAcceptInvite";
 import { useDeclineInvite } from "@/services/invites/useDeclineInvite";
 import { cn } from "@/utils/cn";
@@ -39,7 +40,20 @@ export default function InviteActions({
   }
 
   return (
-    <div className="mt-2">
+    <div className="mt-1.5">
+      <p className="text-ink-3 text-mini mb-2">
+        {[
+          invite.space_id
+            ? invite.boards
+                .map((board) => board.title || t("common.untitledBoard"))
+                .join(", ")
+            : invite.space_title,
+          expiresLabel(invite.expires_at),
+        ]
+          .filter(Boolean)
+          .join(" · ")}
+      </p>
+
       <div className="flex items-center gap-1.5">
         <button
           type="button"

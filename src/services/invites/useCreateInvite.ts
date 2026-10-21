@@ -1,26 +1,40 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { createInvite } from "./invitesApi";
+import {
+  createInvite,
+  createSpaceInvite,
+  type InviteRole,
+  type InviteScope,
+} from "./invitesApi";
 import { queryKeys } from "@/services/queryClient/queryKeys";
-import { useBoardId } from "@/hooks/useBoardId";
+
+export interface NewInvite {
+  scope: InviteScope;
+  // the boards a space invitation grants; ignored for a board
+  boardIds: string[];
+  role: InviteRole;
+  expiresInDays: number;
+  email: string | null;
+}
 
 // invalidates rather than patching — the server picks the token and expiry, nothing to guess at
 export function useCreateInvite() {
   const queryClient = useQueryClient();
-  const boardId = useBoardId();
 
   return useMutation({
     meta: { silent: true },
 
-    mutationFn: createInvite,
+    mutationFn: ({ scope, boardIds, ...invite }: NewInvite) =>
+      scope.kind === "board"
+        ? createInvite({ boardId: scope.boardId, ...invite })
+        : createSpaceInvite({ spaceId: scope.spaceId, boardIds, ...invite }),
 
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.invites(boardId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.allInvites() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.allSpaceInvites() });
 
-      // autocomplete filters out anyone with a live invite, so every cached search is now off by one person
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.inviteeSearches(boardId),
-      });
+      // search marks anyone holding a live invite, so every cached search is now stale for one person
+      queryClient.invalidateQueries({ queryKey: queryKeys.inviteeSearches() });
     },
   });
 }

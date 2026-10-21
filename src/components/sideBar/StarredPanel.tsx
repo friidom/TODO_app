@@ -5,6 +5,7 @@ import { SearchIcon, StarIcon } from "lucide-react";
 
 import StarButton from "@/components/stars/StarButton";
 import { useBoards } from "@/services/boards/useBoards";
+import { spaceNameOf } from "@/services/spaces/boardSpace";
 import { useSpaces } from "@/services/spaces/useSpaces";
 import { starredBoards } from "@/services/stars/starred";
 import { useStarred } from "@/services/stars/useStars";
@@ -29,11 +30,6 @@ export default function StarredPanel({ onClose }: { onClose: () => void }) {
   const stars = useStarred();
   const { data: spaces = NO_SPACES } = useSpaces();
 
-  const spaceTitle = useMemo(
-    () => new Map(spaces.map((space) => [space.id, space.title])),
-    [spaces],
-  );
-
   const all = useMemo(
     () => starredBoards(boards.data ?? NO_BOARDS, stars.data ?? []),
     [boards.data, stars.data],
@@ -42,11 +38,9 @@ export default function StarredPanel({ onClose }: { onClose: () => void }) {
   const needle = query.trim().toLowerCase();
   const shown = needle
     ? all.filter((board) =>
-        [
-          board.title,
-          board.key_prefix,
-          board.space_id ? spaceTitle.get(board.space_id) : null,
-        ].some((text) => text?.toLowerCase().includes(needle)),
+        [board.title, board.key_prefix, spaceNameOf(board, spaces)].some(
+          (text) => text?.toLowerCase().includes(needle),
+        ),
       )
     : all;
 
@@ -90,9 +84,7 @@ export default function StarredPanel({ onClose }: { onClose: () => void }) {
         <ul className="flex flex-col">
           {shown.map((board) => {
             const title = board.title || t("common.untitledBoard");
-            const space = board.space_id
-              ? spaceTitle.get(board.space_id)
-              : undefined;
+            const space = spaceNameOf(board, spaces);
 
             return (
               <li key={board.id} className="group/row flex items-center gap-1">
@@ -108,7 +100,8 @@ export default function StarredPanel({ onClose }: { onClose: () => void }) {
                       {title}
                     </span>
                     <span className="text-ink-3 text-mini block truncate">
-                      {space ?? t("common.unfiled")} · {board.key_prefix}
+                      {space && `${space} · `}
+                      {board.key_prefix}
                     </span>
                   </span>
                 </Link>

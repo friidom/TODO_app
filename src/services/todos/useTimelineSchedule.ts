@@ -1,49 +1,54 @@
 import { useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
-import { scheduleFields, type DayRange } from "@/services/views/timelineDrag";
-import type { Todo } from "@/types/data";
-import { fromCalendarDay, toCalendarDay } from "@/utils/dueDate";
+import type { DragTarget } from "@/hooks/useTimelineDrag";
+import { useBoardId } from "@/hooks/useBoardId";
+import { queryKeys } from "@/services/queryClient/queryKeys";
+import type { DayRange } from "@/services/views/timelineDrag";
+import { schedulePatches } from "@/services/views/timelineHierarchy";
+import { fromCalendarDay } from "@/utils/dueDate";
 import { useUpdateTodo } from "./useUpdateTodo";
 
-export type Schedulable = Pick<
-  Todo,
-  "id" | "board_id" | "start_date" | "due_date"
->;
+const toInstant = (day: string | null) => (day ? fromCalendarDay(day) : null);
 
-// No new write path — just useUpdateTodo with a day-to-instant conversion in front, the same mutation the date controls use.
-// No onMutate here: the drag itself holds the live geometry until this promise settles, so a second optimistic layer would race it.
+// No new write path — useUpdateTodo per row, the same mutation the date controls use,
+// so each row is patched optimistically and rolled back on its own failure.
 export function useTimelineSchedule() {
   const updateTodo = useUpdateTodo();
+  const queryClient = useQueryClient();
+  const boardId = useBoardId();
 
   return useCallback(
-    (todo: Schedulable, range: DayRange): Promise<unknown> => {
-      const { writeStart, writeEnd } = scheduleFields(
-        Boolean(todo.start_date),
-        Boolean(todo.due_date),
+    (target: DragTarget, range: DayRange): Promise<unknown> => {
+      if (!target.node) return Promise.resolve();
+
+      const patches = schedulePatches(
+        target.node,
+        target.base,
+        range,
+        target.mode,
       );
 
-      // converted to days so the comparison below isn't timestamptz vs YYYY-MM-DD
-      const storedStart = todo.start_date
-        ? toCalendarDay(todo.start_date)
-        : null;
-      const storedEnd = todo.due_date ? toCalendarDay(todo.due_date) : null;
-
-      const nextStart = writeStart ? range.start : storedStart;
-      const nextEnd = writeEnd ? range.end : storedEnd;
-
-      // gesture ended where it started — skip the round trip
-      if (nextStart === storedStart && nextEnd === storedEnd) {
-        return Promise.resolve();
-      }
-
-      return updateTodo.mutateAsync({
-        id: todo.id,
-        board_id: todo.board_id,
-        // fromCalendarDay writes midnight UTC explicitly — a bare YYYY-MM-DD would let Postgres cast in its own server timezone.
-        ...(writeStart ? { start_date: fromCalendarDay(range.start) } : {}),
-        ...(writeEnd ? { due_date: fromCalendarDay(range.end) } : {}),
+      return Promise.allSettled(
+        patches.map(({ id, board_id, start, end }) =>
+          updateTodo.mutateAsync({
+            id,
+            board_id,
+            // fromCalendarDay writes midnight UTC explicitly — a bare YYYY-MM-DD would let Postgres cast in its own server timezone.
+            ...(start === undefined ? {} : { start_date: toInstant(start) }),
+            ...(end === undefined ? {} : { due_date: toInstant(end) }),
+          }),
+        ),
+      ).then((results) => {
+        // A branch move is several writes; one failing would leave the cache
+        // showing the others' optimistic dates against a rollback snapshot.
+        if (results.some((result) => result.status === "rejected")) {
+          return queryClient.invalidateQueries({
+            queryKey: queryKeys.todos(boardId),
+          });
+        }
       });
     },
-    [updateTodo],
+    [updateTodo, queryClient, boardId],
   );
 }

@@ -159,7 +159,7 @@ function TimelineSkeleton() {
   return (
     <SkeletonRegion className="flex flex-col gap-1 pb-4">
       {Array.from({ length: 8 }, (_, row) => (
-        <div key={row} className="flex h-9 items-center gap-3">
+        <div key={row} className="flex h-10 items-center gap-3">
           <div className="flex w-(--timeline-rail) shrink-0 items-center gap-2 px-2">
             <Skeleton className="size-4 shrink-0 rounded" />
             <Skeleton
@@ -168,7 +168,7 @@ function TimelineSkeleton() {
             />
           </div>
           <Skeleton
-            className="h-5 rounded-md"
+            className="h-6 rounded-md"
             style={{
               marginLeft: `${(row * 9) % 30}%`,
               width: `${18 + ((row * 13) % 22)}%`,

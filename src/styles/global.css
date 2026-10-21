@@ -286,6 +286,30 @@ html {
   }
 }
 
+/* The live Timeline's rail is its columns, each a variable set inline from the
+   reader's widths; below md it is the work column alone, as it always was. */
+.timeline-root {
+  --timeline-rail: min(var(--tl-work), 10rem);
+}
+
+@media (min-width: 48rem) {
+  .timeline-root {
+    --timeline-rail: calc(
+      var(--tl-work) + var(--tl-status) + var(--tl-assignee)
+    );
+  }
+}
+
+/* A bar whose dates come from its children: hatched, so it never reads as a
+   range someone chose. */
+.timeline-derived {
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in oklab, white 26%, transparent) 0 4px,
+    transparent 4px 9px
+  );
+}
+
 /* Elevation — three steps, and the reason they are tokens.
    ---------------------------------------------------------------------------
    Before this there was no ladder, only six hard-coded shadows invented one at

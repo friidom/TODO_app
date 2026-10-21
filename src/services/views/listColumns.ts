@@ -31,7 +31,7 @@ export interface ListColumnDef {
   label: string;
   /** The default width in px, until the reader drags it. The elastic column reads it as a floor. */
   width: number;
-  /** Takes the slack left over by the fixed columns — only the identity column does. */
+  /** Takes the slack left over by the fixed columns until it is given a width of its own — only the identity column does. */
   elastic?: boolean;
   align?: "center";
   /**
@@ -291,7 +291,9 @@ export function listColumnWidth(
 }
 
 // A width equal to the default is dropped rather than stored, so a column
-// dragged back to where it started does not count as customised.
+// dragged back to where it started does not count as customised. The elastic
+// column is the exception: any width at all is a choice, since its default is
+// "whatever is left over".
 export function withListColumnWidth(
   widths: ListColumnWidths,
   id: ListColumnId,
@@ -299,9 +301,33 @@ export function withListColumnWidth(
 ): ListColumnWidths {
   const next = { ...widths };
   const clamped = width === null ? null : clampListColumnWidth(id, width);
+  const isDefault =
+    clamped === LIST_COLUMNS[id].width && !LIST_COLUMNS[id].elastic;
 
-  if (clamped === null || clamped === LIST_COLUMNS[id].width) delete next[id];
+  if (clamped === null || isDefault) delete next[id];
   else next[id] = clamped;
+
+  return next;
+}
+
+export function isElasticColumn(
+  column: ListColumnDef,
+  widths: ListColumnWidths,
+): boolean {
+  return column.elastic === true && widths[column.id] === undefined;
+}
+
+export function withListColumnWidths(
+  widths: ListColumnWidths,
+  patch: Partial<Record<ListColumnId, number | null>>,
+): ListColumnWidths {
+  let next = widths;
+
+  for (const [id, width] of Object.entries(patch)) {
+    if (isListColumnId(id) && width !== undefined) {
+      next = withListColumnWidth(next, id, width);
+    }
+  }
 
   return next;
 }

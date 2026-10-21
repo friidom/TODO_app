@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { useBoardId } from "@/hooks/useBoardId";
 import { queryKeys } from "@/services/queryClient/queryKeys";
+import { DEFAULT_PRIORITY } from "@/constants/priorities";
 import { DEFAULT_WORK_TYPE } from "@/constants/workTypes";
 import { useSprints } from "@/services/sprints/useSprints";
 import { useWorkflow } from "@/services/workflow/useWorkflow";
@@ -99,7 +100,7 @@ export function useAddBacklogItem() {
         completed_at: null,
         board_key: null,
         type,
-        priority: null,
+        priority: DEFAULT_PRIORITY,
         assignee_id: null,
         estimate: null,
         parent_id: null,

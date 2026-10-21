@@ -87,9 +87,9 @@ describe("orderBy", () => {
 
 describe("arrangeGroups", () => {
   const groups: SpaceGroup[] = [
-    { space: space("s1"), boards: [board("b1"), board("b2")] },
-    { space: space("s2"), boards: [board("b3")] },
-    { space: null, boards: [board("b4"), board("b5")] },
+    { space: space("s1"), owned: true, boards: [board("b1"), board("b2")] },
+    { space: space("s2"), owned: true, boards: [board("b3")] },
+    { space: null, owned: true, boards: [board("b4"), board("b5")] },
   ];
 
   it("orders spaces and each space's boards, and keeps Unfiled last", () => {

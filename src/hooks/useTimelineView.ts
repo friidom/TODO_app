@@ -18,6 +18,7 @@ export interface TimelineView {
   setScale: (scale: TimelineScale) => void;
   step: (direction: -1 | 1) => void;
   goToday: () => void;
+  goTo: (day: string) => void;
 }
 
 function isDay(value: string | null): value is string {
@@ -97,5 +98,6 @@ export function useTimelineView(): TimelineView {
     setScale,
     step,
     goToday,
+    goTo: setAnchor,
   };
 }

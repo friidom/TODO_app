@@ -297,6 +297,24 @@ describe("describeHistoryChange — subtasks (M27)", () => {
     });
   });
 
+  it("names it by its full key once the board's prefix is known, so it can link", () => {
+    expect(
+      describeHistoryChange(
+        entry("subtask_added", { board_key: 78, title: "123" }),
+        NAMES,
+        "KAN",
+      )?.field,
+    ).toBe("KAN-78");
+
+    expect(
+      describeHistoryChange(
+        entry("parent_changed", { from_key: 5, to_key: 9, to_type: "Epic" }),
+        NAMES,
+        "KAN",
+      ),
+    ).toMatchObject({ from: "KAN-5", to: "KAN-9" });
+  });
+
   it("names a removed subtask the same way", () => {
     const change = describeHistoryChange(
       entry("subtask_removed", { board_key: 78, title: "123" }),

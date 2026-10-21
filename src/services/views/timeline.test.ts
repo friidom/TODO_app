@@ -3,174 +3,28 @@ import { describe, expect, it } from "vitest";
 import {
   TIMELINE_WINDOW,
   bandAnchor,
+  bandLabel,
+  dayFraction,
+  dayIndex,
+  headerBands,
   isCurrentAnchor,
-  monthBands,
   placeItem,
   placeItems,
+  startOfQuarter,
   stepAnchor,
-  tickIndexOf,
-  timelineItems,
   timelineTicks,
-  unscheduledCount,
+  windowDays,
   windowEnd,
-  type TimelineItem,
+  windowLabel,
+  type DaySpan,
+  type HeaderBand,
 } from "./timeline";
-import type { Todo } from "@/types/data";
 
-let seq = 0;
-
-function todo(over: Partial<Todo> = {}): Todo {
-  seq += 1;
-
-  return {
-    id: `t-${seq}`,
-    board_id: "b-1",
-    status_id: "s-1",
-    board_key: seq,
-    title: `Item ${seq}`,
-    type: "Task",
-    priority: null,
-    start_date: null,
-    due_date: null,
-    assignee_id: null,
-    created_at: "2026-08-01T00:00:00Z",
-    updated_at: null,
-    ...over,
-  } as Todo;
+function item(start: string, end: string): DaySpan {
+  return { start, end };
 }
 
-function at(day: string): string {
-  return `${day}T00:00:00.000Z`;
-}
-
-function item(start: string, end: string, isPoint = false): TimelineItem {
-  return { todo: todo(), start, end, isPoint };
-}
-
-describe("timelineItems", () => {
-  it("makes a range from two dates", () => {
-    const [row] = timelineItems([
-      todo({ start_date: at("2026-08-10"), due_date: at("2026-08-14") }),
-    ]);
-
-    expect(row.start).toBe("2026-08-10");
-    expect(row.end).toBe("2026-08-14");
-    expect(row.isPoint).toBe(false);
-  });
-
-  it("makes a POINT from a due date alone", () => {
-    const [row] = timelineItems([todo({ due_date: at("2026-08-14") })]);
-
-    expect(row).toMatchObject({
-      start: "2026-08-14",
-      end: "2026-08-14",
-      isPoint: true,
-    });
-  });
-
-  it("makes a point from a start date alone, by the same rule", () => {
-    const [row] = timelineItems([todo({ start_date: at("2026-08-03") })]);
-
-    expect(row).toMatchObject({
-      start: "2026-08-03",
-      end: "2026-08-03",
-      isPoint: true,
-    });
-  });
-
-  it("treats one day with BOTH dates as a range, not a point", () => {
-    const [row] = timelineItems([
-      todo({ start_date: at("2026-08-12"), due_date: at("2026-08-12") }),
-    ]);
-
-    expect(row.isPoint).toBe(false);
-  });
-
-  it("leaves an undated item off the timeline entirely", () => {
-    expect(
-      timelineItems([todo(), todo({ due_date: at("2026-08-01") })]),
-    ).toHaveLength(1);
-  });
-
-  it("orders by start, then end, then key — never by anything stored", () => {
-    const rows = timelineItems([
-      todo({
-        board_key: 9,
-        start_date: at("2026-08-10"),
-        due_date: at("2026-08-20"),
-      }),
-      todo({
-        board_key: 4,
-        start_date: at("2026-08-01"),
-        due_date: at("2026-08-05"),
-      }),
-      todo({
-        board_key: 7,
-        start_date: at("2026-08-10"),
-        due_date: at("2026-08-12"),
-      }),
-      todo({
-        board_key: 2,
-        start_date: at("2026-08-10"),
-        due_date: at("2026-08-12"),
-      }),
-    ]);
-
-    expect(rows.map((row) => row.todo.board_key)).toEqual([4, 2, 7, 9]);
-  });
-
-  it("puts a card whose key is still in flight last, not first", () => {
-    const rows = timelineItems([
-      todo({
-        board_key: null,
-        start_date: at("2026-08-10"),
-        due_date: at("2026-08-10"),
-      }),
-      todo({
-        board_key: 3,
-        start_date: at("2026-08-10"),
-        due_date: at("2026-08-10"),
-      }),
-    ]);
-
-    expect(rows.map((row) => row.todo.board_key)).toEqual([3, null]);
-  });
-
-  it("orders an inverted pair rather than drawing a negative bar", () => {
-    // the CHECK constraint forbids this now, but a pre-constraint row could still reach the client
-    const [row] = timelineItems([
-      todo({ start_date: at("2026-09-01"), due_date: at("2026-08-01") }),
-    ]);
-
-    expect(row.start).toBe("2026-08-01");
-    expect(row.end).toBe("2026-09-01");
-  });
-
-  it("reads the day out of the stored instant without converting it", () => {
-    // sliced from UTC, never parsed as a local Date — that would move the 14th to the 13th west of Greenwich
-    const [row] = timelineItems([
-      todo({ due_date: "2026-08-14T00:00:00+00:00" }),
-    ]);
-
-    expect(row.start).toBe("2026-08-14");
-  });
-});
-
-describe("unscheduledCount", () => {
-  it("counts exactly what the timeline drops", () => {
-    const todos = [
-      todo(),
-      todo(),
-      todo({ due_date: at("2026-08-01") }),
-      todo({ start_date: at("2026-08-01") }),
-    ];
-
-    expect(unscheduledCount(todos)).toBe(2);
-    expect(unscheduledCount(todos) + timelineItems(todos).length).toBe(
-      todos.length,
-    );
-  });
-});
+const days = (band: HeaderBand) => band.to - band.from;
 
 describe("timelineTicks", () => {
   it("draws a fixed number of columns, so the axis never changes width", () => {
@@ -184,12 +38,12 @@ describe("timelineTicks", () => {
     }
   });
 
-  it("starts the week scale on the anchor's Monday, one day per column", () => {
+  it("opens the week scale a week before the anchor's Monday, one day per column", () => {
     const ticks = timelineTicks("weeks", "2026-08-19");
 
-    expect(ticks[0]).toBe("2026-08-17");
-    expect(ticks[1]).toBe("2026-08-18");
-    expect(ticks.at(-1)).toBe("2026-09-27");
+    expect(ticks[0]).toBe("2026-08-10");
+    expect(ticks[1]).toBe("2026-08-11");
+    expect(ticks.at(-1)).toBe("2026-09-20");
   });
 
   it("starts the month scale on the Monday on or before the 1st", () => {
@@ -208,92 +62,73 @@ describe("timelineTicks", () => {
   it("crosses a year boundary without drifting", () => {
     const ticks = timelineTicks("weeks", "2026-12-28");
 
-    expect(ticks[0]).toBe("2026-12-28");
-    expect(ticks[7]).toBe("2027-01-04");
+    expect(ticks[0]).toBe("2026-12-21");
+    expect(ticks[7]).toBe("2026-12-28");
+    expect(ticks[14]).toBe("2027-01-04");
   });
 });
 
-describe("windowEnd", () => {
+describe("windowEnd and windowDays", () => {
   it("is the day after the last column, whatever a column covers", () => {
-    const weeks = timelineTicks("weeks", "2026-08-17");
+    const weeks = timelineTicks("weeks", "2026-08-24");
     const months = timelineTicks("months", "2026-08-17");
 
     expect(windowEnd(weeks, "weeks")).toBe("2026-09-28");
     expect(windowEnd(months, "months")).toBe("2027-01-25");
   });
+
+  it("counts the days the window covers", () => {
+    expect(windowDays(timelineTicks("weeks", "2026-08-24"), "weeks")).toBe(42);
+    expect(windowDays(timelineTicks("months", "2026-08-24"), "months")).toBe(
+      182,
+    );
+  });
 });
 
-describe("tickIndexOf", () => {
-  const weeks = timelineTicks("weeks", "2026-08-17");
+describe("dayIndex", () => {
   const months = timelineTicks("months", "2026-08-17");
 
-  it("finds the day's own column at the week scale", () => {
-    expect(tickIndexOf("2026-08-17", weeks, "weeks")).toBe(0);
-    expect(tickIndexOf("2026-08-20", weeks, "weeks")).toBe(3);
-  });
-
-  it("finds the containing WEEK at the month scale", () => {
-    expect(tickIndexOf("2026-08-03", months, "months")).toBe(1);
-    expect(tickIndexOf("2026-08-09", months, "months")).toBe(1);
-    expect(tickIndexOf("2026-08-10", months, "months")).toBe(2);
+  it("counts days from the first column, whatever a column covers", () => {
+    expect(dayIndex("2026-07-27", months, "months")).toBe(0);
+    expect(dayIndex("2026-08-05", months, "months")).toBe(9);
   });
 
   it("returns null outside the window rather than clamping", () => {
-    expect(tickIndexOf("2026-08-16", weeks, "weeks")).toBeNull();
-    expect(tickIndexOf("2026-09-28", weeks, "weeks")).toBeNull();
+    expect(dayIndex("2026-07-26", months, "months")).toBeNull();
+    expect(dayIndex(windowEnd(months, "months"), months, "months")).toBeNull();
   });
 });
 
 describe("placeItem", () => {
-  const ticks = timelineTicks("weeks", "2026-08-17");
+  const ticks = timelineTicks("weeks", "2026-08-24");
 
-  it("spans the columns a range covers, inclusive of both ends", () => {
+  it("spans the days a range covers, inclusive of both ends", () => {
     expect(placeItem(item("2026-08-18", "2026-08-20"), ticks, "weeks")).toEqual(
-      {
-        index: 1,
-        span: 3,
-        openStart: false,
-        openEnd: false,
-      },
+      { from: 1, to: 4, total: 42, openStart: false, openEnd: false },
     );
   });
 
-  it("gives a point exactly one column", () => {
+  it("gives a single day exactly one day", () => {
     expect(
-      placeItem(item("2026-08-19", "2026-08-19", true), ticks, "weeks"),
-    ).toMatchObject({ index: 2, span: 1 });
+      placeItem(item("2026-08-19", "2026-08-19"), ticks, "weeks"),
+    ).toMatchObject({ from: 2, to: 3 });
   });
 
   it("clips a range that began before the window and says it is open", () => {
     expect(placeItem(item("2026-07-01", "2026-08-19"), ticks, "weeks")).toEqual(
-      {
-        index: 0,
-        span: 3,
-        openStart: true,
-        openEnd: false,
-      },
+      { from: 0, to: 3, total: 42, openStart: true, openEnd: false },
     );
   });
 
   it("clips a range that runs past the window and says it is open", () => {
     expect(placeItem(item("2026-09-26", "2026-12-01"), ticks, "weeks")).toEqual(
-      {
-        index: 40,
-        span: 2,
-        openStart: false,
-        openEnd: true,
-      },
+      { from: 40, to: 42, total: 42, openStart: false, openEnd: true },
     );
   });
 
   it("fills the window for a range that swallows it whole", () => {
     expect(placeItem(item("2026-01-01", "2027-01-01"), ticks, "weeks")).toEqual(
-      {
-        index: 0,
-        span: ticks.length,
-        openStart: true,
-        openEnd: true,
-      },
+      { from: 0, to: 42, total: 42, openStart: true, openEnd: true },
     );
   });
 
@@ -309,24 +144,31 @@ describe("placeItem", () => {
   it("keeps a range touching the very first and last day", () => {
     expect(
       placeItem(item("2026-06-01", "2026-08-17"), ticks, "weeks"),
-    ).toMatchObject({
-      index: 0,
-      span: 1,
-      openStart: true,
-    });
+    ).toMatchObject({ from: 0, to: 1, openStart: true });
     expect(
       placeItem(item("2026-09-27", "2026-12-31"), ticks, "weeks"),
-    ).toMatchObject({
-      index: 41,
-      span: 1,
-      openEnd: true,
+    ).toMatchObject({ from: 41, to: 42, openEnd: true });
+  });
+
+  it("ends a range on its own day inside a week-wide column, not on the Sunday", () => {
+    // Oct 5 – Oct 21 (a Wednesday) on a window starting Mon Sep 28
+    const months = timelineTicks("months", "2026-10-20");
+
+    expect(
+      placeItem(item("2026-10-05", "2026-10-21"), months, "months"),
+    ).toEqual({
+      from: 7,
+      to: 24,
+      total: 182,
+      openStart: false,
+      openEnd: false,
     });
   });
 });
 
 describe("placeItems", () => {
   it("drops the rows that are not in the window and keeps the rest in order", () => {
-    const ticks = timelineTicks("weeks", "2026-08-17");
+    const ticks = timelineTicks("weeks", "2026-08-24");
 
     const rows = placeItems(
       [
@@ -339,35 +181,77 @@ describe("placeItems", () => {
     );
 
     expect(rows).toHaveLength(2);
-    expect(rows.map((row) => row.place.index)).toEqual([1, 8]);
+    expect(rows.map((row) => row.place.from)).toEqual([1, 8]);
   });
 });
 
-describe("monthBands", () => {
-  it("groups consecutive columns by the month each begins in", () => {
-    const bands = monthBands(timelineTicks("weeks", "2026-08-17"));
+describe("headerBands", () => {
+  it("names months above days at the week scale, one band per day", () => {
+    const ticks = timelineTicks("weeks", "2026-08-24");
+    const { major, minor } = headerBands(ticks, "weeks");
 
-    expect(bands.map((band) => band.key)).toEqual(["2026-08", "2026-09"]);
-    expect(bands[0]).toEqual({ key: "2026-08", index: 0, span: 15 });
-    expect(bands[1]).toEqual({ key: "2026-09", index: 15, span: 27 });
+    expect(major.map((band) => band.key)).toEqual(["2026-08", "2026-09"]);
+    expect(major[1].from).toBe(15);
+    expect(minor).toHaveLength(ticks.length);
+    expect(
+      minor.every(
+        (band, index) =>
+          band.kind === "day" && band.from === index && days(band) === 1,
+      ),
+    ).toBe(true);
   });
 
-  it("covers every column exactly once", () => {
-    for (const scale of ["weeks", "months"] as const) {
+  it("starts a month on its 1st even when that falls mid-week", () => {
+    // window opens Mon Sep 28; Oct 1 is a Thursday
+    const { major, minor } = headerBands(
+      timelineTicks("months", "2026-10-20"),
+      "months",
+    );
+
+    expect(major.map((band) => [band.key, band.from, band.to])).toEqual([
+      ["2026-09", 0, 3],
+      ["2026-10", 3, 34],
+      ["2026-11", 34, 64],
+      ["2026-12", 64, 95],
+      ["2027-01", 95, 126],
+      ["2027-02", 126, 154],
+      ["2027-03", 154, 182],
+    ]);
+    expect(minor[1]).toMatchObject({ key: "2026-10-05", from: 7, to: 14 });
+  });
+
+  it("names quarters above calendar months at the quarter scale", () => {
+    const ticks = timelineTicks("quarters", "2026-11-20");
+    const { major, minor } = headerBands(ticks, "quarters");
+
+    expect(major[0]).toMatchObject({ key: "2026-Q3", from: 0, to: 3 });
+    expect(major[1]).toMatchObject({
+      key: "2026-Q4",
+      kind: "quarter",
+      from: 3,
+    });
+    expect(minor.map((band) => band.key).slice(0, 4)).toEqual([
+      "2026-09",
+      "2026-10",
+      "2026-11",
+      "2026-12",
+    ]);
+  });
+
+  it("covers every day of the window exactly once, in order", () => {
+    for (const scale of ["weeks", "months", "quarters"] as const) {
       const ticks = timelineTicks(scale, "2026-08-17");
-      const bands = monthBands(ticks);
+      const total = windowDays(ticks, scale);
+      const { major, minor } = headerBands(ticks, scale);
 
-      expect(bands.reduce((total, band) => total + band.span, 0)).toBe(
-        ticks.length,
-      );
-      expect(bands[0].index).toBe(0);
+      for (const row of [major, minor]) {
+        expect(row[0].from).toBe(0);
+        expect(row.at(-1)!.to).toBe(total);
+        expect(
+          row.every((band, i) => i === 0 || band.from === row[i - 1].to),
+        ).toBe(true);
+      }
     }
-  });
-
-  it("files a straddling week under the month it starts in", () => {
-    const bands = monthBands(timelineTicks("months", "2026-08-17"));
-
-    expect(bands[0]).toEqual({ key: "2026-07", index: 0, span: 1 });
   });
 
   it("hands back a day the month label can be built from", () => {
@@ -395,5 +279,79 @@ describe("isCurrentAnchor", () => {
   it("is true anywhere in today's own month at the month scale", () => {
     expect(isCurrentAnchor("months", "2026-08-31", "2026-08-01")).toBe(true);
     expect(isCurrentAnchor("months", "2026-09-01", "2026-08-31")).toBe(false);
+  });
+});
+
+describe("the quarter scale", () => {
+  it("starts on the Monday on or before the quarter's first day", () => {
+    expect(startOfQuarter("2026-11-20")).toBe("2026-10-01");
+    expect(startOfQuarter("2026-03-31")).toBe("2026-01-01");
+
+    const ticks = timelineTicks("quarters", "2026-11-20");
+
+    expect(ticks).toHaveLength(TIMELINE_WINDOW.quarters.ticks);
+    expect(ticks[0]).toBe("2026-09-28");
+    expect(ticks[1]).toBe("2026-10-05");
+  });
+
+  it("pages three months at a time and knows its own quarter", () => {
+    expect(stepAnchor("quarters", "2026-11-20", 1)).toBe("2027-02-20");
+    expect(stepAnchor("quarters", "2026-11-20", -1)).toBe("2026-08-20");
+
+    expect(isCurrentAnchor("quarters", "2026-12-31", "2026-10-01")).toBe(true);
+    expect(isCurrentAnchor("quarters", "2027-01-01", "2026-12-31")).toBe(false);
+  });
+});
+
+describe("bandLabel", () => {
+  it("shortens a narrow band instead of truncating it", () => {
+    const band = { key: "2026-09", kind: "month" } as const;
+
+    expect(bandLabel(band, "en")).toBe("September 2026");
+    expect(bandLabel(band, "en", { short: true })).toBe("Sep");
+  });
+
+  it("names a quarter by its months", () => {
+    expect(bandLabel({ key: "2026-Q4", kind: "quarter" }, "en")).toBe(
+      "October – December 2026",
+    );
+  });
+});
+
+describe("windowLabel", () => {
+  it("names the start year too when the window crosses one", () => {
+    expect(
+      windowLabel(timelineTicks("months", "2026-10-20"), "months", "en"),
+    ).toBe("Sep 28, 2026 – Mar 28, 2027");
+  });
+
+  it("names it once when the window sits inside a year", () => {
+    expect(
+      windowLabel(timelineTicks("weeks", "2026-10-21"), "weeks", "en"),
+    ).toBe("Oct 12 – Nov 22, 2026");
+  });
+});
+
+describe("dayFraction", () => {
+  it("puts a day in the middle of its own column at the week scale", () => {
+    const ticks = timelineTicks("weeks", "2026-10-26");
+
+    expect(dayFraction("2026-10-19", ticks, "weeks")).toBeCloseTo(0.5 / 42);
+    expect(dayFraction("2026-10-20", ticks, "weeks")).toBeCloseTo(1.5 / 42);
+  });
+
+  it("places a day by days, not by its week's Monday, on a week-wide column", () => {
+    const ticks = timelineTicks("months", "2026-10-20");
+    const monday = dayFraction("2026-10-19", ticks, "months")!;
+    const tuesday = dayFraction("2026-10-20", ticks, "months")!;
+
+    expect(tuesday - monday).toBeCloseTo(1 / (26 * 7));
+  });
+
+  it("is null outside the window rather than pinned to an edge", () => {
+    const ticks = timelineTicks("weeks", "2026-10-26");
+
+    expect(dayFraction("2026-10-18", ticks, "weeks")).toBeNull();
+    expect(dayFraction(windowEnd(ticks, "weeks"), ticks, "weeks")).toBeNull();
   });
 });

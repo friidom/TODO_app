@@ -10,6 +10,7 @@ import {
   UserPlusIcon,
   XIcon,
 } from "lucide-react";
+import { IssueRefText } from "@/components/todo/IssueKey";
 
 import IconButton from "@/components/ui/IconButton";
 import InviteActions from "@/components/notifications/InviteActions";
@@ -237,47 +238,55 @@ function Row({
       )}
     >
       <div className="flex items-start">
-        <button
-          type="button"
-          onClick={onOpen}
-          className="focus-visible:ring-brand flex min-w-0 flex-1 items-start gap-2.5 rounded-lg px-2 py-2 text-left outline-none focus-visible:ring-2"
-        >
-          <span
-            className={cn(
-              "mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg",
-              notification.type === "invite"
-                ? "bg-brand-soft text-brand"
-                : "bg-status-blue/15 text-status-blue",
-            )}
-          >
-            <Icon className="size-4" />
-          </span>
-
-          <span className="min-w-0 flex-1">
+        {/* the open button sits behind the text, so a key in a title can be a link of its own */}
+        <div className="relative flex min-w-0 flex-1">
+          <button
+            type="button"
+            onClick={onOpen}
+            aria-label={title}
+            className="focus-visible:ring-brand absolute inset-0 rounded-lg outline-none focus-visible:ring-2"
+          />
+          <div className="pointer-events-none relative flex min-w-0 flex-1 items-start gap-2.5 px-2 py-2 text-left">
             <span
               className={cn(
-                "text-meta block leading-snug",
-                unread ? "text-ink font-medium" : "text-ink-2",
+                "mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg",
+                notification.type === "invite"
+                  ? "bg-brand-soft text-brand"
+                  : "bg-status-blue/15 text-status-blue",
               )}
             >
-              {title}
+              <Icon className="size-4" />
             </span>
 
-            <span className="text-ink-3 text-mini mt-0.5 flex min-w-0 items-center gap-1.5">
-              <span className="truncate">{detail}</span>
-              <span aria-hidden>·</span>
-              <time
-                dateTime={notification.created_at}
-                title={new Date(notification.created_at).toLocaleString(
-                  i18n.language,
+            <span className="min-w-0 flex-1">
+              <span
+                className={cn(
+                  "text-meta block leading-snug",
+                  unread ? "text-ink font-medium" : "text-ink-2",
                 )}
-                className="shrink-0"
               >
-                {relativeTime(notification.created_at)}
-              </time>
+                <IssueRefText
+                  text={title}
+                  linkClassName="pointer-events-auto relative"
+                />
+              </span>
+
+              <span className="text-ink-3 text-mini mt-0.5 flex min-w-0 items-center gap-1.5">
+                <span className="truncate">{detail}</span>
+                <span aria-hidden>·</span>
+                <time
+                  dateTime={notification.created_at}
+                  title={new Date(notification.created_at).toLocaleString(
+                    i18n.language,
+                  )}
+                  className="shrink-0"
+                >
+                  {relativeTime(notification.created_at)}
+                </time>
+              </span>
             </span>
-          </span>
-        </button>
+          </div>
+        </div>
 
         {/* one cell, two states: the unread dot gives way to the mark-read button, so they never overlap */}
         <div className="grid size-8 shrink-0 place-items-center self-start pt-2 pr-1">

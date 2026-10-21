@@ -27,6 +27,7 @@ interface Board {
   title: string | null;
   visibility: string;
   space_id: string | null;
+  space_title: string | null;
   next_key: number;
   key_prefix: string;
 }
@@ -249,6 +250,19 @@ describe("POST /boards", () => {
 
     expect(response.status).toBe(201);
     expect(response.body.space_id).toBe(mine.body.id);
+  });
+
+  it("names the space a shared board is filed in, which a member cannot read through /spaces", async () => {
+    const alice = await makeUser("alice");
+    const bob = await makeUser("bob");
+
+    await addMember(alice.boardId, bob, "viewer", alice.id);
+
+    const shared = await client.get<Board[]>("/api/v1/boards", { token: bob.token });
+    const one = await client.get<Board>(`/api/v1/boards/${alice.boardId}`, { token: bob.token });
+
+    expect(shared.body.find((board) => board.id === alice.boardId)?.space_title).toBe("My Space");
+    expect(one.body.space_title).toBe("My Space");
   });
 
   it("refuses a space_id that names nothing", async () => {

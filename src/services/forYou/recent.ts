@@ -1,3 +1,4 @@
+import { spaceNameOf } from "@/services/spaces/boardSpace";
 import { isViewMode } from "@/services/views/registry";
 import type { IBoard, ISpace } from "@/types/data";
 import { taskKey } from "@/utils/taskKey";
@@ -43,7 +44,6 @@ export function buildRecent({
 }): PeriodGroup<RecentItem>[] {
   const boardById = new Map(boards.map((board) => [board.id, board]));
   const todoById = new Map(todos.map((todo) => [todo.id, todo]));
-  const spaceTitle = new Map(spaces.map((space) => [space.id, space.title]));
 
   const items: RecentItem[] = [];
 
@@ -93,7 +93,7 @@ export function buildRecent({
           item.kind === "task" ? item.key : null,
           item.board.title,
           item.board.key_prefix,
-          item.board.space_id ? spaceTitle.get(item.board.space_id) : null,
+          spaceNameOf(item.board, spaces),
         ].some((text) => text?.toLowerCase().includes(needle)),
       )
     : items;

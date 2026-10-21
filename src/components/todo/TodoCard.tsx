@@ -236,6 +236,9 @@ export default function TodoCard({
       // safe to put on the drag handle: dnd-kit's pointer sensor needs an 8px move to start a drag,
       // and swallows the click for 50ms after a drop, so a stationary click never gets eaten
       onClick={(event) => {
+        // a portalled dialog or popover bubbles through the card in React's tree
+        if (!event.currentTarget.contains(event.target as Node)) return;
+
         if (
           event.target instanceof Element &&
           event.target.closest("button, input, a")
