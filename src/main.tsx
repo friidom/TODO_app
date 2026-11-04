@@ -13,6 +13,26 @@ import { ToastProvider } from "./providers/ToastProvider.tsx";
 import "./components/i18n";
 import { Agentation } from "agentation";
 
+const CHUNK_RELOAD_KEY = "kan:chunk-reload-at";
+
+// A deploy replaces the hashed chunks, so a tab opened before it asks for files
+// that no longer exist. Reload once to pick up the new build; a second failure
+// within a minute is a real error and goes to the route's error page.
+window.addEventListener("vite:preloadError", (event) => {
+  try {
+    const last = Number(sessionStorage.getItem(CHUNK_RELOAD_KEY));
+
+    if (Date.now() - last < 60_000) return;
+
+    sessionStorage.setItem(CHUNK_RELOAD_KEY, String(Date.now()));
+  } catch {
+    return;
+  }
+
+  event.preventDefault();
+  window.location.reload();
+});
+
 createRoot(document.getElementById("root")!).render(
   <ThemeProvider>
     <AuthProvider>
