@@ -106,7 +106,11 @@ async function postRefresh(): Promise<boolean> {
     credentials: "include",
   });
 
-  if (!response.ok) return false;
+  if (response.status === 401 || response.status === 403) return false;
+
+  // A 429, or a 502 while the API restarts, says nothing about the session:
+  // it throws like a dropped connection, so the caller keeps the session.
+  if (!response.ok) throw await toApiError(response);
 
   const body = (await response.json()) as {
     accessToken?: unknown;
@@ -130,6 +134,8 @@ let refreshInFlight: Promise<boolean> | null = null;
 // Presenting an already-rotated refresh token revokes the whole family, by
 // design — so two concurrent refreshes on one cookie read as theft and sign the
 // user out everywhere. Two tabs loading at once is enough to trigger it.
+// false means the server ended the session; a rejection means it could not be
+// reached and the session may still be good.
 export function refreshSession(): Promise<boolean> {
   if (refreshInFlight) return refreshInFlight;
 

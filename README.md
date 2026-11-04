@@ -242,7 +242,10 @@ values set in the compose file itself still win over it.
 Two values must be set for anything beyond a local demo: `JWT_SECRET` (at least
 32 characters — `openssl rand -base64 48`) and `POSTGRES_PASSWORD`. Both are
 overridable as environment variables; the compose defaults are self-labelled
-demo values and are not secrets.
+demo values and are not secrets. With `NODE_ENV=production` the API refuses to
+start on the compose default `JWT_SECRET` or MinIO secret. Behind proxies, set
+`TRUST_PROXY` to their exact count (2 in production) so rate limits are per
+client rather than one bucket for everyone.
 
 `VITE_*` variables are inlined at build time, so changing one means restarting
 the dev server, or rebuilding the image. **Never give an OAuth client secret a

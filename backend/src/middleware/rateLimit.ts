@@ -2,6 +2,7 @@ import type { Request } from "express";
 import rateLimit, { type Options } from "express-rate-limit";
 
 import { AppError } from "../lib/errors.js";
+import { REFRESH_COOKIE } from "../modules/auth/auth.cookies.js";
 import { normalizeIdentifier } from "../lib/identifier.js";
 
 const MINUTE = 60_000;
@@ -74,7 +75,13 @@ export const resendVerificationAddressLimiter = limiter({
 
 export const usernameAvailableLimiter = limiter({ windowMs: 5 * MINUTE, limit: 60 });
 
-export const refreshLimiter = limiter({ windowMs: 15 * MINUTE, limit: 120 });
+// A request without the cookie is answered 401 before any database work, and
+// counting it would let anyone drain the bucket that real sessions refresh from.
+export const refreshLimiter = limiter({
+  windowMs: 15 * MINUTE,
+  limit: 120,
+  skip: (req: Request) => typeof req.cookies?.[REFRESH_COOKIE] !== "string",
+});
 
 // Keyed by account, so it must run after requireAuth. An IP key would be one
 // bucket for every user behind nginx (see the OAuth limiters below).
@@ -93,10 +100,9 @@ export const gitlabWebhookLimiter = limiter({
   keyGenerator: (req: Request) => `gitlab-webhook:${String(req.params.linkId)}`,
 });
 
-// ALL THREE ARE ONE GLOBAL BUCKET behind nginx, because `trust proxy` is unset
-// (B12-03) and every proxied request presents the same container IP. The limits
-// are therefore sized as "absurd for a whole deployment" rather than "generous
-// for one person" — too tight here is an outage, not a defence.
+// Sized as "absurd for a whole deployment" rather than "generous for one
+// person": without TRUST_PROXY every proxied request presents the same
+// container IP, and too tight here is then an outage, not a defence.
 //
 // skipSuccessfulRequests is deliberately NOT used on any of them: these routes
 // answer 302 on success AND on every handled failure, and express-rate-limit
@@ -110,11 +116,6 @@ export const oauthStartLimiter = limiter({ windowMs: 15 * MINUTE, limit: 300 });
 // The one that matters: unauthenticated AND it makes outbound calls to the
 // provider, so without a limit it is a free request amplifier pointed at
 // Google and GitHub.
-// 300, not 120: at one global bucket this is the number of sign-ins the WHOLE
-// deployment gets per window, and an unauthenticated caller can spend it to
-// deny OAuth to everyone. Keying per client needs `trust proxy` (B12-03);
-// until then the limit is sized so casual abuse cannot lock a team out, while
-// still bounding the outbound calls this route makes.
 export const oauthCallbackLimiter = limiter({ windowMs: 15 * MINUTE, limit: 300 });
 
 // Guessing a link token means guessing 256 bits, so this bounds cost rather

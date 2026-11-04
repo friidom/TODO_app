@@ -108,6 +108,12 @@ function isRedisUrl(raw: string): boolean {
 const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().min(1).max(65535).default(4000),
+  // How many proxies sit in front of this process, counted exactly: req.ip,
+  // and so every per-IP rate limit, is read that many hops into
+  // X-Forwarded-For. Production is 2 (host nginx, then the frontend nginx). One
+  // too many lets a client choose its own address by sending the header; 0
+  // makes every visitor one bucket.
+  TRUST_PROXY: z.coerce.number().int().min(0).max(5).default(0),
   CORS_ORIGIN: z.string().min(1).default("http://localhost:5173"),
   DATABASE_URL: databaseUrl,
 
@@ -237,6 +243,11 @@ export const env = {
   }
 }
 
+const COMPOSE_DEFAULTS = {
+  JWT_SECRET: "docker-demo-secret-change-me-at-least-32-chars",
+  MINIO_SECRET_KEY: "minioadmin123",
+};
+
 if (env.isProduction) {
   const oauthConfigured = env.GOOGLE_CLIENT_ID !== undefined || env.GITHUB_CLIENT_ID !== undefined;
 
@@ -249,6 +260,10 @@ if (env.isProduction) {
       "AUTH_REQUIRE_EMAIL_VERIFICATION must be true — auto-verification lets anyone claim an address they do not own",
     env.MAIL_DRIVER === "console" &&
       "MAIL_DRIVER must be smtp — the console driver prints reset links to the log instead of sending them",
+    env.JWT_SECRET === COMPOSE_DEFAULTS.JWT_SECRET &&
+      "JWT_SECRET is docker-compose.yml's public default — anyone could sign a token for any account",
+    env.MINIO_SECRET_KEY === COMPOSE_DEFAULTS.MINIO_SECRET_KEY &&
+      "MINIO_SECRET_KEY is docker-compose.yml's public default",
   ].filter((message): message is string => message !== false);
 
   if (unsafe.length > 0) {

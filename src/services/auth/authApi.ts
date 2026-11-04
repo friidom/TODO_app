@@ -66,12 +66,26 @@ export async function fetchMe(): Promise<AuthUser> {
   return user;
 }
 
+const RESTORE_RETRY_DELAYS_MS = [1_000, 2_000, 4_000, 8_000];
+
+// An unreachable API (a deploy restarting it, a 429) is retried rather than
+// read as signed out, but not forever: the session gate's spinner is up the
+// whole time.
+async function refreshWithRetry(): Promise<boolean> {
+  for (const delay of RESTORE_RETRY_DELAYS_MS) {
+    try {
+      return await refreshSession();
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+
+  return refreshSession().catch(() => false);
+}
+
 // A reload starts with no token in memory, so it spends the refresh cookie.
-// Any failure is "not signed in", not an error worth surfacing.
 export async function restoreSession(): Promise<AuthUser | null> {
-  // A dropped request rejects rather than answering false, and left the
-  // session gate's spinner up for good.
-  if (!(await refreshSession().catch(() => false))) return null;
+  if (!(await refreshWithRetry())) return null;
 
   const user = takeRefreshedUser() as AuthUser | null;
 

@@ -31,10 +31,32 @@ describe("restoreSession", () => {
     expect(client.get).not.toHaveBeenCalled();
   });
 
-  it("is signed out when the refresh request itself fails", async () => {
+  it("retries an unreachable API, then is signed out", async () => {
+    vi.useFakeTimers();
     client.refreshSession.mockRejectedValue(new TypeError("Failed to fetch"));
 
-    expect(await restoreSession()).toBeNull();
+    const restored = restoreSession();
+
+    await vi.runAllTimersAsync();
+
+    expect(await restored).toBeNull();
+    expect(client.refreshSession).toHaveBeenCalledTimes(5);
+    vi.useRealTimers();
+  });
+
+  it("keeps the session through a deploy's 502 instead of signing out", async () => {
+    vi.useFakeTimers();
+    client.refreshSession
+      .mockRejectedValueOnce(Object.assign(new Error("Bad Gateway"), { status: 502 }))
+      .mockResolvedValueOnce(true);
+    client.takeRefreshedUser.mockReturnValue(USER);
+
+    const restored = restoreSession();
+
+    await vi.runAllTimersAsync();
+
+    expect(await restored).toEqual(USER);
+    vi.useRealTimers();
   });
 
   it("restores a reload from the refresh response in one round trip", async () => {
