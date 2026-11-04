@@ -107,6 +107,22 @@ export function statusOf(
   });
 }
 
+// Locks the card until the transaction ends and answers whether its status is
+// still the one the workflow check approved. Without the lock two concurrent
+// moves are both checked against the old status, and a transition the
+// workflow forbids goes through.
+export async function lockedStatusIs(
+  tx: Prisma.TransactionClient,
+  boardId: string,
+  todoId: string,
+  expected: string | null,
+): Promise<boolean> {
+  const rows = await tx.$queryRaw<{ status_id: string | null }[]>`
+    select status_id from todos where id = ${todoId}::uuid and board_id = ${boardId}::uuid for update`;
+
+  return (rows[0]?.status_id ?? null) === expected;
+}
+
 // A column's cards are the cards of every status it shows.
 export async function lastInColumn(
   boardId: string,

@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 
+import type { Prisma } from "@prisma/client";
+
 import { invalidateBoard, type BoardCachePart } from "../../cache/keys.js";
 import { withActor } from "../../db/withActor.js";
 import { AppError, uniqueConstraintOf } from "../../lib/errors.js";
@@ -131,17 +133,35 @@ async function requireAllowedTransition(
   );
 }
 
+// Answers the status the check was made against, which the write must still
+// find under its row lock (todosRepo.lockedStatusIs); undefined when the
+// request does not change the status.
 async function requireStatusChange(
   board: BoardContext,
   todoId: string,
   nextStatusId: string | null | undefined,
-): Promise<void> {
-  if (nextStatusId === undefined || nextStatusId === null) return;
+): Promise<string | null | undefined> {
+  if (nextStatusId === undefined || nextStatusId === null) return undefined;
 
   const currentStatusId = (await todosRepo.statusOf(board.id, todoId))?.status_id ?? null;
   const placements = await requirePlaceableStatus(board, currentStatusId, nextStatusId);
 
   await requireAllowedTransition(board, currentStatusId, nextStatusId, placements);
+
+  return currentStatusId;
+}
+
+async function requireStatusUnchanged(
+  tx: Prisma.TransactionClient,
+  board: BoardContext,
+  todoId: string,
+  checked: string | null | undefined,
+): Promise<void> {
+  if (checked === undefined) return;
+
+  if (!(await todosRepo.lockedStatusIs(tx, board.id, todoId, checked))) {
+    throw new AppError("conflict", "Someone else moved this card. Refresh and try again.");
+  }
 }
 
 export function list(board: BoardContext): Promise<TodoRow[]> {
@@ -224,12 +244,14 @@ export async function upsert(
   input: UpsertTodoInput,
 ): Promise<TodoDetailRow> {
   await requireBoardMember(board, input.assignee_id);
-  await requireStatusChange(board, todoId, input.status_id);
+  const checked = await requireStatusChange(board, todoId, input.status_id);
 
   try {
-    const saved = await withActor(actor.id, (tx) =>
-      todosRepo.upsert(tx, board.id, todoId, actor.id, writeFrom(input)),
-    );
+    const saved = await withActor(actor.id, async (tx) => {
+      await requireStatusUnchanged(tx, board, todoId, checked);
+
+      return todosRepo.upsert(tx, board.id, todoId, actor.id, writeFrom(input));
+    });
 
     await invalidateBoard(board.id, CARD_MAY_BE_INSERTED);
     emitChange(board.id, "todo", "UPDATE", saved);
@@ -261,11 +283,13 @@ export async function move(
   todoId: string,
   input: MoveTodoInput,
 ): Promise<TodoDetailRow> {
-  await requireStatusChange(board, todoId, input.status_id);
+  const checked = await requireStatusChange(board, todoId, input.status_id);
 
-  const moved = await withActor(actor.id, (tx) =>
-    todosRepo.update(tx, board.id, todoId, { status_id: input.status_id, rank: input.rank }),
-  );
+  const moved = await withActor(actor.id, async (tx) => {
+    await requireStatusUnchanged(tx, board, todoId, checked);
+
+    return todosRepo.update(tx, board.id, todoId, { status_id: input.status_id, rank: input.rank });
+  });
 
   if (moved === 0) throw notFound();
 

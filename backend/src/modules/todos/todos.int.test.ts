@@ -763,6 +763,44 @@ describe("sequential workflow", () => {
     });
   });
 
+  // In Progress -> In Review is allowed and so is In Progress -> To Do, but if
+  // both land, the card has gone To Do -> In Review, which is not.
+  it.each(["move", "patch"])(
+    "refuses with 409 a %s whose card changed status while it waited",
+    async (door) => {
+      const { actor, boardId } = await setup();
+      const status = await stageStatuses(boardId);
+      const todo = await makeTodo(actor, boardId, { title: "A", status_id: status.inProgress });
+
+      let release!: () => void;
+      const mayCommit = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      let holding = false;
+
+      const other = prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`select id from todos where id = ${todo.id}::uuid for update`;
+        await tx.todos.update({ where: { id: todo.id }, data: { status_id: status.todo } });
+        holding = true;
+        await mayCommit;
+      });
+
+      while (!holding) await new Promise((resolve) => setImmediate(resolve));
+
+      const racing =
+        door === "move"
+          ? moveTo(actor, todo.id, status.inReview)
+          : patchTo(actor, boardId, todo.id, status.inReview);
+
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      release();
+      await other;
+
+      expect((await racing).status).toBe(409);
+      expect(await statusOf(todo.id)).toBe(status.todo);
+    },
+  );
+
   describe("status update (PATCH /boards/:boardId/todos/:todoId)", () => {
     it("walks the whole chain one step at a time", async () => {
       const { actor, boardId } = await setup();
