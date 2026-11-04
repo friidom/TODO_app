@@ -8,6 +8,7 @@ import { callbackUrl, configuredProviders } from "./lib/oauth/providers.js";
 import { prisma } from "./db/prisma.js";
 import { createRealtimeServer } from "./realtime/io.js";
 import { avatarStorage, minioStorage } from "./infrastructure/storage/minio-storage.js";
+import { scheduleAuthCleanup } from "./modules/auth/auth.cleanup.js";
 
 // Explicit, because Socket.IO needs the http.Server itself — app.listen()
 // creates one and returns it, but only after it is already bound.
@@ -16,6 +17,7 @@ const server = createServer(app);
 const io = createRealtimeServer(server);
 
 connectCache();
+scheduleAuthCleanup();
 
 server.listen(env.PORT, async () => {
   console.log(

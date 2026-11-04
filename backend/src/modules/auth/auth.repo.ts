@@ -244,3 +244,27 @@ export function updatePasswordHash(
     select: { id: true },
   });
 }
+
+// A session row is kept while any session in its family is live: replaying a
+// rotated token is what revokes the family, so the old row is the evidence.
+// Once the whole lineage is dead it only holds an IP address and a user agent.
+export async function pruneDeadAuthRows(cutoff: Date): Promise<number> {
+  const sessions = await prisma.$executeRaw`
+    delete from sessions s
+     where (s.revoked_at < ${cutoff} or s.expires_at < ${cutoff})
+       and not exists (
+         select 1 from sessions live
+          where live.family_id = s.family_id
+            and live.revoked_at is null
+            and live.expires_at > now()
+       )`;
+
+  const spent = { OR: [{ used_at: { lt: cutoff } }, { expires_at: { lt: cutoff } }] };
+  const tokens = await Promise.all([
+    prisma.password_reset_tokens.deleteMany({ where: spent }),
+    prisma.email_verification_tokens.deleteMany({ where: spent }),
+    prisma.oauth_link_tokens.deleteMany({ where: spent }),
+  ]);
+
+  return sessions + tokens.reduce((sum, { count }) => sum + count, 0);
+}
