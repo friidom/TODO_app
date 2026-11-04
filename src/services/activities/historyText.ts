@@ -1,7 +1,7 @@
 import i18n from "@/components/i18n";
 import { PRIORITIES, type Priority } from "@/constants/priorities";
 import { WORK_TYPE_LABELS, type WorkType } from "@/constants/workTypes";
-import { labelDiff, num, str } from "./activityText";
+import { labelDiff, num, sprintLabel, str } from "./activityText";
 import type { Activity } from "@/types/data";
 import { formatDue } from "@/utils/dueDate";
 import { taskKey } from "@/utils/taskKey";
@@ -203,6 +203,24 @@ export function describeHistoryChange(
         i18n.t("history.estimateField"),
         from === null ? i18n.t("common.none") : String(from),
         to === null ? i18n.t("common.none") : String(to),
+      );
+    }
+
+    case "sprint_changed":
+      return changed(
+        i18n.t("fields.sprint"),
+        sprintLabel(activity.payload, "from", (key) => i18n.t(key)),
+        sprintLabel(activity.payload, "to", (key) => i18n.t(key)),
+      );
+
+    case "start_changed": {
+      const from = str(activity.payload, "from");
+      const to = str(activity.payload, "to");
+
+      return changed(
+        i18n.t("fields.startDate"),
+        from ? formatDue(from) : i18n.t("common.none"),
+        to ? formatDue(to) : i18n.t("common.none"),
       );
     }
 

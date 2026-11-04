@@ -246,7 +246,10 @@
     "roleMade": "made {{who}} {{role}}",
     "roleChanged": "changed {{who}}'s role",
     "changedSomething": "changed something",
-    "labelsChanged": "changed the labels of {{item}}"
+    "labelsChanged": "changed the labels of {{item}}",
+    "sprintChanged": "changed the sprint of {{item}}",
+    "startChanged": "changed the start date of {{item}}",
+    "startCleared": "cleared the start date on {{item}}"
   },
   "loading": "Loading...",
   "common": {
@@ -726,7 +729,8 @@
     "madeTopLevel": "made this a top-level work item",
     "estimateField": "Story point estimate",
     "labelAdded": "added the label",
-    "labelRemoved": "removed the label"
+    "labelRemoved": "removed the label",
+    "deletedSprint": "a deleted sprint"
   },
   "taskActivity": {
     "all": "All",
@@ -1673,7 +1677,9 @@
     },
     "board": {
       "workflow_published": "Board workflow published"
-    }
+    },
+    "sprint_changed": "Sprint changed",
+    "start_changed": "Start date changed"
   },
   "admin": {
     "backToBoards": "Back to boards",

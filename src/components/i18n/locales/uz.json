@@ -246,7 +246,10 @@
     "roleMade": "{{who}} ni {{role}} qildi",
     "roleChanged": "{{who}} rolini o'zgartirdi",
     "changedSomething": "nimanidir o'zgartirdi",
-    "labelsChanged": "{{item}} teglarini o'zgartirdi"
+    "labelsChanged": "{{item}} teglarini o'zgartirdi",
+    "sprintChanged": "{{item}} sprintini o'zgartirdi",
+    "startChanged": "{{item}} boshlanish sanasini o'zgartirdi",
+    "startCleared": "{{item}} boshlanish sanasini olib tashladi"
   },
   "loading": "Yuklanmoqda...",
   "common": {
@@ -726,7 +729,8 @@
     "madeTopLevel": "buni yuqori darajadagi ish elementiga aylantirdi",
     "estimateField": "Ball bahosi",
     "labelAdded": "teg qo'shdi",
-    "labelRemoved": "tegni olib tashladi"
+    "labelRemoved": "tegni olib tashladi",
+    "deletedSprint": "o'chirilgan sprint"
   },
   "taskActivity": {
     "all": "Hammasi",
@@ -1673,7 +1677,9 @@
     },
     "board": {
       "workflow_published": "Doska ish jarayoni e'lon qilindi"
-    }
+    },
+    "sprint_changed": "Sprint o'zgartirildi",
+    "start_changed": "Boshlanish sanasi o'zgartirildi"
   },
   "admin": {
     "backToBoards": "Doskalarga qaytish",

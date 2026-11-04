@@ -64,6 +64,16 @@ function names(payload: Activity["payload"], key: string): string[] {
 }
 
 // What a labels_changed row added and removed, compared without case as the API does.
+// No sprint is the Backlog. A sprint id with no name is one deleted before
+// the row was read back, which 0043 cannot name either.
+export function sprintLabel(payload: Activity["payload"], side: "from" | "to", t: T): string {
+  const name = str(payload, `${side}_name`);
+
+  if (name !== null) return name;
+
+  return str(payload, side) === null ? t("views.backlog") : t("history.deletedSprint");
+}
+
 export function labelDiff(payload: Activity["payload"]): {
   added: string[];
   removed: string[];
@@ -286,6 +296,28 @@ export function describeActivity(
         detail: {
           label: t("fields.estimate"),
           value: to === null ? t("common.none") : String(to),
+        },
+      };
+    }
+
+    case "todo.sprint_changed":
+      return {
+        text: t("activity.sprintChanged", { item }),
+        taskId,
+        detail: { label: t("fields.sprint"), value: sprintLabel(activity.payload, "to", t) },
+      };
+
+    case "todo.start_changed": {
+      const to = str(activity.payload, "to");
+
+      return {
+        text: to
+          ? t("activity.startChanged", { item })
+          : t("activity.startCleared", { item }),
+        taskId,
+        detail: {
+          label: t("fields.startDate"),
+          value: to ? formatDue(to) : t("common.none"),
         },
       };
     }

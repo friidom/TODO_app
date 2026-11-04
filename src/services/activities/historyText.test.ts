@@ -271,6 +271,37 @@ describe("describeHistoryChange — labels_changed", () => {
   });
 });
 
+describe("describeHistoryChange — sprint_changed and start_changed", () => {
+  it("names both sprints, and the Backlog for none", () => {
+    expect(
+      describeHistoryChange(
+        entry("sprint_changed", { from: null, to: "s-1", from_name: null, to_name: "Sprint 7" }),
+        NAMES,
+      ),
+    ).toEqual({ verb: "changed the", field: "Sprint", from: "Backlog", to: "Sprint 7" });
+  });
+
+  it("says a sprint was deleted rather than guessing its name", () => {
+    expect(
+      describeHistoryChange(
+        entry("sprint_changed", { from: "s-1", to: null, from_name: null, to_name: null }),
+        NAMES,
+      )?.from,
+    ).toBe("a deleted sprint");
+  });
+
+  it("formats the start date like the due date", () => {
+    const change = describeHistoryChange(
+      entry("start_changed", { from: null, to: "2026-11-02" }),
+      NAMES,
+    );
+
+    expect(change?.field).toBe("Start date");
+    expect(change?.from).toBe("None");
+    expect(change?.to).not.toBeNull();
+  });
+});
+
 describe("describeHistoryChange — unrenderable actions", () => {
   it("returns null for deleted", () => {
     expect(describeHistoryChange(entry("deleted"), NAMES)).toBeNull();

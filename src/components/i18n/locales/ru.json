@@ -258,7 +258,10 @@
     "roleMade": "назначил(а) {{who}} роль «{{role}}»",
     "roleChanged": "изменил(а) роль {{who}}",
     "changedSomething": "что-то изменил(а)",
-    "labelsChanged": "изменил(а) метки {{item}}"
+    "labelsChanged": "изменил(а) метки {{item}}",
+    "sprintChanged": "изменил(а) спринт {{item}}",
+    "startChanged": "изменил(а) дату начала {{item}}",
+    "startCleared": "убрал(а) дату начала у {{item}}"
   },
   "loading": "Загрузка...",
   "common": {
@@ -782,7 +785,8 @@
     "madeTopLevel": "сделал(а) эту задачу задачей верхнего уровня",
     "estimateField": "Оценка в очках",
     "labelAdded": "добавил(а) метку",
-    "labelRemoved": "убрал(а) метку"
+    "labelRemoved": "убрал(а) метку",
+    "deletedSprint": "удалённый спринт"
   },
   "taskActivity": {
     "all": "Все",
@@ -1797,7 +1801,9 @@
     },
     "board": {
       "workflow_published": "Опубликован процесс доски"
-    }
+    },
+    "sprint_changed": "Изменён спринт",
+    "start_changed": "Изменена дата начала"
   },
   "admin": {
     "backToBoards": "К доскам",
