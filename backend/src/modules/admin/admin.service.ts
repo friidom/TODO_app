@@ -27,18 +27,26 @@ function rangeOf(period: AdminPeriod): PeriodRange {
   return periodRange(period, new Date(), env.APP_TIMEZONE);
 }
 
+// A KPI target covers all of a person's work. Set against one board's or one
+// space's share of it the percentage understates everyone, so a scoped view
+// shows no target at all ("—"), the same as an unclassified person.
 function withPerformance(
   user: adminRepo.UserMetrics,
   period: AdminPeriod,
   range: PeriodRange,
+  scoped: boolean,
 ): adminRepo.UserMetrics & Performance {
-  const target = targetFor(period, range, user.daily_points, user.weekly_points);
+  const target = scoped ? null : targetFor(period, range, user.daily_points, user.weekly_points);
 
   return {
     ...user,
     target_points: target,
     performance: performanceOf(user.completed_points, target),
   };
+}
+
+function isScoped(input: UserQuery): boolean {
+  return input.board !== undefined || input.space !== undefined;
 }
 
 export interface Overview {
@@ -84,7 +92,7 @@ export async function users(input: UserQuery) {
     period,
     from: range.from,
     to: range.to,
-    users: rows.map((row) => withPerformance(row, period, range)),
+    users: rows.map((row) => withPerformance(row, period, range, isScoped(input))),
   };
 }
 
@@ -117,7 +125,7 @@ export async function user(userId: string, input: UserQuery) {
     from: range.from,
     to: range.to,
     timezone: env.APP_TIMEZONE,
-    user: withPerformance(row, period, range),
+    user: withPerformance(row, period, range, isScoped(input)),
     series,
     // The only window in the API that ignores the selected period, and it
     // says so rather than leaving a reader to infer it (E2, V6). It does

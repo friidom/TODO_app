@@ -245,7 +245,7 @@ export interface UserScope {
 function userScopeOf(
   scope: UserScope,
   params: unknown[],
-): { todo: string; comment: string; activity: string } {
+): { todo: string; comment: string; activity: string; member: string } {
   const bind = (value: unknown): string => {
     params.push(value);
 
@@ -255,6 +255,7 @@ function userScopeOf(
   let todo = "";
   let comment = "";
   let activity = "";
+  let member = "";
 
   if (scope.boardId !== undefined) {
     const board = bind(scope.boardId);
@@ -262,6 +263,7 @@ function userScopeOf(
     todo += ` and t.board_id = ${board}`;
     comment += ` and c.board_id = ${board}`;
     activity += ` and a.board_id = ${board}`;
+    member += ` and bm.board_id = ${board}`;
   }
 
   if (scope.spaceId !== undefined) {
@@ -272,13 +274,22 @@ function userScopeOf(
     todo += filed("t.board_id");
     comment += filed("c.board_id");
     activity += filed("a.board_id");
+    member += filed("bm.board_id");
   }
 
-  return { todo, comment, activity };
+  return { todo, comment, activity, member };
 }
 
-function userMetricsSql(scope: UserScope, params: unknown[]): string {
+// rosterOnly narrows the list to the scope's members plus anyone who did
+// scoped work in the period (a member who has since left still did it); a
+// drill-down on one person answers for anyone.
+function userMetricsSql(scope: UserScope, params: unknown[], rosterOnly = false): string {
   const filter = userScopeOf(scope, params);
+  const roster =
+    rosterOnly && filter.member !== ""
+      ? ` and (exists (select 1 from board_members bm where bm.user_id = u.id${filter.member})
+             or done.user_id is not null or said.user_id is not null or did.user_id is not null)`
+      : "";
 
   return `
   with done as (
@@ -350,7 +361,7 @@ function userMetricsSql(scope: UserScope, params: unknown[]): string {
     left join did    on did.user_id    = u.id
     left join joined on joined.user_id = u.id
     left join kpi_targets k on k.seniority = u.seniority
-   where u.deactivated_at is null`;
+   where u.deactivated_at is null${roster}`;
 }
 
 export async function userMetrics(
@@ -359,7 +370,7 @@ export async function userMetrics(
   scope: UserScope = {},
 ): Promise<UserMetrics[]> {
   const params: unknown[] = [from, to];
-  const sql = userMetricsSql(scope, params);
+  const sql = userMetricsSql(scope, params, true);
 
   const { rows } = await query<UserMetrics>(
     `${sql} order by coalesce(done.completed_todos, 0) desc, p.username asc`,
