@@ -56,7 +56,7 @@ production actions).
 | F-25 | P3 | Done grows without limit | COMPLETED | 34c3790 |
 | F-26 | P3 | Hand-styled buttons | NOT_APPLICABLE as a task (adopt when touched, per the audit) | |
 | F-27 | P3 | Very large components | NOT_APPLICABLE as a task (split when touched, per the audit) | |
-| F-28 | P3 | Container hardening | BLOCKED (shadcn move done; `USER node` simulated but needs a real Docker build; the MinIO pin needs the server's version) | 466104c |
+| F-28 | P3 | Container hardening | BLOCKED (shadcn move done; `USER node` simulated, but the real build still waits on Docker, which was unavailable again at 14:05–14:20 UTC; the MinIO pin needs the server's version, and SSH still times out) | 466104c |
 | F-29 | P3 | Missing `created_at` indexes | NOT_APPLICABLE now (the audit's trigger is not met; measured) | |
 | F-30 | P3 | Card history misses sprint and start date | COMPLETED | 34586b0 |
 
@@ -370,18 +370,36 @@ deploy.
   `sudo -n docker inspect todo-minio --format '{{.Config.Image}} {{.Image}}'` and
   `sudo -n docker exec todo-minio minio --version`, then pin `quay.io/minio/minio` to that exact
   release (or its digest) in `docker-compose.yml`.
-- `USER node`: not committed. Docker Desktop's daemon has not answered for days on this machine
-  (up 15 days, every call hangs), and restarting it would also stop your local containers.
+- `USER node`: not committed. Docker was retried at 14:05–14:20 UTC on 2026-11-04, after you
+  said it was being prepared, and was still unavailable:
+  - The engine's `/_ping` times out (curl exit 28). Docker Desktop's own control socket
+    (`backend.sock`) does not answer either.
+  - `monitor.log` shows Resource Saver stopped the VM at 03:45 UTC (`VM stopped`,
+    `Idle:shutdown`). Nothing after that shows it waking: API calls reach Docker Desktop's
+    request cache and go no further.
+  - The `com.docker.backend` process is still the one started 15 days ago. Docker Desktop is
+    stuck and needs Restart from the whale menu. The VM is already off, so a restart stops no
+    containers. It was left to you.
+
   Without Docker, the closest check was run: the image's runtime contents (`node_modules`,
   `dist`, `prisma`, `prisma.config.ts`, `package.json`, from a clean `npm ci` of this branch)
   copied into a directory made read-only, which is how root-owned `/app` looks to the `node`
   user. From it, `npm run db:migrate` applied all 43 migrations to a fresh database, and
   `node dist/server.js` started, answered `/health` and registered an account, with no
   permission errors. That is macOS, not the Alpine image, so it does not replace the build.
-- The change, once Docker works: add `USER node` before `ENTRYPOINT` in `backend/Dockerfile`,
-  then `docker compose build backend && docker compose up -d backend`, and check
-  `docker compose exec backend id -u` (1000), `docker compose logs backend` (migrate deploy and
-  "listening"), `/health`, an attachment upload and download, and `ops/smoke-browser.mjs`.
+- The change, once Docker works: add `USER node` before `ENTRYPOINT` in `backend/Dockerfile`.
+  Build and run it as a separate project, never as `todo-app` (see step 4 of Remaining
+  production actions). Then check:
+  - `id -u` in the backend container is 1000;
+  - its log shows `migrate deploy` and "listening";
+  - `/health` answers;
+  - an attachment uploads and downloads byte for byte, and an avatar uploads;
+  - `ops/smoke-browser.mjs` passes.
+
+  The change is ready in a scratch clone, uncommitted.
+- MinIO compatibility: quay.io refuses anonymous tag listing, so what `latest` currently points
+  to could not be read without Docker. Production does not re-pull `latest` on `up --build`.
+  It keeps whatever it pulled first, which is why the pin needs the server's own version.
 
 ### F-29: created_at indexes
 
@@ -416,6 +434,8 @@ with `npm ci` in both projects and new databases on the scratch PostgreSQL 17 cl
 | Upgrade path: migrate to 0042, seed demo data (2,524 cards, 6,239 activity rows), then deploy | 0043 applied, every count unchanged; the new sprint and start-date blocks wrote correct rows |
 | `ops/smoke-browser.mjs` against the clean build and compiled API (`node dist/server.js`) | PASS: health, sign-in, 101 upgrade, live drag, no CSP violations |
 | F-25 in the browser | as described under F-25 |
+| `docker compose config` at `4f1a4d4` (client-side, engine deliberately unreachable, no `backend/.env`) | valid: 5 services, every one with the 10 MB × 5 log cap; images `postgres:18`, `redis:8-alpine`, `quay.io/minio/minio:latest` |
+| `nginx -t`, Docker build, non-root run, Docker smoke | not run: the Docker engine is unavailable (F-28) |
 
 3,372 tests pass against the 3,326 baseline, and none was removed. Two existing tests that pinned
 the old behaviour were changed on purpose: the SVG-inline unit test (F-05) and the "every user,
@@ -451,8 +471,22 @@ These need a person with server access. None has been done. In order:
    than today.
 3. Check `nginx.conf` on a machine with Docker:
    `docker run --rm --add-host backend:127.0.0.1 -v "$PWD/nginx.conf:/etc/nginx/conf.d/default.conf:ro" nginx:alpine nginx -t`.
-4. Build and start the release candidate locally (`docker compose config`, then
-   `docker compose up --build`) and run `ops/smoke-browser.mjs` against it.
+4. Build and start the release candidate locally and run `ops/smoke-browser.mjs` against it.
+   Do not run a plain `docker compose up --build` on a machine that has the dev stack.
+   `docker-compose.yml` sets `name: todo-app` and `container_name: todo-minio`, so it would
+   replace the dev containers and run migration 0043 on the dev database volume. Instead, from
+   a clean checkout of the branch, with an override file that:
+   - sets `name: veylo-verify`;
+   - resets every service's `ports` and `volumes`, using `tmpfs` for `/var/lib/postgresql` and
+     MinIO's `/data`;
+   - sets `container_name: !reset null` on `minio` and `restart: "no"` everywhere;
+   - publishes only the frontend, on `127.0.0.1:13080:80`;
+   - points `CORS_ORIGIN`, `APP_URL` and `API_PUBLIC_URL` at `http://localhost:13080`.
+
+   Then run `docker compose -f docker-compose.yml -f verify.yml up -d --build`, then
+   `ops/smoke-browser.mjs http://localhost:13080`, then
+   `docker compose -f docker-compose.yml -f verify.yml down`. Nothing persists, and no volume is
+   created or removed. The override's merge was checked with `docker compose config`.
 5. Take the usual pre-deploy `pg_dump`: migration 0043 runs on start.
 6. Deploy with `git stash`, `git merge --ff-only`, `git stash pop` (the branch changes
    `docker-compose.yml`, which the server keeps a local edit of), then `docker compose config`
