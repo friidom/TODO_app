@@ -24,7 +24,7 @@ scratchpad (`todo_app_test`, all 42 migrations). Browser checks use a seeded scr
 for the frontend nginx that sends the exact `add_header` values parsed from `nginx.conf`.
 Docker was unresponsive on this machine for most of 2026-11-04. It answered briefly from
 15:59 UTC, long enough for `nginx -t`, both image builds and the image checks, and then froze
-again (see F-28).
+again. From 17:58 UTC it worked again, and the running-stack checks passed (see F-28).
 
 ## Status
 
@@ -57,7 +57,7 @@ again (see F-28).
 | F-25 | P3 | Done grows without limit | COMPLETED | 34c3790 |
 | F-26 | P3 | Hand-styled buttons | NOT_APPLICABLE as a task (adopt when touched, per the audit) | |
 | F-27 | P3 | Very large components | NOT_APPLICABLE as a task (split when touched, per the audit) | |
-| F-28 | P3 | Container hardening | BLOCKED (shadcn move done; `USER node` builds and the image runs as uid 1000, but running the stack froze Docker Desktop, so it stays uncommitted; the MinIO pin needs the server's version, and SSH still times out; the MinIO image can no longer be pulled) | 466104c |
+| F-28 | P3 | Container hardening | BLOCKED (shadcn move and `USER node` done and verified in a running Docker stack; the MinIO pin needs the server's version, and SSH still times out; the MinIO image can no longer be pulled) | 466104c, b78e757 |
 | F-29 | P3 | Missing `created_at` indexes | NOT_APPLICABLE now (the audit's trigger is not met; measured) | |
 | F-30 | P3 | Card history misses sprint and start date | COMPLETED | 34586b0 |
 
@@ -101,6 +101,10 @@ Remediation plan (not carried out: it needs server access and your authorization
    match: the API signs in with the root credentials.
 4. `sudo -n docker compose up -d minio backend`, then open an existing attachment and an avatar.
 5. Rollback: put the old value back in both places and run the same `up -d`.
+
+Steps 3 and 4 were rehearsed locally on MinIO `RELEASE.2025-09-07T16-13-09Z` (F-28): a file
+uploaded before the change downloaded unchanged after it. If production runs another release,
+repeat the rehearsal on that release first.
 
 ### F-01: per-client rate limits
 
@@ -371,8 +375,9 @@ deploy.
   `sudo -n docker inspect todo-minio --format '{{.Config.Image}} {{.Image}}'` and
   `sudo -n docker exec todo-minio minio --version`, then pin `quay.io/minio/minio` to that exact
   release (or its digest) in `docker-compose.yml`.
-- `USER node`: not committed. Docker was retried at 14:05–14:20 UTC on 2026-11-04, after you
-  said it was being prepared, and was still unavailable:
+- `USER node`: done (b78e757), after the checks below passed in a running stack. Docker was
+  retried at 14:05–14:20 UTC on 2026-11-04, after you said it was being prepared, and was still
+  unavailable:
   - The engine's `/_ping` times out (curl exit 28). Docker Desktop's own control socket
     (`backend.sock`) does not answer either.
   - `monitor.log` shows Resource Saver stopped the VM at 03:45 UTC (`VM stopped`,
@@ -399,33 +404,64 @@ deploy.
   - Production guard, in the real image: `NODE_ENV=production` with the compose defaults
     refuses to start. It names both `JWT_SECRET` and `MINIO_SECRET_KEY` as "docker-compose.yml's
     public default".
-  - Not run: starting the stack, migrations and `/health` as uid 1000, attachment and avatar
-    round trips, the MinIO secret-change rehearsal, `nginx -t` inside the frontend container,
-    and the Docker smoke test. Right after `compose up` sent its first two calls (16:39:45 UTC),
-    Docker Desktop's `com.docker.backend` stopped logging altogether: its `GET /time` heartbeat
-    stopped too, at 0% CPU, and `/_ping` timed out again. That process was started 15 days ago.
-    The engine restart replaced only the VM, so a full Quit and reopen of Docker Desktop is
-    what replaces it.
+  - At 16:39:45 UTC, right after `compose up` sent its first two calls, Docker Desktop's
+    `com.docker.backend` stopped logging altogether (its `GET /time` heartbeat too, at 0% CPU)
+    and `/_ping` timed out again. No container had been created.
 
-  Without Docker, the closest check was run: the image's runtime contents (`node_modules`,
-  `dist`, `prisma`, `prisma.config.ts`, `package.json`, from a clean `npm ci` of this branch)
-  copied into a directory made read-only, which is how root-owned `/app` looks to the `node`
-  user. From it, `npm run db:migrate` applied all 43 migrations to a fresh database, and
-  `node dist/server.js` started, answered `/health` and registered an account, with no
-  permission errors. That is macOS, not the Alpine image, so it does not replace the build.
-- The change, once Docker works: add `USER node` before `ENTRYPOINT` in `backend/Dockerfile`.
-  Build and run it as a separate project, never as `todo-app` (see step 4 of Remaining
-  production actions). Then check:
-  - `id -u` in the backend container is 1000;
-  - its log shows `migrate deploy` and "listening";
-  - `/health` answers;
-  - an attachment uploads and downloads byte for byte, and an avatar uploads;
-  - `ops/smoke-browser.mjs` passes.
+  Docker answered again at 17:58:14 UTC (the same 15-day-old `com.docker.backend`). The stack
+  then ran from the same images, as project `veylo-verify`, with the override in step 4 of
+  Remaining production actions (no ports but `127.0.0.1:13080`, Postgres on tmpfs, MinIO on a
+  scratch bind mount, no named volumes). `up -d --no-build` was healthy within 30 seconds:
+  - Backend user: `id` gives `uid=1000(node) gid=1000(node)`, and `ps` shows
+    `node dist/server.js` as PID 1, user `node`.
+  - Permissions: `touch /app/x` and `touch /app/prisma/migrations/x` are "Permission denied"
+    in the running container.
+  - Migrations: the entrypoint's `prisma migrate deploy` applied all 43 as uid 1000.
+    `_prisma_migrations` has 43 rows, none unfinished or rolled back; the last is
+    `0043_activity_sprint_start`.
+  - Startup log: "listening on http://localhost:4000 (development)", with Redis, PostgreSQL
+    and MinIO connected and both buckets ready.
+  - `/health` inside the container:
+    `{"status":"ok","database":"up","cache":{"status":"up",…}}`.
+  - `nginx -t` inside the running frontend container: syntax ok, test is successful.
+  - MinIO: `minio --version` in the container gives `RELEASE.2025-09-07T16-13-09Z`
+    (commit 07c3a429…, go1.24.6 linux/arm64). The branch's API created both buckets on it and
+    served every file below.
+  - Attachments and avatars, through the frontend nginx on `:13080`:
+    - a PNG uploaded and downloaded byte for byte;
+    - an SVG served inline came back as `application/octet-stream` with
+      `Content-Disposition: attachment` (F-05);
+    - after delete, the attachment answered 404;
+    - an avatar uploaded and its `avatar_url` answered 200 `image/png`.
+  - `ops/smoke-browser.mjs http://localhost:13080`: PASS (health, both contexts sign in, a
+    board with two cards, both join its socket, a drag in one shows in the other).
+  - MinIO secret-change rehearsal, the F-02 remediation in miniature:
+    1. A 64 KiB random file was uploaded.
+    2. MinIO and the backend were recreated with a new random MinIO secret in both services,
+       a new `JWT_SECRET`, and production settings (`NODE_ENV=production`, `COOKIE_SECURE`,
+       email verification, `MAIL_DRIVER=smtp`, `TRUST_PROXY=1`). The values came from a 0600
+       env file and were never printed.
+    3. The backend passed the production guard: "listening … (production)", "No pending
+       migrations to apply", MinIO connected.
+    4. The file downloaded with the same SHA-256.
+    5. The smoke test passed again, in production mode.
 
-  The change is ready in a scratch clone, uncommitted.
+    On this MinIO release, changing the root password over existing data needs nothing
+    beyond setting the same new value in both services.
+  - Teardown: `docker compose … down` without `-v`. It removed the five `veylo-verify`
+    containers and their network only. Your five `todo-app` containers (stopped) and the six
+    existing volumes are unchanged, and nothing was pruned.
+
+  Before Docker returned, the closest check was run: the image's runtime contents copied into a
+  read-only directory on macOS, from which migrations and the server ran. The real-container run
+  above supersedes it.
+- On the server, the compose file has a local edit. After `git stash pop`, check that it mounts
+  no volume into `backend`: `sudo -n docker compose config backend | grep -A3 volumes`. A
+  root-owned volume there would no longer be writable by uid 1000. The checked-in compose
+  mounts none.
 - MinIO: the copy of `quay.io/minio/minio:latest` cached on this machine is
-  `RELEASE.2025-09-07T16-13-09Z` (digest `sha256:14cea493…936e`, built 2025-09-07). It was not
-  run against the branch: the stack never started.
+  `RELEASE.2025-09-07T16-13-09Z` (digest `sha256:14cea493…936e`, built 2025-09-07). The branch
+  runs on it, as above. Whether production runs the same release is still unknown.
 - **New risk: MinIO's official image can no longer be pulled anonymously.** Checked on
   2026-11-04:
   - `quay.io/minio/minio` answers 401 for both `latest` and `RELEASE.2025-09-07T16-13-09Z`. A
@@ -484,7 +520,12 @@ with `npm ci` in both projects and new databases on the scratch PostgreSQL 17 cl
 | Docker build of backend (with `USER node`) and frontend, as project `veylo-verify` | both built (the frontend on the second try, see F-28) |
 | Backend image: user, permissions, migrations | uid 1000; `/app` root-owned and not writable; 43 migrations present; `$HOME` writable |
 | Production guard in the real image, on compose defaults | refuses to start, naming `JWT_SECRET` and `MINIO_SECRET_KEY` |
-| Stack run as uid 1000, attachments and avatars, MinIO secret-change rehearsal, Docker smoke | not run: Docker Desktop froze again at 16:39:45 UTC (F-28) |
+| Stack run as uid 1000 (`veylo-verify`, 17:58 UTC) | healthy; uid 1000; `/app` not writable; 43 of 43 migrations applied by the entrypoint; `/health` ok |
+| `nginx -t` inside the running frontend container | syntax ok, test is successful |
+| MinIO in the stack | `RELEASE.2025-09-07T16-13-09Z`; buckets created, every file served |
+| Attachments and avatars through nginx | PNG byte for byte; SVG forced to download; 404 after delete; avatar 200 |
+| MinIO secret change plus production mode | 64 KiB file survived with the same SHA-256; production guard passed |
+| `ops/smoke-browser.mjs` against the Docker stack | PASS in development mode, PASS in production mode |
 
 3,372 tests pass against the 3,326 baseline, and none was removed. Two existing tests that pinned
 the old behaviour were changed on purpose: the SVG-inline unit test (F-05) and the "every user,
@@ -525,7 +566,8 @@ These need a person with server access. None has been done. In order:
 3. Done locally on 2026-11-04: `nginx -t` passed on this branch's `nginx.conf` in
    `nginx:alpine` (1.31.6), with
    `docker run --rm --add-host backend:127.0.0.1 -v "$PWD/nginx.conf:/etc/nginx/conf.d/default.conf:ro" nginx:alpine nginx -t`.
-4. Build and start the release candidate locally and run `ops/smoke-browser.mjs` against it.
+4. Done locally on 2026-11-04 (F-28): the stack below ran, and the smoke test passed in both
+   modes. Build and start the release candidate locally and run `ops/smoke-browser.mjs` against it.
    Do not run a plain `docker compose up --build` on a machine that has the dev stack.
    `docker-compose.yml` sets `name: todo-app` and `container_name: todo-minio`, so it would
    replace the dev containers and run migration 0043 on the dev database volume. Instead, from
@@ -545,9 +587,9 @@ These need a person with server access. None has been done. In order:
 6. Deploy with `git stash`, `git merge --ff-only`, `git stash pop` (the branch changes
    `docker-compose.yml`, which the server keeps a local edit of), then `docker compose config`
    and `up -d --build`. `env_file` is read when a container is created, so `TRUST_PROXY` takes
-   effect with this `up`.
+   effect with this `up`. Before the `up`, check that the server's compose mounts no volume into
+   `backend` (F-28): the backend now runs as uid 1000.
 7. Afterwards: add `Strict-Transport-Security` on the host nginx; install `ops/backup.sh` in
    cron with the weekly off-machine copy, and run `ops/restore-check.sh` once (F-10); point a
    free uptime monitor at `https://veylo.work.gd/health` (F-15).
-8. F-28: pin MinIO to the version read in step 0. Add `USER node` once a running stack passes
-   the checks under F-28. The build and the image's permissions already pass.
+8. F-28: pin MinIO to the version read in step 0. `USER node` is done (b78e757).
