@@ -183,6 +183,14 @@ restores the newest dump into a throwaway container and checks that the files
 archive holds every attachment the database names. Both scripts say how to use
 them at the top.
 
+### Before a release
+
+`ops/smoke-browser.mjs` drives the installed Chrome against the running stack
+(`docker compose up --build`): two browser contexts sign in, one drags a card
+on a throwaway board and the other must show the move live, through nginx and
+the socket upgrade. `SMOKE_EMAIL=… SMOKE_PASSWORD=… node ops/smoke-browser.mjs
+http://localhost:3000`.
+
 ---
 
 ## Local development (without Docker)
