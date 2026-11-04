@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import i18n from "@/components/i18n";
+import { changeLanguage } from "@/components/i18n";
 import { localizeApiMessage } from "./errorMessage";
 
-afterEach(() => i18n.changeLanguage("en"));
+afterEach(() => changeLanguage("en"));
 
 describe("localizeApiMessage", () => {
   it("translates a message the API sends verbatim", async () => {
-    await i18n.changeLanguage("ru");
+    await changeLanguage("ru");
 
     expect(
       localizeApiMessage("unauthorized", "Invalid login credentials"),
@@ -15,7 +15,7 @@ describe("localizeApiMessage", () => {
   });
 
   it("keeps the names inside a refused transition", async () => {
-    await i18n.changeLanguage("ru");
+    await changeLanguage("ru");
 
     expect(
       localizeApiMessage(
@@ -26,7 +26,7 @@ describe("localizeApiMessage", () => {
   });
 
   it("keeps the key inside a taken board key", async () => {
-    await i18n.changeLanguage("ru");
+    await changeLanguage("ru");
 
     expect(
       localizeApiMessage("conflict", "Board key MNH is already in use."),
@@ -40,7 +40,7 @@ describe("localizeApiMessage", () => {
   });
 
   it("falls back to the code's sentence in other languages", async () => {
-    await i18n.changeLanguage("ru");
+    await changeLanguage("ru");
 
     expect(localizeApiMessage("conflict", "something new")).toBe(
       "Конфликт: данные уже изменились или уже существуют.",
