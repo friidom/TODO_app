@@ -35,6 +35,9 @@ COPY package.json ./package.json
 # --chmod because git on Windows does not carry the execute bit.
 COPY --chmod=0755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
+# /app stays root-owned, so the process cannot rewrite its own code or migrations.
+USER node
+
 EXPOSE 4000
 
 ENTRYPOINT ["docker-entrypoint.sh"]
