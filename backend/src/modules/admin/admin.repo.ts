@@ -876,6 +876,9 @@ export interface CfdRow {
   done: number;
 }
 
+// Work finished before start-tracking existed (0016) has completed_at but no
+// started_at; it counts as started when it finished, or done would rise above
+// started, which a cumulative flow can never show.
 export async function cumulativeFlow(
   bucket: string,
   zone: string,
@@ -897,7 +900,7 @@ export async function cumulativeFlow(
      base as (
        select
          (count(*) filter (where t.created_at < $3))::int as created,
-         (count(*) filter (where t.started_at < $3))::int as started,
+         (count(*) filter (where coalesce(t.started_at, t.completed_at) < $3))::int as started,
          (count(*) filter (where t.completed_at < $3))::int as done
          from todos t
         where ${COUNTABLE}${where}
@@ -909,9 +912,10 @@ export async function cumulativeFlow(
         where t.created_at >= $3 and t.created_at < $4 and ${COUNTABLE}${where}
         group by 1
        union all
-       select date_trunc($1, t.started_at at time zone $2), 0, count(*)::int, 0
+       select date_trunc($1, coalesce(t.started_at, t.completed_at) at time zone $2), 0, count(*)::int, 0
          from todos t
-        where t.started_at >= $3 and t.started_at < $4 and ${COUNTABLE}${where}
+        where coalesce(t.started_at, t.completed_at) >= $3
+          and coalesce(t.started_at, t.completed_at) < $4 and ${COUNTABLE}${where}
         group by 1
        union all
        select date_trunc($1, t.completed_at at time zone $2), 0, 0, count(*)::int
