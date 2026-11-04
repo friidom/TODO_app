@@ -87,6 +87,17 @@ export const DEFAULT_BOARD_VIEW_PREFS: BoardViewPrefs = {
   cardFields: [...DEFAULT_CARD_FIELDS],
 };
 
+// Without sprints nothing ever leaves the board, so Done would grow without limit. A sprint board is the running
+// sprint and bounded already. Only the default: a saved view, a device's settings or a personal choice of Never win.
+const SPRINTLESS_DEFAULT_PREFS: BoardViewPrefs = {
+  ...DEFAULT_BOARD_VIEW_PREFS,
+  hideDoneAfter: 14,
+};
+
+export function defaultBoardViewPrefs(sprintsEnabled: boolean): BoardViewPrefs {
+  return sprintsEnabled ? DEFAULT_BOARD_VIEW_PREFS : SPRINTLESS_DEFAULT_PREFS;
+}
+
 function pick<T extends string>(
   value: unknown,
   allowed: readonly T[],
@@ -184,7 +195,7 @@ export type ViewPrefsSource = "personal" | "saved" | "device" | "default";
 
 export interface ResolvedBoardViewPrefs {
   prefs: BoardViewPrefs;
-  // What Reset returns to: the board's saved view, else this device's settings, else the default.
+  // What Reset returns to: the board's saved view, else this device's settings, else the default for the board.
   baseline: BoardViewPrefs;
   source: ViewPrefsSource;
   // Unsaved changes on this board, which Save would publish and Reset would drop.
@@ -198,12 +209,14 @@ export function resolveBoardViewPrefs({
   personal,
   saved,
   device,
+  sprintsEnabled,
 }: {
   personal: BoardViewPrefs | undefined;
   saved: BoardViewPrefs | null;
   device: BoardViewPrefs | null;
+  sprintsEnabled: boolean;
 }): ResolvedBoardViewPrefs {
-  const baseline = saved ?? device ?? DEFAULT_BOARD_VIEW_PREFS;
+  const baseline = saved ?? device ?? defaultBoardViewPrefs(sprintsEnabled);
   const baselineSource: ViewPrefsSource = saved
     ? "saved"
     : device

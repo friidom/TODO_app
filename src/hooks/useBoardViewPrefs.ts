@@ -20,6 +20,7 @@ export function useBoardViewPrefs() {
   const setPersonal = useBoardViewPrefsStore((state) => state.setPersonal);
 
   const stored = board?.view_settings;
+  const sprintsEnabled = board?.sprints_enabled ?? true;
 
   const saved = useMemo(
     () => (stored ? normalizeBoardViewPrefs(stored) : null),
@@ -27,8 +28,8 @@ export function useBoardViewPrefs() {
   );
 
   const resolved = useMemo(
-    () => resolveBoardViewPrefs({ personal, saved, device }),
-    [personal, saved, device],
+    () => resolveBoardViewPrefs({ personal, saved, device, sprintsEnabled }),
+    [personal, saved, device, sprintsEnabled],
   );
 
   const setPrefs = useCallback(

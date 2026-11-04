@@ -159,6 +159,14 @@ describe("hideStaleDone", () => {
     ).toEqual(["open", "recent", "unstamped"]);
   });
 
+  it("only filters: the cards it hides are still in the array it was given", () => {
+    const before = [...todos];
+
+    hideStaleDone(todos, 1, DONE, TODAY);
+
+    expect(todos).toEqual(before);
+  });
+
   it("counts whole days back from the start of today", () => {
     const edge = [
       card({
@@ -300,6 +308,7 @@ describe("resolveBoardViewPrefs", () => {
       personal: undefined,
       saved,
       device,
+      sprintsEnabled: true,
     });
 
     expect(resolved).toMatchObject({
@@ -312,7 +321,12 @@ describe("resolveBoardViewPrefs", () => {
 
   it("falls back to the device, then the default, when nothing is saved", () => {
     expect(
-      resolveBoardViewPrefs({ personal: undefined, saved: null, device }),
+      resolveBoardViewPrefs({
+        personal: undefined,
+        saved: null,
+        device,
+        sprintsEnabled: true,
+      }),
     ).toMatchObject({
       prefs: device,
       source: "device",
@@ -320,13 +334,23 @@ describe("resolveBoardViewPrefs", () => {
     });
 
     expect(
-      resolveBoardViewPrefs({ personal: undefined, saved: null, device: null }),
+      resolveBoardViewPrefs({
+        personal: undefined,
+        saved: null,
+        device: null,
+        sprintsEnabled: true,
+      }),
     ).toMatchObject({ prefs: DEFAULT_BOARD_VIEW_PREFS, source: "default" });
   });
 
   it("lets an unsaved personal change win, marked dirty, with the saved view as what reset returns to", () => {
     const personal = prefs({ cardFields: ["summary"], columnSize: "flexible" });
-    const resolved = resolveBoardViewPrefs({ personal, saved, device });
+    const resolved = resolveBoardViewPrefs({
+      personal,
+      saved,
+      device,
+      sprintsEnabled: true,
+    });
 
     expect(resolved).toMatchObject({
       prefs: personal,
@@ -341,6 +365,7 @@ describe("resolveBoardViewPrefs", () => {
       personal: { ...saved },
       saved,
       device,
+      sprintsEnabled: true,
     });
 
     expect(resolved).toMatchObject({ source: "saved", dirty: false });
@@ -352,8 +377,66 @@ describe("resolveBoardViewPrefs", () => {
       cardFields: ["status", "summary"] as BoardViewPrefs["cardFields"],
     };
 
-    expect(resolveBoardViewPrefs({ personal, saved, device: null }).dirty).toBe(
-      true,
-    );
+    expect(
+      resolveBoardViewPrefs({
+        personal,
+        saved,
+        device: null,
+        sprintsEnabled: true,
+      }).dirty,
+    ).toBe(true);
+  });
+
+  describe("on a board without sprints", () => {
+    const sprintless = { personal: undefined, sprintsEnabled: false };
+
+    it("hides work done more than 14 days ago by default", () => {
+      expect(
+        resolveBoardViewPrefs({ ...sprintless, saved: null, device: null }),
+      ).toMatchObject({
+        prefs: { ...DEFAULT_BOARD_VIEW_PREFS, hideDoneAfter: 14 },
+        source: "default",
+        dirty: false,
+      });
+    });
+
+    it("keeps a saved view or a device's settings that chose Never", () => {
+      const never = prefs({ hideDoneAfter: null });
+
+      expect(
+        resolveBoardViewPrefs({ ...sprintless, saved: never, device: null })
+          .prefs.hideDoneAfter,
+      ).toBeNull();
+      expect(
+        resolveBoardViewPrefs({ ...sprintless, saved: null, device: never })
+          .prefs.hideDoneAfter,
+      ).toBeNull();
+    });
+
+    it("lets a person choose Never, and reset returns to 14 days", () => {
+      const resolved = resolveBoardViewPrefs({
+        ...sprintless,
+        personal: prefs({ hideDoneAfter: null }),
+        saved: null,
+        device: null,
+      });
+
+      expect(resolved).toMatchObject({
+        prefs: { hideDoneAfter: null },
+        baseline: { hideDoneAfter: 14 },
+        dirty: true,
+      });
+    });
+
+    it("leaves a sprint board's default showing everything", () => {
+      expect(
+        resolveBoardViewPrefs({
+          personal: undefined,
+          saved: null,
+          device: null,
+          sprintsEnabled: true,
+        }).prefs.hideDoneAfter,
+      ).toBeNull();
+    });
   });
 });
