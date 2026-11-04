@@ -4,7 +4,10 @@ import indexHtml from "../index.html?raw";
 import nginxConf from "../nginx.conf?raw";
 
 async function sha256(text: string): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(text),
+  );
 
   return btoa(String.fromCharCode(...new Uint8Array(digest)));
 }

@@ -47,7 +47,9 @@ describe("restoreSession", () => {
   it("keeps the session through a deploy's 502 instead of signing out", async () => {
     vi.useFakeTimers();
     client.refreshSession
-      .mockRejectedValueOnce(Object.assign(new Error("Bad Gateway"), { status: 502 }))
+      .mockRejectedValueOnce(
+        Object.assign(new Error("Bad Gateway"), { status: 502 }),
+      )
       .mockResolvedValueOnce(true);
     client.takeRefreshedUser.mockReturnValue(USER);
 

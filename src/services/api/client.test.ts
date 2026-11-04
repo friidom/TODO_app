@@ -26,9 +26,12 @@ function routeWith(refresh: () => Promise<Response>) {
   fetchMock.mockImplementation((input, init) => {
     if (isRefresh(input)) return refresh();
 
-    const auth = (init?.headers as Record<string, string> | undefined)?.authorization;
+    const auth = (init?.headers as Record<string, string> | undefined)
+      ?.authorization;
 
-    return Promise.resolve(auth === "Bearer fresh" ? json(200, { ok: true }) : json(401));
+    return Promise.resolve(
+      auth === "Bearer fresh" ? json(200, { ok: true }) : json(401),
+    );
   });
 }
 
@@ -58,18 +61,23 @@ describe("a 401 and the refresh that follows it", () => {
   it("ends the session when the refresh is rejected", async () => {
     routeWith(async () => json(401));
 
-    await expect(client.api.get("/boards")).rejects.toMatchObject({ status: 401 });
+    await expect(client.api.get("/boards")).rejects.toMatchObject({
+      status: 401,
+    });
     expect(sessionEnded).toHaveBeenCalledOnce();
     expect(client.getAccessToken()).toBeNull();
   });
 
-  it.each([429, 502, 503])("keeps the session when the refresh answers %i", async (status) => {
-    routeWith(async () => json(status));
+  it.each([429, 502, 503])(
+    "keeps the session when the refresh answers %i",
+    async (status) => {
+      routeWith(async () => json(status));
 
-    await expect(client.api.get("/boards")).rejects.toMatchObject({ status });
-    expect(sessionEnded).not.toHaveBeenCalled();
-    expect(client.getAccessToken()).toBe("stale");
-  });
+      await expect(client.api.get("/boards")).rejects.toMatchObject({ status });
+      expect(sessionEnded).not.toHaveBeenCalled();
+      expect(client.getAccessToken()).toBe("stale");
+    },
+  );
 
   it("keeps the session when the refresh never reaches the server", async () => {
     routeWith(() => Promise.reject(new TypeError("Failed to fetch")));
@@ -81,7 +89,11 @@ describe("a 401 and the refresh that follows it", () => {
   it("spends one refresh for concurrent 401s", async () => {
     routeWith(async () => json(200, { accessToken: "fresh" }));
 
-    await Promise.all([client.api.get("/a"), client.api.get("/b"), client.api.get("/c")]);
+    await Promise.all([
+      client.api.get("/a"),
+      client.api.get("/b"),
+      client.api.get("/c"),
+    ]);
 
     expect(refreshCalls()).toBe(1);
   });
