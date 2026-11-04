@@ -6,7 +6,12 @@ local branch `hardening/audit-2026-11`. Nothing is pushed or deployed.
 
 Five files were already uncommitted on the release branch before this work (`seed-qa.ts`, its
 `db:seed-qa` line in `backend/package.json`, `SprintControls.tsx`, `ThemeProvider.tsx` and
-`oauthApi.ts`). They are left exactly as found and appear in no commit.
+`oauthApi.ts`). They are left exactly as found and appear in no commit. On 2026-11-04 you decided
+to keep them that way (F-20); their SHA-256 checksums were recorded before that day's work and
+matched after it.
+
+Your decisions of 2026-11-04: F-23 deferred, F-25 approved, F-20 preserve, F-28 approved on
+condition (production MinIO version first, a real Docker build, no deploy).
 
 ## Baseline
 
@@ -43,15 +48,15 @@ production actions).
 | F-17 | P2 | Touch drags instead of scrolling | COMPLETED | 9756abc |
 | F-18 | P2 | All three locales in the first bundle | COMPLETED | 9a87f19, 5a385e3 |
 | F-19 | P2 | No browser test of the deployed stack | COMPLETED | b9c39ca |
-| F-20 | P2 | Release hygiene | BLOCKED (your decision on your five files; fast-forwarding main needs a push) | |
+| F-20 | P2 | Release hygiene | BLOCKED (fast-forwarding `main` needs a push; your five files preserved by decision) | |
 | F-21 | P3 | No cleanup of sessions and tokens | COMPLETED | 55f590d |
 | F-22 | P3 | Workflow transition check can be raced | COMPLETED | f92a7bb |
-| F-23 | P3 | No grace window on refresh rotation | BLOCKED (changes reuse detection; needs your decision) | |
+| F-23 | P3 | No grace window on refresh rotation | NOT_APPLICABLE (deferred by your decision; reuse detection unchanged) | |
 | F-24 | P3 | Board page JavaScript weight | COMPLETED | 1ed72de |
-| F-25 | P3 | Done grows without limit | BLOCKED (product decision: default for hideDoneAfter) | |
+| F-25 | P3 | Done grows without limit | COMPLETED | 34c3790 |
 | F-26 | P3 | Hand-styled buttons | NOT_APPLICABLE as a task (adopt when touched, per the audit) | |
 | F-27 | P3 | Very large components | NOT_APPLICABLE as a task (split when touched, per the audit) | |
-| F-28 | P3 | Container hardening | BLOCKED (shadcn move done in 466104c; `USER node` needs a Docker build, the MinIO pin needs the server version) | |
+| F-28 | P3 | Container hardening | BLOCKED (shadcn move done; `USER node` simulated but needs a real Docker build; the MinIO pin needs the server's version) | 466104c |
 | F-29 | P3 | Missing `created_at` indexes | NOT_APPLICABLE now (the audit's trigger is not met; measured) | |
 | F-30 | P3 | Card history misses sprint and start date | COMPLETED | 34586b0 |
 
@@ -77,6 +82,25 @@ the compose defaults. Both are unreachable from outside, which lowers the risk, 
 in-container check from the audit (Remaining production actions, step 1). If the MinIO secret is
 the default, this build refuses to start until it is rotated.
 
+This is likely, not hypothetical: the checked-in `docker-compose.yml` hard-codes `minioadmin123`
+in both the `minio` service (`MINIO_ROOT_PASSWORD`) and the `backend` service
+(`MINIO_SECRET_KEY`), and compose `environment:` beats `backend/.env`. Unless the server's local
+edit of that file changed both, production runs the default.
+
+Remediation plan (not carried out: it needs server access and your authorization):
+
+1. Check without printing anything:
+   `sudo -n docker exec todo-app-backend-1 sh -c 'test "$MINIO_SECRET_KEY" = minioadmin123 && echo DEFAULT || echo custom'`,
+   and the same for `POSTGRES_PASSWORD` against `postgres` in `todo-app-postgres-1`.
+2. If DEFAULT: first run `ops/backup.sh` (or at least tar the `todo-app_minio_data` volume), and
+   record the MinIO release (F-28) because root-credential changes behave differently across
+   releases.
+3. Generate a new secret on the server (`openssl rand -base64 32`), and put it in the server's
+   compose as both `MINIO_ROOT_PASSWORD` (minio) and `MINIO_SECRET_KEY` (backend). They must
+   match: the API signs in with the root credentials.
+4. `sudo -n docker compose up -d minio backend`, then open an existing attachment and an avatar.
+5. Rollback: put the old value back in both places and run the same `up -d`.
+
 ### F-01: per-client rate limits
 
 - `backend/src/app.ts`: `app.set("trust proxy", env.TRUST_PROXY)`.
@@ -89,9 +113,13 @@ the default, this build refuses to start until it is rotated.
   buckets, addresses a client prepends are ignored, and cookie-less requests are not counted.
   It fails with `TRUST_PROXY: 0`.
 - `TRUST_PROXY` is deliberately not added to `docker-compose.yml`. Its `environment:` block
-  overrides `env_file`, so a value there would beat the server's `backend/.env`. The production
-  logs' `ERR_ERL_UNEXPECTED_X_FORWARDED_FOR` warning shows the host nginx already sends
-  X-Forwarded-For, which is what 2 relies on.
+  overrides `env_file`, so a value there would beat the server's `backend/.env`.
+- 2 is only safe if the host nginx sets X-Forwarded-For itself (`$proxy_add_x_forwarded_for` or
+  `$remote_addr`). If it passes the client's header through untouched, the client's own value
+  lands one hop from the right and becomes `req.ip`, which is worse than today's single bucket.
+  The production logs' `ERR_ERL_UNEXPECTED_X_FORWARDED_FOR` warning suggests the host sets it
+  but does not prove it, so reading the host config is a deploy step (Remaining production
+  actions, step 2).
 
 ### F-09: refresh outcomes
 
@@ -268,9 +296,10 @@ before each release.
 
 ### F-20: release hygiene (blocked)
 
-The five pre-existing files are your deliberate, unreleased work, so committing, dropping or
-splitting them is your call. Fast-forwarding `main` to the release needs a push, which this work
-does not do.
+Your decision on 2026-11-04: preserve your five files. They are untouched, unstaged and in no
+commit, and their checksums match the ones recorded before that day's work. What remains is
+that `main` (`72b498b`) is seven commits behind production (`06f2532`) and this branch is on
+top of that. Fast-forwarding `main` needs a push, which this work does not do.
 
 ### F-21: cleanup job
 
@@ -289,11 +318,10 @@ the row in another transaction while moving it In Progress → To Do, then fires
 Review through each route. Without the lock both answered 204/200 and the card made the forbidden
 To Do → In Review move; now both get 409.
 
-### F-23: refresh grace window (blocked)
+### F-23: refresh grace window (deferred)
 
-A grace window changes how reuse of a rotated refresh token is treated, which is part of the
-authentication architecture this mission was told to preserve. An implementation was started,
-then reverted before commit so you can decide on it. Nothing in the repo changed for F-23.
+Deferred by your decision on 2026-11-04. Nothing in the repo changed for F-23: a replayed
+rotated refresh token still revokes its whole family, as before.
 
 ### F-24: board page weight
 
@@ -303,12 +331,26 @@ editors. The board and the List stay in the chunk. BoardPage went from 530 KB / 
 290 KB / 77 KB. In headless Chrome every view and Manage workflows loaded its chunk and rendered
 with no errors.
 
-### F-25: Done grows without limit (blocked)
+### F-25: Done grows without limit
 
-The audit said to "consider" defaulting `hideDoneAfter` to 14 days. That changes what every board
-without sprints shows, so it is a product decision; it is one value in
-`src/services/views/boardViewPrefs.ts:86`. Pagination is not needed at today's size, as the audit
-says.
+Approved on 2026-11-04 as a visibility default only. `boardViewPrefs.ts`
+`defaultBoardViewPrefs(sprintsEnabled)` makes "Hide done work items after" default to 14 days on
+a board with sprints off; a sprint board keeps Never, because it only shows the running sprint.
+`resolveBoardViewPrefs` takes `sprintsEnabled` (required, so every caller had to say), and
+`useBoardViewPrefs` passes the board's flag.
+
+- Only the default changed. A saved board view, a device's own settings or a personal choice of
+  Never all still win; Reset returns to the board's default. Saved views that hold Never keep it.
+- Nothing is deleted or archived: `hideStaleDone` filters the rendered array only. List, Backlog
+  and drag-and-drop (which reorders the unfiltered array) see every card. The existing hint
+  under the setting already says so.
+- Tests (`boardViewPrefs.test.ts`): the 14-day default without sprints, saved and device Never
+  kept, a personal Never with Reset back to 14, the sprint-board default unchanged, and the input
+  array untouched. The two default tests failed against the previous `boardViewPrefs.ts`.
+- Browser, on the clean-clone build against a seeded board switched to sprints off: the select
+  showed 14 days, the board hid exactly the 39 top-level cards done before the cutoff (74 of
+  113 shown), List showed all 113 at the same time, and Never showed 113. A sprint board
+  showed Never and hid nothing.
 
 ### F-26 and F-27: buttons and large components
 
@@ -319,14 +361,27 @@ regression risk for no functional gain, so neither was done as a task.
 
 ### F-28: container hardening (blocked)
 
-- Done: the shadcn CLI is now a devDependency (466104c).
-- Blocked: `USER node` in `backend/Dockerfile` has to be checked with a real `docker build` and a
-  start, because the entrypoint runs `prisma migrate deploy`, which may write caches under the
-  root-owned `node_modules`. Docker was unresponsive on this machine, and a broken entrypoint means
-  an API outage at deploy.
-- Blocked: pinning `quay.io/minio/minio` needs the release the server runs today
-  (`sudo -n docker inspect todo-minio --format '{{.Config.Image}} {{.Image}}'`), because pinning
-  an older one would downgrade MinIO's data.
+Approved on 2026-11-04 on condition: production's MinIO version first, a real Docker build, no
+deploy.
+
+- Done: the shadcn CLI is a devDependency (466104c).
+- MinIO pin: not done. SSH from this network (213.230.79.130) still times out, so the release
+  production runs is unknown, and pinning without it could downgrade the data. Read it with
+  `sudo -n docker inspect todo-minio --format '{{.Config.Image}} {{.Image}}'` and
+  `sudo -n docker exec todo-minio minio --version`, then pin `quay.io/minio/minio` to that exact
+  release (or its digest) in `docker-compose.yml`.
+- `USER node`: not committed. Docker Desktop's daemon has not answered for days on this machine
+  (up 15 days, every call hangs), and restarting it would also stop your local containers.
+  Without Docker, the closest check was run: the image's runtime contents (`node_modules`,
+  `dist`, `prisma`, `prisma.config.ts`, `package.json`, from a clean `npm ci` of this branch)
+  copied into a directory made read-only, which is how root-owned `/app` looks to the `node`
+  user. From it, `npm run db:migrate` applied all 43 migrations to a fresh database, and
+  `node dist/server.js` started, answered `/health` and registered an account, with no
+  permission errors. That is macOS, not the Alpine image, so it does not replace the build.
+- The change, once Docker works: add `USER node` before `ENTRYPOINT` in `backend/Dockerfile`,
+  then `docker compose build backend && docker compose up -d backend`, and check
+  `docker compose exec backend id -u` (1000), `docker compose logs backend` (migrate deploy and
+  "listening"), `/health`, an attachment upload and download, and `ops/smoke-browser.mjs`.
 
 ### F-29: created_at indexes
 
@@ -344,19 +399,37 @@ to `activities_event_valid` and redefines `log_todo_activity()` as 0038 left it 
 
 ## Final verification (2026-11-04)
 
-On a fresh database with all 43 migrations applied (`final_check_test` on the scratch cluster):
+From a fresh `git clone` of this branch at `7bcb807` (so your uncommitted files were not in it),
+with `npm ci` in both projects and new databases on the scratch PostgreSQL 17 cluster:
 
-| Suite | Result |
+| Check | Result |
 |---|---|
-| Frontend `npm test` | 1,746 passed (120 files) |
+| Frontend `npm test` | 1,751 passed (120 files) |
 | Frontend `npm run build` (tsc -b + vite) and `npm run lint` | clean |
+| Frontend `npm audit --omit=dev` | 0 vulnerabilities |
 | Backend `npm run build` (tsc) | clean |
 | Backend unit | 630 passed, 1 skipped (42 files) |
-| Backend integration | 991 passed, 1 skipped (52 files) |
+| Backend integration, on a database built from nothing | 991 passed, 1 skipped (52 files) |
+| Backend `npm audit --omit=dev` | 4, all under `minio@8.0.7` (F-11) |
+| `prisma migrate deploy` on an empty database | 43 of 43 applied |
+| `prisma migrate diff` from that database to `schema.prisma` | empty: no drift |
+| Upgrade path: migrate to 0042, seed demo data (2,524 cards, 6,239 activity rows), then deploy | 0043 applied, every count unchanged; the new sprint and start-date blocks wrote correct rows |
+| `ops/smoke-browser.mjs` against the clean build and compiled API (`node dist/server.js`) | PASS: health, sign-in, 101 upgrade, live drag, no CSP violations |
+| F-25 in the browser | as described under F-25 |
 
-3,367 tests pass against the 3,326 baseline, and none was removed. Two existing tests that pinned
+3,372 tests pass against the 3,326 baseline, and none was removed. Two existing tests that pinned
 the old behaviour were changed on purpose: the SVG-inline unit test (F-05) and the "every user,
 scoped or not" leaderboard test (F-04). Both changes are explained above.
+
+The 43 migrations: numbered 0001 to 0043 with no gaps or duplicates, none empty,
+`migration_lock.toml` unchanged, and 0043 is the only one this branch adds. No existing migration
+was edited.
+
+Review of every commit on the branch found no stray files, no attribution trailers and none of
+your files. It found two problems, both fixed in 7bcb807: `labelDiff`'s comment had ended up
+above `sprintLabel`, and six frontend files that were prettier-clean before this branch no
+longer were. The backend does not follow prettier (nearly every file differs at `06f2532`), so it
+was left as is.
 
 ### Unrelated issue found
 
@@ -367,23 +440,26 @@ consecutive runs passed.
 
 ## Remaining production actions
 
-These need a person with server access. None has been done.
+These need a person with server access. None has been done. In order:
 
-1. Before deploying, run the audit's F-02 checks on the server. If the MinIO secret is the
-   default, rotate it first, or this build refuses to start.
-2. Add `TRUST_PROXY=2` to the server's `backend/.env`, then `up -d --no-deps backend`
-   (`env_file` is read when the container is created).
-3. Before deploying, check `nginx.conf` with
+1. Run the F-02 checks on the server (commands under F-02). If the MinIO secret is the
+   default, which the checked-in compose file makes likely, follow the remediation plan there
+   before deploying, or this build refuses to start.
+2. Read the host nginx config: `grep -rn "X-Forwarded-For" /etc/nginx/`. It must set the header
+   (`$proxy_add_x_forwarded_for` or `$remote_addr`). Only then add `TRUST_PROXY=2` to the
+   server's `backend/.env`. If the host does not set it, use `TRUST_PROXY=1`, which is no worse
+   than today.
+3. Check `nginx.conf` on a machine with Docker:
    `docker run --rm --add-host backend:127.0.0.1 -v "$PWD/nginx.conf:/etc/nginx/conf.d/default.conf:ro" nginx:alpine nginx -t`.
-4. Add `Strict-Transport-Security` on the host nginx.
-5. This branch changes `docker-compose.yml` (log caps), and the server keeps a local edit of
-   that file. Deploy with `git stash`, `git merge --ff-only`, `git stash pop`, and check the
-   result with `docker compose config`.
-6. Install `ops/backup.sh` in cron, set up the weekly off-machine copy, and run
-   `ops/restore-check.sh` once (F-10).
-7. Point a free uptime monitor at `https://veylo.work.gd/health` (F-15).
-8. Run `ops/smoke-browser.mjs` against the release candidate under `docker compose up --build`
-   (F-19), and run `nginx -t` (step 3) at the same time.
-9. Migration 0043 runs on deploy (the entrypoint runs `migrate deploy`); take the usual
-   pre-deploy `pg_dump` first.
-10. Decide on F-20, F-23 and F-25, and on the two blocked parts of F-28.
+4. Build and start the release candidate locally (`docker compose config`, then
+   `docker compose up --build`) and run `ops/smoke-browser.mjs` against it.
+5. Take the usual pre-deploy `pg_dump`: migration 0043 runs on start.
+6. Deploy with `git stash`, `git merge --ff-only`, `git stash pop` (the branch changes
+   `docker-compose.yml`, which the server keeps a local edit of), then `docker compose config`
+   and `up -d --build`. `env_file` is read when a container is created, so `TRUST_PROXY` takes
+   effect with this `up`.
+7. Afterwards: add `Strict-Transport-Security` on the host nginx; install `ops/backup.sh` in
+   cron with the weekly off-machine copy, and run `ops/restore-check.sh` once (F-10); point a
+   free uptime monitor at `https://veylo.work.gd/health` (F-15).
+8. F-28: read the MinIO release on the server and pin it; add `USER node` once a real Docker
+   build passes the checks under F-28.
