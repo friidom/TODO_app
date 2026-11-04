@@ -17,21 +17,26 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // may read. It goes through the same roleOf the REST middleware uses — a
 // second membership rule here is a second thing to keep in step.
 export function registerRoomHandlers(io: RealtimeServer, socket: RealtimeSocket): void {
+  // Both handlers catch everything: a rejection escaping a socket handler is
+  // unhandled, and by default that exits the process for every user.
   socket.on("board:join", (boardId, ack) => {
     void (async () => {
-      const allowed = await mayRead(boardId, socket.data.actor.id);
+      try {
+        if (!(await mayRead(boardId, socket.data.actor.id))) {
+          respond(ack, false);
 
-      if (!allowed) {
+          return;
+        }
+
+        await socket.join(boardRoom(boardId));
+        socket.data.boards.add(boardId);
+        addViewer(boardId, socket.data.actor.id, socket.id);
+        respond(ack, true);
+        syncPresence(io, boardId);
+      } catch (error) {
+        console.error("[realtime] board:join failed", error);
         respond(ack, false);
-
-        return;
       }
-
-      await socket.join(boardRoom(boardId));
-      socket.data.boards.add(boardId);
-      addViewer(boardId, socket.data.actor.id, socket.id);
-      respond(ack, true);
-      syncPresence(io, boardId);
     })();
   });
 
@@ -40,11 +45,16 @@ export function registerRoomHandlers(io: RealtimeServer, socket: RealtimeSocket)
   // not a member of the boards they watch, so boardRoom would refuse them.
   socket.on("admin:join", (ack) => {
     void (async () => {
-      const allowed = (await superadminRoleOf(socket.data.actor.id)) !== null;
+      try {
+        const allowed = (await superadminRoleOf(socket.data.actor.id)) !== null;
 
-      if (allowed) await socket.join(adminRoom());
+        if (allowed) await socket.join(adminRoom());
 
-      respond(ack, allowed);
+        respond(ack, allowed);
+      } catch (error) {
+        console.error("[realtime] admin:join failed", error);
+        respond(ack, false);
+      }
     })();
   });
 

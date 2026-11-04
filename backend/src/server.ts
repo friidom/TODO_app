@@ -73,5 +73,11 @@ function shutdown(signal: string) {
   });
 }
 
+// Logged, not fatal: Node's default exits on an unhandled rejection, and one
+// forgotten fire-and-forget promise would take every request and socket down.
+process.on("unhandledRejection", (reason) => {
+  console.error("[api] unhandled rejection", reason);
+});
+
 process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));
