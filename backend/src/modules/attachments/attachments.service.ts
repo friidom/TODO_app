@@ -8,7 +8,7 @@ import { emitInvalidate } from "../../realtime/emit.js";
 import type { Actor } from "../../types/actor.js";
 import type { BoardContext } from "../members/members.service.js";
 import {
-  FALLBACK_MIME,
+  attachmentMime,
   canRenderInline,
   safeFilename,
   storageKey,
@@ -40,7 +40,7 @@ export async function create(
 ): Promise<AttachmentRow> {
   const id = randomUUID();
   const filename = safeFilename(file.originalname);
-  const mimeType = file.mimetype || FALLBACK_MIME;
+  const mimeType = attachmentMime(file.mimetype, file.buffer);
   const path = storageKey(board.id, todoId, id, filename);
 
   await minioStorage.upload(path, file.buffer, mimeType);

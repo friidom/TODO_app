@@ -117,7 +117,8 @@ describe("previewKind", () => {
     }
   });
 
-  it("keeps svg on the image path, which is the img-tag path", () => {
-    expect(previewKind("image/svg+xml")).toBe("image");
+  it("gives svg no preview: opened from its blob URL it runs script as this app", () => {
+    expect(previewKind("image/svg+xml")).toBe("none");
+    expect(previewKind("IMAGE/SVG+XML")).toBe("none");
   });
 });

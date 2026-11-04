@@ -91,6 +91,9 @@ async function board(roles: ("viewer" | "editor" | "admin")[] = []) {
   return { owner, boardId: owner.boardId, todoId: todo.body.id, members, statusId: status.id };
 }
 
+const PNG_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
+const SVG = '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>';
+
 function url(todoId: string, suffix = ""): string {
   return `/api/v1/todos/${todoId}/attachments${suffix}`;
 }
@@ -125,7 +128,7 @@ describe("POST /todos/:todoId/attachments", () => {
   it("stores the object and the row, stamping board and uploader server-side", async () => {
     const { owner, boardId, todoId } = await board();
 
-    const created = await attach(owner, todoId, "reze (2).jpg", "bytes", "image/jpeg");
+    const created = await attach(owner, todoId, "reze (2).jpg", new Uint8Array([0xff, 0xd8, 0xff, 0xe0]), "image/jpeg");
 
     expect(created.board_id).toBe(boardId);
     expect(created.uploader_id).toBe(owner.id);
@@ -283,7 +286,7 @@ describe("GET /todos/:todoId/attachments/:attachmentId/content", () => {
 
   it("serves an image inline when asked", async () => {
     const { owner, todoId } = await board();
-    const created = await attach(owner, todoId, "shot.png", "png-bytes", "image/png");
+    const created = await attach(owner, todoId, "shot.png", PNG_BYTES, "image/png");
 
     const response = await fetch(
       `${client.url}${url(todoId, `/${created.id}/content?disposition=inline`)}`,
@@ -292,6 +295,33 @@ describe("GET /todos/:todoId/attachments/:attachmentId/content", () => {
 
     expect(response.headers.get("content-type")).toBe("image/png");
     expect(response.headers.get("content-disposition")).toMatch(/^inline;/);
+  });
+
+  it.each([
+    ["an SVG, which runs script once opened on its own", "logo.svg", SVG, "image/svg+xml"],
+    ["HTML that claims to be a PNG", "shot.png", "<html><script>x</script></html>", "image/png"],
+  ])("serves %s as a download", async (_label, name, body, type) => {
+    const { owner, todoId } = await board();
+    const created = await attach(owner, todoId, name, body, type);
+
+    const response = await fetch(
+      `${client.url}${url(todoId, `/${created.id}/content?disposition=inline`)}`,
+      { headers: { authorization: `Bearer ${owner.token}` } },
+    );
+
+    expect(response.headers.get("content-type")).toBe("application/octet-stream");
+    expect(response.headers.get("content-disposition")).toMatch(/^attachment;/);
+  });
+
+  it("stores the type the bytes prove, not the one the client sent", async () => {
+    const { owner, todoId } = await board();
+
+    expect((await attach(owner, todoId, "shot.png", "not a png", "image/png")).mime_type).toBe(
+      "application/octet-stream",
+    );
+    expect((await attach(owner, todoId, "shot", PNG_BYTES, "application/octet-stream")).mime_type).toBe(
+      "image/png",
+    );
   });
 
   it("answers 401 unauthenticated and 404 for a non-member", async () => {
