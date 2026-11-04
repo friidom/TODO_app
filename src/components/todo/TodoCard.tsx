@@ -253,7 +253,7 @@ export default function TodoCard({
       }}
       className={cn(
         "group border-hairline bg-elevated shadow-e1 focus-visible:ring-brand relative flex flex-col gap-2 rounded-md border p-3 transition-[border-color,box-shadow,opacity] duration-150 outline-none focus-visible:ring-2",
-        !dragDisabled && "touch-none select-none",
+        !dragDisabled && "touch-manipulation select-none",
         overlay
           ? "shadow-e3 pointer-events-none rotate-[1.5deg]"
           : cn(
