@@ -46,6 +46,10 @@ async function linkedProject(
 ): Promise<{ link: { id: string }; token: string }> {
   const { linkId, token: saved } = await connectSpaceProject(client, user, user.boardId, { projectUrl, token });
 
+  // linkStatus compares millisecond stamps: a failure in the same millisecond
+  // as the token save reads as already fixed.
+  await new Promise((resolve) => setTimeout(resolve, 2));
+
   return { link: { id: linkId }, token: saved };
 }
 
