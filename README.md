@@ -173,6 +173,16 @@ docker compose down -v
 > only when you deliberately want an empty database. To stop the app without
 > losing data, use `docker compose down` with no flags.
 
+### Backups
+
+`ops/backup.sh` dumps the database and archives the MinIO volume (attachments
+and avatars, which a dump does not contain) into `~/backups`, keeping 7 days;
+run it nightly from cron on the Docker host and copy `~/backups` off the
+machine weekly. `ops/restore-check.sh` is the quarterly restore test: it
+restores the newest dump into a throwaway container and checks that the files
+archive holds every attachment the database names. Both scripts say how to use
+them at the top.
+
 ---
 
 ## Local development (without Docker)
