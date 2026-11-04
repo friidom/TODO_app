@@ -41,19 +41,19 @@ production actions).
 | F-15 | P2 | /health returns the SPA; no log rotation | COMPLETED in repo; uptime monitor BLOCKED | 17c954f |
 | F-16 | P2 | Eviction leaves a stale board | COMPLETED | a5cc794 |
 | F-17 | P2 | Touch drags instead of scrolling | COMPLETED | 9756abc |
-| F-18 | P2 | All three locales in the first bundle | NOT_STARTED | |
-| F-19 | P2 | No browser test of the deployed stack | NOT_STARTED | |
-| F-20 | P2 | Release hygiene | NOT_STARTED | |
-| F-21 | P3 | No cleanup of sessions and tokens | NOT_STARTED | |
-| F-22 | P3 | Workflow transition check can be raced | NOT_STARTED | |
-| F-23 | P3 | No grace window on refresh rotation | NOT_STARTED | |
-| F-24 | P3 | Board page JavaScript weight | NOT_STARTED | |
-| F-25 | P3 | Done grows without limit | NOT_STARTED | |
-| F-26 | P3 | Hand-styled buttons | NOT_STARTED | |
-| F-27 | P3 | Very large components | NOT_STARTED | |
-| F-28 | P3 | Container hardening | NOT_STARTED | |
-| F-29 | P3 | Missing `created_at` indexes | NOT_STARTED | |
-| F-30 | P3 | Card history misses sprint and start date | NOT_STARTED | |
+| F-18 | P2 | All three locales in the first bundle | COMPLETED | 9a87f19, 5a385e3 |
+| F-19 | P2 | No browser test of the deployed stack | COMPLETED | b9c39ca |
+| F-20 | P2 | Release hygiene | BLOCKED (your decision on your five files; fast-forwarding main needs a push) | |
+| F-21 | P3 | No cleanup of sessions and tokens | COMPLETED | 55f590d |
+| F-22 | P3 | Workflow transition check can be raced | COMPLETED | f92a7bb |
+| F-23 | P3 | No grace window on refresh rotation | BLOCKED (changes reuse detection; needs your decision) | |
+| F-24 | P3 | Board page JavaScript weight | COMPLETED | 1ed72de |
+| F-25 | P3 | Done grows without limit | BLOCKED (product decision: default for hideDoneAfter) | |
+| F-26 | P3 | Hand-styled buttons | NOT_APPLICABLE as a task (adopt when touched, per the audit) | |
+| F-27 | P3 | Very large components | NOT_APPLICABLE as a task (split when touched, per the audit) | |
+| F-28 | P3 | Container hardening | BLOCKED (shadcn move done in 466104c; `USER node` needs a Docker build, the MinIO pin needs the server version) | |
+| F-29 | P3 | Missing `created_at` indexes | NOT_APPLICABLE now (the audit's trigger is not met; measured) | |
+| F-30 | P3 | Card history misses sprint and start date | COMPLETED | 34586b0 |
 
 ## Findings
 
@@ -246,6 +246,118 @@ with touch emulation):
 - Control (old bundle): the swipe dragged and did not scroll.
 - A desktop mouse drag still moves a card to another column (checked through the API).
 
+### F-18: locales on demand
+
+`src/components/i18n/index.ts` bundles English only; Russian and Uzbek are loaded with `import()`
+by the exported `changeLanguage`, which the language switcher uses. `main.tsx` awaits the saved
+language before the first render. The entry chunk went from 149 KB to 79 KB gzipped (ru 35 KB
+and uz 29 KB, fetched on demand). In headless Chrome a saved "ru" rendered Russian on first
+paint, and switching to Uzbek loaded and rendered it. Commit 9a87f19 left `errorMessage.test.ts`
+calling i18next directly, so four tests failed until 5a385e3 switched it to `changeLanguage`
+with the assertions unchanged. Only that one intermediate commit is red.
+
+### F-19: browser smoke
+
+`ops/smoke-browser.mjs` drives the installed Chrome over CDP with no new dependency. It checks
+`/health`; two isolated contexts sign in; it creates a throwaway board with two cards; both
+contexts open it and need a 101 WebSocket handshake; one drags a card to the next column and the
+other must show it there without reloading. Any CSP violation fails the run, and the board is
+deleted afterwards. It passed against the scratch stack and failed with "the WebSocket upgrade did
+not succeed" against a proxy that refuses upgrades. Run it against `docker compose up --build`
+before each release.
+
+### F-20: release hygiene (blocked)
+
+The five pre-existing files are your deliberate, unreleased work, so committing, dropping or
+splitting them is your call. Fast-forwarding `main` to the release needs a push, which this work
+does not do.
+
+### F-21: cleanup job
+
+`auth.repo.ts` `pruneDeadAuthRows` removes reset, verification and OAuth link tokens used or
+expired 30 days ago. It removes session rows dead for 30 days only when no session in their family
+is live, so replaying a rotated token still revokes a live family. `auth.cleanup.ts` runs it a
+minute after start and then daily (timers are `unref`'d); `server.ts` schedules it. Activity rows
+are history and are not pruned. Test: `cleanup.int.test.ts`.
+
+### F-22: transition race
+
+`todos.service.ts`: both status-writing routes lock the card's row inside the write transaction
+(`todosRepo.lockedStatusIs`, `select … for update`) and require the status the workflow check
+approved, otherwise 409 "Someone else moved this card". The new test in `todos.int.test.ts` holds
+the row in another transaction while moving it In Progress → To Do, then fires In Progress → In
+Review through each route. Without the lock both answered 204/200 and the card made the forbidden
+To Do → In Review move; now both get 409.
+
+### F-23: refresh grace window (blocked)
+
+A grace window changes how reuse of a rotated refresh token is treated, which is part of the
+authentication architecture this mission was told to preserve. An implementation was started,
+then reverted before commit so you can decide on it. Nothing in the repo changed for F-23.
+
+### F-24: board page weight
+
+`BoardPage.tsx` lazy-loads Summary, Calendar, Timeline, Backlog and Sprint insights, with the
+existing per-view skeleton as the fallback; `BoardActions.tsx` lazy-loads the two workflow
+editors. The board and the List stay in the chunk. BoardPage went from 530 KB / 141 KB gzipped to
+290 KB / 77 KB. In headless Chrome every view and Manage workflows loaded its chunk and rendered
+with no errors.
+
+### F-25: Done grows without limit (blocked)
+
+The audit said to "consider" defaulting `hideDoneAfter` to 14 days. That changes what every board
+without sprints shows, so it is a product decision; it is one value in
+`src/services/views/boardViewPrefs.ts:86`. Pagination is not needed at today's size, as the audit
+says.
+
+### F-26 and F-27: buttons and large components
+
+The audit describes both as work to do when a file is touched for another reason ("No sweeping
+refactor", "This is not a task on its own"). `ui/button.tsx` already has cva variants. A sweep
+across 293 buttons or a split of five large components with no component tests would add
+regression risk for no functional gain, so neither was done as a task.
+
+### F-28: container hardening (blocked)
+
+- Done: the shadcn CLI is now a devDependency (466104c).
+- Blocked: `USER node` in `backend/Dockerfile` has to be checked with a real `docker build` and a
+  start, because the entrypoint runs `prisma migrate deploy`, which may write caches under the
+  root-owned `node_modules`. Docker was unresponsive on this machine, and a broken entrypoint means
+  an API outage at deploy.
+- Blocked: pinning `quay.io/minio/minio` needs the release the server runs today
+  (`sudo -n docker inspect todo-minio --format '{{.Config.Image}} {{.Image}}'`), because pinning
+  an older one would downgrade MinIO's data.
+
+### F-29: created_at indexes
+
+The audit's own condition is to add them "when `npm run bench:explain` shows the scan matters".
+On the seeded scratch database (2,615 cards and 2,341 comments, about 60 times production) the
+30-day `created_at` scans take 0.67 ms and 0.36 ms. Not added.
+
+### F-30: sprint and start-date history
+
+Migration `0043_activity_sprint_start` (forward-only) adds `sprint_changed` and `start_changed`
+to `activities_event_valid` and redefines `log_todo_activity()` as 0038 left it plus two blocks.
+`sprint_changed` stores the sprint names so History can name a deleted sprint. `activityText.ts`,
+`historyText.ts` and the admin action labels render both, in en/ru/uz. Tests:
+`history.int.test.ts` and new cases in `historyText.test.ts`.
+
+## Final verification (2026-11-04)
+
+On a fresh database with all 43 migrations applied (`final_check_test` on the scratch cluster):
+
+| Suite | Result |
+|---|---|
+| Frontend `npm test` | 1,746 passed (120 files) |
+| Frontend `npm run build` (tsc -b + vite) and `npm run lint` | clean |
+| Backend `npm run build` (tsc) | clean |
+| Backend unit | 630 passed, 1 skipped (42 files) |
+| Backend integration | 991 passed, 1 skipped (52 files) |
+
+3,367 tests pass against the 3,326 baseline, and none was removed. Two existing tests that pinned
+the old behaviour were changed on purpose: the SVG-inline unit test (F-05) and the "every user,
+scoped or not" leaderboard test (F-04). Both changes are explained above.
+
 ### Unrelated issue found
 
 `gitlab.webhook.int.test.ts` failed one run in three: `linkStatus` compares millisecond
@@ -270,3 +382,8 @@ These need a person with server access. None has been done.
 6. Install `ops/backup.sh` in cron, set up the weekly off-machine copy, and run
    `ops/restore-check.sh` once (F-10).
 7. Point a free uptime monitor at `https://veylo.work.gd/health` (F-15).
+8. Run `ops/smoke-browser.mjs` against the release candidate under `docker compose up --build`
+   (F-19), and run `nginx -t` (step 3) at the same time.
+9. Migration 0043 runs on deploy (the entrypoint runs `migrate deploy`); take the usual
+   pre-deploy `pg_dump` first.
+10. Decide on F-20, F-23 and F-25, and on the two blocked parts of F-28.
