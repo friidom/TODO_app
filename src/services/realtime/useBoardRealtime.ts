@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
+import i18n from "@/components/i18n";
 import { useAuth } from "@/services/auth/useAuth";
+import { toast } from "@/stores/toasts";
 import { queryKeys } from "@/services/queryClient/queryKeys";
 import type { Comment, IColumn, IWorkflow, Todo } from "@/types/data";
 import {
@@ -94,6 +96,7 @@ export function useBoardRealtime(boardId: string | undefined): string[] {
     const socket = connectBoardSocket();
 
     let hasJoined = false;
+    let disposed = false;
 
     socket.on("connect", () => {
       socket.emit("board:join", boardId, (result) => {
@@ -126,11 +129,21 @@ export function useBoardRealtime(boardId: string | undefined): string[] {
       setViewers((prev) => (sameViewers(prev, payload.viewers) ? prev : payload.viewers));
     });
 
-    // Membership was removed, or the board was. Nothing more will arrive, and
-    // the roster on screen is already a lie.
+    // Membership was removed, or the board was. Nothing more will arrive, so the
+    // board row is refetched: its 404 is what turns the page into "not found".
+    // Only a page still showing this board says why; whoever deleted it has
+    // already navigated away.
     socket.on("board:evicted", () => {
       hasJoined = false;
       setViewers([]);
+
+      const boardKey = queryKeys.board(boardId);
+
+      void queryClient.invalidateQueries({ queryKey: boardKey }).then(() => {
+        if (!disposed && queryClient.getQueryData(boardKey) === null) {
+          toast.error(i18n.t("board.accessRemoved"));
+        }
+      });
     });
 
     // Presence is server-authoritative — nothing tells us our own roster went stale, so we clear it ourselves on drop.
@@ -143,6 +156,7 @@ export function useBoardRealtime(boardId: string | undefined): string[] {
     });
 
     return () => {
+      disposed = true;
       socket.disconnect();
       setViewers([]);
     };

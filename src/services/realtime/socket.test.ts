@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { resolveSocketOrigin, SOCKET_PATH } from "./socket";
+import { recoverRefusedConnections, resolveSocketOrigin, SOCKET_PATH } from "./socket";
 
 describe("resolveSocketOrigin", () => {
   it("uses the API's own origin when VITE_API_URL is absolute, as it is in dev", () => {
@@ -31,5 +31,75 @@ describe("resolveSocketOrigin", () => {
 describe("SOCKET_PATH", () => {
   it("sits under the API prefix, so nginx needs no second location block", () => {
     expect(SOCKET_PATH).toBe("/api/v1/socket.io");
+  });
+});
+
+function fakeSocket() {
+  const listeners: Record<string, (() => void)[]> = {};
+
+  return {
+    active: false,
+    connect: vi.fn(),
+    on(event: "connect" | "connect_error", listener: () => void) {
+      (listeners[event] ??= []).push(listener);
+    },
+    fire(event: "connect" | "connect_error") {
+      for (const listener of listeners[event] ?? []) listener();
+    },
+  };
+}
+
+const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+describe("recoverRefusedConnections", () => {
+  it("refreshes once and reconnects when the server refuses the token", async () => {
+    const socket = fakeSocket();
+    const refresh = vi.fn(async () => true);
+
+    recoverRefusedConnections(socket, refresh);
+    socket.fire("connect_error");
+    socket.fire("connect_error");
+    await flush();
+
+    expect(refresh).toHaveBeenCalledOnce();
+    expect(socket.connect).toHaveBeenCalledOnce();
+  });
+
+  it("leaves a transient failure to Socket.IO's own retries", async () => {
+    const socket = fakeSocket();
+    const refresh = vi.fn(async () => true);
+
+    socket.active = true;
+    recoverRefusedConnections(socket, refresh);
+    socket.fire("connect_error");
+    await flush();
+
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("stays disconnected when the session is over or unreachable", async () => {
+    for (const refresh of [vi.fn(async () => false), vi.fn(() => Promise.reject(new Error("503")))]) {
+      const socket = fakeSocket();
+
+      recoverRefusedConnections(socket, refresh);
+      socket.fire("connect_error");
+      await flush();
+
+      expect(socket.connect).not.toHaveBeenCalled();
+    }
+  });
+
+  it("recovers again after a connection that succeeded", async () => {
+    const socket = fakeSocket();
+    const refresh = vi.fn(async () => true);
+
+    recoverRefusedConnections(socket, refresh);
+    socket.fire("connect_error");
+    await flush();
+    socket.fire("connect");
+    socket.fire("connect_error");
+    await flush();
+
+    expect(refresh).toHaveBeenCalledTimes(2);
   });
 });

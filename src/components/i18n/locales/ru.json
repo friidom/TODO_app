@@ -391,7 +391,8 @@
     "members": "Участники",
     "searchLabel": "Поиск задач",
     "searchPlaceholder": "Поиск задач",
-    "loadFailed": "Не удалось загрузить доску"
+    "loadFailed": "Не удалось загрузить доску",
+    "accessRemoved": "У вас больше нет доступа к этой доске."
   },
   "time": {
     "ago": {

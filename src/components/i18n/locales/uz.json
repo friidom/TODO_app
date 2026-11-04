@@ -373,7 +373,8 @@
     "members": "A'zolar",
     "searchLabel": "Ish elementlarini qidirish",
     "searchPlaceholder": "Ishlarni qidirish",
-    "loadFailed": "Bu doskani yuklab bo'lmadi"
+    "loadFailed": "Bu doskani yuklab bo'lmadi",
+    "accessRemoved": "Endi bu doskaga kirish huquqingiz yo'q."
   },
   "time": {
     "ago": {

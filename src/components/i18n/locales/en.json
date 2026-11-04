@@ -373,7 +373,8 @@
     "members": "Members",
     "searchLabel": "Search work items",
     "searchPlaceholder": "Search work",
-    "loadFailed": "Couldn't load this board"
+    "loadFailed": "Couldn't load this board",
+    "accessRemoved": "You no longer have access to this board."
   },
   "time": {
     "ago": {
