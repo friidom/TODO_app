@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { useRef, useState } from "react";
+import { lazy, Suspense, useRef, useState } from "react";
 import { Link } from "react-router";
 import {
   Columns3Icon,
@@ -17,8 +17,6 @@ import {
 import CreateSprintModal from "@/components/backlog/CreateSprintModal";
 import DeleteBoardModal from "@/components/boards/DeleteBoardModal";
 import IconButton from "@/components/ui/IconButton";
-import ConfigureColumnsModal from "@/components/workflow/ConfigureColumnsModal";
-import ManageWorkflowsModal from "@/components/workflow/ManageWorkflowsModal";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,6 +36,15 @@ import { useSprints } from "@/services/sprints/useSprints";
 import { useIsStarred, useToggleStar } from "@/services/stars/useStars";
 import { useBoardViewPrefs } from "@/hooks/useBoardViewPrefs";
 import { cn } from "@/utils/cn";
+
+// Owners and admins only, and rarely: the workflow editors stay out of the
+// board page chunk until one is opened.
+const ConfigureColumnsModal = lazy(
+  () => import("@/components/workflow/ConfigureColumnsModal"),
+);
+const ManageWorkflowsModal = lazy(
+  () => import("@/components/workflow/ManageWorkflowsModal"),
+);
 
 // View settings is in the menu as well, because its icon gives way first on a narrow toolbar
 export default function BoardActions({
@@ -224,11 +231,15 @@ export default function BoardActions({
         />
       )}
 
-      {configuring && (
-        <ConfigureColumnsModal onClose={() => setConfiguring(false)} />
-      )}
+      <Suspense fallback={null}>
+        {configuring && (
+          <ConfigureColumnsModal onClose={() => setConfiguring(false)} />
+        )}
 
-      {managing && <ManageWorkflowsModal onClose={() => setManaging(false)} />}
+        {managing && (
+          <ManageWorkflowsModal onClose={() => setManaging(false)} />
+        )}
+      </Suspense>
 
       {deleting && board && (
         <DeleteBoardModal board={board} onClose={() => setDeleting(false)} />

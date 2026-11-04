@@ -1,11 +1,10 @@
 import { useTranslation } from "react-i18next";
-import { useEffect, useMemo } from "react";
+import { lazy, Suspense, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import BoardIdentity from "@/components/layout/BoardIdentity";
 import Drawer from "@/components/layout/Drawer";
 import ViewShell from "@/components/layout/ViewShell";
-import SprintInsights from "@/components/board/SprintInsights";
 import ViewSettings from "@/components/board/ViewSettings";
 import ViewTabs from "@/components/board/ViewTabs";
 import ViewToolbar from "@/components/board/ViewToolbar";
@@ -14,12 +13,10 @@ import MembersDrawer from "@/components/members/MembersDrawer";
 import TaskDetailModal, { TaskPanel } from "@/components/todo/TaskDetailModal";
 import KanbanBoard from "@/components/kanban/KanbanBoard";
 import ListView from "@/components/views/ListView";
-import SummaryView from "@/components/summary/SummaryView";
-import CalendarView from "@/components/calendar/CalendarView";
-import TimelineView from "@/components/timeline/TimelineView";
-import BacklogView from "@/components/backlog/BacklogView";
 import NotFoundPage from "@/pages/error/NotFoundPage";
-import { BoardPageSkeleton } from "@/components/loading/ViewSkeleton";
+import ViewSkeleton, {
+  BoardPageSkeleton,
+} from "@/components/loading/ViewSkeleton";
 import { useBoard } from "@/services/boards/useBoard";
 import { membersQuery } from "@/services/members/useBoardMembers";
 import { sprintsQuery } from "@/services/sprints/useSprints";
@@ -42,6 +39,14 @@ import { recordBoardVisit } from "@/services/forYou/viewed";
 import { useTaskLayout } from "@/stores/taskLayout";
 import { relativeTime } from "@/utils/relativeTime";
 import { isUuid } from "@/utils/uuid";
+
+// Views other than the board, and the insights drawer, load on first use: the
+// board page chunk had grown past 500 KB, and most visits never open them.
+const SprintInsights = lazy(() => import("@/components/board/SprintInsights"));
+const SummaryView = lazy(() => import("@/components/summary/SummaryView"));
+const CalendarView = lazy(() => import("@/components/calendar/CalendarView"));
+const TimelineView = lazy(() => import("@/components/timeline/TimelineView"));
+const BacklogView = lazy(() => import("@/components/backlog/BacklogView"));
 
 const FIRST_LOAD = [...FIRST_LOAD_PROPS];
 
@@ -125,7 +130,9 @@ function BoardView({ boardId }: { boardId: string }) {
             </Drawer>
           ) : panel === "insights" ? (
             <Drawer title={t("insights.title")} onClose={closePanel}>
-              <SprintInsights />
+              <Suspense fallback={null}>
+                <SprintInsights />
+              </Suspense>
             </Drawer>
           ) : panel === "settings" ? (
             <Drawer title={t("viewSettings.title")} onClose={closePanel}>
@@ -134,19 +141,21 @@ function BoardView({ boardId }: { boardId: string }) {
           ) : undefined
         }
       >
-        {view.mode === "summary" ? (
-          <SummaryView />
-        ) : view.mode === "list" ? (
-          <ListView />
-        ) : view.mode === "calendar" ? (
-          <CalendarView />
-        ) : view.mode === "timeline" ? (
-          <TimelineView />
-        ) : view.mode === "backlog" && sprintsEnabled ? (
-          <BacklogView />
-        ) : (
-          <KanbanBoard />
-        )}
+        <Suspense fallback={<ViewSkeleton mode={view.mode} />}>
+          {view.mode === "summary" ? (
+            <SummaryView />
+          ) : view.mode === "list" ? (
+            <ListView />
+          ) : view.mode === "calendar" ? (
+            <CalendarView />
+          ) : view.mode === "timeline" ? (
+            <TimelineView />
+          ) : view.mode === "backlog" && sprintsEnabled ? (
+            <BacklogView />
+          ) : (
+            <KanbanBoard />
+          )}
+        </Suspense>
       </ViewShell>
 
       {taskLayout === "modal" && <TaskDetailModal boardId={boardId} />}
