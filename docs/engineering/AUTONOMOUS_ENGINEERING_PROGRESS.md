@@ -22,8 +22,9 @@ Integration tests run against a throwaway PostgreSQL 17 cluster on port 5544 in 
 scratchpad (`todo_app_test`, all 42 migrations). Browser checks use a seeded scratch database
 (`veylo_qa`) on the same cluster, the working-tree API on port 4310, and a small Node stand-in
 for the frontend nginx that sends the exact `add_header` values parsed from `nginx.conf`.
-Docker was unresponsive on this machine, so `nginx -t` could not be run (see Remaining
-production actions).
+Docker was unresponsive on this machine for most of 2026-11-04. It answered briefly from
+15:59 UTC, long enough for `nginx -t`, both image builds and the image checks, and then froze
+again (see F-28).
 
 ## Status
 
@@ -56,7 +57,7 @@ production actions).
 | F-25 | P3 | Done grows without limit | COMPLETED | 34c3790 |
 | F-26 | P3 | Hand-styled buttons | NOT_APPLICABLE as a task (adopt when touched, per the audit) | |
 | F-27 | P3 | Very large components | NOT_APPLICABLE as a task (split when touched, per the audit) | |
-| F-28 | P3 | Container hardening | BLOCKED (shadcn move done; `USER node` simulated, but the real build still waits on Docker, which was unavailable again at 14:05–14:20 UTC; the MinIO pin needs the server's version, and SSH still times out) | 466104c |
+| F-28 | P3 | Container hardening | BLOCKED (shadcn move done; `USER node` builds and the image runs as uid 1000, but running the stack froze Docker Desktop, so it stays uncommitted; the MinIO pin needs the server's version, and SSH still times out; the MinIO image can no longer be pulled) | 466104c |
 | F-29 | P3 | Missing `created_at` indexes | NOT_APPLICABLE now (the audit's trigger is not met; measured) | |
 | F-30 | P3 | Card history misses sprint and start date | COMPLETED | 34586b0 |
 
@@ -381,6 +382,31 @@ deploy.
     stuck and needs Restart from the whale menu. The VM is already off, so a restart stops no
     containers. It was left to you.
 
+  Docker answered from 15:59 UTC (engine 29.8.0, linux/arm64). Your five `todo-app` containers
+  were stopped (since 9 days), and none of them or their volumes was touched. Everything ran
+  from the clean clone at `4f1a4d4` plus `USER node`, as the separate project `veylo-verify`:
+  - The real build passed. The backend image (base `node:24-alpine`) built with `npm ci`,
+    `db:generate` and `tsc`. The first frontend build was killed at 16:38:09 by an engine
+    restart sent from the Docker Desktop window (`POST /engine/restart`, user agent
+    Docker-Desktop GUI); the rebuild passed.
+  - Image contents, checked inside the image:
+    - `Config.User` is `node`, and `id` gives uid 1000 (node), gid 1000;
+    - `/app`, `dist`, `node_modules` and `prisma/migrations` are `root:root 755`, so `touch`
+      into each is "Permission denied";
+    - all 43 migrations are present;
+    - `$HOME` (`/home/node`) is writable, which npm needs for `npm run db:migrate`;
+    - node v24.22.2, npm 11.19.1.
+  - Production guard, in the real image: `NODE_ENV=production` with the compose defaults
+    refuses to start. It names both `JWT_SECRET` and `MINIO_SECRET_KEY` as "docker-compose.yml's
+    public default".
+  - Not run: starting the stack, migrations and `/health` as uid 1000, attachment and avatar
+    round trips, the MinIO secret-change rehearsal, `nginx -t` inside the frontend container,
+    and the Docker smoke test. Right after `compose up` sent its first two calls (16:39:45 UTC),
+    Docker Desktop's `com.docker.backend` stopped logging altogether: its `GET /time` heartbeat
+    stopped too, at 0% CPU, and `/_ping` timed out again. That process was started 15 days ago.
+    The engine restart replaced only the VM, so a full Quit and reopen of Docker Desktop is
+    what replaces it.
+
   Without Docker, the closest check was run: the image's runtime contents (`node_modules`,
   `dist`, `prisma`, `prisma.config.ts`, `package.json`, from a clean `npm ci` of this branch)
   copied into a directory made read-only, which is how root-owned `/app` looks to the `node`
@@ -397,9 +423,28 @@ deploy.
   - `ops/smoke-browser.mjs` passes.
 
   The change is ready in a scratch clone, uncommitted.
-- MinIO compatibility: quay.io refuses anonymous tag listing, so what `latest` currently points
-  to could not be read without Docker. Production does not re-pull `latest` on `up --build`.
-  It keeps whatever it pulled first, which is why the pin needs the server's own version.
+- MinIO: the copy of `quay.io/minio/minio:latest` cached on this machine is
+  `RELEASE.2025-09-07T16-13-09Z` (digest `sha256:14cea493…936e`, built 2025-09-07). It was not
+  run against the branch: the stack never started.
+- **New risk: MinIO's official image can no longer be pulled anonymously.** Checked on
+  2026-11-04:
+  - `quay.io/minio/minio` answers 401 for both `latest` and `RELEASE.2025-09-07T16-13-09Z`. A
+    control repository on quay.io (`prometheus/node-exporter`) answers 200.
+  - On Docker Hub, `minio/minio` answers 401 and its repository page says "object not found".
+    `library/nginx` answers 200.
+
+  Production therefore runs MinIO only from the image cached on the server. Any of the
+  following would leave attachments and avatars unable to start:
+  - `docker image prune -a` or `docker system prune -a`;
+  - a new server;
+  - `docker compose pull`.
+
+  Before anything else on the server, save that image next to the backups:
+  `sudo -n docker save quay.io/minio/minio:latest | gzip > ~/backups/minio-image-$(date +%Y%m%d).tar.gz`.
+  Restore it with `docker load`. Do not run either prune. Pinning `docker-compose.yml` to the
+  server's exact version, or digest, still needs that version from the server, and was not
+  done. Choosing a maintained S3-compatible source for the long term is a separate decision
+  for you.
 
 ### F-29: created_at indexes
 
@@ -435,7 +480,11 @@ with `npm ci` in both projects and new databases on the scratch PostgreSQL 17 cl
 | `ops/smoke-browser.mjs` against the clean build and compiled API (`node dist/server.js`) | PASS: health, sign-in, 101 upgrade, live drag, no CSP violations |
 | F-25 in the browser | as described under F-25 |
 | `docker compose config` at `4f1a4d4` (client-side, engine deliberately unreachable, no `backend/.env`) | valid: 5 services, every one with the 10 MB × 5 log cap; images `postgres:18`, `redis:8-alpine`, `quay.io/minio/minio:latest` |
-| `nginx -t`, Docker build, non-root run, Docker smoke | not run: the Docker engine is unavailable (F-28) |
+| `nginx -t` with this branch's `nginx.conf` in `nginx:alpine` (nginx 1.31.6, `--add-host backend:127.0.0.1`) | syntax ok, test is successful |
+| Docker build of backend (with `USER node`) and frontend, as project `veylo-verify` | both built (the frontend on the second try, see F-28) |
+| Backend image: user, permissions, migrations | uid 1000; `/app` root-owned and not writable; 43 migrations present; `$HOME` writable |
+| Production guard in the real image, on compose defaults | refuses to start, naming `JWT_SECRET` and `MINIO_SECRET_KEY` |
+| Stack run as uid 1000, attachments and avatars, MinIO secret-change rehearsal, Docker smoke | not run: Docker Desktop froze again at 16:39:45 UTC (F-28) |
 
 3,372 tests pass against the 3,326 baseline, and none was removed. Two existing tests that pinned
 the old behaviour were changed on purpose: the SVG-inline unit test (F-05) and the "every user,
@@ -462,6 +511,10 @@ consecutive runs passed.
 
 These need a person with server access. None has been done. In order:
 
+0. Save the server's MinIO image before touching anything:
+   `sudo -n docker save quay.io/minio/minio:latest | gzip > ~/backups/minio-image-$(date +%Y%m%d).tar.gz`.
+   It can no longer be pulled (F-28), so this copy is the only way back if the image is lost.
+   While there, read its version for the pin with `sudo -n docker exec todo-minio minio --version`.
 1. Run the F-02 checks on the server (commands under F-02). If the MinIO secret is the
    default, which the checked-in compose file makes likely, follow the remediation plan there
    before deploying, or this build refuses to start.
@@ -469,7 +522,8 @@ These need a person with server access. None has been done. In order:
    (`$proxy_add_x_forwarded_for` or `$remote_addr`). Only then add `TRUST_PROXY=2` to the
    server's `backend/.env`. If the host does not set it, use `TRUST_PROXY=1`, which is no worse
    than today.
-3. Check `nginx.conf` on a machine with Docker:
+3. Done locally on 2026-11-04: `nginx -t` passed on this branch's `nginx.conf` in
+   `nginx:alpine` (1.31.6), with
    `docker run --rm --add-host backend:127.0.0.1 -v "$PWD/nginx.conf:/etc/nginx/conf.d/default.conf:ro" nginx:alpine nginx -t`.
 4. Build and start the release candidate locally and run `ops/smoke-browser.mjs` against it.
    Do not run a plain `docker compose up --build` on a machine that has the dev stack.
@@ -477,8 +531,8 @@ These need a person with server access. None has been done. In order:
    replace the dev containers and run migration 0043 on the dev database volume. Instead, from
    a clean checkout of the branch, with an override file that:
    - sets `name: veylo-verify`;
-   - resets every service's `ports` and `volumes`, using `tmpfs` for `/var/lib/postgresql` and
-     MinIO's `/data`;
+   - resets every service's `ports` and `volumes`. It uses `tmpfs` for `/var/lib/postgresql`,
+     and either `tmpfs` or a bind-mounted scratch folder for MinIO's `/data`;
    - sets `container_name: !reset null` on `minio` and `restart: "no"` everywhere;
    - publishes only the frontend, on `127.0.0.1:13080:80`;
    - points `CORS_ORIGIN`, `APP_URL` and `API_PUBLIC_URL` at `http://localhost:13080`.
@@ -495,5 +549,5 @@ These need a person with server access. None has been done. In order:
 7. Afterwards: add `Strict-Transport-Security` on the host nginx; install `ops/backup.sh` in
    cron with the weekly off-machine copy, and run `ops/restore-check.sh` once (F-10); point a
    free uptime monitor at `https://veylo.work.gd/health` (F-15).
-8. F-28: read the MinIO release on the server and pin it; add `USER node` once a real Docker
-   build passes the checks under F-28.
+8. F-28: pin MinIO to the version read in step 0. Add `USER node` once a running stack passes
+   the checks under F-28. The build and the image's permissions already pass.
