@@ -1,17 +1,19 @@
 import { useTranslation } from "react-i18next";
 
+import { changeLanguage } from "@/components/i18n";
+
 export default function LanguageSwitcher() {
   const { t, i18n } = useTranslation();
 
-  function changeLanguage(language: string) {
-    i18n.changeLanguage(language);
+  function switchTo(language: string) {
+    void changeLanguage(language);
     localStorage.setItem("language", language);
   }
 
   return (
     <select
       value={i18n.language}
-      onChange={(e) => changeLanguage(e.target.value)}
+      onChange={(e) => switchTo(e.target.value)}
       aria-label={t("header.language")}
       className="border-hairline bg-surface text-ink-2 hover:bg-elevated hover:text-ink focus-visible:ring-brand rounded-control h-9 cursor-pointer border px-2 text-sm transition-colors outline-none focus-visible:ring-2"
     >

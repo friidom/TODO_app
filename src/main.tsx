@@ -10,7 +10,7 @@ import { router } from "./components/routes/Routes.tsx";
 import { ThemeProvider } from "./providers/ThemeProvider.tsx";
 import { AuthProvider } from "./providers/AuthProvider.tsx";
 import { ToastProvider } from "./providers/ToastProvider.tsx";
-import "./components/i18n";
+import { i18nReady } from "./components/i18n";
 import { Agentation } from "agentation";
 
 const CHUNK_RELOAD_KEY = "kan:chunk-reload-at";
@@ -32,6 +32,8 @@ window.addEventListener("vite:preloadError", (event) => {
   event.preventDefault();
   window.location.reload();
 });
+
+await i18nReady;
 
 createRoot(document.getElementById("root")!).render(
   <ThemeProvider>
