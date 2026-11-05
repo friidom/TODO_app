@@ -1,11 +1,7 @@
 import { DragOverlay } from "@dnd-kit/core";
 
 import TodoItem from "../todo/TodoItem";
-import {
-  COLUMN_TITLE,
-  COLUMN_WIDTH,
-  COUNT_CHIP,
-} from "@/components/columns/columnChrome";
+import { COLUMN_TITLE, COUNT_CHIP } from "@/components/columns/columnChrome";
 import {
   categoryOf,
   columnTitle,
@@ -59,9 +55,10 @@ export default function TodoDragOverlay({
         <div
           className={cn(
             "rounded-surface border-hairline bg-surface shadow-e3 pointer-events-none border",
+            // the overlay is sized to the grabbed column's own box, fixed, flexible or collapsed
             columnCollapsed
-              ? "flex w-11 flex-col items-center gap-2 py-3.5"
-              : cn(COLUMN_WIDTH, "flex h-12 items-center gap-2 px-4.5"),
+              ? "flex w-full flex-col items-center gap-2 py-3.5"
+              : "flex h-12 w-full items-center gap-2 px-4.5",
           )}
         >
           <span

@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 import { useSearchParams } from "react-router";
 
-import { COLUMN_WIDTH } from "@/components/columns/columnChrome";
+import { COLUMN_WIDTH, FLEX_COLUMN } from "@/components/columns/columnChrome";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useBoardId } from "@/hooks/useBoardId";
 import { isViewMode, type ViewMode } from "@/services/views/registry";
@@ -39,14 +39,14 @@ const textWidth = (seed: number, min = 45, spread = 40) =>
 
 const BOARD_CARDS = [3, 2, 4, 1];
 
-function BoardSkeleton() {
+function BoardSkeleton({ flexible }: { flexible: boolean }) {
   return (
     <SkeletonRegion className="flex h-full gap-3 overflow-hidden pb-4">
       {BOARD_CARDS.map((count, column) => (
         <div
           key={column}
           className={cn(
-            COLUMN_WIDTH,
+            flexible ? FLEX_COLUMN : COLUMN_WIDTH,
             "rounded-surface border-hairline bg-surface flex h-fit shrink-0 flex-col border",
           )}
         >
@@ -180,8 +180,14 @@ function TimelineSkeleton() {
   );
 }
 
-export default function ViewSkeleton({ mode }: { mode: ViewMode }) {
-  if (mode === "board") return <BoardSkeleton />;
+export default function ViewSkeleton({
+  mode,
+  flexible = false,
+}: {
+  mode: ViewMode;
+  flexible?: boolean;
+}) {
+  if (mode === "board") return <BoardSkeleton flexible={flexible} />;
   if (mode === "summary") return <SummarySkeleton />;
   if (mode === "calendar") return <CalendarSkeleton />;
   if (mode === "timeline") return <TimelineSkeleton />;

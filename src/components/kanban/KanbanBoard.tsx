@@ -196,7 +196,9 @@ export default function KanbanBoard() {
   }
 
   // sprintsPending still gates loading — without it a card in the running sprint flickers out of its column for a frame.
-  if (isLoading || sprintsPending) return <ViewSkeleton mode="board" />;
+  if (isLoading || sprintsPending) {
+    return <ViewSkeleton mode="board" flexible={flexible} />;
+  }
 
   if (error) return <ViewError error={error} />;
 
@@ -299,6 +301,7 @@ export default function KanbanBoard() {
             group={view.group}
             orderedColumns={orderedColumns}
             members={members}
+            flexible={flexible}
           />
         ) : (
           // -mx-3 spends the leading gap's width from ViewShell's gutter, so the first column lines up with the toolbar
@@ -311,10 +314,8 @@ export default function KanbanBoard() {
           >
             <div
               className={cn(
-                "flex",
+                "flex min-w-max",
                 wholeBoard ? "min-h-full" : "h-full",
-                // growable columns would otherwise size the row by the longest unwrapped card title
-                flexible ? "min-w-full" : "min-w-max",
               )}
             >
               {orderedColumns.map((column, index) => (
