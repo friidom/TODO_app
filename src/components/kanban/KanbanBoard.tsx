@@ -103,11 +103,12 @@ export default function KanbanBoard() {
     collisionDetection,
     handleDragOver,
     activeTodo,
-    setActiveTodo,
+    pickTodo,
     activeColumn,
-    setActiveColumn,
+    pickColumn,
     indicator,
     columnIndicator,
+    settling,
     resetDrag,
   } = useKanbanDnd();
 
@@ -273,15 +274,15 @@ export default function KanbanBoard() {
       }}
       onDragStart={({ active }) => {
         if (active.data.current?.type === "column") {
-          setActiveColumn(
-            orderedColumns.find((c) => c.id === active.id) ?? null,
-          );
+          const column = orderedColumns.find((c) => c.id === active.id);
+
+          if (column) pickColumn(column);
           return;
         }
 
         const todo = all.find((todo) => todo.id === active.id);
 
-        if (todo) setActiveTodo(todo);
+        if (todo) pickTodo(todo);
       }}
       onDragOver={handleDragOver}
       onDragEnd={onDragEnd}
@@ -346,6 +347,7 @@ export default function KanbanBoard() {
                       flexible={flexible}
                       wholeBoard={wholeBoard}
                       dragging={!!activeTodo || !!activeColumn}
+                      settling={settling}
                       // search narrows a column same as a filter — without this a searched column offers the mid-column + with a bogus index
                       exactOrder={
                         view.filterCount === 0 &&

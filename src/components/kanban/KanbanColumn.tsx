@@ -28,7 +28,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { useCardLabels } from "@/hooks/useCardLabels";
 import { useOpenTask } from "@/hooks/useOpenTask";
 import { usePermissions } from "@/hooks/usePermissions";
-import type { TodoIndicator } from "@/hooks/useKanbanDnd";
+import type { TodoIndicator } from "@/hooks/boardDrag";
 
 interface Props {
   headerTitle: string;
@@ -45,6 +45,7 @@ interface Props {
   dragDisabled?: boolean;
   // read from the board, not useDndContext per gap — keeps ~200 gaps out of the drag's render path
   dragging?: boolean;
+  settling?: boolean;
   // false when todos is a filtered subset — an insert has no anchor to splice at, so it just appends
   exactOrder?: boolean;
   // one lane's slice of the column — no menu, no Create button, no height cap (those belong to the column as a whole)
@@ -75,6 +76,7 @@ export default function KanbanColumn({
   choices = null,
   dragDisabled = false,
   dragging = false,
+  settling = false,
   exactOrder = true,
   lane = false,
   flexible = false,
@@ -292,6 +294,7 @@ export default function KanbanColumn({
                 active={isGapHere && indicator.index === 0}
                 afterId={todos[0]?.id}
                 dragging={dragging}
+                settling={settling}
                 canAdd={canAddAt(0)}
                 onAdd={openAt}
               />
@@ -333,6 +336,7 @@ export default function KanbanColumn({
                     beforeId={todo.id}
                     afterId={todos[index + 1]?.id}
                     dragging={dragging}
+                    settling={settling}
                     canAdd={canAddAt(index + 1)}
                     onAdd={openAt}
                   />

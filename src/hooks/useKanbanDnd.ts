@@ -12,8 +12,14 @@ import {
   type KeyboardCoordinateGetter,
   type UniqueIdentifier,
 } from "@dnd-kit/core";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useReducer } from "react";
 
+import {
+  boardDragReducer,
+  IDLE,
+  type DropData,
+  type DropType,
+} from "@/hooks/boardDrag";
 import {
   isArrowKey,
   nextColumnGap,
@@ -22,21 +28,11 @@ import {
 } from "@/hooks/keyboardDrag";
 import type { IColumn, Todo } from "@/types/data";
 
-export interface TodoIndicator {
-  columnId: string | null;
-  index: number;
-  statusId?: string;
-}
-
-export type DropType = "column" | "column-gap" | "todo-gap" | "status-zone";
-
 const COLUMN_HOVER_DISTANCE = 80;
 
 // dnd-kit's default edge zone is 20% of each scroll container: on a board wider than the screen that covers
 // the outer columns whole, so hovering one scrolls it out from under the cursor
 const AUTO_SCROLL = { threshold: { x: 0.05, y: 0.1 } };
-
-const EMPTY_INDICATOR: TodoIndicator = { columnId: null, index: 0 };
 
 function distanceToRect(rect: ClientRect, x: number, y: number) {
   const dx = Math.max(rect.left - x, 0, x - rect.right);
@@ -230,11 +226,20 @@ const keyboardCoordinates: KeyboardCoordinateGetter = (
 };
 
 export default function useKanbanDnd() {
-  const [activeTodo, setActiveTodo] = useState<Todo | null>(null);
-  const [activeColumn, setActiveColumn] = useState<IColumn | null>(null);
+  const [state, dispatch] = useReducer(boardDragReducer, IDLE);
+  const { settling } = state;
 
-  const [indicator, setIndicator] = useState<TodoIndicator>(EMPTY_INDICATOR);
-  const [columnIndicator, setColumnIndicator] = useState<number | null>(null);
+  useEffect(() => {
+    if (!settling) return;
+
+    function onMove(event: PointerEvent) {
+      dispatch({ type: "pointer", x: event.clientX, y: event.clientY });
+    }
+
+    window.addEventListener("pointermove", onMove);
+
+    return () => window.removeEventListener("pointermove", onMove);
+  }, [settling]);
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -320,51 +325,22 @@ export default function useKanbanDnd() {
   );
 
   const handleDragOver = useCallback((event: DragOverEvent) => {
-    const data = event.over?.data.current as
-      | {
-          type?: DropType;
-          columnId?: string;
-          index?: number;
-          statusId?: string;
-        }
-      | undefined;
+    dispatch({
+      type: "over",
+      data: event.over?.data.current as DropData | undefined,
+    });
+  }, []);
 
-    if (!data) {
-      setIndicator(EMPTY_INDICATOR);
-      setColumnIndicator(null);
-      return;
-    }
+  const pickTodo = useCallback((todo: Todo) => {
+    dispatch({ type: "pick-todo", todo });
+  }, []);
 
-    if (data.type === "column-gap") {
-      setColumnIndicator(data.index ?? null);
-      return;
-    }
-
-    if (data.type === "todo-gap") {
-      setIndicator({ columnId: data.columnId ?? null, index: data.index ?? 0 });
-      return;
-    }
-
-    if (data.type === "status-zone") {
-      setIndicator({
-        columnId: data.columnId ?? null,
-        index: 0,
-        statusId: data.statusId,
-      });
-      return;
-    }
-
-    if (data.type === "column") {
-      // empty column
-      setIndicator({ columnId: data.columnId ?? null, index: 0 });
-    }
+  const pickColumn = useCallback((column: IColumn) => {
+    dispatch({ type: "pick-column", column });
   }, []);
 
   const resetDrag = useCallback(() => {
-    setActiveTodo(null);
-    setActiveColumn(null);
-    setIndicator(EMPTY_INDICATOR);
-    setColumnIndicator(null);
+    dispatch({ type: "end" });
   }, []);
 
   return {
@@ -373,15 +349,14 @@ export default function useKanbanDnd() {
     collisionDetection,
     handleDragOver,
 
-    activeTodo,
-    setActiveTodo,
-    activeColumn,
-    setActiveColumn,
+    activeTodo: state.activeTodo,
+    pickTodo,
+    activeColumn: state.activeColumn,
+    pickColumn,
 
-    indicator,
-    setIndicator,
-    columnIndicator,
-    setColumnIndicator,
+    indicator: state.indicator,
+    columnIndicator: state.columnIndicator,
+    settling,
 
     resetDrag,
   };
