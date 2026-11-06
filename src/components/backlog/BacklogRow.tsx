@@ -23,8 +23,9 @@ import EstimateControl from "@/components/todo/TodoItem/EstimateControl";
 import StatusControl from "@/components/todo/TodoItem/StatusControl";
 import SprintControl from "@/components/todo/TodoItem/SprintControl";
 
+// narrow: key and title on the first line, the controls under them — the title and status cells' col-spans are sized to this five-column grid
 const BACKLOG_GRID =
-  "grid items-center gap-x-2 px-3 grid-cols-[3.75rem_minmax(0,1fr)_7.5rem_2.5rem_5.5rem_9rem]";
+  "grid items-center gap-x-2 px-3 grid-cols-[3.75rem_minmax(0,1fr)_7.5rem_2.5rem_5.5rem_9rem] @max-2xl:grid-cols-[3.75rem_minmax(0,1fr)_2.5rem_2.5rem_6rem] @max-2xl:gap-y-1.5 @max-2xl:py-2";
 
 // drag and the SprintControl dropdown both end at sprintAssignmentPatch — one function, so they can't disagree about where a card lands.
 // split into BacklogRow/BacklogRowContent because useDraggable's context updates bypass memo — without the split every row re-renders on every pointer move during a drag.
@@ -130,7 +131,7 @@ const BacklogRowContent = memo(function BacklogRowContent({
       role="row"
       className={cn(
         BACKLOG_GRID,
-        "border-hairline group hover:bg-ink/[0.035] h-11 touch-manipulation border-b transition-colors duration-150 select-none last:border-b-0",
+        "border-hairline group hover:bg-ink/[0.035] h-11 touch-manipulation border-b transition-colors duration-150 select-none last:border-b-0 @max-2xl:h-auto",
         isDragging && "opacity-50",
       )}
     >
@@ -146,7 +147,10 @@ const BacklogRowContent = memo(function BacklogRowContent({
         />
       </div>
 
-      <div role="cell" className="flex min-w-0 items-center gap-1.5">
+      <div
+        role="cell"
+        className="flex min-w-0 items-center gap-1.5 @max-2xl:col-span-4"
+      >
         <TypeIcon className={cn("size-3.5 shrink-0", type.tone)} />
 
         <button
@@ -161,7 +165,10 @@ const BacklogRowContent = memo(function BacklogRowContent({
         </button>
       </div>
 
-      <div role="cell" className={cn("flex min-w-0", inert)}>
+      <div
+        role="cell"
+        className={cn("flex min-w-0 @max-2xl:col-span-2", inert)}
+      >
         <StatusControl todoId={todo.id} statusId={todo.status_id} />
       </div>
 
