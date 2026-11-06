@@ -13,6 +13,9 @@ matched after it.
 Your decisions of 2026-11-04: F-23 deferred, F-25 approved, F-20 preserve, F-28 approved on
 condition (production MinIO version first, a real Docker build, no deploy).
 
+The UI quality pass of 2026-11-06 is recorded at the end of this file, and its audit in
+`UI_AUDIT_2026-11.md`.
+
 ## Baseline
 
 The 2026-11-03 baseline on `06f2532`: 1,730 frontend, 622 backend unit and 974 backend
@@ -593,3 +596,138 @@ These need a person with server access. None has been done. In order:
    cron with the weekly off-machine copy, and run `ops/restore-check.sh` once (F-10); point a
    free uptime monitor at `https://veylo.work.gd/health` (F-15).
 8. F-28: pin MinIO to the version read in step 0. `USER node` is done (b78e757).
+
+## UI quality pass (2026-11-06)
+
+This pass is on the branch `feature/ui-quality-pass-2026-11`: six commits on `1b6e53f`. It is
+local only; nothing was pushed, merged or deployed. Your five uncommitted files were left exactly
+as found. Their SHA-256 checksums matched before and after, and none of them is in a commit.
+
+| Item | Status | Commits |
+|---|---|---|
+| A1 UI audit | 6 defects fixed (U-01 to U-06), 3 noted and left (U-07 to U-09), all in `UI_AUDIT_2026-11.md` | ebf7c8f, b101a50, 5b9481d, bc83eb5 |
+| A2 Fixed and Flexible columns | COMPLETED | 9334fdf |
+| A3 Customize sidebar | COMPLETED | b5dd3de |
+| B Agent permissions (AgentShield) | COMPLETED locally. `.claude/settings.local.json` is gitignored, so it is in no commit | |
+
+### A2: column sizing
+
+The setting already existed, and it is still stored in the same two places. A person's unsaved
+view changes are kept per board on their device. The board's saved view, `boards.view_settings`,
+applies to everyone once someone saves it. `KanbanBoard` reads the one value, `columnSize`, once
+and passes it down.
+
+Fixed columns are `w-[264px]`. Flexible columns are `FLEX_COLUMN`:
+`min-w-60 flex-1 basis-0 contain-inline-size`, defined in `columnChrome.ts` and used by the main
+row, every swimlane row and the loading skeleton. The classes do the following:
+
+- `flex-1` with `basis-0` shares the row out equally, whatever the cards hold.
+- `min-w-60` sets a 240 px floor, below which the board scrolls instead.
+- `contain-inline-size` stops an unwrapped card title from widening its column.
+
+CSS does all of the arithmetic, so there is no measuring in JavaScript and no inline width.
+
+Measured on the final tree:
+
+| Case | Fixed | Flexible |
+|---|---|---|
+| 2 columns at 1920 px | 264 px each, 1,040 px left empty | 784 px each, nothing empty |
+| 3 columns at 1440 px | 264 px, 284 px empty | 359 px each |
+| 4 columns at 1024 px | 264 px, scrolls 408 px | 240 px floor, scrolls 312 px |
+| 8 columns at 1920 px (two long names, a 12-card column, two empty ones) | 264 px, scrolls 616 px | 240 px, scrolls 424 px |
+| 3 columns at 1440 px, sidebar collapsed | unchanged | 359 px → 428 px |
+| Board settings panel open (352 px) | scrolls 68 px | 241 px each, no scroll |
+| Task dialog open | unchanged | unchanged |
+| 5 columns at 150 % and 200 % zoom, and on a phone | | 240 px floor, scrolls |
+| Swimlanes (grouped by assignee) | 264 px | 367 px each |
+| Column drag ghost | | 359 px for a 359 px column |
+
+### A3: Customize sidebar
+
+"Customize sidebar" sits in the sidebar footer, and on the collapsed rail as an icon. On a phone
+it closes the sheet first. The dialog lists the real destinations: For You, Recent, Starred,
+Superadmin (offered only to superadmins) and Notifications. Below them are the Spaces and Filters
+sections, each space with its boards under it.
+
+- **Rows:** every row has a checkbox and a grip. The grip drags with a pointer, or with Space and
+  the arrow keys. Unfiled has no grip, because it always stays last.
+- **Saving:** edits are a draft. Save applies them, and Cancel or Escape discards them.
+- **Restore defaults:** resets order and visibility, but not which sections are open.
+- **Hidden items** move to a More section at the bottom of the sidebar, collapsed by default. On
+  the rail, a More button expands the sidebar with More open.
+- **Permissions:** hiding an item changes no permission. `/admin` is still guarded by its route
+  and by the API.
+
+The layout is stored in `localStorage` through the existing zustand store, under
+`sidebar:layout:<userId>`, so another account on the same browser keeps its own. The old
+device-wide key is read until the first save and then removed. `sidebarView` in
+`services/sidebar/layout.ts` is the one place that decides what the sidebar shows and what goes
+to More. `ReorderContext` now claims an Escape that cancels a drag, so the dialog around the
+list stays open. In headless Chrome, 35 checks pass on the desktop and 7 at phone width.
+
+### B: agent permissions
+
+These are the changes to `.claude/settings.local.json`. A backup of the original is at
+`~/.claude/projects/-Users-onesadboy-Documents-TODO-app/settings.local.json.2026-11-06.bak`.
+
+- **Removed from allow:** `Bash(python3 -)`, which ran any Python fed to it with no prompt. It
+  now goes through the normal permission check. `Bash(git stash *)` also moved from allow to
+  deny.
+- **New deny list:**
+  - reading `~/secret`, `~/.ssh` and `~/.aws`;
+  - `git stash`;
+  - `git reset --hard`, and `git push --force` or `-f`, with the flag in any position;
+  - `docker system prune` and `docker volume rm`.
+- **Deliberately left out of the deny list:** `git push --force-with-lease`.
+- **Not touched:** GateGuard, the other hooks and the MCP configuration.
+
+Each rule was tried in this session. The `Read` denies hold for the Read tool and for `cat`. The
+git and docker denies hold with the flag after the branch name. A deny beats the broad
+`Read(//Users/onesadboy/**)` allow, and the rest of the home folder stays readable. A plain push
+and a plain reset still work; they were tried in a throwaway repository with a local remote.
+
+Bash rules match a command as it is written: `bash -c '…'`, `/usr/bin/git …` or a script gets
+past them. They guard against mistakes; they are not a sandbox.
+
+AgentShield 1.6.0 went from grade D, 55/100, to D, 56/100; its permissions score went from 74 to
+81. The two high findings fixed are the `python3 -` allow and "no deny list". What it still
+reports:
+
+- **471 critical "Azure storage keys" in `package-lock.json`:** a false positive. They are
+  `integrity` hashes.
+- **"System prompt extraction" in `CLAUDE.md`:** a false positive. It matches the words "print
+  rule" inside "pre-sprint rule".
+- **"Missing prompt defense" in both `CLAUDE.md` files and the four agents:** fixing these would
+  mean adding boilerplate to satisfy the scanner, which the brief rules out.
+- **Four new medium findings:** they ask for deny rules on `rm -rf`, `sudo`, `chmod 777` and
+  writes to device files. They appeared because a deny list now exists, and are left for your
+  decision.
+
+### Verification on the final tree (bc83eb5)
+
+| Check | Result |
+|---|---|
+| Frontend `npm test` | 1,774 passed in 121 files. The last recorded run, on 2026-11-04, had 1,751; the new tests are for `boardDrag`, the sidebar layout and `reorder` |
+| `npm run lint` | clean |
+| `npm run build` (`tsc -b`, then `vite build`) | clean |
+| The same three on an export of `HEAD` alone, without your uncommitted files | clean, and 1,774 passed |
+| Backend | not run: this branch changes no backend file |
+| Browser, headless Chrome | Drop gap: see the note below. Backlog and Calendar: every touch and mouse check passes, and the row menus open on screen on a phone. Customize sidebar: 35 of 35 on the desktop, 7 of 7 on a phone. Column sizing: as in A2 |
+| Your five files | SHA-256 checksums match, and none is in a commit |
+
+The drop-gap script passed 8 of its 9 checks. The ninth drags a card from In progress to Done,
+the only target left after earlier runs' drops had emptied To do. The workflow refuses that move
+("No transition to DONE"), so drawing no line is correct. Two allowed drags were checked
+instead, one within In progress and one from In progress to In review. Each lit exactly one line
+and left nothing lit after Escape.
+
+### For your decision
+
+1. Whether to deny `docker volume prune` and `docker compose down -v` as well, since either can
+   delete the development database volume. The same goes for the scanner's `rm -rf`, `sudo` and
+   `chmod 777` suggestions.
+2. Whether to keep the `git stash` deny. It also blocks `git stash list`, though you can still
+   run stash yourself with `!`.
+3. Whether to turn on Claude Code's sandbox, so these rules also hold against `bash -c` and
+   scripts. It changes how every command runs.
+4. U-09: whether long sprint sections should stop scrolling inside themselves on a phone.
