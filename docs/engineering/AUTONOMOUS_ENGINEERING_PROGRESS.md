@@ -599,8 +599,9 @@ These need a person with server access. None has been done. In order:
 
 ## UI quality pass (2026-11-06)
 
-This pass is on the branch `feature/ui-quality-pass-2026-11`: six commits on `1b6e53f`. It is
-local only; nothing was pushed, merged or deployed. Your five uncommitted files were left exactly
+This pass is on the branch `feature/ui-quality-pass-2026-11`, on top of `1b6e53f`: the six
+commits in the table below and the one that records them here. It is local only; nothing was
+pushed, merged or deployed. Your five uncommitted files were left exactly
 as found. Their SHA-256 checksums matched before and after, and none of them is in a commit.
 
 | Item | Status | Commits |
