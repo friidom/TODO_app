@@ -49,9 +49,16 @@ export function stepGap(
 }
 
 // One place up or down, the keyboard's way of reordering. Null at either end.
-export function step<T>(ids: readonly T[], id: T, delta: -1 | 1): T[] | null {
-  const index = ids.indexOf(id);
-  const neighbour = ids[index + delta];
+// A hidden neighbour is passed over and keeps its slot.
+export function step<T>(
+  ids: readonly T[],
+  id: T,
+  delta: -1 | 1,
+  hidden?: ReadonlySet<T>,
+): T[] | null {
+  const shown = hidden ? ids.filter((it) => !hidden.has(it)) : ids;
+  const index = shown.indexOf(id);
+  const neighbour = shown[index + delta];
 
   if (index === -1 || neighbour === undefined) return null;
 

@@ -8,7 +8,7 @@ import {
   type Collision,
   type UniqueIdentifier,
 } from "@dnd-kit/core";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 import type { Side } from "@/utils/reorder";
@@ -47,6 +47,20 @@ export default function ReorderContext({
 }) {
   const [store] = useState(createReorderStore);
   const [activeId, setActiveId] = useState<string | null>(null);
+
+  // Dialogs and popovers close on a document Escape and hear it before dnd-kit
+  // does; the one that cancels a drag is claimed so it closes nothing else.
+  useEffect(() => {
+    if (activeId === null) return;
+
+    function claim(event: KeyboardEvent) {
+      if (event.key === "Escape") event.preventDefault();
+    }
+
+    window.addEventListener("keydown", claim, true);
+
+    return () => window.removeEventListener("keydown", claim, true);
+  }, [activeId]);
 
   const sensors = useSensors(
     // 6px of travel before a drag starts, so a click on a tab or a toolbar

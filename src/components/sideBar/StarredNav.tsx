@@ -34,10 +34,8 @@ export default function StarredNav({ boards }: { boards: IBoard[] }) {
   const location = useLocation();
   const { data: stars = [] } = useStarred();
 
-  const open = useSidebarLayout(
-    (store) => !store.layout.collapsed.includes(KEY),
-  );
-  const update = useSidebarLayout((store) => store.update);
+  const { layout, update } = useSidebarLayout();
+  const open = !layout.collapsed.includes(KEY);
 
   const starred = useMemo(() => starredBoards(boards, stars), [boards, stars]);
   const inline = starred.slice(0, INLINE);

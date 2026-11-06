@@ -1,25 +1,46 @@
+import { useCallback, useMemo } from "react";
 import { create } from "zustand";
 
+import { useAuth } from "@/services/auth/useAuth";
 import {
   readSidebarLayout,
   writeSidebarLayout,
   type SidebarLayout,
 } from "@/services/sidebar/layout";
 
-interface SidebarLayoutStore {
-  layout: SidebarLayout;
-  update: (change: (layout: SidebarLayout) => SidebarLayout) => void;
-}
+type Change = (layout: SidebarLayout) => SidebarLayout;
 
-export const useSidebarLayout = create<SidebarLayoutStore>((set) => ({
-  layout: readSidebarLayout(),
+// By user, so signing in as someone else in this tab reads their layout.
+const useLayouts = create<{
+  byUser: Record<string, SidebarLayout>;
+  update: (userId: string, change: Change) => void;
+}>((set) => ({
+  byUser: {},
 
-  update: (change) =>
+  update: (userId, change) =>
     set((state) => {
-      const layout = change(state.layout);
+      const layout = change(state.byUser[userId] ?? readSidebarLayout(userId));
 
-      writeSidebarLayout(layout);
+      writeSidebarLayout(userId, layout);
 
-      return { layout };
+      return { byUser: { ...state.byUser, [userId]: layout } };
     }),
 }));
+
+export function useSidebarLayout() {
+  const userId = useAuth().user?.id ?? "";
+  const cached = useLayouts((state) => state.byUser[userId]);
+  const apply = useLayouts((state) => state.update);
+
+  const layout = useMemo(
+    () => cached ?? readSidebarLayout(userId),
+    [cached, userId],
+  );
+
+  const update = useCallback(
+    (change: Change) => apply(userId, change),
+    [apply, userId],
+  );
+
+  return { layout, update };
+}

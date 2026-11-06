@@ -43,9 +43,9 @@ import {
   SIDEBAR_DND,
   UNFILED,
   spaceKeyOf,
+  type ShownGroup,
   type SidebarList,
 } from "@/services/sidebar/layout";
-import type { SpaceGroup } from "@/services/spaces/groupBoards";
 import type { IBoard, ISpace } from "@/types/data";
 import { cn } from "@/utils/cn";
 import StarButton from "@/components/stars/StarButton";
@@ -82,7 +82,7 @@ export default function BoardsSection({
   onToggle,
   onStep,
 }: {
-  groups: SpaceGroup[];
+  groups: ShownGroup[];
   loading: boolean;
   open: boolean;
   collapsed: string[];
@@ -227,7 +227,7 @@ function SpaceRow({
   onStep,
   onDialog,
 }: {
-  group: SpaceGroup;
+  group: ShownGroup;
   userId: string | undefined;
   collapsed: boolean;
   onToggle: () => void;
@@ -235,7 +235,7 @@ function SpaceRow({
   onDialog: (dialog: Dialog) => void;
 }) {
   const { t } = useTranslation();
-  const { space, owned, boards } = group;
+  const { space, owned, boards, away } = group;
   const key = spaceKeyOf(group);
 
   const { setNodeRef, pointerProps, isDragging, edge } = useReorderItem(key, {
@@ -355,7 +355,7 @@ function SpaceRow({
                       onDialog({
                         kind: "delete-space",
                         space,
-                        boardCount: boards.length,
+                        boardCount: boards.length + away,
                       })
                     }
                   >
@@ -374,7 +374,11 @@ function SpaceRow({
           {boards.length === 0 ? (
             <SidebarMenuItem>
               <span className="text-ink-3 text-meta flex h-8 items-center pl-8">
-                {space ? t("sidebar.noBoards") : t("sidebar.nothingHere")}
+                {away > 0
+                  ? t("sidebar.allBoardsHidden")
+                  : space
+                    ? t("sidebar.noBoards")
+                    : t("sidebar.nothingHere")}
               </span>
             </SidebarMenuItem>
           ) : (

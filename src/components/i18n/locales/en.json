@@ -321,7 +321,16 @@
     "reorderHint": "Drag to reorder, or press Alt+↑/↓",
     "movedTo": "{{name}} moved to position {{position}} of {{count}}",
     "sharedSpace": "{{space}} — shared with you",
-    "invitePeople": "Invite people…"
+    "invitePeople": "Invite people…",
+    "customize": "Customize sidebar",
+    "customizeTitle": "Customize your sidebar",
+    "customizeDescription": "Choose which items appear in your sidebar and arrange them the way you prefer. These changes affect only your account.",
+    "navigation": "Navigation",
+    "spacesAndShortcuts": "Spaces and shortcuts",
+    "more": "More",
+    "restoreDefaults": "Restore defaults",
+    "hiddenHint": "Hidden items stay reachable under More at the bottom of the sidebar.",
+    "allBoardsHidden": "All boards hidden — see More"
   },
   "header": {
     "newTask": "New task",
