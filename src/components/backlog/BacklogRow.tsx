@@ -130,8 +130,7 @@ const BacklogRowContent = memo(function BacklogRowContent({
       role="row"
       className={cn(
         BACKLOG_GRID,
-        // touch-none/select-none — without them a touch drag's first move gets eaten by native scroll before dnd-kit sees it
-        "border-hairline group hover:bg-ink/[0.035] h-11 touch-none border-b transition-colors duration-150 select-none last:border-b-0",
+        "border-hairline group hover:bg-ink/[0.035] h-11 touch-manipulation border-b transition-colors duration-150 select-none last:border-b-0",
         isDragging && "opacity-50",
       )}
     >

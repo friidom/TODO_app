@@ -59,10 +59,9 @@ export default function CalendarChip({
       className={cn(
         "border-hairline bg-elevated rounded-control flex h-6 w-full items-center gap-1.5 border px-1.5 text-left transition-colors select-none",
         "focus-visible:ring-brand outline-none focus-visible:ring-2",
-        // touch-none — without it a touch drag scrolls the grid before the sensor sees it
         draggable &&
           !overlay &&
-          "cursor-grab touch-none active:cursor-grabbing",
+          "cursor-grab touch-manipulation active:cursor-grabbing",
         !overlay && "hover:border-ink/20 hover:bg-ink/[0.06]",
         isDragging && "opacity-40",
         overlay && "border-brand/40 shadow-e3",

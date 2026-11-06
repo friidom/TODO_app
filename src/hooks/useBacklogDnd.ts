@@ -1,5 +1,6 @@
 import {
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   type ClientRect,
@@ -102,7 +103,11 @@ export default function useBacklogDnd() {
   const [indicator, setIndicator] = useState<BacklogIndicator | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    // press and hold: every row is draggable, so on a phone a swipe has to scroll the list
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 250, tolerance: 5 },
+    }),
   );
 
   // nothing reflows while dragging — only the DragOverlay moves, so collisions resolve against the pointer
