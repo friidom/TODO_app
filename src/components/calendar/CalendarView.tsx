@@ -13,6 +13,7 @@ import {
 import { useTranslation } from "react-i18next";
 
 import ViewNotice from "@/components/board/ViewNotice";
+import { useIsMobile } from "@/components/sideBar/hooks/use-mobile";
 import ViewSkeleton from "@/components/loading/ViewSkeleton";
 import ViewError from "@/components/loading/ViewError";
 import { useBoardId } from "@/hooks/useBoardId";
@@ -52,8 +53,11 @@ export default function CalendarView() {
   const keyPrefix = useKeyPrefix();
   const drop = useCalendarDrop();
 
+  const isMobile = useIsMobile();
+
   // client-only, not a search param — not worth putting in a shared link
-  const [stripCollapsed, setStripCollapsed] = useState(false);
+  const [stripChoice, setStripChoice] = useState<boolean | null>(null);
+  const stripCollapsed = stripChoice ?? isMobile;
 
   const [dragging, setDragging] = useState<Todo | null>(null);
 
@@ -149,7 +153,7 @@ export default function CalendarView() {
             memberById={memberById}
             canEdit={canEditTodos}
             collapsed={stripCollapsed}
-            onToggle={() => setStripCollapsed((open) => !open)}
+            onToggle={() => setStripChoice(!stripCollapsed)}
             onOpenTask={openTask}
           />
         </div>
