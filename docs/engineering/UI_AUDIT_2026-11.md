@@ -36,6 +36,7 @@ wrong control, and a workaround exists. **Low** means cosmetic or an edge case.
 | U-04 | Backlog and Calendar on a phone: a swipe that started on a row or a chip dragged it instead of scrolling. Every backlog row is a drag source, so the backlog could not be scrolled by touch at all. | High | Both views used a `PointerSensor` with `touch-action: none` on what they drag, which is the setup the board had before F-17. | Both now use the board's F-17 fix (9756abc): a `MouseSensor` (8 px, unchanged on desktop) and a `TouchSensor` that starts a drag after a 250 ms press (5 px tolerance), with `touch-action: manipulation` on the draggables. | At 390 px with touch emulation, before the fix a swipe dragged and scrolled 0 px. After it, a swipe scrolls without dragging (the backlog 411 px, the no-due-date panel up to 408 px) and a long press drags. At 1280 px a mouse drag still lifts a row and a chip, Escape cancels it, and a click on a title opens the task. Tapping a row's status, points, assignee or sprint opens its menu, on screen. | b101a50 |
 | U-05 | Backlog at narrow widths: the title shrank to 0 px and the type icon was drawn over the status pill. | High | A row is a six-column grid. Its fixed columns take 516 px before the title, `minmax(0, 1fr)`, gets any. On a phone that is the whole row, and at a 900 px window with the sidebar open the title had about 80 px. | The scroll area is a CSS container. Below 42rem the row wraps: key and title on the first line, the controls under them. A container query, not a viewport breakpoint, because the sidebar decides how wide the backlog is. | 390 px: title 236 px (was 0), no overlap. 900 px: title 482 px. 1100 and 1280 px: unchanged, one line 44 px high. | 5b9481d |
 | U-06 | Calendar on a phone: the 224 px no-due-date panel always started open and left the month grid 112 px, 16 px a day. | High | The panel's open state defaulted to open whatever the screen width. | On a phone it starts folded to its count. The toggle opens it, and once someone has toggled it their choice holds. Wider screens start open as before. | 390 px: grid 290 px (was 112). 1280 px: panel open, grid 738 px, as before. | bc83eb5 |
+| U-09 | Backlog on a phone: a sprint with more than ten items scrolled inside itself, so a swipe that started on one of its rows scrolled that list, and the backlog moved only once the list had reached its end. | Low | The section capped its list at `min(60vh, 36rem)` and made it a scroller at every width. On a desktop that keeps the rest of the Backlog a short scroll away; on a touch screen the nested scroller takes the gesture first. | Below the phone breakpoint (`useIsMobile`, 767 px, the sidebar's) the list takes its full height, so the backlog scrolls and the sprint header stays pinned while its rows go by. Wider screens keep the inner scroller. The `data-backlog-scroll` marker that `useBacklogDnd` reads follows the same condition. Approved in your review. | A 35-row sprint in headless Chrome. At 390 px the first swipe from inside the sprint scrolls the backlog about 400 px with the list at 0; on the old code it scrolled the list 726 px and the backlog 0. The header stays pinned. A long press lifts a row, and holding it at the bottom edge auto-scrolls the backlog. 767 px: no inner scroller; 768 px: the inner scroller is back. At 1280 px the list is capped at 480 px and the wheel scrolls it; a mouse drag lifts a row and Escape cancels it. 12 of 12 checks pass (8 of 12 on the old code), also when run from inside the Claude Code sandbox. | 99f3dea |
 
 ## Found, not changed
 
@@ -43,7 +44,6 @@ wrong control, and a workaround exists. **Low** means cosmetic or an edge case.
 |---|---|---|---|
 | U-07 | The List's column picker closes when Escape cancels a column drag inside it. | Low | The drag is cancelled correctly; the popover closes as well. Its hook, `useCardPopover`, does not check `defaultPrevented`, which is how `Modal` and the sidebar now ignore the Escape that a drag claims (b5dd3de). Changing it touches the nested-popover handling of every popover built on it, so it is better done when that hook is next worked on. |
 | U-08 | `ConfigureColumnsModal`'s `DragWatch` guard has been redundant since b5dd3de, because `ReorderContext` now claims an Escape that cancels a drag. | Low | Harmless duplication. Removing it is a cleanup, not a fix. |
-| U-09 | A long sprint section in the backlog scrolls inside itself (`max-h: min(60vh, 36rem)`). On a phone, a swipe that starts inside it scrolls that section, and only the next swipe, once the section has reached its end, scrolls the page. | Low | Standard nested scrolling, and the section's own scroll is a deliberate desktop choice. Whether long sections should scroll inside themselves on a phone is a product decision. |
 
 ## Checked, not a defect
 
@@ -57,6 +57,9 @@ wrong control, and a workaround exists. **Low** means cosmetic or an edge case.
   with a minimum width), which is how they are meant to work.
 - On a phone, Manage boards, Board settings, Space settings, Profile and the 404 page show no
   sidebar trigger. Each has its own Back header instead.
+- U-01's settling rule (hover shows no "+" until the pointer has moved 4 px after a drop) changes
+  nothing on touch. In touch emulation a tap on a gap showed the same thing before a drag, right
+  after one, and after a swipe.
 
 ## Not covered
 
@@ -66,4 +69,8 @@ wrong control, and a workaround exists. **Low** means cosmetic or an edge case.
 - The dark theme. The sweep ran in the default light theme.
 - Screen readers. Accessible names were checked, but there was no screen-reader walkthrough.
 - The screenshots the brief mentions did not reach this session, so the audit could not start
-  from them.
+  from them. As you asked in your review, the work follows the brief's written descriptions and
+  the existing implementation, with nothing added to imitate Jira.
+- Whether a gap's "+" on the board can be reached by touch on a real phone. In touch emulation a
+  tap on a gap did not reveal it, whether or not a drag had just ended; the pre-branch code was not
+  tried.

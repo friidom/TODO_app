@@ -599,17 +599,18 @@ These need a person with server access. None has been done. In order:
 
 ## UI quality pass (2026-11-06)
 
-This pass is on the branch `feature/ui-quality-pass-2026-11`, on top of `1b6e53f`: the six
-commits in the table below and the one that records them here. It is local only; nothing was
-pushed, merged or deployed. Your five uncommitted files were left exactly
-as found. Their SHA-256 checksums matched before and after, and none of them is in a commit.
+This pass is on the branch `feature/ui-quality-pass-2026-11`, on top of `1b6e53f`: the seven
+fix and feature commits in the table below, and the documentation commits that record them. It
+is local only; nothing was pushed, merged or deployed. Your five uncommitted files were left
+exactly as found. Their SHA-256 checksums matched before and after, and none of them is in a
+commit.
 
 | Item | Status | Commits |
 |---|---|---|
-| A1 UI audit | 6 defects fixed (U-01 to U-06), 3 noted and left (U-07 to U-09), all in `UI_AUDIT_2026-11.md` | ebf7c8f, b101a50, 5b9481d, bc83eb5 |
+| A1 UI audit | 7 defects fixed (U-01 to U-06, and U-09 after your review), 2 noted and left (U-07, U-08), all in `UI_AUDIT_2026-11.md` | ebf7c8f, b101a50, 5b9481d, bc83eb5, 99f3dea |
 | A2 Fixed and Flexible columns | COMPLETED | 9334fdf |
 | A3 Customize sidebar | COMPLETED | b5dd3de |
-| B Agent permissions (AgentShield) | COMPLETED locally. `.claude/settings.local.json` is gitignored, so it is in no commit | |
+| B Agent permissions (AgentShield) | COMPLETED locally, and extended after your review with ask rules and the sandbox. `.claude/settings.local.json` is gitignored, so it is in no commit | |
 
 ### A2: column sizing
 
@@ -722,13 +723,234 @@ the only target left after earlier runs' drops had emptied To do. The workflow r
 instead, one within In progress and one from In progress to In review. Each lit exactly one line
 and left nothing lit after Escape.
 
+### Decided in your review
+
+All four open questions were answered:
+- deny `docker volume prune` and `docker compose down -v`;
+- keep the `git stash` deny;
+- evaluate the sandbox;
+- fix U-09.
+
+The Jira screenshots never reached this session, so the work follows the brief's written
+descriptions and the existing implementation.
+
+## Second pass after your review (2026-11-06)
+
+### Permission rules: syntax and precedence
+
+These points come from the Claude Code permission docs. Each one was then checked in this
+session, using probe rules that applied the same pattern to a harmless `echo`.
+
+- **Order:** rules are checked deny first, then ask, then allow, and the first match decides.
+  - A deny in any settings file beats an allow in any other.
+  - An allow cannot carve an exception out of a deny.
+  - An ask beats an allow.
+  - Proof: `npx prisma migrate reset` is denied even though `Bash(npx prisma *)` is allowed.
+- **Wildcards:** `*` can sit anywhere in a rule. A trailing ` *` also matches the bare command, so
+  `Bash(docker volume prune *)` blocks a plain `docker volume prune`.
+- **Compound commands:** deny and ask rules apply to every part of a compound command (`cd x &&
+  …`, subshells, `$(…)`). They also match past a leading `VAR=value`.
+- **Paths:** a leading `/` in a path rule in this file anchors at the project root, and `//` is
+  the filesystem root.
+- **Limit:** rules match the command as written. `/bin/rm`, `bash -c '…'`, `git -C . push` or a
+  script gets past them, which is what the sandbox is for.
+
+### New rules in `.claude/settings.local.json`
+
+This morning's version is backed up at
+`~/.claude/projects/-Users-onesadboy-Documents-TODO-app/settings.local.json.2026-11-06-round1.bak`.
+
+**Deny.** Claude can never run these, but you can still run any of them yourself in your own
+terminal:
+- **Docker volumes:**
+  - `docker volume prune`;
+  - `docker compose … down … -v` and `docker-compose … down … -v`, with `-v` or `--volumes`
+    anywhere after `down`.
+
+  Each of these deletes the `pgdata` and `minio_data` volumes, which hold the development
+  database and the attachments.
+- **Permissions:** `chmod … 777 …`, including `0777` and `-R`.
+- **Databases:**
+  - `npx prisma migrate reset`. It drops the database, and this morning's `npx prisma *` allow
+    let it run without a prompt.
+  - `dropdb`.
+- **History rewrites:** `git filter-branch` and `git filter-repo`.
+- **Files outside the project:**
+  - reading `~/.docker/config.json`;
+  - editing anything under `~/.docker`;
+  - editing Docker Desktop's data (`~/Library/Containers/com.docker.docker` and
+    `~/Library/Group Containers/group.com.docker`);
+  - editing the shell startup files and `~/.gitconfig`.
+- **Kept:** the full `git stash` deny and every rule from this morning.
+
+**Ask.** These always prompt you, even in auto mode:
+- `sudo`, any `rm`, and `find … -delete`.
+- **Git commands that discard work or rewrite history:**
+  - `git clean`, `git checkout .`, `git checkout … -- …` and `git restore`;
+  - `git reset` (the `--hard` forms stay denied) and `git branch -D`;
+  - `git rebase` and `git commit --amend`;
+  - every `git push` (force pushes stay denied).
+- **Docker removals:** `docker rm`, `docker compose rm`, `docker-compose rm`, and the prunes that
+  are not denied, such as `docker image prune`.
+- **Prisma:** `npx prisma db push` and `npx prisma migrate dev`.
+- **Files:**
+  - reading or editing `.env` and `.env.local`, at any depth;
+  - editing `backend/prisma/migrations/**`;
+  - editing Claude Code's own settings files, for the project and for your user.
+
+**Not added:**
+- a blanket deny on `sudo` or `rm -rf`, per your instruction;
+- a deny on `> /dev/…`, which would also block every `2>/dev/null`. The sandbox blocks writes to
+  device files instead.
+
+Claude Code also never auto-approves an `rm` that it recognises as aimed at a critical path, such
+as the filesystem root or the home folder.
+
+### Sandbox: enabled
+
+```json
+"sandbox": {
+  "enabled": true,
+  "autoAllowBashIfSandboxed": false,
+  "excludedCommands": ["docker *", "docker-compose *"],
+  "network": {
+    "allowLocalBinding": true,
+    "allowUnixSockets": ["/private/tmp/claude-501/tsx-501"]
+  }
+}
+```
+
+What each key does:
+
+- **`enabled`:** every Bash command Claude runs goes through macOS Seatbelt.
+  - It can write only to the project folder and its own temp folder (`/tmp/claude-501`). Even
+    there it cannot write to `.claude` settings, `.git/hooks` or `.git/config`.
+  - No program it starts can read the Read-deny paths: `~/.ssh`, `~/.aws`, `~/secret` and
+    `~/.docker/config.json`.
+  - Network traffic goes through a proxy that lets through only approved hosts.
+- **`autoAllowBashIfSandboxed: false`:** the sandbox only adds restrictions and approves nothing
+  new. Commands go through the same allow rules and auto-mode classifier as before.
+- **`excludedCommands`:** Docker needs its socket and `~/.docker`.
+  - A `docker` or `docker-compose` command run on its own goes outside the sandbox. It still
+    passes the normal permission check, so the deny rules above apply.
+  - Inside a compound command (`… && docker …`) it stays sandboxed and cannot reach Docker.
+- **`allowLocalBinding`:** lets dev servers listen on ports, and lets commands connect to
+  localhost: PostgreSQL, Redis and the API.
+- **`allowUnixSockets`:** `tsx watch`, the backend's `npm run dev`, opens an IPC socket in this one
+  directory. Without it the backend dev server exits with `listen EPERM`. All other Unix sockets
+  stay blocked, Docker's included.
+
+The sandbox only affects commands Claude runs: your own terminal and Docker Desktop are not
+sandboxed. Whether a `!` command typed into a Claude Code session is sandboxed was not tested, so
+push from your own terminal.
+
+Verified inside the sandbox:
+
+| Operation | Result |
+|---|---|
+| Frontend `npm test`, `npm run lint`, `npm run build` | 1,774 passed; clean; clean |
+| Backend `npm test` and `npx tsc --noEmit` | 630 passed, 1 skipped; clean |
+| Vite dev server | serves the app |
+| Backend dev server (`tsx watch`) against PostgreSQL on localhost | `/health` reports the database up, and a login returns 200 |
+| `psql`, git, `codegraph`, `npm ping` | work. The documentation commit of this pass was made from inside the sandbox |
+| `docker context ls`, `docker version` (excluded) | work, server 29.8.0 |
+| The U-09 browser checks, against an already running Chrome | 12 of 12 |
+| GateGuard and the other hooks | still fire: hooks run outside the sandbox |
+| A write outside the project | blocked ("Operation not permitted") |
+| A host nobody approved, and the Docker socket | blocked |
+
+These need to run outside the sandbox. Claude retries them with `dangerouslyDisableSandbox`,
+which the auto-mode classifier reviews:
+
+- **npm downloads:** `npm install`, `npm view`, and `npx` with a package that is not in
+  `node_modules` all fail, because npm cannot write its cache in `~/.npm`.
+  - npm's error then suggests a `sudo chown` of `~/.npm`. Do not run it: the cause is the
+    sandbox, not file ownership.
+  - Tools already in `node_modules`, such as `npx tsc` and `npx prettier`, are not affected.
+- **Processes:**
+  - launching headless Chrome for browser QA, which does not start inside the sandbox;
+  - stopping a process that another command started (`kill`, `pg_ctl stop`). Background tasks can
+    still be stopped with Claude's TaskStop.
+- **SSH (not tested):** `git fetch` and `git push` over SSH, which means the `gitlab` remote and
+  the GitLab push URL of `origin`. The sandbox cannot read `~/.ssh`, and SSH does not go through
+  the proxy. You do the pushes anyway.
+- **Also blocked inside the sandbox:** `open`, `osascript`, `ps`, `pgrep`, and zsh process
+  substitution `<(…)`.
+
+What the sandbox does not cover:
+
+- **Claude's own tools:** the Read, Edit and Write tools, WebFetch, MCP servers such as codegraph,
+  and hooks follow the permission rules, not the sandbox.
+- **Excluded commands and approved escapes:** Docker, and any command approved to run outside,
+  run with your full access.
+- **The local database:** a sandboxed command can still connect to the development database over
+  localhost, and could change or drop data with SQL. The rules match `dropdb` and
+  `prisma migrate reset`, not SQL text.
+- **Approved hosts:** an approved host is approved as a whole. The proxy checks the host name, not
+  what is sent to it.
+- **Allow rules approve the escape too:** an allow rule also approves running the same command
+  outside the sandbox. So the commands this project allows (`npm run`, `npx tsc`, `npx vite`,
+  `npx prisma`) can leave the sandbox without review. See decision 1 below.
+
+### Sidebar layout: stays in browser storage
+
+The backend has nowhere to keep a per-user preference:
+- `users` and `profiles` hold identity fields only, with no JSON or settings column.
+- There is no preferences endpoint.
+- The only JSON settings are on `boards` (`view_tabs` and `view_settings`). Every member of a
+  board shares those, so storing the layout there would change the sidebar for everyone.
+
+Making the layout follow you across devices would need three new things: a column or table,
+which means a migration; an endpoint; and a rule for merging edits from two devices made at the
+same time.
+
+As you instructed, the current implementation stays. The layout is stored per account and per
+browser, under `sidebar:layout:<userId>` in `localStorage`. It is private to that account in that
+browser and has no effect on anyone else.
+
+**The limitation:** a second browser or device, or a browser whose site data was cleared, starts
+from the default sidebar. The dialog text from the brief, "These changes affect only your
+account.", does not say "on this browser" (decision 4).
+
+### AgentShield, second run
+
+This run used the same version (1.6.0) and the same target (the repository) as this morning's.
+
+- **Score:** grade D, 56/100, as this morning; permissions 81. It now lists four recognised
+  defences: the deny list, the ask list, the sandbox and the MCP allow list. It credits them but
+  does not score them.
+- **Critical findings:** up from 483 to 939. All of the difference is "Azure storage keys" in
+  `backend/package-lock.json`, which this run scanned for the first time, although the file has
+  not changed since 2026-11-04. There are 456 of them, one per `integrity` hash: the same false
+  positive as the root lockfile.
+- **Everything else:** identical to this morning's findings.
+- **The four "missing deny rule" findings:**
+  - `rm -rf` and `sudo` ask instead of deny, as you asked.
+  - `chmod 777` is denied, but the scanner looks for that literal text and does not read
+    `chmod *777 *`.
+  - `> /dev/` is left to the sandbox, because a deny rule would also block `2>/dev/null`.
+
+### Verification on the final tree (99f3dea)
+
+| Check | Result |
+|---|---|
+| Frontend tests, lint and build, inside the sandbox | 1,774 passed in 121 files; clean; clean |
+| The same three on an export of `HEAD` alone, without your uncommitted files | 1,774 passed; clean; clean |
+| Backend tests and typecheck | 630 passed and 1 skipped; clean. No backend file changed |
+| U-09 in headless Chrome | 12 of 12; 8 of 12 on the old code |
+| Review of all nine commits | No file outside `src/` and `docs/`, none of your five files, no debug output or lint suppressions, and the i18n keys match in en, ru and uz |
+| Your five files | SHA-256 checksums match |
+
 ### For your decision
 
-1. Whether to deny `docker volume prune` and `docker compose down -v` as well, since either can
-   delete the development database volume. The same goes for the scanner's `rm -rf`, `sudo` and
-   `chmod 777` suggestions.
-2. Whether to keep the `git stash` deny. It also blocks `git stash list`, though you can still
-   run stash yourself with `!`.
-3. Whether to turn on Claude Code's sandbox, so these rules also hold against `bash -c` and
-   scripts. It changes how every command runs.
-4. U-09: whether long sprint sections should stop scrolling inside themselves on a phone.
+1. **Escapes from the sandbox:** whether every escape should ask you, by adding
+   `"Bash(dangerouslyDisableSandbox:true)"` to `ask`. It is stricter, but an unattended run then
+   stops at the first escape, for example when a browser check launches Chrome.
+2. **Installs inside the sandbox:** whether to allow `registry.npmjs.org` and write access to
+   `~/.npm`. Install scripts would then be confined. But sandboxed commands could then write to
+   the packages cached in `~/.npm/_npx`, which later run unconfined.
+3. **Scope:** whether to move these rules and the sandbox into your user settings, so that they
+   cover every project and not only this one.
+4. **Dialog text:** whether the Customize sidebar text should say that the layout is kept on this
+   browser.
+5. **Cleanups:** the optional U-07 and U-08.
