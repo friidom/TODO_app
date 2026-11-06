@@ -599,9 +599,9 @@ These need a person with server access. None has been done. In order:
 
 ## UI quality pass (2026-11-06)
 
-This pass is on the branch `feature/ui-quality-pass-2026-11`, on top of `1b6e53f`: the seven
-fix and feature commits in the table below, and the documentation commits that record them. It
-is local only; nothing was pushed, merged or deployed. Your five uncommitted files were left
+This pass is on the branch `feature/ui-quality-pass-2026-11`, on top of `1b6e53f`: the fix and
+feature commits in the table below, and the documentation commits that record them. It is local
+only; nothing was pushed, merged or deployed. Your five uncommitted files were left
 exactly as found. Their SHA-256 checksums matched before and after, and none of them is in a
 commit.
 
@@ -609,8 +609,8 @@ commit.
 |---|---|---|
 | A1 UI audit | 7 defects fixed (U-01 to U-06, and U-09 after your review), 2 noted and left (U-07, U-08), all in `UI_AUDIT_2026-11.md` | ebf7c8f, b101a50, 5b9481d, bc83eb5, 99f3dea |
 | A2 Fixed and Flexible columns | COMPLETED | 9334fdf |
-| A3 Customize sidebar | COMPLETED | b5dd3de |
-| B Agent permissions (AgentShield) | COMPLETED locally, and extended after your review with ask rules and the sandbox. `.claude/settings.local.json` is gitignored, so it is in no commit | |
+| A3 Customize sidebar | COMPLETED. The dialog text was corrected after your second review | b5dd3de, ae3d548 |
+| B Agent permissions (AgentShield) | COMPLETED locally. Extended with ask rules and the sandbox after your first review, and moved to your user settings after your second. No commit contains either settings file | |
 
 ### A2: column sizing
 
@@ -910,7 +910,7 @@ browser and has no effect on anyone else.
 
 **The limitation:** a second browser or device, or a browser whose site data was cleared, starts
 from the default sidebar. The dialog text from the brief, "These changes affect only your
-account.", does not say "on this browser" (decision 4).
+account.", did not say so; since ae3d548 it does (see the third pass).
 
 ### AgentShield, second run
 
@@ -941,16 +941,171 @@ This run used the same version (1.6.0) and the same target (the repository) as t
 | Review of all nine commits | No file outside `src/` and `docs/`, none of your five files, no debug output or lint suppressions, and the i18n keys match in en, ru and uz |
 | Your five files | SHA-256 checksums match |
 
+### Decided in your second review
+
+You approved all four:
+- every escape from the sandbox asks you;
+- npm installs are never approved automatically;
+- the rules and the sandbox move to your user settings;
+- the dialog text says the layout is saved in this browser.
+
+The next section records what was done. U-07 and U-08 are still open.
+
+## Third pass: your four decisions (2026-11-06)
+
+The one code change is ae3d548. Everything else is Claude Code configuration on this Mac, which no
+commit contains.
+
+### Where each rule lives now
+
+**`~/.claude/settings.json` applies to every project.** It now holds:
+- the 33 deny rules, unchanged from the second pass;
+- the ask list from the second pass, with three additions:
+  - `Bash(dangerouslyDisableSandbox:true)`. Every command that Claude retries outside the sandbox
+    asks you first. Claude Code's documentation says this rule "takes precedence over a matching
+    allow rule", so an allow rule such as `npm run *` can no longer approve an escape silently.
+  - npm commands that change dependencies:
+    - `npm *install*`, which also matches `uninstall`, `clean-install` and
+      `npm --prefix backend install`;
+    - `npm i`, `npm add` and `npm ci`;
+    - `npm update` and `npm up`;
+    - `npm remove`, `npm rm` and `npm un`;
+    - `npm dedupe`, `npm prune`, `npm link` and `npm audit fix`.
+  - `Edit(.claude/settings*.json)`, which protects the Claude Code settings of any project.
+- the sandbox block, unchanged.
+
+Every key that was there before is byte-for-byte the same:
+- the three hooks;
+- the plugins (GateGuard comes from the enabled `ecc` plugin);
+- `autoMode`;
+- the model settings;
+- the status line.
+
+A `jq` comparison against the backup differs only in `ask`, `deny` and `sandbox`.
+
+**`.claude/settings.local.json` applies to this project only.** It keeps:
+- its allow list, unchanged;
+- `Edit(/backend/prisma/migrations/**)`;
+- `Edit(/.claude/settings*.json)`, the form anchored to this project, for its own file;
+- the codegraph MCP server.
+
+**Backups,** both byte-identical to the files before this pass:
+- `~/.claude/settings.json.pre-security-2026-11-06.bak`
+- `~/.claude/projects/-Users-onesadboy-Documents-TODO-app/settings.local.json.2026-11-06-round2.bak`
+
+Normal work still runs without a prompt: `npm test`, `npm run lint`, `npm run build`,
+`npm run dev`, `npx tsc`, and `npx prisma` apart from its asked and denied subcommands.
+
+### What changes in other projects
+
+- **The sandbox and every deny and ask rule now apply in all your projects.** There too, an
+  install, a cache written outside the project, or launching an app hits the sandbox, and each
+  retry outside it asks you.
+- **yarn, pnpm and bun have no ask rules.** Their installs write caches outside the project, so
+  the sandbox refuses them and the retry asks you.
+- **A project can still turn the sandbox off for itself.**
+  - For a single value such as `sandbox.enabled`, project settings override user settings. So a
+    repository whose `.claude/settings.json` sets `"sandbox": {"enabled": false}` disables it
+    there.
+  - Only managed settings, which an administrator installs for the whole machine, can prevent
+    that.
+  - A project cannot loosen the deny and ask rules, because its allow rules never beat yours.
+- **`~/.claude/settings.local.json` is the project file of your home folder.** It applies only
+  when Claude Code starts in `~`. Its `Bash(git *)` allow no longer approves `git push` or
+  `git stash` there, because your user-level ask and deny rules win.
+- **`.claude/hooks/comment-guard.mjs` in this repository does not run.** No settings file refers
+  to it. It was already like that, and it was not touched.
+
+### Verification
+
+| Check | Result |
+|---|---|
+| Both settings files | Valid JSON, and Claude Code picked up each change without a restart |
+| The edit to `~/.claude/settings.json` | Prompted you, as you confirmed |
+| `npx tsc --version` retried outside the sandbox | Prompted you, as you confirmed. Before this pass, the project's `npx tsc *` allow would have approved it silently |
+| `npm install --dry-run` | Prompted you, as you confirmed |
+| Deny rules, now only in your user settings | `git stash list`, `chmod 777` and reading `~/.ssh` were refused. `npx prisma migrate reset` was refused although the project allows `npx prisma *` |
+| The sandbox, now enabled from your user settings | A write outside the project fails with "Operation not permitted". Docker, which runs outside the sandbox, still works |
+| GateGuard | Still blocks the first edit of each file: denials #33 to #36 came after the change |
+| Dev servers, inside the sandbox | Vite serves the app. The API starts under `tsx watch` and answers `/health` |
+| Frontend tests, lint and build | 1,774 passed in 121 files; clean; clean |
+| The same three on an export of ae3d548 alone, without your uncommitted files | 1,774 passed; clean; clean |
+| Backend tests and typecheck | 630 passed and 1 skipped; clean |
+
+Not verified in this pass:
+
+- **The sandbox's own read block.** The auto-mode classifier refused my probe script as an attempt
+  to get around the Read deny rules, so I did not try another way. The block was verified in the
+  second pass, and it is built from the same deny rules. `/sandbox` shows the active
+  configuration.
+- **The API reaching a database.** None was running:
+  - Docker was stopped.
+  - The scratch PostgreSQL cannot start inside the sandbox, which blocks the System V shared memory
+    it needs.
+
+  In the second pass, with the same sandbox configuration, the API reached PostgreSQL over
+  localhost.
+- **Another project, live.** That needs a separate Claude Code session, which I did not start from
+  inside this one. What I checked instead: there are no managed settings on this Mac, so a new
+  project loads only `~/.claude/settings.json`, and that file names no Veylo path. To see it
+  yourself, run `mkdir -p /tmp/cc-probe && cd /tmp/cc-probe && claude`, then `/permissions` and
+  `/sandbox`.
+
+### AgentShield, third run
+
+AgentShield scans one folder, and the rules now live outside the repository, so there were two
+scans.
+
+- **The repository:** grade D, 57/100 (56 before); permissions 85 (81 before).
+  - One finding is new since the second run: "No deny list configured" (high) for
+    `.claude/settings.local.json`, because the deny list moved to your user settings.
+  - The four "missing deny rule" findings went with it.
+  - Everything else is identical.
+- **A copy of `~/.claude/settings.json` on its own:** grade B, 89/100; permissions 43. It
+  recognises the deny list, the ask list and the sandbox. What it reports:
+  - the same four "missing deny rule" findings as before;
+  - "No PreToolUse security hooks", because GateGuard is a plugin hook and the scanner reads only
+    the settings file;
+  - three settings you already had:
+    - the status-line command, rated critical because the scanner flags any command run at
+      startup;
+    - `defaultMode: auto`;
+    - `skipDangerousModePermissionPrompt`.
+
+### Branch and release strategy
+
+Nothing was merged, rebased or rewritten. Where things stand:
+
+- `main` and `origin/main` are both 72b498b, from 2026-10-16. The last fetch was on 2026-10-19.
+- History is one straight line with no merge commits:
+  1. `main`;
+  2. `release/2026-10-17` (06f2532), 7 commits later;
+  3. `1b6e53f`, 30 commits after that. It is pushed as `origin/hardening/audit-2026-11`, and
+     production has run it since 2026-11-05;
+  4. this branch, 12 commits after that, never pushed.
+- So `main` lacks the 37 commits that production already runs, as well as these 12.
+
+The safest order:
+
+1. Run `git fetch origin` to confirm that `origin/main` has not moved.
+2. Open PR 1, from `hardening/audit-2026-11` to `main`. It is exactly what production runs.
+   - Merge it as a fast-forward or with a merge commit.
+   - Do not squash or rebase it. Either would give the deployed commits new SHAs, and `main`
+     would no longer contain the commit that production runs.
+   - Tag `1b6e53f` as the deployed version.
+3. Push this branch with `git push -u origin feature/ui-quality-pass-2026-11`. `origin` pushes to
+   both GitHub and GitLab.
+4. Open PR 2, from this branch to `main`, once PR 1 is merged, so that it shows only these 12
+   commits. Before then, basing PR 2 on `hardening/audit-2026-11` gives the same view.
+5. Merge PR 2 the same way as PR 1.
+6. Deploy the tip of `main` by the usual procedure, with images built on the Mac and never on the
+   EC2 host, and tag it.
+
+Your five uncommitted files stay out of both PRs.
+
+A single PR from this branch to `main` would carry 49 commits: 37 that are already deployed and
+12 new ones. Neither a review nor a rollback could tell them apart.
+
 ### For your decision
 
-1. **Escapes from the sandbox:** whether every escape should ask you, by adding
-   `"Bash(dangerouslyDisableSandbox:true)"` to `ask`. It is stricter, but an unattended run then
-   stops at the first escape, for example when a browser check launches Chrome.
-2. **Installs inside the sandbox:** whether to allow `registry.npmjs.org` and write access to
-   `~/.npm`. Install scripts would then be confined. But sandboxed commands could then write to
-   the packages cached in `~/.npm/_npx`, which later run unconfined.
-3. **Scope:** whether to move these rules and the sandbox into your user settings, so that they
-   cover every project and not only this one.
-4. **Dialog text:** whether the Customize sidebar text should say that the layout is kept on this
-   browser.
-5. **Cleanups:** the optional U-07 and U-08.
+Only the optional U-07 and U-08 cleanups are still open.
