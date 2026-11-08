@@ -108,7 +108,8 @@ export function useCardPopover({
     }
 
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key !== "Escape") return;
+      // a drag claims the Escape that cancels it on window capture, which runs before this
+      if (event.key !== "Escape" || event.defaultPrevented) return;
 
       // this listener runs before the nested popover's, so it has to step aside for it to close alone
       const owner = document.activeElement?.closest("[data-card-popover]");

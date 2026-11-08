@@ -9,6 +9,7 @@ import {
   Trash2Icon,
 } from "lucide-react";
 
+import { useIsMobile } from "@/components/sideBar/hooks/use-mobile";
 import type { BacklogIndicator } from "@/hooks/useBacklogDnd";
 import type { SprintSection as SprintSectionData } from "@/services/todos/backlog";
 import { sprintPoints } from "@/services/todos/sprintPoints";
@@ -44,6 +45,7 @@ export default function SprintSection({
   const { sprint, items } = section;
   const { t } = useTranslation();
   const { canEditTodos } = usePermissions();
+  const isMobile = useIsMobile();
 
   const [collapsed, setCollapsed] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -69,7 +71,9 @@ export default function SprintSection({
     setAdding(false);
   }
 
-  const long = items.length > LONG_SPRINT;
+  // on a desktop a long sprint scrolls inside itself, so the Backlog below stays a
+  // short scroll away; on a phone that inner scroller would take the first swipe
+  const scrollsInside = items.length > LONG_SPRINT && !isMobile;
 
   return (
     // the whole section is the drop target, header included, so a collapsed
@@ -206,13 +210,11 @@ export default function SprintSection({
 
       {!collapsed && (
         <div
-          data-backlog-scroll={long ? "" : undefined}
+          data-backlog-scroll={scrollsInside ? "" : undefined}
           className={cn(
             "border-hairline border-t transition-colors",
             isOver && "bg-brand/5",
-            // a long sprint scrolls inside itself, so the Backlog below stays a
-            // short scroll away instead of hundreds of rows down
-            long && "max-h-[min(60vh,36rem)] overflow-y-auto",
+            scrollsInside && "max-h-[min(60vh,36rem)] overflow-y-auto",
           )}
         >
           {items.length > 0 && (

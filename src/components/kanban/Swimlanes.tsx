@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import { ChevronDownIcon, ChevronRightIcon, InboxIcon } from "lucide-react";
 import { useState } from "react";
 
-import { COUNT_CHIP } from "@/components/columns/columnChrome";
+import { COUNT_CHIP, FLEX_COLUMN } from "@/components/columns/columnChrome";
 import MemberIdentity from "@/components/members/MemberIdentity";
 import EmptyState from "@/components/ui/EmptyState";
 import { columnTitle } from "@/constants/columns";
@@ -23,11 +23,13 @@ export default function Swimlanes({
   group,
   orderedColumns,
   members,
+  flexible,
 }: {
   groups: TodoGroup[];
   group: GroupKey;
   orderedColumns: IColumn[];
   members: BoardMember[];
+  flexible: boolean;
 }) {
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState<string[]>([]);
@@ -81,7 +83,7 @@ export default function Swimlanes({
               </header>
 
               {!isCollapsed && (
-                <div className="flex min-w-max items-start">
+                <div className="flex min-w-max items-start gap-3 pr-3">
                   {orderedColumns.map((column) => {
                     const cards = lane.todos.filter(
                       (todo) =>
@@ -89,7 +91,10 @@ export default function Swimlanes({
                     );
 
                     return (
-                      <div key={column.id} className="pr-3">
+                      <div
+                        key={column.id}
+                        className={cn(flexible && FLEX_COLUMN)}
+                      >
                         <KanbanColumn
                           // lane-scoped id — otherwise every lane registers the same droppable and @dnd-kit gets confused
                           id={`${lane.key}::${column.id}`}
@@ -98,6 +103,7 @@ export default function Swimlanes({
                           todos={cards}
                           indicator={{ columnId: null, index: 0 }}
                           lane
+                          flexible={flexible}
                           dragDisabled
                           onCollapse={noop}
                           onDelete={noop}

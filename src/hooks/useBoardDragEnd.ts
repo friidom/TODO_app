@@ -16,7 +16,7 @@ import { useCardLanding } from "@/stores/cardLanding";
 import { useDoneFlash } from "@/stores/doneFlash";
 import type { IColumn, IStatus, Todo } from "@/types/data";
 import { byRank } from "@/utils/rank";
-import type { TodoIndicator } from "./useKanbanDnd";
+import type { TodoIndicator } from "./boardDrag";
 
 interface BoardDragEndParams {
   todos: Todo[];

@@ -321,7 +321,16 @@
     "reorderHint": "Tartibini o'zgartirish uchun torting yoki Alt+↑/↓ ni bosing",
     "movedTo": "{{name}}: {{count}} tadan {{position}}-o'rin",
     "sharedSpace": "{{space}} — siz bilan ulashilgan",
-    "invitePeople": "Odamlarni taklif qilish…"
+    "invitePeople": "Odamlarni taklif qilish…",
+    "customize": "Yon panelni sozlash",
+    "customizeTitle": "Yon panelingizni sozlang",
+    "customizeDescription": "Yon panelda qaysi bandlar ko'rinishini tanlang va ularni o'zingizga qulay tartibda joylashtiring. Bu o'zgarishlar hisobingiz uchun ushbu brauzerda saqlanadi.",
+    "navigation": "Navigatsiya",
+    "spacesAndShortcuts": "Maydonlar va yorliqlar",
+    "more": "Yana",
+    "restoreDefaults": "Standart holatga qaytarish",
+    "hiddenHint": "Yashirilgan bandlar yon panel pastidagi «Yana» bo'limida qoladi.",
+    "allBoardsHidden": "Barcha doskalar yashirilgan — «Yana» bo'limiga qarang"
   },
   "header": {
     "newTask": "Yangi vazifa",

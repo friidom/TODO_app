@@ -13,6 +13,9 @@ matched after it.
 Your decisions of 2026-11-04: F-23 deferred, F-25 approved, F-20 preserve, F-28 approved on
 condition (production MinIO version first, a real Docker build, no deploy).
 
+The UI quality pass of 2026-11-06 is recorded at the end of this file, and its audit in
+`UI_AUDIT_2026-11.md`.
+
 ## Baseline
 
 The 2026-11-03 baseline on `06f2532`: 1,730 frontend, 622 backend unit and 974 backend
@@ -593,3 +596,516 @@ These need a person with server access. None has been done. In order:
    cron with the weekly off-machine copy, and run `ops/restore-check.sh` once (F-10); point a
    free uptime monitor at `https://veylo.work.gd/health` (F-15).
 8. F-28: pin MinIO to the version read in step 0. `USER node` is done (b78e757).
+
+## UI quality pass (2026-11-06)
+
+This pass is on the branch `feature/ui-quality-pass-2026-11`, on top of `1b6e53f`: the fix and
+feature commits in the table below, and the documentation commits that record them. It is local
+only; nothing was pushed, merged or deployed. Your five uncommitted files were left
+exactly as found. Their SHA-256 checksums matched before and after, and none of them is in a
+commit.
+
+| Item | Status | Commits |
+|---|---|---|
+| A1 UI audit | 7 defects fixed (U-01 to U-06, and U-09 after your review), 2 noted and left (U-07, U-08), all in `UI_AUDIT_2026-11.md` | ebf7c8f, b101a50, 5b9481d, bc83eb5, 99f3dea |
+| A2 Fixed and Flexible columns | COMPLETED | 9334fdf |
+| A3 Customize sidebar | COMPLETED. The dialog text was corrected after your second review | b5dd3de, ae3d548 |
+| B Agent permissions (AgentShield) | COMPLETED locally. Extended with ask rules and the sandbox after your first review, and moved to your user settings after your second. No commit contains either settings file | |
+
+### A2: column sizing
+
+The setting already existed, and it is still stored in the same two places. A person's unsaved
+view changes are kept per board on their device. The board's saved view, `boards.view_settings`,
+applies to everyone once someone saves it. `KanbanBoard` reads the one value, `columnSize`, once
+and passes it down.
+
+Fixed columns are `w-[264px]`. Flexible columns are `FLEX_COLUMN`:
+`min-w-60 flex-1 basis-0 contain-inline-size`, defined in `columnChrome.ts` and used by the main
+row, every swimlane row and the loading skeleton. The classes do the following:
+
+- `flex-1` with `basis-0` shares the row out equally, whatever the cards hold.
+- `min-w-60` sets a 240 px floor, below which the board scrolls instead.
+- `contain-inline-size` stops an unwrapped card title from widening its column.
+
+CSS does all of the arithmetic, so there is no measuring in JavaScript and no inline width.
+
+Measured on the final tree:
+
+| Case | Fixed | Flexible |
+|---|---|---|
+| 2 columns at 1920 px | 264 px each, 1,040 px left empty | 784 px each, nothing empty |
+| 3 columns at 1440 px | 264 px, 284 px empty | 359 px each |
+| 4 columns at 1024 px | 264 px, scrolls 408 px | 240 px floor, scrolls 312 px |
+| 8 columns at 1920 px (two long names, a 12-card column, two empty ones) | 264 px, scrolls 616 px | 240 px, scrolls 424 px |
+| 3 columns at 1440 px, sidebar collapsed | unchanged | 359 px → 428 px |
+| Board settings panel open (352 px) | scrolls 68 px | 241 px each, no scroll |
+| Task dialog open | unchanged | unchanged |
+| 5 columns at 150 % and 200 % zoom, and on a phone | | 240 px floor, scrolls |
+| Swimlanes (grouped by assignee) | 264 px | 367 px each |
+| Column drag ghost | | 359 px for a 359 px column |
+
+### A3: Customize sidebar
+
+"Customize sidebar" sits in the sidebar footer, and on the collapsed rail as an icon. On a phone
+it closes the sheet first. The dialog lists the real destinations: For You, Recent, Starred,
+Superadmin (offered only to superadmins) and Notifications. Below them are the Spaces and Filters
+sections, each space with its boards under it.
+
+- **Rows:** every row has a checkbox and a grip. The grip drags with a pointer, or with Space and
+  the arrow keys. Unfiled has no grip, because it always stays last.
+- **Saving:** edits are a draft. Save applies them, and Cancel or Escape discards them.
+- **Restore defaults:** resets order and visibility, but not which sections are open.
+- **Hidden items** move to a More section at the bottom of the sidebar, collapsed by default. On
+  the rail, a More button expands the sidebar with More open.
+- **Permissions:** hiding an item changes no permission. `/admin` is still guarded by its route
+  and by the API.
+
+The layout is stored in `localStorage` through the existing zustand store, under
+`sidebar:layout:<userId>`, so another account on the same browser keeps its own. The old
+device-wide key is read until the first save and then removed. `sidebarView` in
+`services/sidebar/layout.ts` is the one place that decides what the sidebar shows and what goes
+to More. `ReorderContext` now claims an Escape that cancels a drag, so the dialog around the
+list stays open. In headless Chrome, 35 checks pass on the desktop and 7 at phone width.
+
+### B: agent permissions
+
+These are the changes to `.claude/settings.local.json`. A backup of the original is at
+`~/.claude/projects/-Users-onesadboy-Documents-TODO-app/settings.local.json.2026-11-06.bak`.
+
+- **Removed from allow:** `Bash(python3 -)`, which ran any Python fed to it with no prompt. It
+  now goes through the normal permission check. `Bash(git stash *)` also moved from allow to
+  deny.
+- **New deny list:**
+  - reading `~/secret`, `~/.ssh` and `~/.aws`;
+  - `git stash`;
+  - `git reset --hard`, and `git push --force` or `-f`, with the flag in any position;
+  - `docker system prune` and `docker volume rm`.
+- **Deliberately left out of the deny list:** `git push --force-with-lease`.
+- **Not touched:** GateGuard, the other hooks and the MCP configuration.
+
+Each rule was tried in this session. The `Read` denies hold for the Read tool and for `cat`. The
+git and docker denies hold with the flag after the branch name. A deny beats the broad
+`Read(//Users/onesadboy/**)` allow, and the rest of the home folder stays readable. A plain push
+and a plain reset still work; they were tried in a throwaway repository with a local remote.
+
+Bash rules match a command as it is written: `bash -c '…'`, `/usr/bin/git …` or a script gets
+past them. They guard against mistakes; they are not a sandbox.
+
+AgentShield 1.6.0 went from grade D, 55/100, to D, 56/100; its permissions score went from 74 to
+81. The two high findings fixed are the `python3 -` allow and "no deny list". What it still
+reports:
+
+- **471 critical "Azure storage keys" in `package-lock.json`:** a false positive. They are
+  `integrity` hashes.
+- **"System prompt extraction" in `CLAUDE.md`:** a false positive. It matches the words "print
+  rule" inside "pre-sprint rule".
+- **"Missing prompt defense" in both `CLAUDE.md` files and the four agents:** fixing these would
+  mean adding boilerplate to satisfy the scanner, which the brief rules out.
+- **Four new medium findings:** they ask for deny rules on `rm -rf`, `sudo`, `chmod 777` and
+  writes to device files. They appeared because a deny list now exists, and are left for your
+  decision.
+
+### Verification on the final tree (bc83eb5)
+
+| Check | Result |
+|---|---|
+| Frontend `npm test` | 1,774 passed in 121 files. The last recorded run, on 2026-11-04, had 1,751; the new tests are for `boardDrag`, the sidebar layout and `reorder` |
+| `npm run lint` | clean |
+| `npm run build` (`tsc -b`, then `vite build`) | clean |
+| The same three on an export of `HEAD` alone, without your uncommitted files | clean, and 1,774 passed |
+| Backend | not run: this branch changes no backend file |
+| Browser, headless Chrome | Drop gap: see the note below. Backlog and Calendar: every touch and mouse check passes, and the row menus open on screen on a phone. Customize sidebar: 35 of 35 on the desktop, 7 of 7 on a phone. Column sizing: as in A2 |
+| Your five files | SHA-256 checksums match, and none is in a commit |
+
+The drop-gap script passed 8 of its 9 checks. The ninth drags a card from In progress to Done,
+the only target left after earlier runs' drops had emptied To do. The workflow refuses that move
+("No transition to DONE"), so drawing no line is correct. Two allowed drags were checked
+instead, one within In progress and one from In progress to In review. Each lit exactly one line
+and left nothing lit after Escape.
+
+### Decided in your review
+
+All four open questions were answered:
+- deny `docker volume prune` and `docker compose down -v`;
+- keep the `git stash` deny;
+- evaluate the sandbox;
+- fix U-09.
+
+The Jira screenshots never reached this session, so the work follows the brief's written
+descriptions and the existing implementation.
+
+## Second pass after your review (2026-11-06)
+
+### Permission rules: syntax and precedence
+
+These points come from the Claude Code permission docs. Each one was then checked in this
+session, using probe rules that applied the same pattern to a harmless `echo`.
+
+- **Order:** rules are checked deny first, then ask, then allow, and the first match decides.
+  - A deny in any settings file beats an allow in any other.
+  - An allow cannot carve an exception out of a deny.
+  - An ask beats an allow.
+  - Proof: `npx prisma migrate reset` is denied even though `Bash(npx prisma *)` is allowed.
+- **Wildcards:** `*` can sit anywhere in a rule. A trailing ` *` also matches the bare command, so
+  `Bash(docker volume prune *)` blocks a plain `docker volume prune`.
+- **Compound commands:** deny and ask rules apply to every part of a compound command (`cd x &&
+  …`, subshells, `$(…)`). They also match past a leading `VAR=value`.
+- **Paths:** a leading `/` in a path rule in this file anchors at the project root, and `//` is
+  the filesystem root.
+- **Limit:** rules match the command as written. `/bin/rm`, `bash -c '…'`, `git -C . push` or a
+  script gets past them, which is what the sandbox is for.
+
+### New rules in `.claude/settings.local.json`
+
+This morning's version is backed up at
+`~/.claude/projects/-Users-onesadboy-Documents-TODO-app/settings.local.json.2026-11-06-round1.bak`.
+
+**Deny.** Claude can never run these, but you can still run any of them yourself in your own
+terminal:
+- **Docker volumes:**
+  - `docker volume prune`;
+  - `docker compose … down … -v` and `docker-compose … down … -v`, with `-v` or `--volumes`
+    anywhere after `down`.
+
+  Each of these deletes the `pgdata` and `minio_data` volumes, which hold the development
+  database and the attachments.
+- **Permissions:** `chmod … 777 …`, including `0777` and `-R`.
+- **Databases:**
+  - `npx prisma migrate reset`. It drops the database, and this morning's `npx prisma *` allow
+    let it run without a prompt.
+  - `dropdb`.
+- **History rewrites:** `git filter-branch` and `git filter-repo`.
+- **Files outside the project:**
+  - reading `~/.docker/config.json`;
+  - editing anything under `~/.docker`;
+  - editing Docker Desktop's data (`~/Library/Containers/com.docker.docker` and
+    `~/Library/Group Containers/group.com.docker`);
+  - editing the shell startup files and `~/.gitconfig`.
+- **Kept:** the full `git stash` deny and every rule from this morning.
+
+**Ask.** These always prompt you, even in auto mode:
+- `sudo`, any `rm`, and `find … -delete`.
+- **Git commands that discard work or rewrite history:**
+  - `git clean`, `git checkout .`, `git checkout … -- …` and `git restore`;
+  - `git reset` (the `--hard` forms stay denied) and `git branch -D`;
+  - `git rebase` and `git commit --amend`;
+  - every `git push` (force pushes stay denied).
+- **Docker removals:** `docker rm`, `docker compose rm`, `docker-compose rm`, and the prunes that
+  are not denied, such as `docker image prune`.
+- **Prisma:** `npx prisma db push` and `npx prisma migrate dev`.
+- **Files:**
+  - reading or editing `.env` and `.env.local`, at any depth;
+  - editing `backend/prisma/migrations/**`;
+  - editing Claude Code's own settings files, for the project and for your user.
+
+**Not added:**
+- a blanket deny on `sudo` or `rm -rf`, per your instruction;
+- a deny on `> /dev/…`, which would also block every `2>/dev/null`. The sandbox blocks writes to
+  device files instead.
+
+Claude Code also never auto-approves an `rm` that it recognises as aimed at a critical path, such
+as the filesystem root or the home folder.
+
+### Sandbox: enabled
+
+```json
+"sandbox": {
+  "enabled": true,
+  "autoAllowBashIfSandboxed": false,
+  "excludedCommands": ["docker *", "docker-compose *"],
+  "network": {
+    "allowLocalBinding": true,
+    "allowUnixSockets": ["/private/tmp/claude-501/tsx-501"]
+  }
+}
+```
+
+What each key does:
+
+- **`enabled`:** every Bash command Claude runs goes through macOS Seatbelt.
+  - It can write only to the project folder and its own temp folder (`/tmp/claude-501`). Even
+    there it cannot write to `.claude` settings, `.git/hooks` or `.git/config`.
+  - No program it starts can read the Read-deny paths: `~/.ssh`, `~/.aws`, `~/secret` and
+    `~/.docker/config.json`.
+  - Network traffic goes through a proxy that lets through only approved hosts.
+- **`autoAllowBashIfSandboxed: false`:** the sandbox only adds restrictions and approves nothing
+  new. Commands go through the same allow rules and auto-mode classifier as before.
+- **`excludedCommands`:** Docker needs its socket and `~/.docker`.
+  - A `docker` or `docker-compose` command run on its own goes outside the sandbox. It still
+    passes the normal permission check, so the deny rules above apply.
+  - Inside a compound command (`… && docker …`) it stays sandboxed and cannot reach Docker.
+- **`allowLocalBinding`:** lets dev servers listen on ports, and lets commands connect to
+  localhost: PostgreSQL, Redis and the API.
+- **`allowUnixSockets`:** `tsx watch`, the backend's `npm run dev`, opens an IPC socket in this one
+  directory. Without it the backend dev server exits with `listen EPERM`. All other Unix sockets
+  stay blocked, Docker's included.
+
+The sandbox only affects commands Claude runs: your own terminal and Docker Desktop are not
+sandboxed. Whether a `!` command typed into a Claude Code session is sandboxed was not tested, so
+push from your own terminal.
+
+Verified inside the sandbox:
+
+| Operation | Result |
+|---|---|
+| Frontend `npm test`, `npm run lint`, `npm run build` | 1,774 passed; clean; clean |
+| Backend `npm test` and `npx tsc --noEmit` | 630 passed, 1 skipped; clean |
+| Vite dev server | serves the app |
+| Backend dev server (`tsx watch`) against PostgreSQL on localhost | `/health` reports the database up, and a login returns 200 |
+| `psql`, git, `codegraph`, `npm ping` | work. The documentation commit of this pass was made from inside the sandbox |
+| `docker context ls`, `docker version` (excluded) | work, server 29.8.0 |
+| The U-09 browser checks, against an already running Chrome | 12 of 12 |
+| GateGuard and the other hooks | still fire: hooks run outside the sandbox |
+| A write outside the project | blocked ("Operation not permitted") |
+| A host nobody approved, and the Docker socket | blocked |
+
+These need to run outside the sandbox. Claude retries them with `dangerouslyDisableSandbox`,
+which the auto-mode classifier reviews:
+
+- **npm downloads:** `npm install`, `npm view`, and `npx` with a package that is not in
+  `node_modules` all fail, because npm cannot write its cache in `~/.npm`.
+  - npm's error then suggests a `sudo chown` of `~/.npm`. Do not run it: the cause is the
+    sandbox, not file ownership.
+  - Tools already in `node_modules`, such as `npx tsc` and `npx prettier`, are not affected.
+- **Processes:**
+  - launching headless Chrome for browser QA, which does not start inside the sandbox;
+  - stopping a process that another command started (`kill`, `pg_ctl stop`). Background tasks can
+    still be stopped with Claude's TaskStop.
+- **SSH (not tested):** `git fetch` and `git push` over SSH, which means the `gitlab` remote and
+  the GitLab push URL of `origin`. The sandbox cannot read `~/.ssh`, and SSH does not go through
+  the proxy. You do the pushes anyway.
+- **Also blocked inside the sandbox:** `open`, `osascript`, `ps`, `pgrep`, and zsh process
+  substitution `<(…)`.
+
+What the sandbox does not cover:
+
+- **Claude's own tools:** the Read, Edit and Write tools, WebFetch, MCP servers such as codegraph,
+  and hooks follow the permission rules, not the sandbox.
+- **Excluded commands and approved escapes:** Docker, and any command approved to run outside,
+  run with your full access.
+- **The local database:** a sandboxed command can still connect to the development database over
+  localhost, and could change or drop data with SQL. The rules match `dropdb` and
+  `prisma migrate reset`, not SQL text.
+- **Approved hosts:** an approved host is approved as a whole. The proxy checks the host name, not
+  what is sent to it.
+- **Allow rules approve the escape too:** an allow rule also approves running the same command
+  outside the sandbox. So the commands this project allows (`npm run`, `npx tsc`, `npx vite`,
+  `npx prisma`) can leave the sandbox without review. See decision 1 below.
+
+### Sidebar layout: stays in browser storage
+
+The backend has nowhere to keep a per-user preference:
+- `users` and `profiles` hold identity fields only, with no JSON or settings column.
+- There is no preferences endpoint.
+- The only JSON settings are on `boards` (`view_tabs` and `view_settings`). Every member of a
+  board shares those, so storing the layout there would change the sidebar for everyone.
+
+Making the layout follow you across devices would need three new things: a column or table,
+which means a migration; an endpoint; and a rule for merging edits from two devices made at the
+same time.
+
+As you instructed, the current implementation stays. The layout is stored per account and per
+browser, under `sidebar:layout:<userId>` in `localStorage`. It is private to that account in that
+browser and has no effect on anyone else.
+
+**The limitation:** a second browser or device, or a browser whose site data was cleared, starts
+from the default sidebar. The dialog text from the brief, "These changes affect only your
+account.", did not say so; since ae3d548 it does (see the third pass).
+
+### AgentShield, second run
+
+This run used the same version (1.6.0) and the same target (the repository) as this morning's.
+
+- **Score:** grade D, 56/100, as this morning; permissions 81. It now lists four recognised
+  defences: the deny list, the ask list, the sandbox and the MCP allow list. It credits them but
+  does not score them.
+- **Critical findings:** up from 483 to 939. All of the difference is "Azure storage keys" in
+  `backend/package-lock.json`, which this run scanned for the first time, although the file has
+  not changed since 2026-11-04. There are 456 of them, one per `integrity` hash: the same false
+  positive as the root lockfile.
+- **Everything else:** identical to this morning's findings.
+- **The four "missing deny rule" findings:**
+  - `rm -rf` and `sudo` ask instead of deny, as you asked.
+  - `chmod 777` is denied, but the scanner looks for that literal text and does not read
+    `chmod *777 *`.
+  - `> /dev/` is left to the sandbox, because a deny rule would also block `2>/dev/null`.
+
+### Verification on the final tree (99f3dea)
+
+| Check | Result |
+|---|---|
+| Frontend tests, lint and build, inside the sandbox | 1,774 passed in 121 files; clean; clean |
+| The same three on an export of `HEAD` alone, without your uncommitted files | 1,774 passed; clean; clean |
+| Backend tests and typecheck | 630 passed and 1 skipped; clean. No backend file changed |
+| U-09 in headless Chrome | 12 of 12; 8 of 12 on the old code |
+| Review of all nine commits | No file outside `src/` and `docs/`, none of your five files, no debug output or lint suppressions, and the i18n keys match in en, ru and uz |
+| Your five files | SHA-256 checksums match |
+
+### Decided in your second review
+
+You approved all four:
+- every escape from the sandbox asks you;
+- npm installs are never approved automatically;
+- the rules and the sandbox move to your user settings;
+- the dialog text says the layout is saved in this browser.
+
+The next section records what was done. U-07 and U-08 are still open.
+
+## Third pass: your four decisions (2026-11-06)
+
+The one code change is ae3d548. Everything else is Claude Code configuration on this Mac, which no
+commit contains.
+
+### Where each rule lives now
+
+**`~/.claude/settings.json` applies to every project.** It now holds:
+- the 33 deny rules, unchanged from the second pass;
+- the ask list from the second pass, with three additions:
+  - `Bash(dangerouslyDisableSandbox:true)`. Every command that Claude retries outside the sandbox
+    asks you first. Claude Code's documentation says this rule "takes precedence over a matching
+    allow rule", so an allow rule such as `npm run *` can no longer approve an escape silently.
+  - npm commands that change dependencies:
+    - `npm *install*`, which also matches `uninstall`, `clean-install` and
+      `npm --prefix backend install`;
+    - `npm i`, `npm add` and `npm ci`;
+    - `npm update` and `npm up`;
+    - `npm remove`, `npm rm` and `npm un`;
+    - `npm dedupe`, `npm prune`, `npm link` and `npm audit fix`.
+  - `Edit(.claude/settings*.json)`, which protects the Claude Code settings of any project.
+- the sandbox block, unchanged.
+
+Every key that was there before is byte-for-byte the same:
+- the three hooks;
+- the plugins (GateGuard comes from the enabled `ecc` plugin);
+- `autoMode`;
+- the model settings;
+- the status line.
+
+A `jq` comparison against the backup differs only in `ask`, `deny` and `sandbox`.
+
+**`.claude/settings.local.json` applies to this project only.** It keeps:
+- its allow list, unchanged;
+- `Edit(/backend/prisma/migrations/**)`;
+- `Edit(/.claude/settings*.json)`, the form anchored to this project, for its own file;
+- the codegraph MCP server.
+
+**Backups,** both byte-identical to the files before this pass:
+- `~/.claude/settings.json.pre-security-2026-11-06.bak`
+- `~/.claude/projects/-Users-onesadboy-Documents-TODO-app/settings.local.json.2026-11-06-round2.bak`
+
+Normal work still runs without a prompt: `npm test`, `npm run lint`, `npm run build`,
+`npm run dev`, `npx tsc`, and `npx prisma` apart from its asked and denied subcommands.
+
+### What changes in other projects
+
+- **The sandbox and every deny and ask rule now apply in all your projects.** There too, an
+  install, a cache written outside the project, or launching an app hits the sandbox, and each
+  retry outside it asks you.
+- **yarn, pnpm and bun have no ask rules.** Their installs write caches outside the project, so
+  the sandbox refuses them and the retry asks you.
+- **A project can still turn the sandbox off for itself.**
+  - For a single value such as `sandbox.enabled`, project settings override user settings. So a
+    repository whose `.claude/settings.json` sets `"sandbox": {"enabled": false}` disables it
+    there.
+  - Only managed settings, which an administrator installs for the whole machine, can prevent
+    that.
+  - A project cannot loosen the deny and ask rules, because its allow rules never beat yours.
+- **`~/.claude/settings.local.json` is the project file of your home folder.** It applies only
+  when Claude Code starts in `~`. Its `Bash(git *)` allow no longer approves `git push` or
+  `git stash` there, because your user-level ask and deny rules win.
+- **`.claude/hooks/comment-guard.mjs` in this repository does not run.** No settings file refers
+  to it. It was already like that, and it was not touched.
+
+### Verification
+
+| Check | Result |
+|---|---|
+| Both settings files | Valid JSON, and Claude Code picked up each change without a restart |
+| The edit to `~/.claude/settings.json` | Prompted you, as you confirmed |
+| `npx tsc --version` retried outside the sandbox | Prompted you, as you confirmed. Before this pass, the project's `npx tsc *` allow would have approved it silently |
+| `npm install --dry-run` | Prompted you, as you confirmed |
+| Deny rules, now only in your user settings | `git stash list`, `chmod 777` and reading `~/.ssh` were refused. `npx prisma migrate reset` was refused although the project allows `npx prisma *` |
+| The sandbox, now enabled from your user settings | A write outside the project fails with "Operation not permitted". Docker, which runs outside the sandbox, still works |
+| GateGuard | Still blocks the first edit of each file: denials #33 to #36 came after the change |
+| Dev servers, inside the sandbox | Vite serves the app. The API starts under `tsx watch` and answers `/health` |
+| Frontend tests, lint and build | 1,774 passed in 121 files; clean; clean |
+| The same three on an export of ae3d548 alone, without your uncommitted files | 1,774 passed; clean; clean |
+| Backend tests and typecheck | 630 passed and 1 skipped; clean |
+
+Not verified in this pass:
+
+- **The sandbox's own read block.** The auto-mode classifier refused my probe script as an attempt
+  to get around the Read deny rules, so I did not try another way. The block was verified in the
+  second pass, and it is built from the same deny rules. `/sandbox` shows the active
+  configuration.
+- **The API reaching a database.** None was running:
+  - Docker was stopped.
+  - The scratch PostgreSQL cannot start inside the sandbox, which blocks the System V shared memory
+    it needs.
+
+  In the second pass, with the same sandbox configuration, the API reached PostgreSQL over
+  localhost.
+- **Another project, live.** That needs a separate Claude Code session, which I did not start from
+  inside this one. What I checked instead: there are no managed settings on this Mac, so a new
+  project loads only `~/.claude/settings.json`, and that file names no Veylo path. To see it
+  yourself, run `mkdir -p /tmp/cc-probe && cd /tmp/cc-probe && claude`, then `/permissions` and
+  `/sandbox`.
+
+### AgentShield, third run
+
+AgentShield scans one folder, and the rules now live outside the repository, so there were two
+scans.
+
+- **The repository:** grade D, 57/100 (56 before); permissions 85 (81 before).
+  - One finding is new since the second run: "No deny list configured" (high) for
+    `.claude/settings.local.json`, because the deny list moved to your user settings.
+  - The four "missing deny rule" findings went with it.
+  - Everything else is identical.
+- **A copy of `~/.claude/settings.json` on its own:** grade B, 89/100; permissions 43. It
+  recognises the deny list, the ask list and the sandbox. What it reports:
+  - the same four "missing deny rule" findings as before;
+  - "No PreToolUse security hooks", because GateGuard is a plugin hook and the scanner reads only
+    the settings file;
+  - three settings you already had:
+    - the status-line command, rated critical because the scanner flags any command run at
+      startup;
+    - `defaultMode: auto`;
+    - `skipDangerousModePermissionPrompt`.
+
+### Branch and release strategy
+
+Nothing was merged, rebased or rewritten. Where things stand:
+
+- `main` and `origin/main` are both 72b498b, from 2026-10-16. The last fetch was on 2026-10-19.
+- History is one straight line with no merge commits:
+  1. `main`;
+  2. `release/2026-10-17` (06f2532), 7 commits later;
+  3. `1b6e53f`, 30 commits after that. It is pushed as `origin/hardening/audit-2026-11`, and
+     production has run it since 2026-11-05;
+  4. this branch, 12 commits after that, never pushed.
+- So `main` lacks the 37 commits that production already runs, as well as these 12.
+
+The safest order:
+
+1. Run `git fetch origin` to confirm that `origin/main` has not moved.
+2. Open PR 1, from `hardening/audit-2026-11` to `main`. It is exactly what production runs.
+   - Merge it as a fast-forward or with a merge commit.
+   - Do not squash or rebase it. Either would give the deployed commits new SHAs, and `main`
+     would no longer contain the commit that production runs.
+   - Tag `1b6e53f` as the deployed version.
+3. Push this branch with `git push -u origin feature/ui-quality-pass-2026-11`. `origin` pushes to
+   both GitHub and GitLab.
+4. Open PR 2, from this branch to `main`, once PR 1 is merged, so that it shows only these 12
+   commits. Before then, basing PR 2 on `hardening/audit-2026-11` gives the same view.
+5. Merge PR 2 the same way as PR 1.
+6. Deploy the tip of `main` by the usual procedure, with images built on the Mac and never on the
+   EC2 host, and tag it.
+
+Your five uncommitted files stay out of both PRs.
+
+A single PR from this branch to `main` would carry 49 commits: 37 that are already deployed and
+12 new ones. Neither a review nor a rollback could tell them apart.
+
+### For your decision
+
+Only the optional U-07 and U-08 cleanups are still open.

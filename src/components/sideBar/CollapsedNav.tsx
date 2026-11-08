@@ -31,9 +31,11 @@ interface FlyoutLink {
 export default function CollapsedNav({
   groups,
   filters,
+  children,
 }: {
   groups: SpaceGroup[];
   filters: FilterDefinition[];
+  children?: ReactNode;
 }) {
   const { t } = useTranslation();
   const { pathname } = useLocation();
@@ -72,20 +74,24 @@ export default function CollapsedNav({
           );
         })}
 
-        <SidebarMenuItem>
-          <Flyout
-            label={t("sidebar.filters")}
-            icon={<ListFilterIcon />}
-            links={filters.map((definition) => ({
-              key: definition.id,
-              to: filterPath(definition.id),
-              label: t(definition.labelKey),
-              active: pathname === filterPath(definition.id),
-            }))}
-            empty=""
-            linkIcon={<ListFilterIcon />}
-          />
-        </SidebarMenuItem>
+        {filters.length > 0 && (
+          <SidebarMenuItem>
+            <Flyout
+              label={t("sidebar.filters")}
+              icon={<ListFilterIcon />}
+              links={filters.map((definition) => ({
+                key: definition.id,
+                to: filterPath(definition.id),
+                label: t(definition.labelKey),
+                active: pathname === filterPath(definition.id),
+              }))}
+              empty=""
+              linkIcon={<ListFilterIcon />}
+            />
+          </SidebarMenuItem>
+        )}
+
+        {children}
       </SidebarMenu>
     </SidebarGroup>
   );

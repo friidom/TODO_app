@@ -63,4 +63,18 @@ describe("step", () => {
     expect(step(ids, "c", 1)).toBeNull();
     expect(step(ids, "z", 1)).toBeNull();
   });
+
+  it("passes over hidden neighbours, which keep their slots", () => {
+    const hidden = new Set(["b"]);
+
+    expect(step(["a", "b", "c", "d"], "c", -1, hidden)).toEqual([
+      "c",
+      "a",
+      "b",
+      "d",
+    ]);
+    expect(step(["a", "b", "c"], "a", 1, hidden)).toEqual(["b", "c", "a"]);
+    expect(step(["a", "b", "c"], "c", 1, hidden)).toBeNull();
+    expect(step(["b", "a"], "a", -1, hidden)).toBeNull();
+  });
 });

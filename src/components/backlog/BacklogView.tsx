@@ -139,7 +139,7 @@ export default function BacklogView() {
         )}
 
         {/* not a flex container — sections take their natural height so this can actually scroll */}
-        <div className="min-h-0 flex-1 overflow-y-auto pb-6">
+        <div className="@container min-h-0 flex-1 overflow-y-auto pb-6">
           {board.sprintSections.length === 0 &&
             board.unplanned.length === 0 && (
               <EmptyState

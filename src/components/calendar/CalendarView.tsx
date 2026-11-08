@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   closestCenter,
   useSensor,
   useSensors,
@@ -12,6 +13,7 @@ import {
 import { useTranslation } from "react-i18next";
 
 import ViewNotice from "@/components/board/ViewNotice";
+import { useIsMobile } from "@/components/sideBar/hooks/use-mobile";
 import ViewSkeleton from "@/components/loading/ViewSkeleton";
 import ViewError from "@/components/loading/ViewError";
 import { useBoardId } from "@/hooks/useBoardId";
@@ -51,8 +53,11 @@ export default function CalendarView() {
   const keyPrefix = useKeyPrefix();
   const drop = useCalendarDrop();
 
+  const isMobile = useIsMobile();
+
   // client-only, not a search param — not worth putting in a shared link
-  const [stripCollapsed, setStripCollapsed] = useState(false);
+  const [stripChoice, setStripChoice] = useState<boolean | null>(null);
+  const stripCollapsed = stripChoice ?? isMobile;
 
   const [dragging, setDragging] = useState<Todo | null>(null);
 
@@ -77,7 +82,11 @@ export default function CalendarView() {
   );
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    // press and hold, so a swipe over the chips scrolls the grid on a phone
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 250, tolerance: 5 },
+    }),
   );
 
   function handleDragStart({ active }: DragStartEvent) {
@@ -144,7 +153,7 @@ export default function CalendarView() {
             memberById={memberById}
             canEdit={canEditTodos}
             collapsed={stripCollapsed}
-            onToggle={() => setStripCollapsed((open) => !open)}
+            onToggle={() => setStripChoice(!stripCollapsed)}
             onOpenTask={openTask}
           />
         </div>
