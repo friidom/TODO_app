@@ -35,13 +35,28 @@ export const queryKeys = {
 
   invites: (boardId: string | undefined) => ["invites", boardId] as const,
 
-  inviteeSearch: (boardId: string | undefined, query: string) =>
-    ["invitee-search", boardId, query] as const,
+  // A space's searches share the root under the space's id: one prefix drops both.
+  inviteeSearch: (scopeId: string | undefined, query: string) =>
+    ["invitee-search", scopeId, query] as const,
 
-  inviteeSearches: (boardId: string | undefined) =>
-    ["invitee-search", boardId] as const,
+  inviteeSearches: (scopeId?: string) =>
+    scopeId === undefined
+      ? (["invitee-search"] as const)
+      : (["invitee-search", scopeId] as const),
+
+  spaceInvites: (spaceId: string | undefined) =>
+    ["space-invites", spaceId] as const,
+
+  // A space invitation is pending on each board it lists, so a write to one
+  // reaches lists these two roots hold without naming every board.
+  allInvites: () => ["invites"] as const,
+
+  allSpaceInvites: () => ["space-invites"] as const,
 
   myInvites: () => ["my-invites"] as const,
+
+  // Keyed by the token itself: it is the only identity a link invite has.
+  invitePreview: (token: string) => ["invite-preview", token] as const,
 
   // Trigger-written table — nothing invalidates this, see useActivities.
   activities: (boardId: string | undefined) => ["activities", boardId] as const,
@@ -97,6 +112,9 @@ export const queryKeys = {
 
   notifications: () => NOTIFICATION_ROOT,
 
+  // Per user, never on the board rows: those are shared by every member.
+  starred: () => ["starred"] as const,
+
   // Not board-scoped: connected providers are a property of the account, like
   // forYou and notifications.
   oauthConnections: () => ["oauth-connections"] as const,
@@ -146,5 +164,9 @@ export const queryKeys = {
 
   adminKpi: () => [...ADMIN_ROOT, "kpi"] as const,
 
-  adminAudit: () => [...ADMIN_ROOT, "audit"] as const,
+  adminAudit: (action?: string) =>
+    [...ADMIN_ROOT, "audit", action ?? "all"] as const,
+  adminRoleAudit: () => [...ADMIN_ROOT, "audit", "roles"] as const,
+  adminAccounts: (search: string) =>
+    [...ADMIN_ROOT, "accounts", search] as const,
 };

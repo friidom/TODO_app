@@ -185,7 +185,14 @@
     "autoLayout": "Avtomatik joylashtirish",
     "fit": "Ekranga moslash",
     "zoomOut": "Kichiklashtirish",
-    "zoomIn": "Kattalashtirish"
+    "zoomIn": "Kattalashtirish",
+    "statusNode": "Holat {{name}}",
+    "start": "Boshlanish",
+    "startHint": "Ustun tanlamasdan yaratilgan vazifalar “{{name}}” holatidan boshlanadi.",
+    "anyStatus": "Istalgan holat",
+    "fromMany": "Holatlardan",
+    "itemsHere": "Shu yerdagi vazifalar",
+    "alreadyAllowed": "Allaqachon ruxsat etilgan"
   },
   "activity": {
     "statusCreated": "{{name}} holatini yaratdi",
@@ -238,7 +245,11 @@
     "memberRemoved": "{{who}} ni olib tashladi",
     "roleMade": "{{who}} ni {{role}} qildi",
     "roleChanged": "{{who}} rolini o'zgartirdi",
-    "changedSomething": "nimanidir o'zgartirdi"
+    "changedSomething": "nimanidir o'zgartirdi",
+    "labelsChanged": "{{item}} teglarini o'zgartirdi",
+    "sprintChanged": "{{item}} sprintini o'zgartirdi",
+    "startChanged": "{{item}} boshlanish sanasini o'zgartirdi",
+    "startCleared": "{{item}} boshlanish sanasini olib tashladi"
   },
   "loading": "Yuklanmoqda...",
   "common": {
@@ -308,7 +319,9 @@
     "expandSidebar": "Yon panelni yoyish",
     "collapseSidebar": "Yon panelni yig'ish",
     "reorderHint": "Tartibini o'zgartirish uchun torting yoki Alt+↑/↓ ni bosing",
-    "movedTo": "{{name}}: {{count}} tadan {{position}}-o'rin"
+    "movedTo": "{{name}}: {{count}} tadan {{position}}-o'rin",
+    "sharedSpace": "{{space}} — siz bilan ulashilgan",
+    "invitePeople": "Odamlarni taklif qilish…"
   },
   "header": {
     "newTask": "Yangi vazifa",
@@ -363,7 +376,8 @@
     "members": "A'zolar",
     "searchLabel": "Ish elementlarini qidirish",
     "searchPlaceholder": "Ishlarni qidirish",
-    "loadFailed": "Bu doskani yuklab bo'lmadi"
+    "loadFailed": "Bu doskani yuklab bo'lmadi",
+    "accessRemoved": "Endi bu doskaga kirish huquqingiz yo'q."
   },
   "time": {
     "ago": {
@@ -428,7 +442,8 @@
     "updated": "Yangilangan",
     "completed": "Bajarilgan",
     "title": "Sarlavha",
-    "workType": "Ish turi"
+    "workType": "Ish turi",
+    "labels": "Teglar"
   },
   "due": {
     "none": "Muddatsiz",
@@ -505,7 +520,8 @@
     "noneActive": "Faol sprint yo'q",
     "noneActiveHint": "Bu doskada ishlarni ko'rish uchun sprintni boshlang.",
     "goToBacklog": "Backlogga o'tish",
-    "endDate": "Tugash sanasi"
+    "endDate": "Tugash sanasi",
+    "updated": "Sprint yangilandi"
   },
   "task": {
     "fallbackName": "ish elementi",
@@ -532,7 +548,10 @@
     "openInNewTab": "Yangi varaqda ochish",
     "copyLink": "Havolani nusxalash",
     "linkCopied": "Havola nusxalandi",
-    "copyLinkFailed": "Havolani nusxalab bo'lmadi."
+    "copyLinkFailed": "Havolani nusxalab bo'lmadi.",
+    "saving": "Saqlanmoqda…",
+    "saved": "Saqlandi",
+    "saveFailed": "Saqlab bo'lmadi — o'zgarishlar bekor qilindi."
   },
   "view": {
     "ascending": "O'sish bo'yicha",
@@ -603,7 +622,6 @@
     "itemCount_one": "{{count}} ta element",
     "itemCount_other": "{{count}} ta element",
     "visibleOf": "{{total}} tadan {{visible}} tasi",
-    "selected": "{{count}} ta tanlangan",
     "locked": "Qulflangan",
     "lockedColumn": "Qulflangan ustun",
     "lockedColumnHint": "Ish elementi ustuni doim birinchi turadi — u qatorni nomlaydi",
@@ -613,12 +631,18 @@
     "openDetails": "Tafsilotlarni ochish",
     "resetColumnsHint": "Standart ustunlar, tartib va kengliklar",
     "resize": "{{name}} o'lchamini o'zgartirish",
-    "resizeHint": "O'lchamni o'zgartirish uchun torting, asliga qaytarish uchun ikki marta bosing",
+    "resizeHint": "O'lchamni o'zgartirish uchun torting, mazmuniga moslash uchun ikki marta bosing",
     "select": "{{name}} ni tanlash",
     "selectAll": "Barcha ish elementlarini tanlash",
     "sortBy": "{{name}} bo'yicha saralash",
     "sortedAsc": "{{name}} bo'yicha o'sish tartibida saralangan — kamayish tartibi uchun bosing",
-    "sortedDesc": "{{name}} bo'yicha kamayish tartibida saralangan — tozalash uchun bosing"
+    "sortedDesc": "{{name}} bo'yicha kamayish tartibida saralangan — tozalash uchun bosing",
+    "columnActions": "{{name}} ustuni amallari",
+    "fitContent": "Mazmuniga moslash",
+    "resetWidth": "Kenglikni tiklash",
+    "hideColumn": "Ustunni yashirish",
+    "sortAscending": "O'sish tartibida saralash",
+    "sortDescending": "Kamayish tartibida saralash"
   },
   "kanban": {
     "emptyColumn": "Bu yerda hali hech narsa yo'q",
@@ -703,7 +727,10 @@
     "taskRemoved": "vazifani olib tashladi",
     "madeSubtask": "buni kichik vazifaga aylantirdi",
     "madeTopLevel": "buni yuqori darajadagi ish elementiga aylantirdi",
-    "estimateField": "Ball bahosi"
+    "estimateField": "Ball bahosi",
+    "labelAdded": "teg qo'shdi",
+    "labelRemoved": "tegni olib tashladi",
+    "deletedSprint": "o'chirilgan sprint"
   },
   "taskActivity": {
     "all": "Hammasi",
@@ -847,7 +874,10 @@
     "none": "Ota epik yo'q",
     "label": "Ota epik",
     "noEpics": "Bu doskada hali epiklar yo'q.",
-    "remove": "Ota epikni olib tashlash"
+    "remove": "Ota epikni olib tashlash",
+    "showDone": "Bajarilganlarni ko'rsatish",
+    "noMatches": "Mos epik topilmadi",
+    "refine": "Dastlabki {{count}} ta ko'rsatilmoqda; qidiruvni aniqlashtiring."
   },
   "estimate": {
     "set": "Ball bahosini belgilash",
@@ -937,7 +967,6 @@
     "createTask": "Vazifa yaratish",
     "createEpic": "Epik yaratish",
     "epicName": "Epik nomi",
-    "epic": "epik",
     "dragToPlan": "rejalashtirish uchun torting",
     "noDates": "Sanalar yo'q",
     "sprints": "Sprintlar",
@@ -946,15 +975,31 @@
     "barRange": "{{name}} — {{start}} dan {{end}} gacha",
     "outsideRange": "{{count}} tasi bu oraliqdan tashqarida",
     "undated": "{{count}} tasi sanasiz",
-    "emptyRangeTitle": "Bu oraliqda hech narsa rejalashtirilmagan",
-    "emptyRangeHint_one": "Sanali {{count}} ta element bu oraliqdan tashqarida. Sanalar bo'ylab o'ting yoki bugunga qayting.",
-    "emptyRangeHint_other": "Sanali {{count}} ta element bu oraliqdan tashqarida. Sanalar bo'ylab o'ting yoki bugunga qayting.",
-    "noEpicsTitle": "Hali hech bir epikning sanasi yo'q",
-    "noEpicsHint": "Quyida epik yarating yoki birini ochib, boshlanish sanasi, muddat yoki ikkalasini belgilang.",
+    "noEpicsTitle": "Hali epiklar yo'q",
+    "noEpicsHint": "Rejalashtirishni boshlash uchun quyida epik yarating, so'ng uni vazifalarga ajrating.",
     "scale": {
       "weeks": "haftalar",
-      "months": "oylar"
-    }
+      "months": "oylar",
+      "quarters": "choraklar"
+    },
+    "days_one": "{{count}} kun",
+    "days_other": "{{count}} kun",
+    "autoHint": "{{parent}} ichida avtomatik rejalashtirilgan. O'z sanalarini belgilash uchun torting yoki cho'zing.",
+    "derivedHint": "Sanalari ichki elementlardan olingan. O'z sanalarini berish uchun chetidan torting.",
+    "outsideHint": "Ota elementning sanalaridan tashqarida ({{range}})",
+    "jumpTo": "{{date}} ni vaqt chizig'ida ko'rsatish",
+    "dueOn": "Muddat {{date}}",
+    "startsOn": "Boshlanish {{date}}",
+    "addTask": "{{name}} ga ichki element qo'shish",
+    "addSubtask": "{{name}} ga kichik vazifa qo'shish",
+    "taskName": "Nima qilish kerak?",
+    "subtaskName": "Kichik vazifa nomi",
+    "enterToCreate": "Yaratish uchun Enter bosing",
+    "todayIs": "Bugun · {{date}}",
+    "previousQuarter": "Oldingi chorak",
+    "nextQuarter": "Keyingi chorak",
+    "columns": "Ustunlar",
+    "resetColumns": "Ustunlarni tiklash"
   },
   "summary": {
     "total": "Jami",
@@ -981,7 +1026,16 @@
     "trends": "Faollik tendensiyalari",
     "trendsHint": "Yaratilgan elementlar va eng so'nggi o'zgarishi o'sha kunga to'g'ri kelgan elementlar",
     "trendsEmpty": "Grafik uchun hali ma'lumot yo'q.",
-    "perDay": "{{name}} kunlar bo'yicha: {{values}}"
+    "perDay": "{{name}} kunlar bo'yicha: {{values}}",
+    "items_one": "ta ish",
+    "items_other": "ta ish",
+    "late_one": "{{count}} ta kechikkan",
+    "late_other": "{{count}} ta kechikkan",
+    "onTrack_one": "{{count}} ta muddatida",
+    "onTrack_other": "{{count}} ta muddatida",
+    "trendsExplore": "Kunlik yaratilgan va yangilangan ishlar. Har bir kunni o‘qish uchun strelka tugmalaridan foydalaning.",
+    "itemsShare_one": "{{count}} ta ish, {{percent}}%",
+    "itemsShare_other": "{{count}} ta ish, {{percent}}%"
   },
   "forYou": {
     "filterLabel": "Ishlaringizni filtrlash",
@@ -1061,20 +1115,15 @@
       "all": "Hammasi",
       "invite": "Takliflar",
       "assigned": "Tayinlovlar"
-    }
+    },
+    "invitedSpace": "{{actor}} sizni {{space}} maydoniga taklif qildi"
   },
   "invites": {
-    "title": "Odamlarni taklif qilish",
-    "intro": "Havola yarating va uni ulashing. Uni ochgan kishi siz tanlagan rol bilan bu doskaga qo'shiladi.",
-    "namesOrEmails": "Ismlar yoki email manzillar",
     "ownerOnlyAdmins": "Administratorlarni faqat doska egasi taklif qila oladi.",
-    "linkExpires": "Havola amal qilish muddati",
     "days_one": "{{count}} kun",
     "days_other": "{{count}} kun",
     "sending": "Taklif yuborilmoqda...",
     "creatingLink": "Havola yaratilmoqda...",
-    "inviteNamed": "{{name}} ni taklif qilish",
-    "createAnother": "Yana bir havola yaratish",
     "createLink": "Taklif havolasini yaratish",
     "linkCreated": "Havola yaratildi. U bir marta, bitta kishi uchun ishlaydi.",
     "copyLink": "Havolani nusxalash",
@@ -1099,12 +1148,8 @@
     "expiresTomorrow": "Ertaga tugaydi",
     "expiresIn_one": "{{count}} kundan keyin tugaydi",
     "expiresIn_other": "{{count}} kundan keyin tugaydi",
-    "joined": "Siz doskaga qo'shildingiz",
     "alreadyMember": "Siz allaqachon a'zosiz",
-    "alreadyMemberBody": "Bu taklif sizda allaqachon kirish huquqi bor doska uchun. Rolingiz o'zgarmadi.",
     "openBoard": "Doskani ochish",
-    "invitedTitle": "Sizni doskaga taklif qilishdi",
-    "invitedBody": "Qo'shilish uchun qabul qiling. Rolingizni havolani yuborgan kishi tanlagan.",
     "accepting": "Qabul qilinmoqda...",
     "accept": "Taklifni qabul qilish",
     "notNow": "Hozir emas",
@@ -1115,7 +1160,67 @@
       "conflict": "Bu taklif allaqachon ishlatilgan.",
       "forbidden": "Bu taklifni qabul qilib bo'lmaydi.",
       "fallback": "Bu taklifni qabul qilib bo'lmadi. Qayta urinib ko'ring yoki yangi havola so'rang."
-    }
+    },
+    "goHome": "Doskalaringizga o'tish",
+    "checking": "Taklif tekshirilmoqda…",
+    "unavailableTitle": "Bu taklifdan foydalanib bo'lmaydi",
+    "alreadyMemberOf": "Sizda {{board}} doskasiga allaqachon kirish bor. U yerdagi rolingiz o'zgarmadi.",
+    "expiredTitle": "Taklif muddati tugagan",
+    "expiredBody": "Muddati {{date}} da tugagan. {{name}}dan yangisini yuborishni so'rang.",
+    "expiredBodyAnon": "Muddati {{date}} da tugagan. Yuborgan kishidan yangisini so'rang.",
+    "joinedBoard": "Siz {{board}} doskasiga qo'shildingiz",
+    "joinTitle": "{{board}} doskasiga qo'shilish",
+    "invitedBy": "{{name}} sizni taklif qildi. Qabul qilishdan oldin nimaga kirish olishingizni ko'rib chiqing.",
+    "invitedAnon": "Sizni taklif qilishdi. Qabul qilishdan oldin nimaga kirish olishingizni ko'rib chiqing.",
+    "detailBoard": "Doska",
+    "detailSpace": "Maydon",
+    "detailRole": "Rolingiz",
+    "detailExpires": "Muddati",
+    "dialogTitle": "{{board}} doskasiga odamlarni taklif qilish",
+    "scopeBoard": "Taklif qilinganlar faqat shu doskaga kirish oladi.",
+    "scopeBoardInSpace": "{{space}} maydonida. Taklif qilinganlar butun maydonga emas, faqat shu doskaga kirish oladi.",
+    "person": "Odam",
+    "personHint": "Hisobi bor odamni qidiring yoki ulashiladigan havola yaratish uchun bo'sh qoldiring.",
+    "role": "Rol",
+    "expiresAfter": "Amal qilish muddati",
+    "until": "{{date}} gacha",
+    "summaryPerson": "{{name}} {{board}} doskasiga {{role}} sifatida qo'shiladi.",
+    "summaryLink": "Havolasi bor har kim {{board}} doskasiga {{role}} sifatida qo'shila oladi. Havola bir marta ishlaydi.",
+    "summaryUntil": "Taklif {{date}} gacha amal qiladi.",
+    "send": "Taklif yuborish",
+    "sentTo": "Taklif yuborildi: {{name}}",
+    "sentHint": "U bildirishnomalarda paydo bo'ladi. Bu havolani ham yuborishingiz mumkin.",
+    "linkLabel": "Taklif havolasi",
+    "shareableLink": "Ulashiladigan havola",
+    "byAndExpiry": "Taklif qilgan: {{name}} · {{when}}",
+    "revokeFor": "{{name}} uchun taklifni bekor qilish",
+    "alreadyOnBoard": "Allaqachon a'zo · {{role}}",
+    "alreadyInvited": "Taklif qilingan · {{when}}",
+    "removePerson": "{{name}}ni olib tashlash",
+    "inviteTo": "Taklif qilish",
+    "scopeThisBoard": "Shu doska",
+    "scopeWholeSpace": "{{space}} maydoni",
+    "scopeSpaceHint": "Taklif qilinganlar faqat siz tanlagan doskalarga kirish oladi, maydondagi boshqa narsalarga emas.",
+    "boards": "Doskalar",
+    "boardsChosen": "{{total}} tadan {{count}} ta",
+    "chooseAll": "Hammasini tanlash",
+    "chooseNone": "Tozalash",
+    "spaceEmpty": "Bu maydonda hali doska yo'q.",
+    "laterBoards": "{{space}} maydoniga keyin qo'shilgan doskalar kirmaydi.",
+    "summarySpacePerson_one": "{{name}} {{space}} maydonidagi {{count}} ta doskaga {{role}} sifatida qo'shiladi.",
+    "summarySpacePerson_other": "{{name}} {{space}} maydonidagi {{count}} ta doskaga {{role}} sifatida qo'shiladi.",
+    "summarySpaceLink_one": "Havolasi bor har kim {{space}} maydonidagi {{count}} ta doskaga {{role}} sifatida qo'shila oladi. Havola bir marta ishlaydi.",
+    "summarySpaceLink_other": "Havolasi bor har kim {{space}} maydonidagi {{count}} ta doskaga {{role}} sifatida qo'shila oladi. Havola bir marta ishlaydi.",
+    "viaSpace_one": "{{space}} orqali · {{count}} ta doska",
+    "viaSpace_other": "{{space}} orqali · {{count}} ta doska",
+    "onEveryBoard": "Tanlangan barcha doskalarda allaqachon bor",
+    "onSomeBoards": "{{total}} tadan {{count}} tasida allaqachon bor",
+    "alreadyOnEveryBoard": "Sizda {{space}} maydonidagi bu taklif bergan barcha doskalarga allaqachon kirish bor. U yerdagi rollaringiz o'zgarmadi.",
+    "joinedBoards_one": "Siz {{space}} maydonidagi {{count}} ta doskaga qo'shildingiz",
+    "joinedBoards_other": "Siz {{space}} maydonidagi {{count}} ta doskaga qo'shildingiz",
+    "detailBoards": "Doskalar",
+    "alreadyOnIt": "· allaqachon a'zosiz",
+    "laterBoardsRecipient": "Bu maydonga keyin qo'shilgan doskalar kirmaydi."
   },
   "validation": {
     "emailRequired": "Email kiritilishi shart.",
@@ -1146,7 +1251,10 @@
       "providerFailed": "Provayder javobini tekshirib bo'lmadi. Qayta urinib ko'ring.",
       "invalidState": "Kirish urinishining muddati tugagan yoki uni tekshirib bo'lmadi. Qayta urinib ko'ring.",
       "invalidRequest": "Kirish havolasi to'liq emas edi. Qayta urinib ko'ring.",
-      "oauthFailed": "Kirishda nimadir xato ketdi. Qayta urinib ko'ring."
+      "oauthFailed": "Kirishda nimadir xato ketdi. Qayta urinib ko'ring.",
+      "linkExpired": "Ulash so'rovining muddati tugagan yoki u allaqachon ishlatilgan. Hisobni shu yerdan qayta ulang.",
+      "linkWrongAccount": "Bu ulash so'rovi boshqa hisobga tegishli, shuning uchun hech narsa ulanmadi.",
+      "linkFailed": "Hisobni ulab bo'lmadi. Shu yerdan qayta urinib ko'ring."
     }
   },
   "auth": {
@@ -1177,6 +1285,8 @@
     "usernameTaken": "Bu foydalanuvchi nomi allaqachon band.",
     "usernameCheckFailed": "Hozir bu foydalanuvchi nomini tekshirib bo'lmadi.",
     "linkingSubtitle": "Bu email manzili uchun hisob allaqachon mavjud. Yangi kirish usulingizni unga ulash uchun tizimga kiring.",
+    "linkingSubtitleProvider": "Bu email manzili uchun hisob allaqachon mavjud. Unga parolingiz yoki allaqachon foydalanayotgan boshqa kirish usuli bilan kiring, shunda {{provider}} unga ulanadi.",
+    "linkingCancel": "Bekor qilish va odatdagidek kirish",
     "unconfirmedSubtitle": "Avval email manzilingizni tasdiqlang — biz yuborgan havolani pochtangizdan qidiring.",
     "resetSubtitle": "Parolingiz yangilandi. Yangi parol bilan kiring.",
     "loginSubtitle": "Doskangizda qolgan joyingizdan davom etish uchun tizimga kiring.",
@@ -1205,7 +1315,17 @@
     "newPassword": "Yangi parol",
     "confirmNewPassword": "Yangi parolni tasdiqlang",
     "updating": "Yangilanmoqda…",
-    "updatePassword": "Parolni yangilash"
+    "updatePassword": "Parolni yangilash",
+    "resendVerification": "Tasdiqlash xatini qayta yuborish",
+    "verificationResent": "Agar bu manzil tasdiqlanishini kutayotgan bo‘lsa, yangi havola yuborildi.",
+    "noEmailYet": "Bir necha daqiqada xat kelmadimi? Spam jildini tekshiring yoki qayta yuboring.",
+    "emailVerifiedTitle": "Elektron pochta tasdiqlandi",
+    "emailVerifiedSubtitle": "Hisobingiz tayyor. Davom etish uchun kiring.",
+    "verifyingTitle": "Elektron pochta tasdiqlanmoqda",
+    "verifyingSubtitle": "Bir lahza…",
+    "verifyLinkInvalidTitle": "Havola eskirgan",
+    "verifyLinkInvalidSubtitle": "Tasdiqlash havolalari bir marta ishlaydi va 24 soat amal qiladi. Manzilingizni kiriting, yangisini yuboramiz.",
+    "verifiedSubtitle": "Pochta tasdiqlandi. Yangi hisobingiz bilan kiring."
   },
   "profile": {
     "title": "Profil",
@@ -1286,12 +1406,14 @@
     "connecting": "Ulanmoqda…",
     "openProject": "{{project}} loyihasini GitLab'da ochish",
     "status": {
+      "serverSetup": "Server sozlanishi kerak",
       "awaitingToken": "Imzo tokeni kerak",
       "awaitingDelivery": "GitLab kutilmoqda",
       "active": "Faol",
       "failing": "Xatolik"
     },
     "statusDetail": {
+      "serverSetup": "Administrator serverni sozlamaguncha u GitLab hodisalarini qabul qila olmaydi. Loyiha va webhook manzili saqlangan, imzo tokenini keyinroq qo'shishingiz mumkin.",
       "awaitingToken": "GitLab'da webhook qo'shing, so'ng uning imzo tokenini shu yerda saqlang.",
       "awaitingDelivery": "Token saqlandi. GitLab'dan hali hech narsa kelmadi — commit yuboring yoki GitLab'dagi webhook uchun Test → Push events'ni bosing.",
       "active": "Hodisalar kelmoqda. Oxirgi yetkazma {{time}}.",
@@ -1420,7 +1542,18 @@
     "selectedFields": "Tanlangan maydonlar",
     "noFieldsSelected": "Kartochkalarda maydon yo'q. Yuqoridagi qidiruv orqali qo'shing.",
     "allFieldsShown": "Barcha maydonlar allaqachon ko'rsatilgan.",
-    "removeField": "«{{name}}» maydonini olib tashlash"
+    "removeField": "«{{name}}» maydonini olib tashlash",
+    "boardView": "Doska ko‘rinishi",
+    "saved": "Saqlangan",
+    "unsaved": "Saqlanmagan o‘zgarishlar",
+    "notSaved": "Saqlanmagan",
+    "savedHint": "Bu doskani ochgan har kim shu saqlangan ko‘rinishni ko‘radi.",
+    "notSavedHint": "Doskada hali saqlangan ko‘rinish yo‘q, shuning uchun har kim o‘z sozlamalarini ko‘radi.",
+    "unsavedHintAdmin": "O‘zgarishlar faqat shu qurilmada. Hamma ko‘rishi uchun ularni saqlang.",
+    "unsavedHintMember": "O‘zgarishlar faqat shu qurilmada. Ko‘rinishni hamma uchun faqat doska administratorlari saqlay oladi.",
+    "saveBoard": "Hamma uchun saqlash",
+    "resetToSaved": "Saqlanganiga qaytarish",
+    "boardViewSaved": "Doska ko‘rinishi hamma uchun saqlandi."
   },
   "insights": {
     "title": "Sprint tahlili",
@@ -1445,7 +1578,13 @@
     "noStartDate": "Grafikni ko'rish uchun sprintga boshlanish sanasini belgilang.",
     "noWork": "Bu sprintda hozircha ishlar yo'q.",
     "epicsSummary_one": "Bu sprint {{count}} ta epik ustida ishlamoqda.",
-    "epicsSummary_other": "Bu sprint {{count}} ta epik ustida ishlamoqda."
+    "epicsSummary_other": "Bu sprint {{count}} ta epik ustida ishlamoqda.",
+    "pointsCount_one": "{{count}} ball",
+    "pointsCount_other": "{{count}} ball",
+    "itemsCount_one": "{{count}} ta ish",
+    "itemsCount_other": "{{count}} ta ish",
+    "doneSoFar": "Bajarilgan",
+    "burndownExplore": "Sprint grafigi. Har bir kunni o‘qish uchun strelka tugmalaridan foydalaning."
   },
   "apiErrors": {
     "network": "Serverga ulanib bo'lmadi. Internet aloqangizni tekshirib, qayta urinib ko'ring.",
@@ -1497,7 +1636,12 @@
       "internal": "Serverda muammo yuz berdi. Qayta urinib ko'ring.",
       "unknown": "Nimadir xato ketdi. Qayta urinib ko'ring."
     },
-    "boardKeyTaken": "{{key}} doska kaliti allaqachon band."
+    "boardKeyTaken": "{{key}} doska kaliti allaqachon band.",
+    "emailNotVerified": "Kirish uchun elektron pochtangizni tasdiqlang. Pochtangizni tekshiring yoki yangi havola so‘rang.",
+    "verifyLinkInvalid": "Bu tasdiqlash havolasi yaroqsiz yoki muddati o‘tgan.",
+    "accountDeactivated": "Bu hisob o'chirilgan.",
+    "roleNeedsConfirmed": "Global administrator huquqini faqat emaili tasdiqlangan hisobga berish mumkin.",
+    "lastSuperadmin": "Bu oxirgi superadmin. Avval rolni boshqa birovga bering."
   },
   "adminActions": {
     "created": "Yaratildi",
@@ -1526,22 +1670,29 @@
       "updated": "KPI yangilandi"
     },
     "user": {
-      "seniority_changed": "Foydalanuvchi darajasi o'zgartirildi"
+      "seniority_changed": "Foydalanuvchi darajasi o'zgartirildi",
+      "superadmin_granted": "Superadmin roli berildi",
+      "superadmin_revoked": "Superadmin roli olindi",
+      "superadmin_refused": "Rol o'zgarishi rad etildi"
     },
     "board": {
       "workflow_published": "Doska ish jarayoni e'lon qilindi"
-    }
+    },
+    "sprint_changed": "Sprint o'zgartirildi",
+    "start_changed": "Boshlanish sanasi o'zgartirildi"
   },
   "admin": {
     "backToBoards": "Doskalarga qaytish",
-    "updating": "yangilanmoqda…",
-    "sectionsLabel": "Superadmin bo'limlari",
+    "updating": "Yangilanmoqda…",
+    "sectionsLabel": "Boshqaruv bo'limlari",
     "sections": {
-      "dashboard": "Boshqaruv paneli",
-      "flow": "Oqim",
+      "dashboard": "Umumiy ko'rinish",
+      "flow": "Yetkazish oqimi",
       "leaderboards": "Reytinglar",
-      "users": "Dasturchilar",
-      "kpi": "KPI sozlamalari"
+      "users": "Odamlar",
+      "kpi": "KPI maqsadlari",
+      "access": "Superadminlar",
+      "audit": "Audit jurnali"
     },
     "metrics": {
       "completedTasks": "Bajarilgan vazifalar",
@@ -1564,7 +1715,7 @@
       "year": "Joriy kalendar yil, bugungacha"
     },
     "columns": {
-      "developer": "Dasturchi",
+      "developer": "Odam",
       "tasks": "Vazifalar",
       "points": "Ballar",
       "cycle": "Sikl",
@@ -1604,7 +1755,7 @@
       "hint": "Tashkilot bo'yicha samaradorlik",
       "label": "Reyting",
       "orderBy": "Saralash",
-      "explainer": "Bir vaqtning o'zida bitta nomlangan ko'rsatkich bo'yicha tartiblangan. Birinchi ustundagi raqam faqat shu tartibdagi o'rinni bildiradi — umumlashgan ball yo'q va har bir raqam mustaqil.",
+      "explainer": "Bir vaqtning o'zida bitta nomlangan ko'rsatkich bo'yicha tartiblangan. Birinchi ustundagi raqam faqat shu tartibdagi o'rinni bildiradi — umumlashgan ball yo'q va har bir raqam mustaqil. Chiziqcha bu ko'rsatkich bo'yicha qatorda hech narsa yo'qligini bildiradi, shuning uchun u o'rin olmaydi.",
       "peopleLabel": "Bitta ko'rsatkich bo'yicha tartiblangan odamlar",
       "boardsLabel": "Bitta ko'rsatkich bo'yicha tartiblangan doskalar",
       "position": "O'rin"
@@ -1635,7 +1786,7 @@
       "empty": "Hozir jarayonda hech narsa yo'q."
     },
     "audit": {
-      "title": "So'nggi administrator o'zgarishlari",
+      "title": "So'nggi administrator amallari",
       "hint": "Faqat qo'shiladi — hech bir yozuvni tahrirlab bo'lmaydi",
       "empty": "Hali hech narsa o'zgartirilmagan."
     },
@@ -1645,7 +1796,8 @@
     "bars": {
       "title": "Vaqt bo'yicha yetkazish",
       "hint": "Shu davrda {{total}}",
-      "hintUnestimated": "Shu davrda {{total}} · {{count}} tasi bahosiz bajarilgan"
+      "hintUnestimated": "Shu davrda {{total}} · {{count}} tasi bahosiz bajarilgan",
+      "empty": "{{name}}: bu davrda hech narsa yo'q."
     },
     "metric": "Ko'rsatkich",
     "perBucket": "{{name}} oraliqlar bo'yicha: {{values}}",
@@ -1655,7 +1807,6 @@
     "spaceLoad": {
       "title": "Ishlar qaysi maydonlarga to'g'ri keladi"
     },
-    "topOf": "Bajarilgan vazifalar · {{total}} tadan eng yaxshi {{top}} tasi",
     "bullet": {
       "title": "Maqsad va haqiqiy natija",
       "noLevel": "Daraja belgilanmagan, shuning uchun maqsad yo'q — quyidagi faktlarga bu ta'sir qilmaydi",
@@ -1739,7 +1890,7 @@
     "nothingHappened": "Bu davrda hech narsa sodir bo'lmadi.",
     "unknown": "Noma'lum",
     "dashboard": {
-      "title": "Tizim ko'rinishi",
+      "title": "Umumiy ko'rinish",
       "hint": "{{range}} · oraliqlar {{timezone}} vaqt zonasida",
       "hintLoading": "Hamma narsa, hamma joyda",
       "recentLabel": "Butun tizimdagi so'nggi faollik"
@@ -1762,10 +1913,8 @@
       "loadFailed": "Bu doskani yuklab bo'lmadi.",
       "histogramHint": "Bu doskaning uzun “dumi” qayerda",
       "wipHint": "Bu doskadagi ochiq kartalar, ustunlar bo'yicha",
-      "recentLabel": "Bu doskadagi so'nggi faollik",
-      "completionRate": "{{total}} ta hisoblanadigan kartadan bajarilish darajasi {{rate}}."
+      "recentLabel": "Bu doskadagi so'nggi faollik"
     },
-    "ofTotal": "jami {{total}} tadan",
     "ownerNamed": "egasi {{name}}",
     "contributors": {
       "title": "Eng faol ishtirokchilar",
@@ -1796,7 +1945,8 @@
       "seeded": "Boshlang'ich qiymat, hech qachon tahrirlanmagan",
       "perDay": "Kuniga ball",
       "perWeek": "Haftasiga ball",
-      "nonNegative": "Nol yoki undan katta bo'lishi kerak."
+      "nonNegative": "Nol yoki undan katta bo'lishi kerak.",
+      "history": "Maqsad o'zgarishlari tarixi audit jurnalida →"
     },
     "pointsOverTarget": "bajarilgan ballar / maqsadli ballar",
     "space": {
@@ -1843,6 +1993,246 @@
       "hint_other": "{{count}} kishi · {{range}}",
       "hintLoading": "Faktik ko'rsatkichlar, yonma-yon",
       "gridLabel": "Dasturchilar va ularning ko'rsatkichlari"
-    }
+    },
+    "access": {
+      "hint": "Butun Veyloni kim ko'ra oladi va bu huquqdagi har bir o'zgarish",
+      "searchPlaceholder": "Ism yoki email bo'yicha qidirish",
+      "noAccounts": "Hozircha hisoblar yo'q.",
+      "superadmins": "Superadminlar",
+      "activeCount_one": "{{count}} ta faol",
+      "activeCount_other": "{{count}} ta faol",
+      "you": "Siz kirgansiz",
+      "youLabel": "siz",
+      "youHint": "Rolingiz har bir so'rovda tekshiriladi: u olib tashlansa, bu bo'lim darhol yopiladi.",
+      "status": {
+        "active": "Faol",
+        "unverified": "Tasdiqlanmagan",
+        "deactivated": "O'chirilgan"
+      },
+      "grant": "Superadmin qilish",
+      "revoke": "Superadminlikdan olish",
+      "grantTitle": "{{name}} ga global administrator huquqi berilsinmi?",
+      "grantBody": "U Veylodagi barcha doskalar, maydonlar, odamlar va audit yozuvlarini ko'ra oladi hamda boshqalarga bu huquqni bera yoki olib tashlay oladi. Doska huquqlari o'zgarmaydi: a'zo bo'lmagan doskasini tahrirlay olmaydi.",
+      "revokeTitle": "{{name}} dan global administrator huquqi olinsinmi?",
+      "revokeBody": "Administrator bo'limi keyingi so'rovdayoq yopiladi. Uning o'z doskalari va a'zoliklari o'zgarmaydi.",
+      "revokeSelfWarning": "Bu sizning o'z huquqingiz. Tasdiqlashingiz bilan administrator bo'limidan chiqasiz.",
+      "grantConfirm": "Huquq berish",
+      "revokeConfirm": "Huquqni olish",
+      "blocked": {
+        "unverified": "Avval email tasdiqlanishi kerak",
+        "deactivated": "Bu hisob o'chirilgan",
+        "last": "Oxirgi superadminni olib bo'lmaydi. Avval rolni boshqa birovga bering."
+      },
+      "toast": {
+        "granted": "{{name}} endi superadmin",
+        "revoked": "{{name}} endi superadmin emas",
+        "unchanged": "Hech narsa o'zgarmadi: {{name}} da bu rol allaqachon bor edi",
+        "revokedSelf": "Siz endi superadmin emassiz"
+      },
+      "historyEmpty": "Hozircha rol o'zgarishlari yo'q.",
+      "historyAction": {
+        "granted": "superadmin rolini berdi:",
+        "revoked": "superadmin rolini oldi:",
+        "refused": "rolni o'zgartira olmadi:",
+        "other": "rolni o'zgartirdi:"
+      },
+      "refusal": {
+        "last_superadmin": "birorta ham superadmin qolmas edi",
+        "unverified": "email tasdiqlanmagan",
+        "deactivated": "hisob o'chirilgan",
+        "superadmin_exists": "superadmin allaqachon mavjud edi"
+      },
+      "systemActor": "Serverni dastlabki sozlash",
+      "lost": "Global administrator huquqingiz endi amal qilmaydi.",
+      "add": "Superadmin qo'shish",
+      "addHint": "Rolni faqat elektron pochtasi tasdiqlangan faol hisobga berish mumkin",
+      "noGrantMatch": "“{{query}}” bo'yicha boshqa hisob topilmadi.",
+      "capped": "Eng yangi {{count}} ta hisob ko'rsatilmoqda. Boshqalarni qidiruv orqali toping.",
+      "joined": "Ro'yxatdan o'tgan: {{when}}",
+      "historyRecent": "Rolning so'nggi o'zgarishlari",
+      "scope": {
+        "title": "Rol nimalarga ruxsat beradi",
+        "analytics": "Har bir doska, maydon va odam bo'yicha butun tashkilot tahlilini ko'rish",
+        "manage": "Bu rolni berish yoki olib tashlash, darajalar va KPI maqsadlarini belgilash",
+        "boards": "Doskalarga kirish yo'q: a'zo bo'lmagan doskani ochib yoki tahrirlab bo'lmaydi",
+        "audited": "Har bir berish, olib tashlash va rad etilgan urinish audit jurnaliga yoziladi."
+      },
+      "showAll_one": "Barcha {{count}} ta hisobni ko'rsatish",
+      "showAll_other": "Barcha {{count}} ta hisobni ko'rsatish"
+    },
+    "title": "Boshqaruv",
+    "skipToContent": "Asosiy qismga o'tish",
+    "live": "Jonli",
+    "connecting": "Ulanmoqda…",
+    "groups": {
+      "insights": "Tahlil",
+      "security": "Xavfsizlik"
+    },
+    "attention": {
+      "title": "E'tibor talab qiladi",
+      "items": {
+        "single_superadmin_one": "ta faol superadmin. Hisob yo'qolsa ham kirish saqlanishi uchun ikkinchisini qo'shing.",
+        "single_superadmin_other": "ta faol superadmin. Hisob yo'qolsa ham kirish saqlanishi uchun ikkinchisini qo'shing.",
+        "stale_work_one": "ta vazifa 30 kun yoki undan ko'proq vaqtdan beri bajarilmoqda",
+        "stale_work_other": "ta vazifa 30 kun yoki undan ko'proq vaqtdan beri bajarilmoqda"
+      },
+      "share": "jarayondagi {{total}} tadan {{percent}}"
+    },
+    "auditLog": {
+      "viewAll": "Audit jurnalini ochish →",
+      "description": "Har bir yuqori huquqli amal, avval yangilari. Faqat qo'shiladi: hech kim yozuvni tahrirlay yoki o'chira olmaydi.",
+      "filterLabel": "O'zgarish turi",
+      "filters": {
+        "all": "Hammasi",
+        "roles": "Superadmin roli",
+        "seniority": "Darajalar",
+        "kpi": "KPI maqsadlari",
+        "workflow": "Jarayon tuzatishlari"
+      },
+      "actor": "Kim",
+      "target": "Obyekt",
+      "change": "O'zgarish",
+      "viaBootstrap": "server orqali boshlang'ich sozlash",
+      "kpiChange": "kuniga {{daily}} · haftasiga {{weekly}}",
+      "workflowChange": "versiya {{from}} → {{to}}",
+      "member": "A'zo",
+      "noLevel": "Darajasiz",
+      "time": "Vaqt",
+      "byLine": "bajaruvchi: {{name}}",
+      "complete_one": "{{count}} ta yozuv, avval yangilari — bu filtr bo'yicha yozilganlarning hammasi.",
+      "complete_other": "{{count}} ta yozuv, avval yangilari — bu filtr bo'yicha yozilganlarning hammasi.",
+      "capped_one": "Eng yangi {{count}} ta yozuv ko'rsatilgan. Eskilari saqlanadi, lekin bu sahifada ularga hali o'tib bo'lmaydi.",
+      "capped_other": "Eng yangi {{count}} ta yozuv ko'rsatilgan. Eskilari saqlanadi, lekin bu sahifada ularga hali o'tib bo'lmaydi.",
+      "empty": {
+        "title": "Hozircha hech narsa yozilmagan",
+        "all": "Superadmin rolini berish va olib tashlash, darajalar, KPI maqsadlari va ish jarayonini tuzatishlar shu yerda darhol paydo bo'ladi.",
+        "roles": "Superadmin rolini berish, olib tashlash va rad etilgan urinishlar shu yerda darhol paydo bo'ladi.",
+        "seniority": "Odam sahifasida o'zgartirilgan darajalar shu yerda paydo bo'ladi.",
+        "kpi": "KPI maqsadlariga kiritilgan o'zgarishlar shu yerda paydo bo'ladi.",
+        "workflow": "Administratsiya bo'limidan e'lon qilingan ish jarayoni tuzatishlari shu yerda paydo bo'ladi."
+      }
+    },
+    "loadHint": "Bajarilgan vazifalar · {{total}} tadan {{active}} tasi natija berdi",
+    "loadEmpty": "Bu davrda hech narsa bajarilmadi.",
+    "rightNow": "Hozir",
+    "ofTotalRate": "jami {{total}} tadan · {{rate}}"
+  },
+  "starred": {
+    "title": "Saralanganlar",
+    "star": "Saralanganlarga qo'shish",
+    "unstar": "Saralanganlardan olib tashlash",
+    "search": "Saralangan doskalarni qidirish",
+    "empty": "Hozircha hech narsa saralanmagan",
+    "emptyHint": "Doskani ••• menyusi yoki nomi yonidagi yulduzcha orqali saralang.",
+    "noMatches": "“{{query}}” bo'yicha saralangan doska topilmadi",
+    "showAll": "Hammasini ko'rsatish ({{count}})",
+    "expand": "Saralangan doskalarni ko'rsatish",
+    "collapse": "Saralangan doskalarni yashirish",
+    "loadFailed": "Saralanganlarni yuklab bo'lmadi."
+  },
+  "recent": {
+    "title": "So'nggilar",
+    "search": "So'nggilarni qidirish",
+    "filterAll": "Hammasi",
+    "filterBoards": "Doskalar",
+    "filterTasks": "Vazifalar",
+    "empty": "Hozircha so'nggi narsa yo'q",
+    "emptyHint": "Siz ochgan doska va vazifalar shu yerda ko'rinadi.",
+    "noMatches": "So'nggilar orasida “{{query}}” yo'q",
+    "viewAll": "Barcha so'nggi elementlar",
+    "workedOn": "Siz ishlagan elementlar",
+    "loadFailed": "So'nggi vazifalarni yuklab bo'lmadi."
+  },
+  "labels": {
+    "add": "Teg qo'shish",
+    "search": "Tegni qidiring yoki yarating",
+    "all": "Barcha teglar",
+    "create": "“{{name}}” yaratish",
+    "none": "Hozircha teg yo'q. Yaratish uchun nom kiriting.",
+    "noMatches": "“{{query}}” teg topilmadi",
+    "remove": "{{name}} tegini olib tashlash",
+    "limit": "Vazifada ko'pi bilan 20 ta teg bo'lishi mumkin.",
+    "tooLong": "Teg 40 belgigacha bo'lishi mumkin.",
+    "inFlight": "Vazifa saqlangach mavjud bo'ladi."
+  },
+  "pins": {
+    "title": "Mahkamlanganlar",
+    "pin": "Mahkamlash",
+    "unpin": "Mahkamni olib tashlash",
+    "goTo": "Asl nusxaga o'tish",
+    "fields": "Mening mahkamlangan maydonlarim",
+    "pinField": "Maydonni tepaga mahkamlash",
+    "unpinField": "Maydonni olib tashlash"
+  },
+  "createItem": {
+    "title": "Ish yaratish",
+    "requiredNote": "Majburiy maydonlar yulduzcha * bilan belgilangan",
+    "summary": "Nomi",
+    "summaryPlaceholder": "Nima qilish kerak?",
+    "summaryRequired": "Nomini kiriting.",
+    "summaryTooLong": "Nomi {{max}} belgidan qisqa bo‘lsin.",
+    "descriptionPlaceholder": "Batafsil ma’lumot, havola yoki qabul mezonlarini qo‘shing",
+    "estimateInvalid": "Baho noldan kichik bo‘lmasligi kerak.",
+    "datesOrder": "Muddat boshlanish sanasidan oldin bo‘lishi mumkin emas.",
+    "noParent": "Ota-ishsiz",
+    "labelsHint": "Belgilarni vergul bilan ajrating.",
+    "labelsPlaceholder": "masalan: frontend, bug-bash",
+    "another": "Yana yaratish",
+    "shortcut": "⌘/Ctrl + Enter — yaratish",
+    "creating": "Yaratilmoqda…",
+    "created": "Ish yaratildi.",
+    "labelFailed": "“{{label}}” belgisini qo‘shib bo‘lmadi."
+  },
+  "bulk": {
+    "toolbar": "Ommaviy amallar",
+    "selected": "tanlandi",
+    "selectAll": "Hammasini tanlash",
+    "editFields": "Maydonlarni tahrirlash",
+    "changeStatus": "Holatni o'zgartirish",
+    "clear": "Tanlovni bekor qilish",
+    "statusHint_one": "{{count}} ta vazifani ko'chirish",
+    "statusHint_other": "{{count}} ta vazifani ko'chirish",
+    "current": "Joriy",
+    "canMove_one": "{{total}} tadan {{count}} tasini ko'chirish mumkin",
+    "canMove_other": "{{total}} tadan {{count}} tasini ko'chirish mumkin",
+    "notAllowed": "Ish jarayoni bunga ruxsat bermaydi",
+    "notAllowedFrom": "{{from}} holatidan o'tkazib bo'lmaydi",
+    "editTitle_one": "{{count}} ta vazifani tahrirlash",
+    "editTitle_other": "{{count}} ta vazifani tahrirlash",
+    "editHint": "Faqat o'zgartirgan maydonlaringiz yangilanadi, qolgani o'z holicha qoladi.",
+    "sectionAssignment": "Tayinlash",
+    "sectionSchedule": "Muddatlar",
+    "sectionPlanning": "Rejalashtirish",
+    "sectionHierarchy": "Ota element va yorliqlar",
+    "keep": "O'z holicha qoldirish",
+    "reset": "Qaytarish",
+    "willClear": "Tozalanadi",
+    "noSprint": "Yo'q (beklog)",
+    "addLabel": "Yorliq qo'shish",
+    "labelPlaceholder": "Yorliq kiriting",
+    "labelHint": "Barcha vazifalarga qo'shiladi, mavjud yorliqlar saqlanadi.",
+    "noChanges": "Hali o'zgarish yo'q",
+    "changes_one": "{{count}} ta maydon o'zgaradi",
+    "changes_other": "{{count}} ta maydon o'zgaradi",
+    "apply_one": "{{count}} ta vazifani yangilash",
+    "apply_other": "{{count}} ta vazifani yangilash",
+    "deleteTitle_one": "{{count}} ta vazifa o'chirilsinmi?",
+    "deleteTitle_other": "{{count}} ta vazifa o'chirilsinmi?",
+    "deleteOneTitle": "{{name}} o'chirilsinmi?",
+    "deleteBody_one": "Vazifa izohlari va ilovalari bilan butunlay o'chiriladi. Buni bekor qilib bo'lmaydi.",
+    "deleteBody_other": "Bu {{count}} ta vazifa izohlari va ilovalari bilan butunlay o'chiriladi. Buni bekor qilib bo'lmaydi.",
+    "deleteCascade_one": "Yana {{count}} ta ichki element ham o'chiriladi.",
+    "deleteCascade_other": "Yana {{count}} ta ichki element ham o'chiriladi.",
+    "typeToConfirm": "Davom etish uchun {{word}} deb yozing",
+    "deleteWord": "o'chirish",
+    "deleteCount_one": "{{count}} ta vazifani o'chirish",
+    "deleteCount_other": "{{count}} ta vazifani o'chirish",
+    "updated_one": "{{count}} ta vazifa yangilandi",
+    "updated_other": "{{count}} ta vazifa yangilandi",
+    "deleted_one": "{{count}} ta vazifa o'chirildi",
+    "deleted_other": "{{count}} ta vazifa o'chirildi",
+    "failed": "{{count}} tadan {{failed}} tasi saqlanmadi. Ro'yxat yangilandi.",
+    "skipped_one": "{{count}} ta vazifa o'tkazib yuborildi: bu o'zgarish unga ruxsat etilmagan.",
+    "skipped_other": "{{count}} ta vazifa o'tkazib yuborildi: bu o'zgarish ularga ruxsat etilmagan."
   }
 }

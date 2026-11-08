@@ -70,9 +70,9 @@ describe("boardTrail", () => {
 });
 
 describe("spaceTrail", () => {
-  it("walks All spaces to the space", () => {
+  it("walks Spaces to the space", () => {
     expect(spaceTrail({ title: "Engineering" })).toEqual([
-      { label: "All spaces", to: "/admin/spaces" },
+      { label: "Spaces", to: "/admin/spaces" },
       { label: "Engineering" },
     ]);
   });
@@ -91,9 +91,9 @@ describe("spaceTarget", () => {
 });
 
 describe("userTrail", () => {
-  it("walks Developers to the person", () => {
+  it("walks People to the person", () => {
     expect(userTrail("neo")).toEqual([
-      { label: "Developers", to: "/admin/users" },
+      { label: "People", to: "/admin/users" },
       { label: "neo" },
     ]);
   });

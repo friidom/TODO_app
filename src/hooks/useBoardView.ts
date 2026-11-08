@@ -63,6 +63,7 @@ const FILTER_PARAMS: Record<FilterCategory, string> = {
   priority: "priority",
   due: "due",
   status: "status",
+  label: "label",
 };
 
 function readList(params: URLSearchParams, key: string): string[] {

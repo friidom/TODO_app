@@ -14,6 +14,7 @@ import EmptyState from "@/components/ui/EmptyState";
 import { FIELD_INPUT } from "@/components/ui/fieldInput";
 import { useAuth } from "@/services/auth/useAuth";
 import { useBoards } from "@/services/boards/useBoards";
+import { spaceNameOf } from "@/services/spaces/boardSpace";
 import { useSpaces } from "@/services/spaces/useSpaces";
 import { relativeTime } from "@/utils/relativeTime";
 import { cn } from "@/utils/cn";
@@ -32,11 +33,6 @@ export default function ManageBoardsPage() {
   // Local state, not a URL param: this is a transient way to find a row, not a
   // view worth sharing — which is the line useBoardView draws for the board.
   const [query, setQuery] = useState("");
-
-  const spaceById = useMemo(
-    () => new Map(spaces.map((space) => [space.id, space.title])),
-    [spaces],
-  );
 
   const rows = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -134,9 +130,7 @@ export default function ManageBoardsPage() {
 
                   <AdminCell>
                     <span className="text-ink-3 truncate">
-                      {board.space_id
-                        ? (spaceById.get(board.space_id) ?? t("common.unfiled"))
-                        : t("common.unfiled")}
+                      {spaceNameOf(board, spaces)}
                     </span>
                   </AdminCell>
 

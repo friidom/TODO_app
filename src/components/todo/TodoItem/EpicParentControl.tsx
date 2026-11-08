@@ -1,14 +1,21 @@
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckIcon, LinkIcon, Link2OffIcon } from "lucide-react";
 import { FloatingPortal } from "@floating-ui/react";
 
+import { SearchField } from "@/components/board/FilterPopover";
+import { Skeleton } from "@/components/ui/skeleton";
+import { workTypeOf } from "@/constants/workTypes";
+import { epicChoices, filterEpicChoices } from "@/services/todos/epicChoices";
 import { useEpics } from "@/services/todos/useSubtasks";
+import { useTodos } from "@/services/todos/useTodos";
+import { useStatuses } from "@/services/workflow/useWorkflow";
+import type { IStatus, Todo } from "@/types/data";
 import { useKeyPrefix } from "@/hooks/useKeyPrefix";
 import { taskKey } from "@/utils/taskKey";
 import {
   MENU_ITEM,
   MENU_LABEL,
-  MENU_SEPARATOR,
   POPOVER_PANEL,
 } from "@/components/ui/controlChrome";
 import { cn } from "@/utils/cn";
@@ -19,6 +26,10 @@ import {
   OPTION_ITEM,
 } from "./fieldChrome";
 import { useCardPopover } from "./useCardPopover";
+
+const EPIC = workTypeOf("Epic");
+const NO_TODOS: Todo[] = [];
+const NO_STATUSES: IStatus[] = [];
 
 // list is exactly the board's Epics — anything else would be refused by enforce_work_item_hierarchy anyway
 export default function EpicParentControl({
@@ -90,70 +101,150 @@ export default function EpicParentControl({
         <FloatingPortal>
           <div
             {...panelProps}
-            role="menu"
+            role="dialog"
             aria-label={t("epicParent.label")}
-            className={cn(POPOVER_PANEL, "z-50 max-h-64 w-56 overflow-y-auto")}
+            className={cn(
+              POPOVER_PANEL,
+              "z-50 flex max-h-80 w-72 flex-col p-0",
+            )}
           >
-            <p className={MENU_LABEL}>{t("workType.epic")}</p>
-
-            {epics.length === 0 ? (
-              <p className="text-ink-3 text-meta px-2 py-2">
-                {t("epicParent.noEpics")}
-              </p>
-            ) : (
-              <ul>
-                {epics.map((candidate) => {
-                  const selected = candidate.id === epicId;
-                  const candidateKey = taskKey(keyPrefix, candidate.board_key);
-
-                  return (
-                    <li key={candidate.id}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onChange(selected ? null : candidate.id);
-                          close();
-                        }}
-                        className={cn(OPTION_ITEM, "min-w-0")}
-                      >
-                        <span className="min-w-0 flex-1 truncate">
-                          {candidateKey && (
-                            <span className="text-ink-3 tabular-nums">
-                              {candidateKey}{" "}
-                            </span>
-                          )}
-                          {candidate.title || t("common.untitled")}
-                        </span>
-
-                        {selected && (
-                          <CheckIcon className="text-brand size-4" />
-                        )}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-
-            {epicId !== null && (
-              <>
-                <div className={MENU_SEPARATOR} />
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    onChange(null);
-                    close();
-                  }}
-                  className={MENU_ITEM}
-                >
-                  <Link2OffIcon />
-                  {t("epicParent.remove")}
-                </button>
-              </>
-            )}
+            <EpicPicker
+              epicId={epicId}
+              onPick={(next) => {
+                onChange(next);
+                close();
+              }}
+            />
           </div>
         </FloatingPortal>
+      )}
+    </>
+  );
+}
+
+const SHOWN = 50;
+
+// Its own component so the search text and the toggle live exactly as long as the panel.
+function EpicPicker({
+  epicId,
+  onPick,
+}: {
+  epicId: string | null;
+  onPick: (value: string | null) => void;
+}) {
+  const { t } = useTranslation();
+  const keyPrefix = useKeyPrefix();
+  const { data: todos = NO_TODOS, isPending, error } = useTodos();
+  const { data: statuses = NO_STATUSES } = useStatuses();
+  const [query, setQuery] = useState("");
+  const [showDone, setShowDone] = useState(false);
+
+  const choices = useMemo(
+    () => epicChoices(todos, statuses, keyPrefix),
+    [todos, statuses, keyPrefix],
+  );
+  const anyDone = choices.some((choice) => choice.isDone);
+  const shown = filterEpicChoices(choices, {
+    query,
+    showDone,
+    selectedId: epicId,
+  });
+
+  return (
+    <>
+      <div className="border-hairline space-y-2 border-b p-2">
+        <SearchField
+          value={query}
+          onChange={setQuery}
+          placeholder={t("subtasks.searchExisting")}
+          label={t("subtasks.searchExisting")}
+        />
+
+        {anyDone && (
+          <label className="text-ink-2 text-mini flex cursor-pointer items-center gap-2 px-0.5">
+            <input
+              type="checkbox"
+              checked={showDone}
+              onChange={(event) => setShowDone(event.target.checked)}
+              className="accent-brand size-3.5"
+            />
+            {t("epicParent.showDone")}
+          </label>
+        )}
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto p-1">
+        <p className={MENU_LABEL}>{t("workType.epic")}</p>
+
+        {isPending ? (
+          <div className="space-y-1 p-1" aria-busy>
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} className="h-7 w-full" />
+            ))}
+          </div>
+        ) : error ? (
+          <p role="alert" className="text-status-red text-meta px-2 py-2">
+            {error.message}
+          </p>
+        ) : choices.length === 0 ? (
+          <p className="text-ink-3 text-meta px-2 py-2">
+            {t("epicParent.noEpics")}
+          </p>
+        ) : shown.length === 0 ? (
+          <p className="text-ink-3 text-meta px-2 py-2">
+            {t("epicParent.noMatches")}
+          </p>
+        ) : (
+          <ul>
+            {shown.slice(0, SHOWN).map(({ epic, key, done, total }) => {
+              const selected = epic.id === epicId;
+
+              return (
+                <li key={epic.id}>
+                  <button
+                    type="button"
+                    aria-current={selected || undefined}
+                    onClick={() => onPick(selected ? null : epic.id)}
+                    className={cn(OPTION_ITEM, "min-w-0")}
+                  >
+                    <EPIC.icon className={cn("size-4", EPIC.tone)} />
+                    <span className="min-w-0 flex-1 truncate">
+                      {key && (
+                        <span className="text-ink-3 tabular-nums">{key} </span>
+                      )}
+                      {epic.title || t("common.untitled")}
+                    </span>
+                    {total > 0 && (
+                      <span className="text-ink-3 text-mini shrink-0 tabular-nums">
+                        {done}/{total}
+                      </span>
+                    )}
+                    {selected && <CheckIcon className="text-brand size-4" />}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        {shown.length > SHOWN && (
+          <p className="text-ink-3 text-mini px-2 py-1.5">
+            {t("epicParent.refine", { count: SHOWN })}
+          </p>
+        )}
+      </div>
+
+      {epicId !== null && (
+        <div className="border-hairline border-t p-1">
+          <button
+            type="button"
+            onClick={() => onPick(null)}
+            className={MENU_ITEM}
+          >
+            <Link2OffIcon />
+            {t("epicParent.remove")}
+          </button>
+        </div>
       )}
     </>
   );

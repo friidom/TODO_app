@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { FloatingPortal } from "@floating-ui/react";
 import {
   MoreHorizontal,
@@ -8,6 +8,7 @@ import {
   Trash2Icon,
 } from "lucide-react";
 
+import DeleteWorkItemsDialog from "@/components/todo/DeleteWorkItemsDialog";
 import IconButton from "@/components/ui/IconButton";
 import {
   MENU_ITEM,
@@ -44,6 +45,7 @@ export default function TodoMenu({
   const { openTask } = useOpenTask();
   const patch = useTodoPatch(todo);
   const deleteTodo = useDeleteTodo();
+  const [confirming, setConfirming] = useState(false);
 
   return (
     <>
@@ -131,8 +133,8 @@ export default function TodoMenu({
               type="button"
               role="menuitem"
               onClick={() => {
-                deleteTodo.mutate(todo.id);
                 close();
+                setConfirming(true);
               }}
               className={MENU_ITEM_DANGER}
             >
@@ -141,6 +143,17 @@ export default function TodoMenu({
             </button>
           </div>
         </FloatingPortal>
+      )}
+
+      {confirming && (
+        <DeleteWorkItemsDialog
+          items={[todo]}
+          onClose={() => setConfirming(false)}
+          onConfirm={() => {
+            setConfirming(false);
+            deleteTodo.mutate(todo.id);
+          }}
+        />
       )}
     </>
   );

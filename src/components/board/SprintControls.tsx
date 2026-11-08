@@ -60,8 +60,9 @@ export default function SprintControls() {
             </span>
           }
           onClick={() => setCompleting(true)}
-          // filled dark like Jira's Complete sprint; the hover and active text/background must be restated or the base control's would win
-          className="bg-ink text-canvas hover:bg-ink/90 hover:text-canvas active:bg-ink/80 border-transparent font-medium"
+          // filled dark like Jira's Complete sprint; the hover and active text/background must be restated or the base control's would win.
+          // ink inverts to near-white in dark mode, so there it takes the toolbar's active violet instead
+          className="bg-ink text-canvas hover:bg-ink/90 hover:text-canvas active:bg-ink/80 dark:border-brand/40 dark:bg-brand-soft dark:text-ink dark:hover:bg-brand/25 dark:hover:text-ink dark:active:bg-brand/30 border-transparent font-medium"
         />
       )}
 

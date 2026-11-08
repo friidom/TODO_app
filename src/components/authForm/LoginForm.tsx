@@ -6,8 +6,11 @@ import { Loader2 } from "lucide-react";
 import AuthField from "@/components/authForm/AuthField";
 import OAuthButtons from "@/components/authForm/OAuthButtons";
 import PasswordInput from "@/components/authForm/PasswordInput";
+import ResendVerification from "@/components/authForm/ResendVerification";
+import { ApiError } from "@/services/api/client";
 import { FORM_SUBMIT } from "@/components/ui/fieldInput";
 import { useLogin } from "@/services/auth/useLogin";
+import { linkingProviderOf } from "@/services/auth/pendingLink";
 import { useSearchParams } from "react-router";
 import {
   hasErrors,
@@ -99,6 +102,11 @@ export default function LoginForm() {
         </p>
       )}
 
+      {/* 403 is only answered after the password matched: the account exists and waits for its link */}
+      {login.error instanceof ApiError &&
+        login.error.status === 403 &&
+        identifier.includes("@") && <ResendVerification email={identifier} />}
+
       <button type="submit" disabled={login.isPending} className={FORM_SUBMIT}>
         {login.isPending ? (
           <>
@@ -114,6 +122,8 @@ export default function LoginForm() {
         next={searchParams.get("next")}
         disabled={login.isPending}
         divider="above"
+        // while linking, that provider's button would only issue the same challenge again
+        exclude={linkingProviderOf(searchParams.get("linking"))}
       />
     </form>
   );

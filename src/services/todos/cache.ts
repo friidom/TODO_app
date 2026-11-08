@@ -68,3 +68,42 @@ export function applyBacklogMoved(
     todo.id === todoId ? { ...todo, ...patch } : todo,
   );
 }
+
+// Only fields the row already carries — a list row is the narrow projection, so
+// an edit to `description` must not grow it a field the board never fetched.
+export function applyTodoPatched<T extends { id: string }>(
+  todos: T[],
+  id: string,
+  patch: NoInfer<Partial<T>>,
+): T[] {
+  return todos.map((todo) =>
+    todo.id === id ? (patchedRow(todo, patch) ?? todo) : todo,
+  );
+}
+
+// Merged onto the wider detail shape, never replaced by a list row, so the
+// detail's `description` survives a write that came from the board.
+export function applyDetailPatched<T extends { id: string }>(
+  detail: T | undefined,
+  id: string,
+  patch: NoInfer<Partial<T>>,
+): T | undefined {
+  if (!detail || detail.id !== id) return detail;
+
+  return patchedRow(detail, patch, true) ?? detail;
+}
+
+function patchedRow<T extends object>(
+  row: T,
+  patch: Partial<T>,
+  widen = false,
+): T | null {
+  const changes = Object.entries(patch).filter(
+    ([key, value]) =>
+      value !== undefined &&
+      (widen || key in row) &&
+      row[key as keyof T] !== value,
+  );
+
+  return changes.length ? { ...row, ...Object.fromEntries(changes) } : null;
+}

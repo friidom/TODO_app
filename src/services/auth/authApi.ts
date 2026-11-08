@@ -1,4 +1,11 @@
-import { api, broadcastSignOut, setAccessToken, toQuery } from "../api/client";
+import {
+  api,
+  broadcastSignOut,
+  refreshSession,
+  setAccessToken,
+  takeRefreshedUser,
+  toQuery,
+} from "../api/client";
 import { setSessionUser, type AuthUser } from "./session";
 
 interface SessionResponse {
@@ -59,6 +66,32 @@ export async function fetchMe(): Promise<AuthUser> {
   return user;
 }
 
+const RESTORE_RETRY_DELAYS_MS = [1_000, 2_000, 4_000, 8_000];
+
+// An unreachable API (a deploy restarting it, a 429) is retried rather than
+// read as signed out, but not forever: the session gate's spinner is up the
+// whole time.
+async function refreshWithRetry(): Promise<boolean> {
+  for (const delay of RESTORE_RETRY_DELAYS_MS) {
+    try {
+      return await refreshSession();
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+
+  return refreshSession().catch(() => false);
+}
+
+// A reload starts with no token in memory, so it spends the refresh cookie.
+export async function restoreSession(): Promise<AuthUser | null> {
+  if (!(await refreshWithRetry())) return null;
+
+  const user = takeRefreshedUser() as AuthUser | null;
+
+  return user ?? fetchMe().catch(() => null);
+}
+
 export async function requestPasswordReset(email: string): Promise<void> {
   await api.post<{ ok: true }>("/auth/password/forgot", { email }, { anonymous: true });
 }
@@ -72,6 +105,15 @@ export async function updatePassword(token: string, password: string): Promise<v
     { token, password },
     { anonymous: true },
   );
+}
+
+export async function verifyEmail(token: string): Promise<void> {
+  await api.post<{ ok: true }>("/auth/email/verify", { token }, { anonymous: true });
+}
+
+// Answers the same whether or not the address has an account waiting.
+export async function resendVerification(email: string): Promise<void> {
+  await api.post<{ ok: true }>("/auth/email/resend", { email }, { anonymous: true });
 }
 
 export async function isUsernameAvailable(username: string): Promise<boolean> {

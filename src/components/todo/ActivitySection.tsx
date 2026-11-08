@@ -18,6 +18,8 @@ import {
 } from "./detailChrome";
 import { Skeleton } from "@/components/ui/skeleton";
 import { memberName } from "@/components/members/memberLabels";
+import { useKeyPrefix } from "@/hooks/useKeyPrefix";
+import { useOnReveal } from "@/hooks/useReveal";
 import { useAuth } from "@/services/auth/useAuth";
 import { describeHistoryChange } from "@/services/activities/historyText";
 import { mergeActivityFeed } from "@/services/activities/mergeActivityFeed";
@@ -45,6 +47,12 @@ export default function ActivitySection({
 }) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<ActivityTab>("all");
+
+  useOnReveal(({ kind }) => {
+    if (kind === "comment" && tab !== "all" && tab !== "comments") {
+      setTab("comments");
+    }
+  });
   const { user } = useAuth();
   const id = useId();
 
@@ -123,6 +131,7 @@ function AllFeed({
     boardId,
   );
   const { data: members = [] } = useBoardMembers(boardId);
+  const keyPrefix = useKeyPrefix();
 
   const names = useMemo(
     () => Object.fromEntries(members.map((m) => [m.id, memberName(m)])),
@@ -172,7 +181,11 @@ function AllFeed({
             }
 
             // unrenderable actions drop out rather than showing a blank row
-            const change = describeHistoryChange(entry.activity, names);
+            const change = describeHistoryChange(
+              entry.activity,
+              names,
+              keyPrefix,
+            );
 
             if (!change) return null;
 

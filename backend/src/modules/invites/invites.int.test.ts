@@ -302,7 +302,11 @@ describe("POST /invites/accept", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ status: "accepted", board_id: owner.boardId });
+    expect(response.body).toEqual({
+      status: "accepted",
+      board_id: owner.boardId,
+      board_ids: [owner.boardId],
+    });
 
     const membership = await prisma.board_members.findUniqueOrThrow({
       where: { board_id_user_id: { board_id: owner.boardId, user_id: guest.id } },
@@ -483,6 +487,285 @@ describe("POST /invites/accept", () => {
   });
 });
 
+describe("POST /invites/preview", () => {
+  interface Preview {
+    status: string;
+    role: string;
+    board: { id: string; title: string | null; key: string };
+    space_title: string | null;
+    inviter_name: string | null;
+  }
+
+  const preview = (caller: TestUser, body: Record<string, unknown>) =>
+    client.post<Preview>("/api/v1/invites/preview", body, { token: caller.token });
+
+  it("names the board, its space, the role and the inviter, and changes nothing", async () => {
+    const owner = await makeUser("owner");
+    const guest = await makeUser("guest");
+    const created = await invite(owner, owner.boardId, { role: "editor" });
+
+    const response = await preview(guest, { token: created.token });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      status: "pending",
+      role: "editor",
+      kind: "board",
+      boards: [{ id: owner.boardId, member: false }],
+      space_title: "My Space",
+      inviter_name: owner.username,
+    });
+    expect(await prisma.board_members.count({ where: { user_id: guest.id, board_id: owner.boardId } }))
+      .toBe(0);
+    expect((await prisma.board_invites.findUniqueOrThrow({ where: { id: created.id } })).accepted_at)
+      .toBeNull();
+  });
+
+  it("reports an expired invitation instead of refusing to describe it", async () => {
+    const owner = await makeUser("owner");
+    const guest = await makeUser("guest");
+    const created = await invite(owner, owner.boardId, { role: "viewer" });
+
+    await prisma.board_invites.update({
+      where: { id: created.id },
+      data: { expires_at: new Date(Date.now() - 1000) },
+    });
+
+    expect((await preview(guest, { token: created.token })).body.status).toBe("expired");
+  });
+
+  it("tells a member they already have access, and refuses a link someone else spent", async () => {
+    const owner = await makeUser("owner");
+    const first = await makeUser("first");
+    const second = await makeUser("second");
+    const created = await invite(owner, owner.boardId, { role: "viewer" });
+
+    await client.post("/api/v1/invites/accept", { token: created.token }, { token: first.token });
+
+    expect((await preview(first, { token: created.token })).body.status).toBe("member");
+    expect((await preview(second, { token: created.token })).status).toBe(409);
+  });
+
+  it("answers 404 for a token that never existed and for an id meant for someone else", async () => {
+    const owner = await makeUser("owner");
+    const target = await makeUser("target");
+    const nosy = await makeUser("nosy");
+    const created = await invite(owner, owner.boardId, { role: "viewer", email: target.email });
+
+    expect((await preview(nosy, { token: "not-a-real-token" })).status).toBe(404);
+    expect((await preview(nosy, { invite_id: created.id })).status).toBe(404);
+    expect((await preview(target, { invite_id: created.id })).body.status).toBe("pending");
+  });
+});
+
+describe("Space invitations", () => {
+  interface SpaceSetup {
+    owner: TestUser;
+    spaceId: string;
+    first: string;
+    second: string;
+  }
+
+  // The owner's default space holds their default board; a second board joins it.
+  async function spaceWithTwoBoards(): Promise<SpaceSetup> {
+    const owner = await makeUser("owner");
+    const { space_id } = await prisma.boards.findUniqueOrThrow({
+      where: { id: owner.boardId },
+      select: { space_id: true },
+    });
+    const second = await client.post<{ id: string }>(
+      "/api/v1/boards",
+      { title: "Second", space_id },
+      { token: owner.token },
+    );
+
+    return { owner, spaceId: space_id!, first: owner.boardId, second: second.body.id };
+  }
+
+  const spaceInvite = (actor: TestUser, spaceId: string, body: Record<string, unknown>) =>
+    client.post<Created & { space_id: string }>(`/api/v1/spaces/${spaceId}/invites`, body, {
+      token: actor.token,
+    });
+
+  const roleOn = async (boardId: string, userId: string) =>
+    (
+      await prisma.board_members.findUnique({
+        where: { board_id_user_id: { board_id: boardId, user_id: userId } },
+        select: { role: true },
+      })
+    )?.role ?? null;
+
+  it("grants every board it lists at the invited role, and leaves an existing role alone", async () => {
+    const { owner, spaceId, first, second } = await spaceWithTwoBoards();
+    const guest = await makeUser("guest");
+
+    await addMember(first, guest, "viewer", owner.id);
+
+    const created = await spaceInvite(owner, spaceId, {
+      role: "editor",
+      board_ids: [first, second],
+    });
+
+    expect(created.status).toBe(201);
+    expect(created.body.space_id).toBe(spaceId);
+    expect(await prisma.board_invite_boards.count({ where: { invite_id: created.body.id } })).toBe(2);
+
+    const accepted = await client.post<{ status: string; board_ids: string[] }>(
+      "/api/v1/invites/accept",
+      { token: created.body.token },
+      { token: guest.token },
+    );
+
+    expect(accepted.body).toMatchObject({ status: "accepted", board_ids: [second] });
+    expect(await roleOn(first, guest.id)).toBe("viewer");
+    expect(await roleOn(second, guest.id)).toBe("editor");
+
+    const again = await client.post<{ status: string }>(
+      "/api/v1/invites/accept",
+      { token: created.body.token },
+      { token: guest.token },
+    );
+
+    expect(again.body.status).toBe("already_member");
+  });
+
+  it("grants only what was offered: not a board added later, nor one moved out since", async () => {
+    const { owner, spaceId, first, second } = await spaceWithTwoBoards();
+    const guest = await makeUser("guest");
+    const created = await spaceInvite(owner, spaceId, { role: "viewer", board_ids: [first, second] });
+
+    const later = await client.post<{ id: string }>(
+      "/api/v1/boards",
+      { title: "Later", space_id: spaceId },
+      { token: owner.token },
+    );
+    await client.patch(`/api/v1/boards/${second}`, { space_id: null }, { token: owner.token });
+
+    await client.post("/api/v1/invites/accept", { token: created.body.token }, { token: guest.token });
+
+    expect(await roleOn(first, guest.id)).toBe("viewer");
+    expect(await roleOn(second, guest.id)).toBeNull();
+    expect(await roleOn(later.body.id, guest.id)).toBeNull();
+  });
+
+  it("is the owner's alone to send, and only for boards in that space", async () => {
+    const { owner, spaceId, first } = await spaceWithTwoBoards();
+    const admin = await makeUser("admin");
+    const elsewhere = await makeUser("elsewhere");
+
+    await addMember(first, admin, "admin", owner.id);
+
+    expect((await spaceInvite(admin, spaceId, { role: "viewer", board_ids: [first] })).status).toBe(404);
+    expect(
+      (await spaceInvite(owner, spaceId, { role: "viewer", board_ids: [first, elsewhere.boardId] }))
+        .status,
+    ).toBe(400);
+    expect((await spaceInvite(owner, spaceId, { role: "viewer", board_ids: [] })).status).toBe(400);
+  });
+
+  it("refuses a person already on every board, or already invited to one of them", async () => {
+    const { owner, spaceId, first, second } = await spaceWithTwoBoards();
+    const member = await makeUser("member");
+    const invited = await makeUser("invited");
+
+    await addMember(first, member, "viewer", owner.id);
+    await addMember(second, member, "viewer", owner.id);
+    await invite(owner, first, { role: "viewer", email: invited.email });
+
+    const both = { role: "viewer", board_ids: [first, second] };
+
+    expect((await spaceInvite(owner, spaceId, { ...both, email: member.email })).status).toBe(409);
+    expect((await spaceInvite(owner, spaceId, { ...both, email: invited.email })).status).toBe(409);
+    expect((await invite(owner, second, { role: "viewer" })).id).toBeTruthy();
+  });
+
+  it("previews the space and its boards, and the inbox and notification name the space", async () => {
+    const { owner, spaceId, first, second } = await spaceWithTwoBoards();
+    const target = await makeUser("target");
+    const created = await spaceInvite(owner, spaceId, {
+      role: "editor",
+      email: target.email,
+      board_ids: [first, second],
+    });
+
+    const preview = await client.post<{
+      kind: string;
+      space_title: string;
+      boards: { id: string; member: boolean }[];
+    }>("/api/v1/invites/preview", { invite_id: created.body.id }, { token: target.token });
+
+    expect(preview.body).toMatchObject({ kind: "space", space_title: "My Space" });
+    expect(preview.body.boards.map((board) => board.id).sort()).toEqual([first, second].sort());
+
+    const mine = await client.get<{ space_id: string; boards: unknown[] }[]>("/api/v1/invites/mine", {
+      token: target.token,
+    });
+
+    expect(mine.body).toHaveLength(1);
+    expect(mine.body[0]).toMatchObject({ space_id: spaceId });
+    expect(mine.body[0]!.boards).toHaveLength(2);
+
+    const note = await prisma.notifications.findFirstOrThrow({
+      where: { user_id: target.id, type: "invite" },
+      select: { payload: true },
+    });
+
+    expect(note.payload).toMatchObject({ space_title: "My Space" });
+  });
+
+  it("shows as pending on each board it lists, and only the space's owner can revoke it", async () => {
+    const { owner, spaceId, first, second } = await spaceWithTwoBoards();
+    const admin = await makeUser("admin");
+
+    await addMember(second, admin, "admin", owner.id);
+
+    const created = await spaceInvite(owner, spaceId, { role: "viewer", board_ids: [second, first] });
+
+    const pending = await client.get<{ id: string; space_title: string; board_count: number }[]>(
+      invitesUrl(first),
+      { token: owner.token },
+    );
+
+    expect(pending.body.find((row) => row.id === created.body.id)).toMatchObject({
+      space_title: "My Space",
+      board_count: 2,
+    });
+
+    expect(
+      (await client.del(`/api/v1/invites/${created.body.id}`, undefined, { token: admin.token })).status,
+    ).toBe(403);
+    expect(
+      (await client.del(`/api/v1/invites/${created.body.id}`, undefined, { token: owner.token })).status,
+    ).toBe(204);
+    expect(await prisma.board_invite_boards.count({ where: { invite_id: created.body.id } })).toBe(0);
+  });
+
+  it("lists the space's pending invitations and searches people with their boards in it", async () => {
+    const { owner, spaceId, first, second } = await spaceWithTwoBoards();
+    const someone = await makeUser("findspace");
+
+    await addMember(first, someone, "viewer", owner.id);
+    await spaceInvite(owner, spaceId, { role: "viewer", board_ids: [first, second] });
+
+    const pending = await client.get<{ boards: unknown[] }[]>(`/api/v1/spaces/${spaceId}/invites`, {
+      token: owner.token,
+    });
+
+    expect(pending.body).toHaveLength(1);
+    expect(pending.body[0]!.boards).toHaveLength(2);
+
+    const found = await client.get<{ id: string; member_board_ids: string[] }[]>(
+      `/api/v1/spaces/${spaceId}/invitees?q=findspace`,
+      { token: owner.token },
+    );
+
+    expect(found.body.find((row) => row.id === someone.id)?.member_board_ids).toEqual([first]);
+    expect(
+      (await client.get(`/api/v1/spaces/${spaceId}/invites`, { token: someone.token })).status,
+    ).toBe(404);
+  });
+});
+
 describe("POST /invites/decline", () => {
   it("lets the addressee decline, deleting the row", async () => {
     const owner = await makeUser("owner");
@@ -544,6 +827,10 @@ describe("GET /invites/mine", () => {
     expect(response.body[0]).not.toHaveProperty("token");
     expect(response.body[0]).not.toHaveProperty("token_hash");
     expect(response.body[0]!.board_id).toBe(owner.boardId);
+    expect(response.body[0]).toMatchObject({
+      space_title: "My Space",
+      inviter_name: owner.username,
+    });
   });
 
   it("does not list someone else's invites", async () => {
@@ -663,24 +950,26 @@ describe("GET /boards/:boardId/invitees", () => {
     expect(response.body.map((r) => r.id)).toContain(target.id);
   });
 
-  it("never offers the caller, an existing member, or someone already invited", async () => {
+  it("never offers the caller, and marks a member or someone already invited", async () => {
     const owner = await makeUser("findme");
     const member = await makeUser("findme2");
     const invited = await makeUser("findme3");
+    const free = await makeUser("findme4");
 
     await addMember(owner.boardId, member, "viewer", owner.id);
     await invite(owner, owner.boardId, { role: "viewer", email: invited.email });
 
-    const response = await client.get<{ id: string }[]>(
-      `/api/v1/boards/${owner.boardId}/invitees?q=findme`,
-      { token: owner.token },
-    );
+    const response = await client.get<
+      { id: string; member_role: string | null; invited_until: string | null }[]
+    >(`/api/v1/boards/${owner.boardId}/invitees?q=findme`, { token: owner.token });
 
-    const ids = response.body.map((r) => r.id);
+    const byId = new Map(response.body.map((r) => [r.id, r]));
 
-    expect(ids).not.toContain(owner.id);
-    expect(ids).not.toContain(member.id);
-    expect(ids).not.toContain(invited.id);
+    expect(byId.has(owner.id)).toBe(false);
+    expect(byId.get(member.id)?.member_role).toBe("viewer");
+    expect(byId.get(invited.id)?.invited_until).not.toBeNull();
+    expect(byId.get(free.id)).toMatchObject({ member_role: null, invited_until: null });
+    expect(response.body[0]!.id).toBe(free.id);
   });
 
   it("refuses an editor, who has no business enumerating people", async () => {

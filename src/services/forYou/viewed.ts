@@ -1,13 +1,16 @@
-// localStorage only — per-browser, ids only (never titles, so a revoked board just resolves to nothing via RLS instead of leaking a cached name)
+// localStorage only — per-browser, ids only (never titles, so a revoked board just resolves to nothing instead of leaking a cached name)
 
 const KEY = "kan:viewed";
 
 const BOARDS_KEY = "kan:recent-boards";
 
+// keyed per user, so a second account on this browser never sees the first's history
+const keyFor = (base: string, userId: string) => `${base}:${userId}`;
+
 // trimmed on write, so the resolving `in.(…)` query stays bounded
 export const VIEWED_LIMIT = 50;
 
-export const BOARD_VISITS_LIMIT = 8;
+export const BOARD_VISITS_LIMIT = 20;
 
 export interface ViewedEntry {
   id: string;
@@ -18,6 +21,7 @@ export interface ViewedEntry {
 export interface BoardVisit {
   id: string;
   at: string;
+  view?: string;
 }
 
 function defaultStorage(): Storage | null {
@@ -37,6 +41,8 @@ function readList<T>(
 ): T[] {
   if (!storage) return [];
 
+  dropLegacy(storage);
+
   let raw: string | null;
 
   try {
@@ -55,6 +61,16 @@ function readList<T>(
     return parsed.filter(isItem).slice(0, limit);
   } catch {
     return [];
+  }
+}
+
+// The pre-per-user keys are only navigation history, so dropping them loses nothing worth keeping.
+function dropLegacy(storage: Storage) {
+  try {
+    storage.removeItem(KEY);
+    storage.removeItem(BOARDS_KEY);
+  } catch {
+    // a browser refusing access is already handled by the read that follows
   }
 }
 
@@ -93,58 +109,83 @@ function isVisit(value: unknown): value is BoardVisit {
     visit !== null &&
     typeof visit.id === "string" &&
     visit.id.length > 0 &&
-    typeof visit.at === "string"
+    typeof visit.at === "string" &&
+    (visit.view === undefined || typeof visit.view === "string")
   );
 }
 
 export function readViewed(
+  userId: string | undefined,
   storage: Storage | null = defaultStorage(),
 ): ViewedEntry[] {
-  return readList(storage, KEY, isEntry, VIEWED_LIMIT);
+  if (!userId) return [];
+
+  return readList(storage, keyFor(KEY, userId), isEntry, VIEWED_LIMIT);
 }
 
 // moves the entry to the front rather than appending, so reopening a card doesn't create a second entry
 export function recordView(
+  userId: string | undefined,
   id: string,
   boardId: string,
   at: string,
   storage: Storage | null = defaultStorage(),
 ): ViewedEntry[] {
+  if (!userId) return [];
+
   const next = [
     { id, boardId, at },
-    ...readViewed(storage).filter((entry) => entry.id !== id),
+    ...readViewed(userId, storage).filter((entry) => entry.id !== id),
   ].slice(0, VIEWED_LIMIT);
 
-  writeList(storage, KEY, next);
+  writeList(storage, keyFor(KEY, userId), next);
 
   return next;
 }
 
-export function clearViewed(storage: Storage | null = defaultStorage()): void {
+export function clearViewed(
+  userId: string | undefined,
+  storage: Storage | null = defaultStorage(),
+): void {
+  if (!userId) return;
+
   try {
-    storage?.removeItem(KEY);
+    storage?.removeItem(keyFor(KEY, userId));
   } catch {
     // same as above
   }
 }
 
 export function readBoardVisits(
+  userId: string | undefined,
   storage: Storage | null = defaultStorage(),
 ): BoardVisit[] {
-  return readList(storage, BOARDS_KEY, isVisit, BOARD_VISITS_LIMIT);
+  if (!userId) return [];
+
+  return readList(
+    storage,
+    keyFor(BOARDS_KEY, userId),
+    isVisit,
+    BOARD_VISITS_LIMIT,
+  );
 }
 
 export function recordBoardVisit(
+  userId: string | undefined,
   id: string,
   at: string,
+  view?: string,
   storage: Storage | null = defaultStorage(),
 ): BoardVisit[] {
+  if (!userId) return [];
+
+  const visit: BoardVisit = view ? { id, at, view } : { id, at };
   const next = [
-    { id, at },
-    ...readBoardVisits(storage).filter((visit) => visit.id !== id),
+    visit,
+    ...readBoardVisits(userId, storage).filter((it) => it.id !== id),
   ].slice(0, BOARD_VISITS_LIMIT);
 
-  writeList(storage, BOARDS_KEY, next);
+  writeList(storage, keyFor(BOARDS_KEY, userId), next);
 
   return next;
 }

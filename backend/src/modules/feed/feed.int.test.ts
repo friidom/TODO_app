@@ -108,23 +108,30 @@ describe("GET /me/feed", () => {
     expect(response.body).toEqual([]);
   });
 
-  it("returns only top-level items on every tab", async () => {
+  it("lists a task under an Epic but never a subtask, on every tab", async () => {
     const alice = await makeUser("alice");
     const epic = await addTodo(alice, alice.boardId, { title: "Epic", type: "Epic" });
-
-    await addTodo(alice, alice.boardId, {
-      title: "Child",
+    const epicChild = await addTodo(alice, alice.boardId, {
+      title: "Under the epic",
       parent_id: epic.id,
       assignee_id: alice.id,
     });
-    await addTodo(alice, alice.boardId, { title: "Top level", assignee_id: alice.id });
+    const task = await addTodo(alice, alice.boardId, { title: "Top level", assignee_id: alice.id });
+    const subtask = await addTodo(alice, alice.boardId, {
+      title: "Subtask",
+      parent_id: task.id,
+      assignee_id: alice.id,
+    });
 
     for (const tab of ["recent", "assigned"]) {
       const response = await client.get<Todo[]>(`/api/v1/me/feed?tab=${tab}`, {
         token: alice.token,
       });
+      const ids = response.body.map((t) => t.id);
 
-      expect(response.body.every((t) => t.parent_id === null), tab).toBe(true);
+      expect(ids, tab).toContain(epicChild.id);
+      expect(ids, tab).toContain(task.id);
+      expect(ids, tab).not.toContain(subtask.id);
     }
   });
 
@@ -389,20 +396,24 @@ describe("GET /me/todos?ids=", () => {
     expect(response.body.map((t) => t.id)).toEqual([mine.id]);
   });
 
-  it("returns only top-level items", async () => {
+  it("resolves a task under an Epic but not a subtask", async () => {
     const alice = await makeUser("alice");
     const epic = await addTodo(alice, alice.boardId, { title: "Epic", type: "Epic" });
     const child = await addTodo(alice, alice.boardId, {
       title: "Child",
       parent_id: epic.id,
     });
+    const subtask = await addTodo(alice, alice.boardId, {
+      title: "Subtask",
+      parent_id: child.id,
+    });
 
     const response = await client.get<Todo[]>(
-      `/api/v1/me/todos?ids=${epic.id},${child.id}`,
+      `/api/v1/me/todos?ids=${epic.id},${child.id},${subtask.id}`,
       { token: alice.token },
     );
 
-    expect(response.body.map((t) => t.id)).toEqual([epic.id]);
+    expect(response.body.map((t) => t.id).sort()).toEqual([epic.id, child.id].sort());
   });
 
   it("rejects a malformed id rather than ignoring it", async () => {

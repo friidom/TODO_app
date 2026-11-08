@@ -109,6 +109,7 @@ const ListRow = memo(function ListRow({
         return (
           <td
             key={column.id}
+            data-column={column.id}
             style={pinned ? { left: SELECT_COLUMN_WIDTH } : undefined}
             className={cn(
               CELL,
@@ -168,6 +169,8 @@ const ListRow = memo(function ListRow({
           </td>
         );
       })}
+
+      <td aria-hidden className={cn(CELL, background, "border-r-0 p-0")} />
 
       <td className={cn(CELL, background, STICKY_RIGHT, "px-1")}>
         {canEdit && (

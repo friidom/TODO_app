@@ -1,37 +1,47 @@
 import { useTranslation } from "react-i18next";
-import {
-  useState,
-  type KeyboardEvent,
-  type PointerEvent as ReactPointerEvent,
-  type ReactNode,
-} from "react";
+import { useCallback, useRef, type ReactNode } from "react";
 import {
   ArrowDownIcon,
+  ArrowLeftRightIcon,
   ArrowUpIcon,
   ChevronRightIcon,
   ChevronsUpDownIcon,
+  EyeOffIcon,
   LockIcon,
+  RotateCcwIcon,
 } from "lucide-react";
 
 import ListColumns from "@/components/board/ListColumns";
 import DropLine from "@/components/dnd/DropLine";
 import { useReorderItem } from "@/components/dnd/reorderDnd";
+import ResizeHandle from "@/components/ui/ResizeHandle";
 import type { BoardView } from "@/hooks/useBoardView";
 import { useBoardId } from "@/hooks/useBoardId";
 import {
+  LIST_COLUMNS,
   MAX_COLUMN_WIDTH,
   PINNED_COLUMN,
   SELECT_COLUMN_WIDTH,
-  clampListColumnWidth,
+  isElasticColumn,
   listColumnWidth,
   minListColumnWidth,
+  tableMinWidth,
   type ListColumnDef,
+  type ListColumnId,
+  type ListColumnWidths,
 } from "@/services/views/listColumns";
 import { useListColumnWidths, useListColumns } from "@/stores/listColumns";
 import { cn } from "@/utils/cn";
+import { fitWidth, naturalWidths, sample } from "@/utils/fitColumn";
 import ListCheckbox from "./ListCheckbox";
+import TableColumnMenu from "./TableColumnMenu";
 import { LIST_COLUMN_GROUP } from "./listReorder";
-import { HEAD_CELL, STICKY_LEFT_HEAD, STICKY_RIGHT_HEAD } from "./listTable";
+import {
+  HEAD_CELL,
+  STICKY_LEFT,
+  STICKY_LEFT_HEAD,
+  STICKY_RIGHT_HEAD,
+} from "./listTable";
 
 export interface ListHeaderProps {
   columns: ListColumnDef[];
@@ -76,6 +86,7 @@ export default function ListHeader({
           <HeadCell
             key={column.id}
             column={column}
+            columns={columns}
             view={view}
             expand={
               column.id === PINNED_COLUMN ? (
@@ -107,6 +118,8 @@ export default function ListHeader({
           />
         ))}
 
+        <th aria-hidden className={cn(HEAD_CELL, "border-r-0 p-0")} />
+
         <th
           scope="col"
           className={cn(HEAD_CELL, STICKY_RIGHT_HEAD, "px-0 text-center")}
@@ -120,19 +133,83 @@ export default function ListHeader({
 
 function HeadCell({
   column,
+  columns,
   view,
   expand,
 }: {
   column: ListColumnDef;
+  columns: ListColumnDef[];
   view: BoardView;
   expand: ReactNode;
 }) {
   const { t } = useTranslation();
   const pinned = column.id === PINNED_COLUMN;
+  const boardId = useBoardId();
+  const widths = useListColumnWidths(boardId);
+  const setWidths = useListColumns((state) => state.setWidths);
+  const toggle = useListColumns((state) => state.toggle);
+  const cell = useRef<HTMLTableCellElement | null>(null);
 
   const { setNodeRef, pointerProps, isDragging, edge } = useReorderItem(
     column.id,
     { group: LIST_COLUMN_GROUP, axis: "x", disabled: pinned },
+  );
+
+  const ref = useCallback(
+    (element: HTMLTableCellElement | null) => {
+      cell.current = element;
+      setNodeRef(element);
+    },
+    [setNodeRef],
+  );
+
+  const sortBy = column.sort;
+  const menu = (
+    <TableColumnMenu
+      name={column.label}
+      groups={[
+        sortBy === null
+          ? []
+          : [
+              {
+                label: t("list.sortAscending"),
+                icon: ArrowUpIcon,
+                run: () => view.setSortBy(sortBy, "asc"),
+              },
+              {
+                label: t("list.sortDescending"),
+                icon: ArrowDownIcon,
+                run: () => view.setSortBy(sortBy, "desc"),
+              },
+            ],
+        [
+          {
+            label: t("list.fitContent"),
+            icon: ArrowLeftRightIcon,
+            run: () => {
+              const table = cell.current?.closest("table");
+              const patch = table && fittedWidths(table, column, widths);
+
+              if (boardId && patch) setWidths(boardId, patch);
+            },
+          },
+          {
+            label: t("list.resetWidth"),
+            icon: RotateCcwIcon,
+            run: () => boardId && setWidths(boardId, { [column.id]: null }),
+          },
+        ],
+        pinned
+          ? []
+          : [
+              {
+                label: t("list.hideColumn"),
+                icon: EyeOffIcon,
+                run: () => toggle(column.id),
+              },
+            ],
+      ]}
+    />
   );
 
   const className = cn(
@@ -148,7 +225,7 @@ function HeadCell({
   const chrome = (
     <>
       <DropLine edge={edge} axis="x" />
-      <ResizeHandle column={column} />
+      <ColumnResizer column={column} columns={columns} />
     </>
   );
 
@@ -164,16 +241,18 @@ function HeadCell({
   if (column.sort === null) {
     return (
       <th
-        ref={setNodeRef}
+        ref={ref}
         {...pointerProps}
         scope="col"
+        data-column={column.id}
         style={style}
-        className={className}
+        className={cn(className, "pr-1")}
       >
         <span className="flex items-center gap-1">
           {expand}
           <span className="min-w-0 flex-1 truncate">{column.label}</span>
           {lock}
+          {menu}
         </span>
         {chrome}
       </th>
@@ -200,12 +279,13 @@ function HeadCell({
 
   return (
     <th
-      ref={setNodeRef}
+      ref={ref}
       {...pointerProps}
       scope="col"
+      data-column={column.id}
       style={style}
       aria-sort={active ? (descending ? "descending" : "ascending") : "none"}
-      className={cn(className, expand ? "py-0 pr-0" : "p-0")}
+      className={cn(className, expand ? "py-0 pr-1" : "py-0 pr-1 pl-0")}
     >
       <span className="flex items-center gap-1">
         {expand}
@@ -239,140 +319,223 @@ function HeadCell({
           />
         </button>
         {lock}
+        {menu}
       </span>
       {chrome}
     </th>
   );
 }
 
-const KEY_STEP = 16;
+interface ResizeGesture {
+  table: HTMLTableElement;
+  col: HTMLElement | null;
+  pinned: HTMLElement | null;
+  filler: HTMLElement | null;
+  // The pinned column's rendered width when it was still taking the slack: the
+  // first resize turns it into an ordinary column at that width, so a column
+  // grows to the right instead of eating into the one beside it.
+  frozen: number | null;
+  minWidth: string;
+}
 
-// Drags the column's right edge; the elastic work column reads the result as
-// its floor. While dragging, the width goes straight onto the <col> and the
-// table's min-width once a frame, and reaches the store only on release: a
-// store write per pointer move re-rendered the header and ran every row's memo
-// check, which a list of thousands feels.
-function ResizeHandle({ column }: { column: ListColumnDef }) {
+// The widths a fit stores: the column's own, and the pinned column's rendered
+// width while it still takes the slack, for the reason ResizeGesture.frozen gives.
+function fittedWidths(
+  table: HTMLTableElement,
+  column: ListColumnDef,
+  widths: ListColumnWidths,
+): Partial<Record<ListColumnId, number>> | null {
+  const header = table.querySelector<HTMLElement>(
+    `th[data-column="${column.id}"]`,
+  );
+
+  if (!header) return null;
+
+  const cells = sample([
+    ...table.querySelectorAll<HTMLElement>(`td[data-column="${column.id}"]`),
+  ]);
+  const [head, ...body] = naturalWidths(
+    [header, ...cells],
+    table.parentElement ?? table,
+  );
+  const frozen =
+    column.id !== PINNED_COLUMN &&
+    isElasticColumn(LIST_COLUMNS[PINNED_COLUMN], widths)
+      ? table
+          .querySelector(`th[data-column="${PINNED_COLUMN}"]`)
+          ?.getBoundingClientRect().width
+      : undefined;
+
+  return {
+    ...(frozen === undefined ? {} : { [PINNED_COLUMN]: frozen }),
+    [column.id]: fitWidth(
+      head,
+      body,
+      minListColumnWidth(column.id),
+      MAX_COLUMN_WIDTH,
+    ),
+  };
+}
+
+// While dragging, widths go straight onto the <col>s and the table's min-width
+// once a frame, and reach the store only on release: a store write per pointer
+// move re-rendered the header and ran every row's memo check.
+function ColumnResizer({
+  column,
+  columns,
+  grip = false,
+}: {
+  column: ListColumnDef;
+  columns: ListColumnDef[];
+  grip?: boolean;
+}) {
   const { t } = useTranslation();
   const boardId = useBoardId();
   const widths = useListColumnWidths(boardId);
-  const setWidth = useListColumns((state) => state.setWidth);
-  const resetWidth = useListColumns((state) => state.resetWidth);
+  const setWidths = useListColumns((state) => state.setWidths);
+  const gesture = useRef<ResizeGesture | null>(null);
 
-  // The guide's height while dragging: it runs down the whole table.
-  const [guide, setGuide] = useState<number | null>(null);
-
-  // Measured rather than read from the store: the elastic column's rendered
-  // width is its share of the slack, not its stored floor.
-  const measure = (handle: HTMLElement) =>
-    handle.parentElement?.getBoundingClientRect().width ?? column.width;
-
-  function onPointerDown(event: ReactPointerEvent<HTMLSpanElement>) {
-    const handle = event.currentTarget;
+  function begin(handle: HTMLElement): number {
+    const start =
+      handle.parentElement?.getBoundingClientRect().width ??
+      listColumnWidth(column, widths);
     const table = handle.closest("table");
 
-    if (event.button !== 0 || !boardId || !table) return;
+    if (!table) return start;
 
-    event.preventDefault();
+    const colOf = (id: string) =>
+      table.querySelector<HTMLElement>(`col[data-column="${id}"]`);
+    const pinned = colOf(PINNED_COLUMN);
+    const filler = table.querySelector<HTMLElement>("col[data-filler]");
 
-    const col = table.querySelector<HTMLElement>(
-      `col[data-column="${column.id}"]`,
-    );
-    const start = measure(handle);
-    const origin = event.clientX;
-    const floor = listColumnWidth(column, widths);
-    const tableFloor = parseFloat(table.style.minWidth) || 0;
-    const body = document.body.style;
-    const previous = { cursor: body.cursor, userSelect: body.userSelect };
-    let width = start;
-    let moved = false;
-    let frame = 0;
+    const frozen = isElasticColumn(LIST_COLUMNS[PINNED_COLUMN], widths)
+      ? column.id === PINNED_COLUMN
+        ? start
+        : (table
+            .querySelector(`th[data-column="${PINNED_COLUMN}"]`)
+            ?.getBoundingClientRect().width ?? null)
+      : null;
 
-    const paint = (next: number) => {
-      if (col && !column.elastic) col.style.width = `${next}px`;
-      table.style.minWidth = `${tableFloor + next - floor}px`;
+    gesture.current = {
+      table,
+      col: colOf(column.id),
+      pinned,
+      filler,
+      frozen,
+      minWidth: table.style.minWidth,
     };
 
-    const move = (event: PointerEvent) => {
-      width = clampListColumnWidth(column.id, start + event.clientX - origin);
-      moved = true;
+    if (frozen !== null) {
+      if (pinned) pinned.style.width = `${frozen}px`;
+      if (filler) filler.style.width = "";
+    }
 
-      if (!frame) {
-        frame = requestAnimationFrame(() => {
-          frame = 0;
-          paint(width);
-        });
-      }
-    };
-
-    const end = (event: PointerEvent) => {
-      handle.removeEventListener("pointermove", move);
-      handle.removeEventListener("pointerup", end);
-      handle.removeEventListener("pointercancel", end);
-      cancelAnimationFrame(frame);
-      body.cursor = previous.cursor;
-      body.userSelect = previous.userSelect;
-      setGuide(null);
-
-      if (!moved) return;
-
-      if (event.type === "pointercancel") paint(floor);
-      else setWidth(boardId, column.id, width);
-    };
-
-    handle.setPointerCapture(event.pointerId);
-    body.cursor = "col-resize";
-    body.userSelect = "none";
-    setGuide(table.getBoundingClientRect().height);
-
-    handle.addEventListener("pointermove", move);
-    handle.addEventListener("pointerup", end);
-    handle.addEventListener("pointercancel", end);
+    return start;
   }
 
-  function onKeyDown(event: KeyboardEvent<HTMLSpanElement>) {
-    const step =
-      event.key === "ArrowRight"
-        ? KEY_STEP
-        : event.key === "ArrowLeft"
-          ? -KEY_STEP
-          : 0;
+  function preview(width: number) {
+    const current = gesture.current;
 
-    if (!step || !boardId) return;
+    if (!current) return;
 
-    event.preventDefault();
-    setWidth(boardId, column.id, measure(event.currentTarget) + step);
+    if (current.col) current.col.style.width = `${width}px`;
+
+    current.table.style.minWidth = `${tableMinWidth(columns, {
+      ...widths,
+      ...(current.frozen === null ? {} : { [PINNED_COLUMN]: current.frozen }),
+      [column.id]: width,
+    })}px`;
+  }
+
+  function commit(width: number) {
+    const frozen = gesture.current?.frozen ?? null;
+
+    gesture.current = null;
+
+    if (!boardId) return;
+
+    setWidths(boardId, {
+      ...(frozen === null ? {} : { [PINNED_COLUMN]: frozen }),
+      [column.id]: width,
+    });
+  }
+
+  function cancel() {
+    const current = gesture.current;
+
+    gesture.current = null;
+
+    if (!current) return;
+
+    if (current.col) {
+      current.col.style.width = isElasticColumn(column, widths)
+        ? ""
+        : `${listColumnWidth(column, widths)}px`;
+    }
+
+    if (current.frozen !== null) {
+      if (current.pinned) current.pinned.style.width = "";
+      if (current.filler) current.filler.style.width = "0px";
+    }
+
+    current.table.style.minWidth = current.minWidth;
   }
 
   return (
-    <span
-      role="separator"
-      aria-orientation="vertical"
-      aria-label={t("list.resize", { name: column.label })}
-      aria-valuenow={Math.round(listColumnWidth(column, widths))}
-      aria-valuemin={minListColumnWidth(column.id)}
-      aria-valuemax={MAX_COLUMN_WIDTH}
-      tabIndex={0}
-      data-no-drag
-      title={t("list.resizeHint")}
-      onPointerDown={onPointerDown}
-      onKeyDown={onKeyDown}
-      onDoubleClick={() => boardId && resetWidth(boardId, column.id)}
-      onClick={(event) => event.stopPropagation()}
-      className={cn(
-        "absolute inset-y-0 right-0 z-10 w-2.5 cursor-col-resize touch-none outline-none",
-        "after:absolute after:inset-y-2 after:right-0 after:w-0.5 after:rounded-full after:transition-colors",
-        "group-hover/th:after:bg-ink-3/30 hover:after:bg-brand focus-visible:after:bg-brand",
-        guide !== null && "after:bg-brand",
-      )}
-    >
-      {guide !== null && (
-        <span
-          aria-hidden
-          style={{ height: guide }}
-          className="bg-brand pointer-events-none absolute top-0 right-0 w-0.5"
-        />
-      )}
-    </span>
+    <ResizeHandle
+      label={t("list.resize", { name: column.label })}
+      hint={t("list.resizeHint")}
+      value={listColumnWidth(column, widths)}
+      min={minListColumnWidth(column.id)}
+      max={MAX_COLUMN_WIDTH}
+      begin={begin}
+      preview={preview}
+      commit={commit}
+      cancel={cancel}
+      fit={(handle) => {
+        const table = handle.closest("table");
+        const patch = table && fittedWidths(table, column, widths);
+
+        if (boardId && patch) setWidths(boardId, patch);
+      }}
+      grip={grip}
+      partner={(handle) =>
+        handle
+          .closest("table")
+          ?.querySelector<HTMLElement>(
+            `th[data-column="${column.id}"] [role=separator]`,
+          )
+      }
+    />
+  );
+}
+
+// A row of no height under the body, so each column's edge can be dragged from
+// anywhere down the table. Only the pinned cell is sticky: a grip on the header
+// would paint over the pinned column once its column scrolls beneath it.
+export function ListColumnGrips({ columns }: { columns: ListColumnDef[] }) {
+  return (
+    <tfoot aria-hidden>
+      <tr>
+        <td className="h-0 p-0" />
+
+        {columns.map((column) => {
+          const pinned = column.id === PINNED_COLUMN;
+
+          return (
+            <td
+              key={column.id}
+              style={pinned ? { left: SELECT_COLUMN_WIDTH } : undefined}
+              className={cn("h-0 p-0", pinned ? STICKY_LEFT : "relative")}
+            >
+              <ColumnResizer column={column} columns={columns} grip />
+            </td>
+          );
+        })}
+
+        <td className="h-0 p-0" />
+        <td className="h-0 p-0" />
+      </tr>
+    </tfoot>
   );
 }

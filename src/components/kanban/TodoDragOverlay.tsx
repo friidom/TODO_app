@@ -50,7 +50,8 @@ export default function TodoDragOverlay({
           subtaskDone={progress?.done ?? 0}
           subtaskTotal={progress?.total ?? 0}
           parentLabel={cardLabels.parents.get(activeTodo.parent_id ?? "")}
-          sprintLabel={cardLabels.sprints.get(activeTodo.sprint_id ?? "")}
+          spaceLabel={cardLabels.space}
+          reporterName={cardLabels.people.get(activeTodo.creator_id ?? "")}
         />
       )}
 

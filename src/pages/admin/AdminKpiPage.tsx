@@ -1,9 +1,9 @@
 import { useTranslation } from "react-i18next";
 import { useState } from "react";
+import { Link } from "react-router";
 
-import AdminShell from "@/components/admin/AdminShell";
+import AdminPage from "@/components/admin/AdminPage";
 import { AdminEmpty, AdminSkeleton } from "@/components/admin/AdminTable";
-import AuditLog from "@/components/admin/AuditLog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import SummaryCard from "@/components/summary/SummaryCard";
@@ -13,16 +13,14 @@ import { relativeTime } from "@/utils/relativeTime";
 
 export default function AdminKpiPage() {
   const { t } = useTranslation();
-  const { data, isFetching, error } = useAdminKpi();
+  const { data, error } = useAdminKpi();
 
   const targets = data?.targets ?? [];
 
   return (
-    <AdminShell
+    <AdminPage
       title={t("admin.sections.kpi")}
-      hint={t("admin.kpi.hint")}
-      showPeriod={false}
-      busy={isFetching}
+      description={t("admin.kpi.hint")}
     >
       {error ? (
         <AdminEmpty>{t("admin.loadFailedRetry")}</AdminEmpty>
@@ -36,14 +34,19 @@ export default function AdminKpiPage() {
         </div>
       )}
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="flex flex-col gap-2">
         <p className="text-ink-3 max-w-prose text-xs">
           {t("admin.kpi.explainer")}
         </p>
 
-        <AuditLog />
+        <Link
+          to="/admin/audit?type=kpi"
+          className="text-ink-3 hover:text-brand text-mini w-fit transition-colors"
+        >
+          {t("admin.kpi.history")}
+        </Link>
       </div>
-    </AdminShell>
+    </AdminPage>
   );
 }
 

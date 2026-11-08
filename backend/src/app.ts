@@ -14,6 +14,8 @@ import { apiRouter } from "./routes/index.js";
 
 export const app = express();
 
+app.set("trust proxy", env.TRUST_PROXY);
+
 // contentSecurityPolicy off: nothing here serves HTML.
 app.use(helmet({ contentSecurityPolicy: false }));
 

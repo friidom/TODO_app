@@ -44,7 +44,7 @@ export function useForYouFeed(tab: ForYouTab): ForYouFeed {
   } = useBoards();
 
   // read once on mount — local storage, and this page remounts whenever a task navigates away and back
-  const [viewed] = useState(() => readViewed());
+  const [viewed] = useState(() => readViewed(userId));
 
   const recent = useQuery({
     queryKey: queryKeys.forYouRecent(),
@@ -136,11 +136,13 @@ export function useForYouFeed(tab: ForYouTab): ForYouFeed {
   return { items, isLoading, error, retry };
 }
 
-// Polls: a teammate.s change reaches no realtime channel this page listens on.
+// Polls: a teammate's change reaches no realtime channel this page listens on.
+// Silent: a failed poll keeps the last list, and the panel shows a first-load failure itself.
 export function useMyActivity() {
   return useQuery({
     queryKey: queryKeys.forYouActivity(),
     queryFn: () => fetchMyActivity(),
     refetchInterval: 60_000,
+    meta: { silent: true },
   });
 }

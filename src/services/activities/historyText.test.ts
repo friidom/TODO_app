@@ -7,7 +7,7 @@ const NAMES = { "user-a": "Alice", "user-b": "Bob" };
 
 function entry(
   action: string,
-  payload: Record<string, string | number | null> = {},
+  payload: Record<string, string | number | null | string[]> = {},
 ): Activity {
   return {
     id: "act-1",
@@ -242,6 +242,81 @@ describe("describeHistoryChange — estimate_changed (Story point estimate)", ()
   });
 });
 
+describe("describeHistoryChange — labels_changed", () => {
+  it("names the label that was added", () => {
+    expect(
+      describeHistoryChange(
+        entry("labels_changed", { from: ["ui"], to: ["ui", "Bug"] }),
+        NAMES,
+      ),
+    ).toEqual({ verb: "added the label", field: "Bug", from: null, to: null });
+  });
+
+  it("names the label that was removed, ignoring case", () => {
+    expect(
+      describeHistoryChange(
+        entry("labels_changed", { from: ["Bug", "ui"], to: ["bug"] }),
+        NAMES,
+      )?.field,
+    ).toBe("ui");
+  });
+
+  it("skips a row that changed nothing it can name", () => {
+    expect(
+      describeHistoryChange(
+        entry("labels_changed", { from: [], to: [] }),
+        NAMES,
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("describeHistoryChange — sprint_changed and start_changed", () => {
+  it("names both sprints, and the Backlog for none", () => {
+    expect(
+      describeHistoryChange(
+        entry("sprint_changed", {
+          from: null,
+          to: "s-1",
+          from_name: null,
+          to_name: "Sprint 7",
+        }),
+        NAMES,
+      ),
+    ).toEqual({
+      verb: "changed the",
+      field: "Sprint",
+      from: "Backlog",
+      to: "Sprint 7",
+    });
+  });
+
+  it("says a sprint was deleted rather than guessing its name", () => {
+    expect(
+      describeHistoryChange(
+        entry("sprint_changed", {
+          from: "s-1",
+          to: null,
+          from_name: null,
+          to_name: null,
+        }),
+        NAMES,
+      )?.from,
+    ).toBe("a deleted sprint");
+  });
+
+  it("formats the start date like the due date", () => {
+    const change = describeHistoryChange(
+      entry("start_changed", { from: null, to: "2026-11-02" }),
+      NAMES,
+    );
+
+    expect(change?.field).toBe("Start date");
+    expect(change?.from).toBe("None");
+    expect(change?.to).not.toBeNull();
+  });
+});
+
 describe("describeHistoryChange — unrenderable actions", () => {
   it("returns null for deleted", () => {
     expect(describeHistoryChange(entry("deleted"), NAMES)).toBeNull();
@@ -266,6 +341,24 @@ describe("describeHistoryChange — subtasks (M27)", () => {
       from: null,
       to: null,
     });
+  });
+
+  it("names it by its full key once the board's prefix is known, so it can link", () => {
+    expect(
+      describeHistoryChange(
+        entry("subtask_added", { board_key: 78, title: "123" }),
+        NAMES,
+        "KAN",
+      )?.field,
+    ).toBe("KAN-78");
+
+    expect(
+      describeHistoryChange(
+        entry("parent_changed", { from_key: 5, to_key: 9, to_type: "Epic" }),
+        NAMES,
+        "KAN",
+      ),
+    ).toMatchObject({ from: "KAN-5", to: "KAN-9" });
   });
 
   it("names a removed subtask the same way", () => {

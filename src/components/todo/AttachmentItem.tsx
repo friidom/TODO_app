@@ -6,6 +6,8 @@ import {
   DownloadIcon,
   Loader2,
   MoreHorizontal,
+  PinIcon,
+  PinOffIcon,
   Trash2Icon,
 } from "lucide-react";
 
@@ -27,6 +29,7 @@ import {
 import { useAttachmentObjectUrl } from "@/services/attachments/useAttachmentObjectUrl";
 import { useDownloadAttachment } from "@/services/attachments/useDownloadAttachment";
 import { useDeleteAttachment } from "@/services/attachments/useDeleteAttachment";
+import { usePinAttachment } from "@/services/pins/usePins";
 import type { Attachment } from "@/types/data";
 import { cn } from "@/utils/cn";
 
@@ -99,7 +102,7 @@ export function AttachmentRow({
 }) {
   const actions = useRowActions(attachment, todoId);
 
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const added = dateAdded(attachment.created_at, i18n.language);
 
@@ -115,18 +118,33 @@ export function AttachmentRow({
   }
 
   return (
-    <div role="row" className={cn(ATTACHMENT_GRID, TABLE_ROW, "group h-12")}>
+    <div
+      role="row"
+      id={`attachment-${attachment.id}`}
+      tabIndex={-1}
+      className={cn(
+        ATTACHMENT_GRID,
+        TABLE_ROW,
+        "group h-12 scroll-mt-4 outline-none",
+      )}
+    >
       <AttachmentThumb attachment={attachment} onClick={onPreview} />
 
-      <div role="cell" className="min-w-0">
+      <div role="cell" className="flex min-w-0 items-center gap-1">
         <button
           type="button"
           onClick={onPreview}
           title={attachment.filename}
-          className="text-ink hover:text-brand focus-visible:ring-brand text-meta block w-full truncate rounded text-left font-medium transition-colors outline-none focus-visible:ring-2"
+          className="text-ink hover:text-brand focus-visible:ring-brand text-meta block min-w-0 truncate rounded text-left font-medium transition-colors outline-none focus-visible:ring-2"
         >
           {attachment.filename}
         </button>
+        {actions.pinned && (
+          <PinIcon
+            aria-label={t("pins.title")}
+            className="text-brand size-3 shrink-0 fill-current"
+          />
+        )}
       </div>
 
       <span
@@ -168,7 +186,11 @@ export function AttachmentCard({
   const added = dateAdded(attachment.created_at, i18n.language);
 
   return (
-    <li className="group border-hairline rounded-card hover:border-ink/20 overflow-hidden border transition-colors duration-150">
+    <li
+      id={`attachment-${attachment.id}`}
+      tabIndex={-1}
+      className="group border-hairline rounded-card hover:border-ink/20 scroll-mt-4 overflow-hidden border transition-colors duration-150 outline-none"
+    >
       <AttachmentThumb
         attachment={attachment}
         onClick={onPreview}
@@ -207,9 +229,11 @@ export function AttachmentCard({
 // Shared by row and card so the delete rule can't drift between the two.
 function useRowActions(attachment: Attachment, todoId: string) {
   const { user } = useAuth();
-  const { role } = usePermissions();
+  const { role, canEditTodos } = usePermissions();
   const remove = useDeleteAttachment();
   const download = useDownloadAttachment();
+  const pin = usePinAttachment(todoId);
+  const pinned = Boolean(attachment.pinned_at);
 
   const [confirming, setConfirming] = useState(false);
 
@@ -220,6 +244,9 @@ function useRowActions(attachment: Attachment, todoId: string) {
     downloading: download.isPending,
     removing: remove.isPending,
     mayDelete: canDeleteAttachment(role, user?.id, attachment.uploader_id),
+    mayPin: canEditTodos,
+    pinned,
+    togglePin: () => pin.mutate({ itemId: attachment.id, pinned: !pinned }),
     // No onError — falls through to the global MutationCache toast.
     download: () =>
       download.mutate({
@@ -337,6 +364,17 @@ function AttachmentMenu({ actions }: { actions: RowActions }) {
                 close();
               }}
             />
+
+            {actions.mayPin && (
+              <MenuItem
+                icon={actions.pinned ? PinOffIcon : PinIcon}
+                label={actions.pinned ? t("pins.unpin") : t("pins.pin")}
+                onClick={() => {
+                  actions.togglePin();
+                  close();
+                }}
+              />
+            )}
 
             {actions.mayDelete && (
               <>

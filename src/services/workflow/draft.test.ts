@@ -23,6 +23,8 @@ import {
   withTransitionRemoved,
   withTransitionRetargeted,
   withTransitionsInto,
+  withTransitionsFrom,
+  startStatusOf,
   withStatusCategory,
   withStatusDeleted,
   withStatusHidden,
@@ -732,5 +734,46 @@ describe("unmapped statuses", () => {
     })!;
 
     expect(next.statuses.find((it) => it.id === "s-blocked")!.column_id).toBeNull();
+  });
+});
+
+describe("withTransitionsFrom", () => {
+  it("adds every source into one target as one edit", () => {
+    const next = withTransitionsFrom(provisioned(), ["s-todo", "s-doing"], "s-done")!;
+
+    expect(hasEdge(next, "s-todo", "s-done")).toBe(true);
+    expect(hasEdge(next, "s-doing", "s-done")).toBe(true);
+    expect(next.transitions).toHaveLength(2);
+  });
+
+  it("skips the target itself, unknown ids and pairs already there", () => {
+    const once = withTransitionsFrom(provisioned(), ["s-todo"], "s-done")!;
+    const next = withTransitionsFrom(once, ["s-todo", "s-done", "nope", "s-doing"], "s-done")!;
+
+    expect(next.transitions).toHaveLength(2);
+    expect(withTransitionsFrom(next, ["s-todo"], "s-done")).toBeNull();
+    expect(withTransitionsFrom(next, ["s-todo"], "nope")).toBeNull();
+  });
+});
+
+describe("startStatusOf", () => {
+  it("is the first visible status of the first column, as defaultStatus reads it", () => {
+    expect(startStatusOf(provisioned())?.id).toBe("s-todo");
+  });
+
+  it("follows a column move in the draft", () => {
+    const moved = withColumnOrder(provisioned(), ["c-doing", "c-todo", "c-done"]);
+
+    expect(startStatusOf(moved)?.id).toBe("s-doing");
+  });
+
+  it("skips a hidden or unmapped status", () => {
+    const hidden = withStatusHidden(provisioned(), "s-todo", true)!;
+
+    expect(startStatusOf(hidden)?.id).toBe("s-doing");
+
+    const unmapped = withStatusUnmapped(provisioned(), "s-todo")!;
+
+    expect(startStatusOf(unmapped)?.id).toBe("s-doing");
   });
 });

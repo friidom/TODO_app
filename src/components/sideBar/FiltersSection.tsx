@@ -13,7 +13,7 @@ import { filterPath, type FilterDefinition } from "@/services/filters/registry";
 import { SIDEBAR_DND, type SidebarList } from "@/services/sidebar/layout";
 import { cn } from "@/utils/cn";
 import Section, { Grip } from "./Section";
-import { stepKey } from "./stepKey";
+import { REORDER_KEYS, stepKey } from "./stepKey";
 
 export default function FiltersSection({
   filters,
@@ -79,6 +79,7 @@ function FilterRow({
         isActive={location.pathname === to}
         title={label}
         onKeyDown={stepKey(onStep)}
+        aria-keyshortcuts={REORDER_KEYS}
       >
         <ListFilterIcon />
         <span>{label}</span>

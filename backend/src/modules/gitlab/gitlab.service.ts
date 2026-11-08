@@ -49,6 +49,7 @@ export interface SpaceGitLab {
 export type SpaceLinkSummary = Pick<GitLabLinkView, "project_path" | "project_url" | "status" | "last_delivery_at">;
 
 export interface BoardGitLab {
+  configured: boolean;
   space_link: SpaceLinkSummary | null;
   board_links: GitLabLinkView[];
 }
@@ -241,6 +242,7 @@ export async function boardIntegration(board: BoardContext): Promise<BoardGitLab
   ]);
 
   return {
+    configured: integrationKey() !== null,
     space_link: spaceLink && {
       project_path: projectPathOf(spaceLink),
       project_url: projectUrl(spaceLink),

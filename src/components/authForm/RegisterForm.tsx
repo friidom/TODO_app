@@ -7,6 +7,7 @@ import { useSearchParams } from "react-router";
 import AuthField from "@/components/authForm/AuthField";
 import OAuthButtons from "@/components/authForm/OAuthButtons";
 import PasswordInput from "@/components/authForm/PasswordInput";
+import ResendVerification from "@/components/authForm/ResendVerification";
 import { FORM_SUBMIT } from "@/components/ui/fieldInput";
 import { useRegister } from "@/services/auth/useRegister";
 import {
@@ -49,6 +50,13 @@ export default function RegisterForm() {
           </span>
           {t("auth.confirmSentSuffix")}
         </p>
+
+        <p className="text-ink-3 mt-5 text-xs">{t("auth.noEmailYet")}</p>
+
+        <ResendVerification
+          email={register.variables?.email ?? ""}
+          className="mt-1.5"
+        />
       </div>
     );
   }

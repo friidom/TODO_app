@@ -1,6 +1,8 @@
 // Mirrors src/services/attachments/fileMeta.ts on the frontend. storageKey and
 // canRenderInline are security boundaries; read them before changing.
 
+import { sniffAvatarMime } from "../users/users.avatar.js";
+
 export const FALLBACK_MIME = "application/octet-stream";
 
 // Strict on purpose: refuses tar.gz's second dot, dotfiles, and anything not
@@ -47,14 +49,31 @@ export function safeFilename(filename: string): string {
   return cleaned || "file";
 }
 
-// The gate on serving anything without Content-Disposition: attachment. Images
-// render in an <img>, a script-free context; a PDF renders in an <iframe>,
-// which is not, so it rides on Content-Type being pinned to the stored mime.
-// Everything else stays a forced download whatever the client asks for.
-export function canRenderInline(mimeType: string): boolean {
-  const mime = mimeType.toLowerCase();
+// The gate on serving anything without Content-Disposition: attachment. A list,
+// not "image/*": SVG is an image type that runs script once opened on its own,
+// and the browser opens a preview's blob URL with Veylo's origin. The PDF
+// renders in an <iframe> and rides on Content-Type being pinned to the stored
+// mime. Everything else stays a forced download whatever the client asks for.
+const INLINE_MIMES = ["image/png", "image/jpeg", "image/gif", "image/webp", "application/pdf"];
 
-  return mime.startsWith("image/") || mime === "application/pdf";
+export function canRenderInline(mimeType: string): boolean {
+  return INLINE_MIMES.includes(mimeType.toLowerCase());
+}
+
+// multer's file.mimetype is whatever the client typed. A file is only stored
+// as a type that renders inline when its bytes say so, which is what keeps
+// HTML labelled image/png from ever being served as an image.
+export function attachmentMime(declared: string, bytes: Buffer): string {
+  const head = bytes.subarray(0, 6).toString("latin1");
+
+  if (head === "GIF87a" || head === "GIF89a") return "image/gif";
+  if (head.startsWith("%PDF-")) return "application/pdf";
+
+  const image = sniffAvatarMime(bytes);
+
+  if (image !== null) return image;
+
+  return declared === "" || canRenderInline(declared) ? FALLBACK_MIME : declared;
 }
 
 const HEADER_UNSAFE = '"\\/';

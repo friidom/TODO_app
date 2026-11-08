@@ -1,8 +1,17 @@
 name: todo-app
 
+# Docker's default json-file log has no size limit, so access logs grow until
+# the disk is full.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   postgres:
     image: postgres:18
+    logging: *logging
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
@@ -25,6 +34,7 @@ services:
 
   redis:
     image: redis:8-alpine
+    logging: *logging
     # A cache, not a database: nothing is written to disk, so a restart comes
     # back empty instead of serving entries whose invalidation it missed while
     # down, and a full cache evicts the least recently used entry instead of
@@ -42,6 +52,7 @@ services:
 
   backend:
     build: ./backend
+    logging: *logging
     # Local development only. `${VAR}` in this file is substituted from the
     # COMPOSE environment -- the shell, or a .env beside this file -- never from
     # backend/.env, which is where the API's own credentials actually live. That
@@ -110,6 +121,7 @@ services:
     restart: unless-stopped
 
   frontend:
+    logging: *logging
     build:
       context: .
       # Relative, so nothing about the host is baked into the bundle. nginx
@@ -125,6 +137,7 @@ services:
 
   minio:
     image: quay.io/minio/minio:latest
+    logging: *logging
     container_name: todo-minio
     restart: unless-stopped
     ports:

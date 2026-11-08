@@ -12,10 +12,12 @@ import {
   Settings2Icon,
   SettingsIcon,
   Trash2Icon,
+  UserPlusIcon,
 } from "lucide-react";
 
 import BoardFormModal from "@/components/boards/BoardFormModal";
 import DeleteBoardModal from "@/components/boards/DeleteBoardModal";
+import InvitePeopleModal from "@/components/invites/InvitePeopleModal";
 import DropLine from "@/components/dnd/DropLine";
 import { useReorderItem } from "@/components/dnd/reorderDnd";
 import DeleteSpaceModal from "@/components/spaces/DeleteSpaceModal";
@@ -46,16 +48,23 @@ import {
 import type { SpaceGroup } from "@/services/spaces/groupBoards";
 import type { IBoard, ISpace } from "@/types/data";
 import { cn } from "@/utils/cn";
+import StarButton from "@/components/stars/StarButton";
+import { useIsStarred } from "@/services/stars/useStars";
 import Section, { Collapse, Grip } from "./Section";
-import { stepKey } from "./stepKey";
+import { REORDER_KEYS, stepKey } from "./stepKey";
 
 // gated on board.owner_id, not a roster fetch — filing/deleting is owner-only in the db anyway, and the row already has this field
 type Dialog =
   | { kind: "create-board"; spaceId: string | null }
   | { kind: "delete-board"; board: IBoard }
   | { kind: "create-space" }
-  | { kind: "rename-space"; space: ISpace }
-  | { kind: "delete-space"; space: ISpace; boardCount: number }
+  | { kind: "invite-space"; spaceId: string }
+  | { kind: "rename-space"; space: Pick<ISpace, "id" | "title"> }
+  | {
+      kind: "delete-space";
+      space: Pick<ISpace, "id" | "title">;
+      boardCount: number;
+    }
   | null;
 
 type Step = (
@@ -153,6 +162,12 @@ export default function BoardsSection({
 
       {dialog?.kind === "create-space" && <SpaceFormModal onClose={close} />}
 
+      <InvitePeopleModal
+        open={dialog?.kind === "invite-space"}
+        onClose={close}
+        spaceId={dialog?.kind === "invite-space" ? dialog.spaceId : undefined}
+      />
+
       {dialog?.kind === "rename-space" && (
         <SpaceFormModal space={dialog.space} onClose={close} />
       )}
@@ -203,7 +218,7 @@ function CreateMenu({ onDialog }: { onDialog: (dialog: Dialog) => void }) {
   );
 }
 
-// space === null is the "can't file this" group — a board shared with you whose owner's space you can't read via RLS
+// space === null is the unfiled group; a group you do not own is someone else's space, read-only here
 function SpaceRow({
   group,
   userId,
@@ -220,10 +235,9 @@ function SpaceRow({
   onDialog: (dialog: Dialog) => void;
 }) {
   const { t } = useTranslation();
-  const { space, boards } = group;
+  const { space, owned, boards } = group;
   const key = spaceKeyOf(group);
 
-  // Unfiled is pinned last: it is not a space of the reader's to arrange
   const { setNodeRef, pointerProps, isDragging, edge } = useReorderItem(key, {
     group: SIDEBAR_DND.space,
     axis: "y",
@@ -251,14 +265,19 @@ function SpaceRow({
           onKeyDown={
             space ? stepKey((delta) => onStep("space", key, delta)) : undefined
           }
+          aria-keyshortcuts={space ? REORDER_KEYS : undefined}
           aria-expanded={!collapsed}
           aria-label={t(collapsed ? "sidebar.expand" : "sidebar.collapse", {
             name: title,
           })}
-          title={title}
+          title={owned ? title : t("sidebar.sharedSpace", { space: title })}
           className={cn(
             "font-semibold",
-            space ? "coarse:pr-18 pr-14" : "coarse:pr-10 pr-8",
+            !owned
+              ? "pr-8"
+              : space
+                ? "coarse:pr-18 pr-14"
+                : "coarse:pr-10 pr-8",
           )}
         >
           {space ? (
@@ -279,64 +298,75 @@ function SpaceRow({
           />
         </SidebarMenuButton>
 
-        <SidebarMenuActions>
-          <IconButton
-            size="xs"
-            label={newBoardLabel}
-            onClick={() =>
-              onDialog({ kind: "create-board", spaceId: space?.id ?? null })
-            }
-          >
-            <PlusIcon />
-          </IconButton>
+        {owned && (
+          <SidebarMenuActions>
+            <IconButton
+              size="xs"
+              label={newBoardLabel}
+              onClick={() =>
+                onDialog({ kind: "create-board", spaceId: space?.id ?? null })
+              }
+            >
+              <PlusIcon />
+            </IconButton>
 
-          {space && (
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <IconButton
-                    size="xs"
-                    label={t("common.optionsFor", { name: space.title })}
-                  />
-                }
-              >
-                <MoreHorizontalIcon />
-              </DropdownMenuTrigger>
-
-              <DropdownMenuContent align="start" className="w-44">
-                <DropdownMenuItem
-                  render={<Link to={`/spaces/${space.id}/settings`} />}
-                >
-                  <SettingsIcon />
-                  {t("sidebar.spaceSettings")}
-                </DropdownMenuItem>
-
-                <DropdownMenuItem
-                  onClick={() => onDialog({ kind: "rename-space", space })}
-                >
-                  <PencilIcon />
-                  {t("sidebar.renameSpace")}
-                </DropdownMenuItem>
-
-                <DropdownMenuSeparator />
-
-                <DropdownMenuItem
-                  variant="destructive"
-                  onClick={() =>
-                    onDialog({
-                      kind: "delete-space",
-                      space,
-                      boardCount: boards.length,
-                    })
+            {space && (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <IconButton
+                      size="xs"
+                      label={t("common.optionsFor", { name: space.title })}
+                    />
                   }
                 >
-                  <Trash2Icon />
-                  {t("sidebar.deleteSpace")}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-        </SidebarMenuActions>
+                  <MoreHorizontalIcon />
+                </DropdownMenuTrigger>
+
+                <DropdownMenuContent align="start" className="w-44">
+                  <DropdownMenuItem
+                    render={<Link to={`/spaces/${space.id}/settings`} />}
+                  >
+                    <SettingsIcon />
+                    {t("sidebar.spaceSettings")}
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem
+                    onClick={() =>
+                      onDialog({ kind: "invite-space", spaceId: space.id })
+                    }
+                  >
+                    <UserPlusIcon />
+                    {t("sidebar.invitePeople")}
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem
+                    onClick={() => onDialog({ kind: "rename-space", space })}
+                  >
+                    <PencilIcon />
+                    {t("sidebar.renameSpace")}
+                  </DropdownMenuItem>
+
+                  <DropdownMenuSeparator />
+
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={() =>
+                      onDialog({
+                        kind: "delete-space",
+                        space,
+                        boardCount: boards.length,
+                      })
+                    }
+                  >
+                    <Trash2Icon />
+                    {t("sidebar.deleteSpace")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </SidebarMenuActions>
+        )}
       </div>
 
       <Collapse open={!collapsed}>
@@ -396,6 +426,7 @@ function BoardRow({
     location.pathname === to || location.pathname.startsWith(`${to}/`);
 
   const title = board.title || t("common.untitledBoard");
+  const starred = useIsStarred(board.id);
 
   return (
     <SidebarMenuItem
@@ -411,14 +442,21 @@ function BoardRow({
         onKeyDown={stepKey((delta) =>
           onStep("board", board.id, delta, container),
         )}
-        className={cn("pl-8", owned && "coarse:pr-10 pr-8")}
+        aria-keyshortcuts={REORDER_KEYS}
+        className={cn(
+          "pl-8",
+          owned ? "coarse:pr-18 pr-14" : "coarse:pr-10 pr-8",
+        )}
       >
         <KanbanIcon />
         <span>{title}</span>
       </SidebarMenuButton>
 
-      {owned && (
-        <SidebarMenuActions>
+      {/* a starred board keeps its star showing; the rest of the cluster still waits for hover */}
+      <SidebarMenuActions className={cn(starred && "opacity-100")}>
+        <StarButton boardId={board.id} size="xs" tooltipSide="right" />
+
+        {owned && (
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
@@ -427,6 +465,10 @@ function BoardRow({
                   label={t("common.optionsFor", {
                     name: board.title || t("sidebar.board"),
                   })}
+                  className={cn(
+                    starred &&
+                      "coarse:opacity-100 opacity-0 group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 aria-expanded:opacity-100",
+                  )}
                 />
               }
             >
@@ -452,8 +494,8 @@ function BoardRow({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </SidebarMenuActions>
-      )}
+        )}
+      </SidebarMenuActions>
 
       <DropLine edge={edge} axis="y" />
     </SidebarMenuItem>

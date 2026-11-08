@@ -50,13 +50,17 @@ export default function OAuthButtons({
   next,
   disabled,
   divider = "below",
+  exclude,
 }: {
   next?: string | null;
   disabled?: boolean;
   divider?: "above" | "below";
+  exclude?: OAuthProvider | null;
 }) {
   const { t } = useTranslation();
-  const { data: providers } = useOAuthProviders();
+  const providers = useOAuthProviders().data?.filter(
+    (provider) => provider !== exclude,
+  );
 
   // Renders nothing at all while unknown, and nothing if the server has no
   // provider configured — a divider with nothing beside it reads as a bug.

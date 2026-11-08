@@ -34,6 +34,7 @@ export type SpaceLinkSummary = Pick<
 >;
 
 export type BoardGitLab = {
+  configured: boolean;
   space_link: SpaceLinkSummary | null;
   board_links: GitLabLink[];
 };

@@ -1,10 +1,6 @@
 import { useTranslation } from "react-i18next";
-import {
-  HEADER_CONTROL,
-  HEADER_CONTROL_ACTIVE,
-} from "@/components/board/headerControl";
+import SelectControl from "@/components/admin/SelectControl";
 import type { AdminScope } from "@/services/admin/types";
-import { cn } from "@/utils/cn";
 
 export interface ScopeOption {
   id: string;
@@ -63,11 +59,11 @@ function Facet({
   onChange: (next: string | undefined) => void;
 }) {
   return (
-    <select
+    <SelectControl
       aria-label={label}
       value={value ?? ""}
       onChange={(event) => onChange(event.target.value || undefined)}
-      className={cn(HEADER_CONTROL, "max-w-48", value && HEADER_CONTROL_ACTIVE)}
+      active={Boolean(value)}
     >
       <option value="">{all}</option>
       {options.map((option) => (
@@ -75,6 +71,6 @@ function Facet({
           {option.label}
         </option>
       ))}
-    </select>
+    </SelectControl>
   );
 }

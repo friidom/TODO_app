@@ -11,6 +11,7 @@ import { useChartHover } from "@/components/admin/chart/useChartHover";
 import SummaryCard, { WidgetEmpty } from "@/components/summary/SummaryCard";
 import { bucketRange, smoothLinePath, xOf, yOf } from "@/services/admin/flow";
 import { bucketLabel, dash } from "@/services/admin/format";
+import { countAxis } from "@/services/admin/series";
 import type { Bucket, SeriesPoint } from "@/services/admin/types";
 import { cn } from "@/utils/cn";
 
@@ -18,6 +19,8 @@ const PLOT_HEIGHT = 40;
 const HEADROOM = 3;
 const GRID = [0, 0.5, 1];
 const LABEL_SLOTS = 10;
+// Past this a dot per bucket is noise; the line alone carries a year of days.
+const MARKED_POINTS = 31;
 
 const SERIES = [
   {
@@ -73,10 +76,13 @@ export default function DualSeries({
 
   const visible = SERIES.filter((series) => !hidden.has(series.key));
 
-  const peak = Math.max(
-    1,
-    ...points.flatMap((point) => visible.map((series) => point[series.key])),
+  const axis = countAxis(
+    Math.max(
+      1,
+      ...points.flatMap((point) => visible.map((series) => point[series.key])),
+    ),
   );
+  const peak = axis[0]!;
 
   const scale = { height: PLOT_HEIGHT, headroom: HEADROOM, peak };
   const step = Math.max(1, Math.ceil(points.length / LABEL_SLOTS));
@@ -119,10 +125,11 @@ export default function DualSeries({
         <WidgetEmpty>{t("admin.dual.empty")}</WidgetEmpty>
       ) : (
         <ChartFrame
-          axis={[dash(peak), dash(Math.round(peak / 2)), "0"]}
+          axis={axis.map(dash)}
           labels={points.map((point) => bucketLabel(point.bucket, bucket))}
           labelStep={step}
           highlight={hover.index}
+          headroom={HEADROOM / PLOT_HEIGHT}
         >
           <svg
             viewBox={`0 0 100 ${PLOT_HEIGHT}`}
@@ -170,8 +177,9 @@ export default function DualSeries({
                 y2={PLOT_HEIGHT - share * (PLOT_HEIGHT - HEADROOM)}
                 stroke="currentColor"
                 strokeWidth="1"
+                strokeDasharray={share === 0 ? undefined : "2 3"}
                 vectorEffect="non-scaling-stroke"
-                className={share === 0 ? "text-ink/15" : "text-ink/[0.05]"}
+                className={share === 0 ? "text-ink/15" : "text-ink/10"}
               />
             ))}
 
@@ -208,6 +216,24 @@ export default function DualSeries({
               />
             )}
           </svg>
+
+          {points.length <= MARKED_POINTS &&
+            visible.map((series) =>
+              points.map((point, index) => (
+                <span
+                  key={`${series.key}-${point.bucket}`}
+                  aria-hidden
+                  style={{
+                    left: `${xOf(index, points.length)}%`,
+                    top: `${(yOf(point[series.key], scale) / PLOT_HEIGHT) * 100}%`,
+                  }}
+                  className={cn(
+                    "ring-surface pointer-events-none absolute size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-current ring-1",
+                    series.tone,
+                  )}
+                />
+              )),
+            )}
 
           {hover.index !== null &&
             visible.map((series) => (

@@ -565,6 +565,40 @@ export function withTransitionRetargeted(
   return removed && withTransitionAdded(removed, next.from, next.to);
 }
 
+// Several sources into one target as a single edit, so one undo takes them all
+// back. Pairs that already exist and a source equal to the target are skipped;
+// null when nothing would be added.
+export function withTransitionsFrom(
+  draft: WorkflowDraft,
+  froms: string[],
+  to: string,
+): WorkflowDraft | null {
+  if (!statusIn(draft, to)) return null;
+
+  const added = [...new Set(froms)].filter(
+    (from) => from !== to && statusIn(draft, from) && !hasEdge(draft, from, to),
+  );
+
+  if (added.length === 0) return null;
+
+  return {
+    ...draft,
+    transitions: [...draft.transitions, ...added.map((from) => ({ from, to }))],
+  };
+}
+
+// defaultStatus (statuses.ts) over the draft: where a card created without a
+// column in mind would land if this draft were published. Board order here is
+// by the draft's column order, which a column move changes without touching
+// the statuses array.
+export function startStatusOf(draft: WorkflowDraft): DraftStatus | null {
+  return (
+    inBoardOrder(draft.columns, draft.statuses).find(
+      (status) => !status.is_hidden && status.column_id !== null,
+    ) ?? null
+  );
+}
+
 // Jira's "any status" transition, spelled as the edges it stands for: one from
 // every other status that does not already have it.
 export function withTransitionsInto(

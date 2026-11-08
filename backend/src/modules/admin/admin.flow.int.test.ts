@@ -256,6 +256,21 @@ describe("the cumulative flow diagram", () => {
     expect(body.cfd[0]!.done).toBe(1);
   });
 
+  it("counts work finished before start-tracking as started when it finished", async () => {
+    const historic = await card(admin.boardId, doneStatus);
+    const older = await card(admin.boardId, doneStatus);
+
+    await backdate(historic, { created: 10, started: null, completed: 5 });
+    await backdate(older, { created: 300, started: null, completed: 298 });
+
+    const { body } = await flow();
+
+    expect(body.cfd[0]!.started).toBe(1);
+    expect(body.cfd.at(-1)!.started).toBe(2);
+
+    for (const point of body.cfd) expect(point.started).toBeGreaterThanOrEqual(point.done);
+  });
+
   it("bands never exceed the one beneath them", async () => {
     const a = await card(admin.boardId, doneStatus);
     const b = await card(admin.boardId, doingStatus);

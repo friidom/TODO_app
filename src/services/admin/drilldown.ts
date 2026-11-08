@@ -38,7 +38,7 @@ export function boardTrail(
 
 export function spaceTrail(space: Pick<SpaceMetrics, "title">): Crumb[] {
   return [
-    { label: i18n.t("admin.allSpaces"), to: "/admin/spaces" },
+    { label: i18n.t("sidebar.spaces"), to: "/admin/spaces" },
     { label: space.title },
   ];
 }

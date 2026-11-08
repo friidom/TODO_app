@@ -236,11 +236,40 @@ describe("the scope facets on the rollup", () => {
     expect((await users("?period=30d&board=nope")).status).toBe(400);
   });
 
-  it("keeps every user in the list, scoped or not", async () => {
+  it("lists only the scope's members when scoped, and everyone when not", async () => {
+    const outsider = await makeUser("outsider");
+    const scoped = (await users(`?period=30d&board=${boardA}`)).body.users.map((row) => row.id);
+    const all = (await users()).body.users.map((row) => row.id);
+
+    expect(scoped).toContain(admin.id);
+    expect(scoped).not.toContain(dev.id);
+    expect(scoped).not.toContain(outsider.id);
+    expect(all).toEqual(expect.arrayContaining([admin.id, dev.id, outsider.id]));
+  });
+
+  it("keeps someone who did work in the scope and has since left it", async () => {
+    await addMember(boardA, dev, "editor", admin.id);
+
+    const id = await card(boardA, "done");
+
+    await prisma.todos.update({ where: { id }, data: { completed_by: dev.id } });
+    await prisma.board_members.deleteMany({ where: { board_id: boardA, user_id: dev.id } });
+
     const scoped = (await users(`?period=30d&board=${boardA}`)).body;
 
-    expect(scoped.users.map((row) => row.id)).toContain(dev.id);
-    expect(rowFor(scoped, dev.id).completed_todos).toBe(0);
+    expect(rowFor(scoped, dev.id).completed_todos).toBe(1);
+  });
+
+  it("shows no KPI target when scoped: a target covers all of a person's work", async () => {
+    await prisma.users.update({ where: { id: admin.id }, data: { seniority: "senior" } });
+
+    const all = rowFor((await users()).body, admin.id);
+    const scoped = rowFor((await users(`?period=30d&board=${boardA}`)).body, admin.id);
+    const drill = (await detail(admin.id, `?period=30d&board=${boardA}`)).body.user;
+
+    expect(all.performance).not.toBeNull();
+    expect(scoped.performance).toBeNull();
+    expect(drill.performance).toBeNull();
   });
 });
 

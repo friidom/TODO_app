@@ -1,6 +1,7 @@
 import {
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   type ClientRect,
@@ -236,10 +237,11 @@ export default function useKanbanDnd() {
   const [columnIndicator, setColumnIndicator] = useState<number | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    // Press and hold, so a swipe across a card scrolls the board on a phone,
+    // where the cards fill the column and leave nothing else to swipe on.
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 250, tolerance: 5 },
     }),
     // Space/Enter/Escape are dnd-kit's defaults; only the arrow keys needed a board-shaped coordinate getter
     useSensor(KeyboardSensor, { coordinateGetter: keyboardCoordinates }),

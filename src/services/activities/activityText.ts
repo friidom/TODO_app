@@ -47,6 +47,55 @@ export function str(payload: Activity["payload"], key: string): string | null {
   return typeof value === "string" ? value : null;
 }
 
+function names(payload: Activity["payload"], key: string): string[] {
+  if (
+    typeof payload !== "object" ||
+    payload === null ||
+    Array.isArray(payload)
+  ) {
+    return [];
+  }
+
+  const value = payload[key];
+
+  return Array.isArray(value)
+    ? value.filter((it): it is string => typeof it === "string")
+    : [];
+}
+
+// No sprint is the Backlog. A sprint id with no name is one deleted before
+// the row was read back, which 0043 cannot name either.
+export function sprintLabel(
+  payload: Activity["payload"],
+  side: "from" | "to",
+  t: T,
+): string {
+  const name = str(payload, `${side}_name`);
+
+  if (name !== null) return name;
+
+  return str(payload, side) === null
+    ? t("views.backlog")
+    : t("history.deletedSprint");
+}
+
+// What a labels_changed row added and removed, compared without case as the API does.
+export function labelDiff(payload: Activity["payload"]): {
+  added: string[];
+  removed: string[];
+} {
+  const from = names(payload, "from");
+  const to = names(payload, "to");
+  const lower = (list: string[]) => new Set(list.map((it) => it.toLowerCase()));
+  const had = lower(from);
+  const has = lower(to);
+
+  return {
+    added: to.filter((name) => !had.has(name.toLowerCase())),
+    removed: from.filter((name) => !has.has(name.toLowerCase())),
+  };
+}
+
 export function num(payload: Activity["payload"], key: string): number | null {
   if (
     typeof payload !== "object" ||
@@ -225,6 +274,25 @@ export function describeActivity(
         detail: null,
       };
 
+    case "todo.labels_changed": {
+      const { added, removed } = labelDiff(activity.payload);
+
+      return {
+        text: t("activity.labelsChanged", { item }),
+        taskId,
+        detail:
+          added.length + removed.length > 0
+            ? {
+                label: t("fields.labels"),
+                value: [
+                  ...added.map((name) => `+${name}`),
+                  ...removed.map((name) => `−${name}`),
+                ].join(" "),
+              }
+            : null,
+      };
+    }
+
     case "todo.estimate_changed": {
       const to = num(activity.payload, "to");
 
@@ -234,6 +302,31 @@ export function describeActivity(
         detail: {
           label: t("fields.estimate"),
           value: to === null ? t("common.none") : String(to),
+        },
+      };
+    }
+
+    case "todo.sprint_changed":
+      return {
+        text: t("activity.sprintChanged", { item }),
+        taskId,
+        detail: {
+          label: t("fields.sprint"),
+          value: sprintLabel(activity.payload, "to", t),
+        },
+      };
+
+    case "todo.start_changed": {
+      const to = str(activity.payload, "to");
+
+      return {
+        text: to
+          ? t("activity.startChanged", { item })
+          : t("activity.startCleared", { item }),
+        taskId,
+        detail: {
+          label: t("fields.startDate"),
+          value: to ? formatDue(to) : t("common.none"),
         },
       };
     }

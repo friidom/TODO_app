@@ -50,6 +50,8 @@ import { reorder, step } from "@/utils/reorder";
 import BoardsSection from "./BoardsSection";
 import CollapsedNav from "./CollapsedNav";
 import FiltersSection from "./FiltersSection";
+import RecentNav from "./RecentNav";
+import StarredNav from "./StarredNav";
 
 const NO_BOARDS: IBoard[] = [];
 const NO_SPACES: ISpace[] = [];
@@ -256,6 +258,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarGroup>
           <SidebarMenu>
             <NavItem item={FOR_YOU} />
+            <RecentNav />
+            <StarredNav boards={boards} />
 
             {user?.org_role === "superadmin" && <NavItem item={ADMIN} />}
 

@@ -3,7 +3,8 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    # Production is built from release branches, not main.
+    branches: [main, "release/**"]
 
 jobs:
   validate:

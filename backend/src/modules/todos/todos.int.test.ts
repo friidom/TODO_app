@@ -62,6 +62,7 @@ const TODO_FIELDS = [
   "created_at",
   "updated_at",
   "completed_at",
+  "labels",
 ];
 
 async function setup(role: "owner" | "editor" | "viewer" = "owner") {
@@ -273,6 +274,24 @@ describe("POST /boards/:boardId/todos", () => {
     ).toBe(201);
   });
 
+  it("defaults an omitted priority to medium, nested items included", async () => {
+    const { actor, boardId, statusId } = await setup();
+    const epic = await makeTodo(actor, boardId, { title: "Epic", status_id: statusId, type: "Epic" });
+    const task = await makeTodo(actor, boardId, { title: "Task", status_id: statusId, parent_id: epic.id });
+    const subtask = await makeTodo(actor, boardId, { title: "Sub", status_id: statusId, parent_id: task.id });
+
+    expect([epic.priority, task.priority, subtask.priority]).toEqual(["medium", "medium", "medium"]);
+  });
+
+  it("keeps an explicit priority, and an explicit null", async () => {
+    const { actor, boardId, statusId } = await setup();
+    const high = await makeTodo(actor, boardId, { title: "x", status_id: statusId, priority: "high" });
+    const none = await makeTodo(actor, boardId, { title: "y", status_id: statusId, priority: null });
+
+    expect(high.priority).toBe("high");
+    expect(none.priority).toBeNull();
+  });
+
   it("rejects a type and a priority outside the CHECKs", async () => {
     const { actor, boardId, statusId } = await setup();
 
@@ -419,6 +438,24 @@ describe("PATCH /boards/:boardId/todos/:todoId — upsert semantics", () => {
 
     expect(response.body.title).toBe("After");
     expect(await prisma.todos.count({ where: { board_id: boardId } })).toBe(1);
+  });
+
+  it("leaves the priority alone when an edit does not name it", async () => {
+    const { actor, boardId, statusId } = await setup();
+    const low = await makeTodo(actor, boardId, { title: "Low", status_id: statusId, priority: "low" });
+    const none = await makeTodo(actor, boardId, { title: "None", status_id: statusId, priority: null });
+
+    for (const todo of [low, none]) {
+      await client.patch(todosUrl(boardId, `/${todo.id}`), { title: "Renamed" }, { token: actor.token });
+    }
+
+    const rows = await prisma.todos.findMany({
+      where: { id: { in: [low.id, none.id] } },
+      select: { id: true, priority: true },
+    });
+
+    expect(rows.find((row) => row.id === low.id)?.priority).toBe("low");
+    expect(rows.find((row) => row.id === none.id)?.priority).toBeNull();
   });
 
   it("keeps the board_key it was given rather than allocating a second", async () => {
@@ -725,6 +762,44 @@ describe("sequential workflow", () => {
       expect(await statusOf(todo.id)).toBe(status[from]);
     });
   });
+
+  // In Progress -> In Review is allowed and so is In Progress -> To Do, but if
+  // both land, the card has gone To Do -> In Review, which is not.
+  it.each(["move", "patch"])(
+    "refuses with 409 a %s whose card changed status while it waited",
+    async (door) => {
+      const { actor, boardId } = await setup();
+      const status = await stageStatuses(boardId);
+      const todo = await makeTodo(actor, boardId, { title: "A", status_id: status.inProgress });
+
+      let release!: () => void;
+      const mayCommit = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      let holding = false;
+
+      const other = prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`select id from todos where id = ${todo.id}::uuid for update`;
+        await tx.todos.update({ where: { id: todo.id }, data: { status_id: status.todo } });
+        holding = true;
+        await mayCommit;
+      });
+
+      while (!holding) await new Promise((resolve) => setImmediate(resolve));
+
+      const racing =
+        door === "move"
+          ? moveTo(actor, todo.id, status.inReview)
+          : patchTo(actor, boardId, todo.id, status.inReview);
+
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      release();
+      await other;
+
+      expect((await racing).status).toBe(409);
+      expect(await statusOf(todo.id)).toBe(status.todo);
+    },
+  );
 
   describe("status update (PATCH /boards/:boardId/todos/:todoId)", () => {
     it("walks the whole chain one step at a time", async () => {

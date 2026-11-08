@@ -4,6 +4,9 @@ import { useMemo } from "react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { IssueRefText } from "@/components/todo/IssueKey";
+import { useIssueResolver } from "@/hooks/useIssueResolver";
+import { useKeyPrefix } from "@/hooks/useKeyPrefix";
 import { memberInitial, memberName } from "@/components/members/memberLabels";
 import {
   describeHistoryChange,
@@ -32,6 +35,8 @@ export default function TodoHistoryList({
   } = useTodoActivities(todoId, boardId);
   const { data: members = [] } = useBoardMembers(boardId);
   const { t } = useTranslation();
+
+  const keyPrefix = useKeyPrefix();
 
   const names = useMemo(
     () => Object.fromEntries(members.map((m) => [m.id, memberName(m)])),
@@ -62,7 +67,7 @@ export default function TodoHistoryList({
   const rows = (activities ?? [])
     .map((activity) => ({
       activity,
-      change: describeHistoryChange(activity, names),
+      change: describeHistoryChange(activity, names, keyPrefix),
     }))
     .filter(
       (row): row is { activity: Activity; change: HistoryChange } =>
@@ -102,6 +107,7 @@ export function HistoryRow({
   currentUserId: string | undefined;
 }) {
   const { t, i18n } = useTranslation();
+  const resolve = useIssueResolver();
   const actor = members.find((member) => member.id === activity.actor_id);
 
   // "You" for the viewer's own edits — only here, ActivityFeed always resolves a name
@@ -129,7 +135,9 @@ export function HistoryRow({
           {change.field ? (
             <>
               {change.verb}{" "}
-              <span className="text-ink font-medium">{change.field}</span>
+              <span className="text-ink font-medium">
+                <IssueRefText text={change.field} resolve={resolve} />
+              </span>
             </>
           ) : (
             change.verb
@@ -147,13 +155,13 @@ export function HistoryRow({
         {hasChip && (
           <div className="mt-1.5 flex min-w-0 items-center gap-1.5">
             <span className="bg-ink/[0.06] text-ink-2 text-mini min-w-0 truncate rounded-full px-2 py-0.5">
-              {change.from}
+              <IssueRefText text={change.from ?? ""} resolve={resolve} />
             </span>
 
             <ArrowRightIcon className="text-ink-3/60 size-3 shrink-0" />
 
             <span className="bg-brand-soft text-brand text-mini min-w-0 truncate rounded-full px-2 py-0.5 font-medium">
-              {change.to}
+              <IssueRefText text={change.to ?? ""} resolve={resolve} />
             </span>
           </div>
         )}

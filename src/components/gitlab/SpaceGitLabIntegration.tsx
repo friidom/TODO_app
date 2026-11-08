@@ -61,12 +61,15 @@ export default function SpaceGitLabIntegration({ space }: { space: ISpace }) {
         </p>
       )}
 
-      {boardLinks.length > 0 && <BoardLinks links={boardLinks} />}
+      {boardLinks.length > 0 && (
+        <BoardLinks links={boardLinks} configured={configured} />
+      )}
 
       {link ? (
         <GitLabLinkCard
           link={link}
           owner={{ spaceId: space.id }}
+          configured={configured}
           disconnectMessage={t("gitlab.disconnectSpaceConfirm", {
             project: link.project_path,
           })}
@@ -115,7 +118,13 @@ export default function SpaceGitLabIntegration({ space }: { space: ISpace }) {
 
 // Connections boards made before GitLab moved to spaces. They keep working for
 // their own board, so the owner sees what connecting here will replace.
-function BoardLinks({ links }: { links: BoardGitLabLink[] }) {
+function BoardLinks({
+  links,
+  configured,
+}: {
+  links: BoardGitLabLink[];
+  configured: boolean;
+}) {
   const { t } = useTranslation();
 
   return (
@@ -147,7 +156,7 @@ function BoardLinks({ links }: { links: BoardGitLabLink[] }) {
 
             <ProjectName path={link.project_path} url={link.project_url} />
 
-            <StatusBadge status={link.status} />
+            <StatusBadge status={link.status} configured={configured} />
           </li>
         ))}
       </ul>

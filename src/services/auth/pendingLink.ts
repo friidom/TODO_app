@@ -1,4 +1,12 @@
+import type { OAuthProvider } from "./oauthApi";
+
 const KEY = "kan:pending-oauth-link";
+
+// The ?linking= marker carries the provider being connected; anything else in it (the bare "1" older links left)
+// reads as an unnamed one.
+export function linkingProviderOf(value: string | null): OAuthProvider | null {
+  return value === "google" || value === "github" ? value : null;
+}
 
 // The challenge token has to outlive the login page: useLogin navigates away
 // on success, so a component sitting on /login is unmounted before a session

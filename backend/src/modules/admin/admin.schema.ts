@@ -58,7 +58,26 @@ export const activityQuerySchema = z.object({
 
 export const auditQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(MAX_AUDIT_PAGE).default(MAX_AUDIT_PAGE),
+  // A prefix of the action name, e.g. "user.superadmin" for every role change.
+  action: z
+    .string()
+    .regex(/^[a-z_.]{1,64}$/)
+    .optional(),
 });
+
+export const accountsQuerySchema = z.object({
+  q: z
+    .string()
+    .trim()
+    .max(100)
+    .optional()
+    .transform((value) => (value === "" ? undefined : value)),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+
+// .strict() for updateUserSchema's reason: an unknown key is a 400, never a
+// privilege change that quietly did something else.
+export const superadminBodySchema = z.object({ superadmin: z.boolean() }).strict();
 
 export const userParamsSchema = z.object({ id: z.uuid() });
 
@@ -107,3 +126,5 @@ export type BoardParams = z.infer<typeof boardParamsSchema>;
 export type KpiParams = z.infer<typeof kpiParamsSchema>;
 export type KpiTargetInput = z.infer<typeof kpiTargetSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
+export type AccountsQuery = z.infer<typeof accountsQuerySchema>;
+export type SuperadminBody = z.infer<typeof superadminBodySchema>;

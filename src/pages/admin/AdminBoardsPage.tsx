@@ -1,17 +1,18 @@
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 
-import AdminShell from "@/components/admin/AdminShell";
+import AdminPage from "@/components/admin/AdminPage";
 import {
   AdminCell,
   AdminEmpty,
   AdminGrid,
+  AdminNumber,
   AdminRow,
   AdminSkeleton,
 } from "@/components/admin/AdminTable";
 import { useAdminPeriod } from "@/hooks/useAdminPeriod";
 import { useAdminBoards } from "@/services/admin/useAdmin";
-import { dash, rangeLabel } from "@/services/admin/format";
+import { rangeLabel } from "@/services/admin/format";
 import { relativeTime } from "@/utils/relativeTime";
 
 const COLUMNS =
@@ -21,14 +22,14 @@ export default function AdminBoardsPage() {
   const { t } = useTranslation();
   const { period } = useAdminPeriod();
   const navigate = useNavigate();
-  const { data, isFetching, error } = useAdminBoards(period);
+  const { data, error } = useAdminBoards(period);
 
   const boards = data?.boards ?? [];
 
   return (
-    <AdminShell
+    <AdminPage
       title={t("boards.title")}
-      hint={
+      description={
         data
           ? t("admin.boards.hint", {
               count: boards.length,
@@ -36,7 +37,6 @@ export default function AdminBoardsPage() {
             })
           : t("admin.allBoards")
       }
-      busy={isFetching}
     >
       {error ? (
         <AdminEmpty>{t("admin.loadFailedRetry")}</AdminEmpty>
@@ -78,8 +78,14 @@ export default function AdminBoardsPage() {
                 }
               >
                 <AdminCell>
-                  <span className="text-ink font-medium">
+                  <span
+                    className="text-ink block truncate font-medium"
+                    title={board.title ?? undefined}
+                  >
                     {board.title ?? t("common.untitledBoard")}
+                  </span>
+                  <span className="text-ink-3 text-mini block truncate">
+                    {board.space_title ?? t("common.unfiled")}
                   </span>
                 </AdminCell>
 
@@ -89,28 +95,40 @@ export default function AdminBoardsPage() {
                   </span>
                 </AdminCell>
 
-                <AdminCell align="right">{board.members}</AdminCell>
-                <AdminCell align="right">{board.open_todos}</AdminCell>
-                <AdminCell align="right">{board.completed_todos}</AdminCell>
+                <AdminCell align="right">
+                  <AdminNumber value={board.members} />
+                </AdminCell>
+                <AdminCell align="right">
+                  <AdminNumber value={board.open_todos} />
+                </AdminCell>
+                <AdminCell align="right">
+                  <AdminNumber value={board.completed_todos} />
+                </AdminCell>
 
                 <AdminCell align="right">
-                  {dash(board.completed_points)}
+                  <span className="block">
+                    <AdminNumber value={board.completed_points} />
+                  </span>
                   {board.unestimated_completed > 0 && (
                     <span
-                      className="text-ink-3 text-micro ml-1"
+                      className="text-ink-3 text-mini block"
                       title={t("admin.unestimatedCompleted", {
                         count: board.unestimated_completed,
                       })}
                     >
-                      +{board.unestimated_completed}?
+                      {t("admin.unestimatedCount", {
+                        count: board.unestimated_completed,
+                      })}
                     </span>
                   )}
                 </AdminCell>
 
-                <AdminCell align="right">{board.comments}</AdminCell>
+                <AdminCell align="right">
+                  <AdminNumber value={board.comments} />
+                </AdminCell>
 
                 <AdminCell align="right">
-                  <span className="text-ink-3 text-micro">
+                  <span className="text-ink-3 text-mini">
                     {board.last_activity_at === null
                       ? "—"
                       : relativeTime(board.last_activity_at)}
@@ -121,6 +139,6 @@ export default function AdminBoardsPage() {
           )}
         </AdminGrid>
       )}
-    </AdminShell>
+    </AdminPage>
   );
 }

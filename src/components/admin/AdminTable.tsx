@@ -1,5 +1,7 @@
 import type { KeyboardEvent, ReactNode } from "react";
+import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
 
+import { dash } from "@/services/admin/format";
 import { cn } from "@/utils/cn";
 
 // An ARIA grid over a CSS grid template, not a <table>: these tables hide
@@ -8,23 +10,34 @@ import { cn } from "@/utils/cn";
 // List left this pattern when its columns became data rather than lg: classes
 // — see services/views/listColumns.ts — which is a move available to any of
 // these that grows the same need.
+// `embedded` drops the grid's own frame so it can sit under a SummaryCard's
+// header, the way every other admin section is titled.
+// `narrow` is for a grid in a half-width card: the default minimum is wider
+// than one, and pushed its last column out of view.
 export function AdminGrid({
   columns,
   children,
   label,
+  embedded = false,
+  narrow = false,
 }: {
   columns: string;
   children: ReactNode;
   label: string;
+  embedded?: boolean;
+  narrow?: boolean;
 }) {
   return (
     <div
       role="table"
       aria-label={label}
-      className="border-hairline bg-surface rounded-card min-w-0 overflow-x-auto border"
+      className={cn(
+        "border-hairline min-w-0 overflow-x-auto",
+        embedded ? "rounded-b-card border-t" : "bg-surface rounded-card border",
+      )}
       style={{ ["--admin-cols" as string]: columns }}
     >
-      <div role="rowgroup" className="min-w-208">
+      <div role="rowgroup" className={narrow ? "min-w-120" : "min-w-208"}>
         {children}
       </div>
     </div>
@@ -59,8 +72,8 @@ export function AdminRow({
         "border-hairline grid items-center gap-3 px-3.5",
         "grid-cols-(--admin-cols)",
         header
-          ? "text-ink-3 text-micro border-b py-2 font-semibold tracking-wide uppercase"
-          : "hover:bg-wash text-meta border-b py-2.5 transition-colors last:border-b-0",
+          ? "bg-wash text-ink-3 text-mini border-b py-1.5 font-medium"
+          : "hover:bg-wash text-meta min-h-10 border-b py-2 transition-colors last:border-b-0",
         onOpen &&
           "focus-visible:ring-brand/40 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-inset",
         className,
@@ -87,13 +100,53 @@ export function AdminCell({
       role={header ? "columnheader" : "cell"}
       className={cn(
         "min-w-0 truncate",
-        header && "text-micro font-semibold tracking-wide uppercase",
+        header && "text-mini font-medium",
         align === "right" && "text-right tabular-nums",
         className,
       )}
     >
       {children}
     </div>
+  );
+}
+
+export function AdminSortButton({
+  active,
+  onClick,
+  direction = "desc",
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  direction?: "asc" | "desc";
+  children: ReactNode;
+}) {
+  const Arrow = direction === "asc" ? ArrowUpIcon : ArrowDownIcon;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        "hover:text-ink inline-flex items-center gap-1 transition-colors",
+        active && "text-ink",
+      )}
+    >
+      {children}
+      {active && <Arrow aria-hidden className="size-3 shrink-0" />}
+    </button>
+  );
+}
+
+// A zero sits back so the rows that moved stand out in a quiet period.
+export function AdminNumber({ value }: { value: number | null }) {
+  return (
+    <span
+      className={value === 0 || value === null ? "text-ink-3/70" : "text-ink"}
+    >
+      {dash(value)}
+    </span>
   );
 }
 

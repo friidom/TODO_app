@@ -2,8 +2,7 @@ import { useTranslation } from "react-i18next";
 import { useMemo } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 
-import AdminCrumbs from "@/components/admin/AdminCrumbs";
-import AdminShell from "@/components/admin/AdminShell";
+import AdminPage from "@/components/admin/AdminPage";
 import {
   AdminCell,
   AdminEmpty,
@@ -18,21 +17,22 @@ import DualSeries from "@/components/admin/DualSeries";
 import FlowStats from "@/components/admin/FlowStats";
 import Histogram from "@/components/admin/Histogram";
 import KpiTiles from "@/components/admin/KpiTiles";
+import RecentActivityCard from "@/components/admin/RecentActivityCard";
 import WipStrip from "@/components/admin/WipStrip";
 import SummaryCard, {
   DistributionRow,
   WidgetEmpty,
 } from "@/components/summary/SummaryCard";
-import { useAdminActivityRealtime } from "@/hooks/useAdminActivityRealtime";
+import { useAdminFeedScope } from "@/hooks/useAdminActivityRealtime";
 import { useAdminPeriod } from "@/hooks/useAdminPeriod";
 import { useOpenTask } from "@/hooks/useOpenTask";
-import { scopeQuery, spaceTrail, taskTarget } from "@/services/admin/drilldown";
+import { scopeQuery, spaceTrail } from "@/services/admin/drilldown";
 import { startedNote } from "@/services/admin/backfill";
 import { barShare, peakOf, proportionOf } from "@/services/admin/flow";
 import {
-  actionLabel,
   dash,
   formatDuration,
+  percent,
   rangeLabel,
 } from "@/services/admin/format";
 import { sortBoards } from "@/services/admin/leaderboard";
@@ -43,8 +43,6 @@ import {
   useAdminSpace,
   useAdminUsers,
 } from "@/services/admin/useAdmin";
-import { relativeTime } from "@/utils/relativeTime";
-import { taskKey } from "@/utils/taskKey";
 
 const CONTRIBUTORS = 6;
 const RECENT = 8;
@@ -76,7 +74,7 @@ export default function AdminSpacePage() {
     [people.data],
   );
 
-  useAdminActivityRealtime(
+  useAdminFeedScope(
     { space: id, spaceBoardIds: boards.map((board) => board.id) },
     taskId,
   );
@@ -88,22 +86,24 @@ export default function AdminSpacePage() {
     flow.data === undefined ? undefined : startedNote(flow.data.from);
 
   return (
-    <AdminShell
+    <AdminPage
       title={row?.title ?? t("boards.space")}
-      hint={
+      description={
         space.data
-          ? t("admin.boards.hint", {
-              count: row?.boards ?? 0,
-              range: rangeLabel(space.data.from, space.data.to),
-            })
+          ? [
+              t("admin.boards.hint", {
+                count: row?.boards ?? 0,
+                range: rangeLabel(space.data.from, space.data.to),
+              }),
+              row?.owner_username
+                ? t("admin.ownerNamed", { name: row.owner_username })
+                : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")
           : t("admin.space.analytics")
       }
-      busy={space.isFetching || flow.isFetching}
-      breadcrumb={
-        <AdminCrumbs
-          trail={spaceTrail({ title: row?.title ?? t("boards.space") })}
-        />
-      }
+      trail={spaceTrail({ title: row?.title ?? t("boards.space") })}
     >
       {space.error ? (
         <AdminEmpty>{t("admin.space.loadFailed")}</AdminEmpty>
@@ -132,7 +132,14 @@ export default function AdminSpacePage() {
                 key: "done",
                 label: t("fields.completed"),
                 value: dash(row.completed_todos),
-                aside: t("admin.ofTotal", { total: dash(row.todos) }),
+                aside: t("admin.ofTotalRate", {
+                  total: dash(row.todos),
+                  rate: percent(
+                    row.todos === 0
+                      ? null
+                      : Math.round((row.completed_todos / row.todos) * 100),
+                  ),
+                }),
               },
               {
                 key: "points",
@@ -183,7 +190,7 @@ export default function AdminSpacePage() {
                 />
               </div>
 
-              <div className="grid gap-3 xl:grid-cols-2">
+              <div className="grid items-start gap-3 xl:grid-cols-2">
                 <WipStrip
                   slices={flow.data.wip}
                   scopeHint={t("admin.space.wipHint")}
@@ -193,19 +200,14 @@ export default function AdminSpacePage() {
             </>
           )}
 
-          <section className="flex flex-col gap-2">
-            <div>
-              <h2 className="text-ink text-xs font-semibold tracking-tight">
-                {t("admin.space.comparison")}
-              </h2>
-              <p className="text-ink-3 text-mini mt-0.5">
-                {t("admin.space.comparisonHint")}
-              </p>
-            </div>
-
+          <SummaryCard
+            title={t("admin.space.comparison")}
+            hint={t("admin.space.comparisonHint")}
+          >
             <AdminGrid
               columns={BOARD_COLUMNS}
               label={t("admin.space.boardsLabel")}
+              embedded
             >
               <AdminRow header>
                 <AdminCell header>{t("sidebar.board")}</AdminCell>
@@ -268,9 +270,9 @@ export default function AdminSpacePage() {
                 ))
               )}
             </AdminGrid>
-          </section>
+          </SummaryCard>
 
-          <div className="grid gap-3 xl:grid-cols-[22rem_1fr]">
+          <div className="grid items-start gap-3 xl:grid-cols-[22rem_minmax(0,1fr)]">
             <SummaryCard
               title={t("admin.contributors.title")}
               hint={t("admin.contributors.hint")}
@@ -312,82 +314,18 @@ export default function AdminSpacePage() {
               )}
             </SummaryCard>
 
-            <section className="flex flex-col gap-2">
-              <div className="flex items-baseline justify-between gap-3">
-                <h2 className="text-ink text-xs font-semibold tracking-tight">
-                  {t("admin.recentActivity")}
-                </h2>
-                <Link
-                  to={`/admin/activity?space=${id}&period=${period}`}
-                  className="text-ink-3 hover:text-brand text-mini transition-colors"
-                >
-                  {t("admin.seeAll")}
-                </Link>
-              </div>
-
-              <AdminGrid
-                columns="minmax(6rem,1fr) minmax(7rem,1fr) minmax(9rem,2fr) 5rem"
-                label={t("admin.space.recentLabel")}
-              >
-                <AdminRow header>
-                  <AdminCell header>{t("admin.columns.developer")}</AdminCell>
-                  <AdminCell header>{t("admin.columns.action")}</AdminCell>
-                  <AdminCell header>{t("admin.columns.item")}</AdminCell>
-                  <AdminCell header align="right">
-                    {t("admin.columns.when")}
-                  </AdminCell>
-                </AdminRow>
-
-                {recent.length === 0 ? (
-                  <AdminEmpty>{t("admin.nothingHappened")}</AdminEmpty>
-                ) : (
-                  recent.map((entry) => (
-                    <AdminRow
-                      key={entry.id}
-                      onOpen={
-                        taskTarget(entry) === null
-                          ? undefined
-                          : () => openTask(taskTarget(entry)!)
-                      }
-                    >
-                      <AdminCell>
-                        <span className="text-ink truncate">
-                          {entry.actor_username ?? t("admin.unknown")}
-                        </span>
-                      </AdminCell>
-                      <AdminCell>
-                        <span className="text-ink-2 truncate">
-                          {actionLabel(entry.action)}
-                        </span>
-                      </AdminCell>
-                      <AdminCell>
-                        {taskKey(entry.key_prefix, entry.board_key) && (
-                          <span className="text-ink-3 text-micro mr-1.5 tabular-nums">
-                            {taskKey(entry.key_prefix, entry.board_key)}
-                          </span>
-                        )}
-                        <span className="text-ink-2 truncate">
-                          {entry.title ?? t("common.untitled")}
-                        </span>
-                      </AdminCell>
-                      <AdminCell align="right">
-                        <span
-                          className="text-ink-3 text-micro"
-                          title={entry.created_at}
-                        >
-                          {relativeTime(entry.created_at)}
-                        </span>
-                      </AdminCell>
-                    </AdminRow>
-                  ))
-                )}
-              </AdminGrid>
-            </section>
+            <RecentActivityCard
+              rows={recent}
+              loading={activity.data === undefined}
+              label={t("admin.space.recentLabel")}
+              seeAll={`/admin/activity?space=${id}&period=${period}`}
+              onOpen={openTask}
+            />
           </div>
         </div>
       )}
 
       {taskId && <AdminTaskPanel todoId={taskId} onClose={closeTask} />}
-    </AdminShell>
+    </AdminPage>
   );
 }

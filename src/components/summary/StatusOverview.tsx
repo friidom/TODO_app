@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { useState } from "react";
 
 import { categoryOf } from "@/constants/columns";
 import type { Slice } from "@/services/views/summary";
@@ -27,6 +28,8 @@ export default function StatusOverview({
   className?: string;
 }) {
   const { t } = useTranslation();
+  // undefined is "nothing highlighted"; null is the real "no status" slice
+  const [active, setActive] = useState<string | null | undefined>(undefined);
   const shadeOf = new Map<string, string>();
   const seen = new Map<string, number>();
 
@@ -55,6 +58,19 @@ export default function StatusOverview({
     );
 
   const complete = total === 0 ? 0 : Math.round((done / total) * 100);
+
+  const activeSlice =
+    active === undefined ? null : slices.find((slice) => slice.key === active);
+  const activeStatus = activeSlice
+    ? statuses.find((it) => it.id === activeSlice.key)
+    : undefined;
+  const nameOf = (key: string | null) =>
+    statuses.find((it) => it.id === key)?.name ?? t("status.none");
+
+  const highlight = (key: string | null) => ({
+    onPointerEnter: () => setActive(key),
+    onPointerLeave: () => setActive(undefined),
+  });
   const wrapped = slices.length > LEGEND_WRAP_AT;
 
   return (
@@ -86,6 +102,7 @@ export default function StatusOverview({
 
                   return (
                     <circle
+                      {...highlight(arc.key)}
                       key={arc.key ?? "none"}
                       cx="21"
                       cy="21"
@@ -96,23 +113,51 @@ export default function StatusOverview({
                       strokeDasharray={`${arc.percent} ${100 - arc.percent}`}
                       strokeDashoffset={arc.start}
                       className={cn(
+                        "cursor-default transition-opacity duration-150",
                         status
                           ? categoryOf(status.category).tone
                           : "text-ink-3/50",
                         status ? shadeOf.get(status.id) : undefined,
+                        active !== undefined &&
+                          active !== arc.key &&
+                          "opacity-25",
                       )}
-                    />
+                    >
+                      <title>
+                        {`${nameOf(arc.key)}: ${t("summary.itemsShare", { count: slices.find((slice) => slice.key === arc.key)?.count ?? 0, percent: Math.round(arc.percent) })}`}
+                      </title>
+                    </circle>
                   );
                 })}
               </svg>
 
-              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-ink text-xl leading-none font-semibold tabular-nums">
-                  {total}
-                </span>
-                <span className="text-ink-3 text-micro mt-0.5">
-                  {total === 1 ? "item" : "items"}
-                </span>
+              <div
+                aria-live="polite"
+                className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-3 text-center"
+              >
+                {activeSlice ? (
+                  <>
+                    <span className="text-ink text-xl leading-none font-semibold tabular-nums">
+                      {activeSlice.count}
+                    </span>
+                    <span className="text-ink-2 text-micro mt-0.5 max-w-full truncate font-medium">
+                      {/* raw, never through t() — a status name is user text */}
+                      {activeStatus ? activeStatus.name : t("status.none")}
+                    </span>
+                    <span className="text-brand text-micro font-semibold tabular-nums">
+                      {Math.round((activeSlice.count / total) * 100)}%
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-ink text-xl leading-none font-semibold tabular-nums">
+                      {total}
+                    </span>
+                    <span className="text-ink-3 text-micro mt-0.5">
+                      {t("summary.items", { count: total })}
+                    </span>
+                  </>
+                )}
               </div>
             </div>
 
@@ -128,8 +173,15 @@ export default function StatusOverview({
                 return (
                   <li
                     key={slice.key ?? "none"}
+                    {...highlight(slice.key)}
+                    tabIndex={slice.count > 0 ? 0 : undefined}
+                    onFocus={() => setActive(slice.key)}
+                    onBlur={() => setActive(undefined)}
                     className={cn(
-                      "flex min-w-0 break-inside-avoid items-center gap-2 py-0.5",
+                      "rounded-control -mx-1.5 flex min-w-0 break-inside-avoid items-center gap-2 px-1.5 py-0.5 transition-colors duration-150 outline-none",
+                      slice.count > 0 &&
+                        "hover:bg-brand-wash focus-visible:bg-brand-wash focus-visible:ring-brand focus-visible:ring-2",
+                      active === slice.key && "bg-brand-wash",
                       slice.count === 0 && "opacity-45",
                     )}
                   >

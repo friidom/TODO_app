@@ -18,6 +18,9 @@ export const PASSWORD_MAX_BYTES = 128;
 
 export const PASSWORD_RESET_TTL_MINUTES = 60;
 
+// Longer than a reset link: sign-up mail is often opened the next morning.
+export const EMAIL_VERIFICATION_TTL_HOURS = 24;
+
 // Shorter than a reset link because the person is already at the keyboard: the
 // challenge is issued mid-flow and confirmed as soon as they sign in.
 export const OAUTH_LINK_TTL_MINUTES = 15;

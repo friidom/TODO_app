@@ -1,7 +1,11 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { addComment } from "./commentsApi";
-import { applyCommentInserted, applyCommentUpdated } from "./cache";
+import {
+  applyCommentDeleted,
+  applyCommentInserted,
+  applyCommentUpdated,
+} from "./cache";
 import { queryKeys } from "@/services/queryClient/queryKeys";
 import { useAuth } from "@/services/auth/useAuth";
 import { useBoardId } from "@/hooks/useBoardId";
@@ -57,14 +61,14 @@ export function useAddComment() {
         key,
         applyCommentInserted(previousComments, optimisticComment),
       );
-
-      return { previousComments, key };
     },
 
-    onError: (_err, _variables, context) => {
-      if (context) {
-        queryClient.setQueryData(context.key, context.previousComments);
-      }
+    // Only this comment's own row, for the reason useAddTodo gives.
+    onError: (_err, { id, todoId }) => {
+      queryClient.setQueryData<Comment[]>(
+        queryKeys.comments(todoId),
+        (rows) => rows && applyCommentDeleted(rows, id),
+      );
     },
 
     onSuccess: (serverComment, { todoId }) => {
@@ -76,10 +80,14 @@ export function useAddComment() {
     },
   });
 
+  // onError rides this call's own promise: TanStack runs mutate()'s callbacks for the latest call only.
   const mutate = (
     variables: AddCommentVars,
-    options?: Parameters<typeof mutation.mutate>[1],
-  ) => mutation.mutate({ ...variables, id: crypto.randomUUID() }, options);
+    { onError }: { onError?: () => void } = {},
+  ) =>
+    mutation
+      .mutateAsync({ ...variables, id: crypto.randomUUID() })
+      .catch(() => onError?.());
 
   return { ...mutation, mutate };
 }

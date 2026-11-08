@@ -12,31 +12,44 @@ const ATTACHMENT_FIELDS = {
   size_bytes: true,
   mime_type: true,
   created_at: true,
+  attachment_pins: { select: { created_at: true } },
 } satisfies Prisma.attachmentsSelect;
 
-export type AttachmentRow = Prisma.attachmentsGetPayload<{ select: typeof ATTACHMENT_FIELDS }>;
+type AttachmentRecord = Prisma.attachmentsGetPayload<{ select: typeof ATTACHMENT_FIELDS }>;
+
+export type AttachmentRow = Omit<AttachmentRecord, "attachment_pins"> & {
+  pinned_at: Date | null;
+};
+
+function toRow({ attachment_pins, ...record }: AttachmentRecord): AttachmentRow {
+  return { ...record, pinned_at: attachment_pins?.created_at ?? null };
+}
 
 // Descending, unlike a comment thread: a file list answers "what was added
 // last", not "how did this conversation go".
-export function findByTodo(boardId: string, todoId: string): Promise<AttachmentRow[]> {
-  return prisma.attachments.findMany({
+export async function findByTodo(boardId: string, todoId: string): Promise<AttachmentRow[]> {
+  const rows = await prisma.attachments.findMany({
     where: { board_id: boardId, todo_id: todoId },
     orderBy: [{ created_at: "desc" }, { id: "desc" }],
     select: ATTACHMENT_FIELDS,
   });
+
+  return rows.map(toRow);
 }
 
 // todoId as well as boardId: boardAccess proves the attachment and the todo
 // share a board, not that the attachment hangs off this todo.
-export function findOne(
+export async function findOne(
   boardId: string,
   todoId: string,
   attachmentId: string,
 ): Promise<AttachmentRow | null> {
-  return prisma.attachments.findFirst({
+  const row = await prisma.attachments.findFirst({
     where: { id: attachmentId, board_id: boardId, todo_id: todoId },
     select: ATTACHMENT_FIELDS,
   });
+
+  return row === null ? null : toRow(row);
 }
 
 export interface AttachmentInsert {
@@ -50,8 +63,8 @@ export interface AttachmentInsert {
   mimeType: string;
 }
 
-export function insert(attachment: AttachmentInsert): Promise<AttachmentRow> {
-  return prisma.attachments.create({
+export async function insert(attachment: AttachmentInsert): Promise<AttachmentRow> {
+  const row = await prisma.attachments.create({
     data: {
       id: attachment.id,
       board_id: attachment.boardId,
@@ -64,6 +77,8 @@ export function insert(attachment: AttachmentInsert): Promise<AttachmentRow> {
     },
     select: ATTACHMENT_FIELDS,
   });
+
+  return toRow(row);
 }
 
 export async function remove(
@@ -76,4 +91,42 @@ export async function remove(
   });
 
   return count;
+}
+
+export const MAX_PINS = 5;
+
+// Locked on the work item's row for the same reason comments.repo's pin is.
+export function pin(
+  boardId: string,
+  todoId: string,
+  attachmentId: string,
+  actorId: string,
+): Promise<"pinned" | "full"> {
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`
+      select 1 from public.todos
+       where id = ${todoId}::uuid and board_id = ${boardId}::uuid
+         for update
+    `;
+
+    if (await tx.attachment_pins.findUnique({ where: { attachment_id: attachmentId } })) {
+      return "pinned";
+    }
+
+    const count = await tx.attachment_pins.count({
+      where: { attachments: { board_id: boardId, todo_id: todoId } },
+    });
+
+    if (count >= MAX_PINS) return "full";
+
+    await tx.attachment_pins.create({
+      data: { attachment_id: attachmentId, pinned_by: actorId },
+    });
+
+    return "pinned";
+  });
+}
+
+export async function unpin(attachmentId: string): Promise<void> {
+  await prisma.attachment_pins.deleteMany({ where: { attachment_id: attachmentId } });
 }

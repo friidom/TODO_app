@@ -1,11 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { fetchPendingInvites, type BoardInvite } from "./invitesApi";
+import { fetchPendingInvites, type PendingInvite } from "./invitesApi";
 import { isExpired } from "./inviteLink";
 import { queryKeys } from "@/services/queryClient/queryKeys";
 
 // Second expiry check for stale cache / a modal left open past the lapse moment — the fetch already excludes expired rows too.
-function withoutExpired(invites: BoardInvite[]): BoardInvite[] {
+function withoutExpired(invites: PendingInvite[]): PendingInvite[] {
   return invites.filter((invite) => !isExpired(invite.expires_at));
 }
 

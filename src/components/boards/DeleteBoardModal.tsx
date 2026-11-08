@@ -2,18 +2,17 @@ import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 
+import DialogHeader from "@/components/ui/DialogHeader";
 import Modal from "@/components/ui/Modal";
 import { useDeleteBoard } from "@/services/boards/useDeleteBoard";
 import { confirmLabel, confirmMatches } from "@/services/boards/deleteConfirm";
 import type { IBoard } from "@/types/data";
 import {
   DIALOG_ACTIONS,
-  DIALOG_BODY,
   DIALOG_CANCEL,
   DIALOG_DANGER,
   DIALOG_ERROR,
   DIALOG_LABEL,
-  DIALOG_TITLE,
 } from "@/components/ui/dialogChrome";
 import { FIELD_INPUT } from "@/components/ui/fieldInput";
 
@@ -53,12 +52,17 @@ export default function DeleteBoardModal({
   return (
     <Modal title={t("sidebar.deleteBoard")} onClose={onClose} width="w-[480px]">
       <form onSubmit={handleSubmit}>
-        <h2 className={`${DIALOG_TITLE} mb-3`}>{t("boards.deleteQuestion")}</h2>
-
-        <p className={`${DIALOG_BODY} mb-5`}>
-          <span className="text-ink font-semibold">{label}</span>{" "}
-          {t("boards.deleteBody")}
-        </p>
+        <DialogHeader
+          danger
+          title={t("boards.deleteQuestion")}
+          description={
+            <>
+              <span className="text-ink font-semibold">{label}</span>{" "}
+              {t("boards.deleteBody")}
+            </>
+          }
+          onClose={onClose}
+        />
 
         <label htmlFor="board-confirm" className={DIALOG_LABEL}>
           {t("boards.typePrefix")}{" "}

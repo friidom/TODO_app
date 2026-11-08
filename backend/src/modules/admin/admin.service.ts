@@ -20,23 +20,33 @@ import type {
 import type { FlowSliceBy } from "./admin.repo.js";
 import type { PublishWorkflowInput } from "../workflow/workflow.schema.js";
 import * as workflowService from "../workflow/workflow.service.js";
+import { evictFromAdminRoom } from "../../realtime/rooms.js";
+import { REFUSAL_MESSAGES, SYSTEM_ACTOR_ID, type RoleVerdict } from "./superadmin.js";
 
 function rangeOf(period: AdminPeriod): PeriodRange {
   return periodRange(period, new Date(), env.APP_TIMEZONE);
 }
 
+// A KPI target covers all of a person's work. Set against one board's or one
+// space's share of it the percentage understates everyone, so a scoped view
+// shows no target at all ("—"), the same as an unclassified person.
 function withPerformance(
   user: adminRepo.UserMetrics,
   period: AdminPeriod,
   range: PeriodRange,
+  scoped: boolean,
 ): adminRepo.UserMetrics & Performance {
-  const target = targetFor(period, range, user.daily_points, user.weekly_points);
+  const target = scoped ? null : targetFor(period, range, user.daily_points, user.weekly_points);
 
   return {
     ...user,
     target_points: target,
     performance: performanceOf(user.completed_points, target),
   };
+}
+
+function isScoped(input: UserQuery): boolean {
+  return input.board !== undefined || input.space !== undefined;
 }
 
 export interface Overview {
@@ -82,7 +92,7 @@ export async function users(input: UserQuery) {
     period,
     from: range.from,
     to: range.to,
-    users: rows.map((row) => withPerformance(row, period, range)),
+    users: rows.map((row) => withPerformance(row, period, range, isScoped(input))),
   };
 }
 
@@ -115,7 +125,7 @@ export async function user(userId: string, input: UserQuery) {
     from: range.from,
     to: range.to,
     timezone: env.APP_TIMEZONE,
-    user: withPerformance(row, period, range),
+    user: withPerformance(row, period, range, isScoped(input)),
     series,
     // The only window in the API that ignores the selected period, and it
     // says so rather than leaving a reader to infer it (E2, V6). It does
@@ -335,8 +345,119 @@ export async function setSeniority(userId: string, seniority: string | null, act
   return { id: userId, seniority };
 }
 
-export async function audit(limit: number) {
-  return { entries: await adminRepo.auditLog(limit) };
+export async function audit(limit: number, action?: string) {
+  return { entries: await adminRepo.auditLog(limit, action) };
+}
+
+export type AccountStatus = "active" | "unverified" | "deactivated";
+
+function toAccount(row: adminRepo.AccountRow) {
+  const status: AccountStatus =
+    row.deactivated_at !== null
+      ? "deactivated"
+      : row.email_verified_at === null
+        ? "unverified"
+        : "active";
+
+  return {
+    id: row.id,
+    username: row.username,
+    full_name: row.full_name,
+    avatar_url: row.avatar_url,
+    email: row.email,
+    org_role: row.org_role,
+    status,
+    created_at: row.created_at,
+  };
+}
+
+export async function accounts(search: string | undefined, limit: number) {
+  const [rows, admins] = await Promise.all([
+    adminRepo.accounts(search, limit),
+    adminRepo.superadmins(),
+  ]);
+
+  return {
+    accounts: rows.map(toAccount),
+    superadmins: admins.map(toAccount),
+    active_superadmins: admins.filter((row) => row.deactivated_at === null).length,
+  };
+}
+
+export type RoleOutcome = "granted" | "revoked" | "unchanged";
+
+function outcomeOf(verdict: RoleVerdict): RoleOutcome {
+  if (verdict.kind === "apply") return verdict.to === "superadmin" ? "granted" : "revoked";
+
+  return "unchanged";
+}
+
+export async function setSuperadmin(targetId: string, grant: boolean, actorId: string) {
+  const change = await adminRepo.changeSuperadmin({
+    targetId,
+    grant,
+    actorId,
+    via: "admin_panel",
+    bootstrap: false,
+  });
+
+  if (change === null) throw new AppError("not_found", "Not found.");
+
+  const { verdict, account } = change;
+
+  if (verdict.kind === "refuse") throw new AppError("conflict", REFUSAL_MESSAGES[verdict.reason]);
+
+  // requireSuperadmin re-reads the role on every request; the socket room
+  // checked it once, at join.
+  if (outcomeOf(verdict) === "revoked") await evictFromAdminRoom(targetId);
+
+  return { account: toAccount(account), outcome: outcomeOf(verdict) };
+}
+
+export type BootstrapResult =
+  | { kind: "no_account" }
+  | { kind: "preview"; account: ReturnType<typeof toAccount>; activeSuperadmins: number }
+  | { kind: "mismatch" }
+  | { kind: "refused"; message: string }
+  | { kind: "done"; account: ReturnType<typeof toAccount>; outcome: RoleOutcome };
+
+// The first superadmin, from a shell on the server: nobody can hold the role
+// to grant it, and an endpoint that granted it without one would be the
+// escalation surface 0011 refused to ship. Two steps — preview by email, then
+// confirm by the id the preview printed — so a typo cannot promote a stranger.
+export async function bootstrapSuperadmin(
+  email: string,
+  confirmId: string | undefined,
+): Promise<BootstrapResult> {
+  const row = await adminRepo.accountByEmail(email.trim());
+
+  if (row === null) return { kind: "no_account" };
+
+  if (confirmId === undefined) {
+    return {
+      kind: "preview",
+      account: toAccount(row),
+      activeSuperadmins: await adminRepo.activeSuperadminCount(),
+    };
+  }
+
+  if (confirmId !== row.id) return { kind: "mismatch" };
+
+  const change = await adminRepo.changeSuperadmin({
+    targetId: row.id,
+    grant: true,
+    actorId: SYSTEM_ACTOR_ID,
+    via: "bootstrap_cli",
+    bootstrap: true,
+  });
+
+  if (change === null) return { kind: "no_account" };
+
+  if (change.verdict.kind === "refuse") {
+    return { kind: "refused", message: REFUSAL_MESSAGES[change.verdict.reason] };
+  }
+
+  return { kind: "done", account: toAccount(change.account), outcome: outcomeOf(change.verdict) };
 }
 
 export { bucketOf };

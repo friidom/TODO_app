@@ -1,42 +1,26 @@
 import { useTranslation } from "react-i18next";
-import {
-  HEADER_CONTROL,
-  HEADER_CONTROL_ACTIVE,
-} from "@/components/board/headerControl";
 import { useAdminPeriod } from "@/hooks/useAdminPeriod";
 import {
   ADMIN_PERIODS,
   PERIOD_HINTS,
   PERIOD_LABELS,
 } from "@/services/admin/periods";
-import { cn } from "@/utils/cn";
+import Segmented from "./Segmented";
 
 export default function PeriodSelector() {
   const { t } = useTranslation();
   const { period, setPeriod } = useAdminPeriod();
 
   return (
-    <div
-      role="group"
-      aria-label={t("admin.reportingPeriod")}
-      className="flex shrink-0 flex-wrap gap-1"
-    >
-      {ADMIN_PERIODS.map((value) => (
-        <button
-          key={value}
-          type="button"
-          onClick={() => setPeriod(value)}
-          aria-pressed={value === period}
-          title={PERIOD_HINTS[value]}
-          className={cn(
-            HEADER_CONTROL,
-            "px-2",
-            value === period && HEADER_CONTROL_ACTIVE,
-          )}
-        >
-          {PERIOD_LABELS[value]}
-        </button>
-      ))}
-    </div>
+    <Segmented
+      label={t("admin.reportingPeriod")}
+      value={period}
+      onChange={setPeriod}
+      options={ADMIN_PERIODS.map((value) => ({
+        value,
+        label: PERIOD_LABELS[value],
+        title: PERIOD_HINTS[value],
+      }))}
+    />
   );
 }

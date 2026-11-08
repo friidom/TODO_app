@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { invalidateBoards } from "../../cache/keys.js";
 import { AppError } from "../../lib/errors.js";
+import { emitInvalidate } from "../../realtime/emit.js";
 import type { Actor } from "../../types/actor.js";
 import * as spacesRepo from "./spaces.repo.js";
 import type { SpaceRow } from "./spaces.repo.js";
@@ -34,7 +35,17 @@ export async function update(
 
   if (space === null) throw notFound();
 
+  // Board rows carry the space's title, and members of those boards cannot read
+  // the space itself, so its boards have to be told.
+  if (patch.title !== undefined) await refreshBoards(await spacesRepo.boardIdsIn(actor.id, spaceId));
+
   return space;
+}
+
+async function refreshBoards(boardIds: string[]): Promise<void> {
+  await invalidateBoards(boardIds, ["board"]);
+
+  for (const boardId of boardIds) emitInvalidate(boardId, ["boards"]);
 }
 
 // boards.space_id is ON DELETE SET NULL, so the boards filed here are unfiled
@@ -46,5 +57,5 @@ export async function remove(actor: Actor, spaceId: string): Promise<void> {
 
   if ((await spacesRepo.remove(actor.id, spaceId)) === 0) throw notFound();
 
-  await invalidateBoards(filed, ["board"]);
+  await refreshBoards(filed);
 }

@@ -36,7 +36,19 @@ export function signingTokenProblem(
   return token.startsWith("whsec_") ? undefined : "prefix";
 }
 
-export const LINK_STATUS_LABEL: Record<GitLabLinkStatus, string> = {
+export type GitLabDisplayStatus = GitLabLinkStatus | "server_setup";
+
+// Without the server's INTEGRATION_SECRET_KEY no token can be stored or opened, so whatever the link's own state, what
+// it waits for is the administrator, not the person looking at it.
+export function displayStatus(
+  status: GitLabLinkStatus,
+  configured: boolean,
+): GitLabDisplayStatus {
+  return configured ? status : "server_setup";
+}
+
+export const LINK_STATUS_LABEL: Record<GitLabDisplayStatus, string> = {
+  server_setup: "gitlab.status.serverSetup",
   awaiting_token: "gitlab.status.awaitingToken",
   awaiting_delivery: "gitlab.status.awaitingDelivery",
   active: "gitlab.status.active",

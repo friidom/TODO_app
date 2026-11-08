@@ -4,13 +4,16 @@ import { boardAccess } from "../../middleware/boardAccess.js";
 import { requireAuth } from "../../middleware/requireAuth.js";
 import { requireRole } from "../../middleware/requireRole.js";
 import { validate } from "../../middleware/validate.js";
+import { spaceParamsSchema } from "../spaces/spaces.schema.js";
 import * as controller from "./invites.controller.js";
 import {
   acceptInviteSchema,
   createInviteSchema,
+  createSpaceInviteSchema,
   declineInviteSchema,
   inviteParamsSchema,
   inviteeQuerySchema,
+  previewInviteSchema,
 } from "./invites.schema.js";
 
 export const boardInvitesRoutes = Router({ mergeParams: true });
@@ -37,6 +40,33 @@ boardInviteesRoutes.get(
   controller.searchInvitees,
 );
 
+// A space has no membership for boardAccess to resolve, so these validate
+// :spaceId themselves and the service answers 404 to anyone but its owner.
+export const spaceInvitesRoutes = Router({ mergeParams: true });
+
+spaceInvitesRoutes.get(
+  "/",
+  requireAuth,
+  validate({ params: spaceParamsSchema }),
+  controller.listSpacePending,
+);
+
+spaceInvitesRoutes.post(
+  "/",
+  requireAuth,
+  validate({ params: spaceParamsSchema, body: createSpaceInviteSchema }),
+  controller.createForSpace,
+);
+
+export const spaceInviteesRoutes = Router({ mergeParams: true });
+
+spaceInviteesRoutes.get(
+  "/",
+  requireAuth,
+  validate({ params: spaceParamsSchema, query: inviteeQuerySchema }),
+  controller.searchSpaceInvitees,
+);
+
 export const invitesRoutes = Router();
 
 // The token travels in the body, not the path: morgan writes req.url to the
@@ -48,6 +78,13 @@ invitesRoutes.post(
   requireAuth,
   validate({ body: acceptInviteSchema }),
   controller.accept,
+);
+
+invitesRoutes.post(
+  "/preview",
+  requireAuth,
+  validate({ body: previewInviteSchema }),
+  controller.preview,
 );
 
 invitesRoutes.post(

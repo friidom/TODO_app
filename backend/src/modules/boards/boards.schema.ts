@@ -37,6 +37,22 @@ const viewTabs = z
     message: "each view may appear once",
   });
 
+// The saved board view (0041). Card field ids are checked for shape, not
+// membership: the client owns the list, and drops an id it no longer knows.
+const viewSettings = z.object({
+  cardFields: z
+    .array(z.string().regex(/^[a-z]{1,32}$/))
+    .max(40)
+    .refine((ids) => new Set(ids).size === ids.length, { message: "each field may appear once" }),
+  columnSize: z.enum(["fixed", "flexible"]),
+  scroll: z.enum(["columns", "board"]),
+  hideDoneAfter: z
+    .union([z.literal(1), z.literal(3), z.literal(7), z.literal(14), z.literal(30)])
+    .nullable(),
+});
+
+export type BoardViewSettings = z.infer<typeof viewSettings>;
+
 // owner_id and next_key are absent on purpose. Unknown keys are stripped by
 // Zod, so naming only these is what makes them unsettable. createBoardSchema
 // has no key_prefix either: a new board's key is derived from its title.
@@ -55,6 +71,8 @@ export const updateBoardSchema = z
     workflow_enabled: z.boolean().optional(),
     // null restores the default tab set (migration 0027).
     view_tabs: viewTabs.nullable().optional(),
+    // null clears the saved view (migration 0041).
+    view_settings: viewSettings.nullable().optional(),
   })
   .refine((patch) => Object.keys(patch).length > 0, {
     message: "at least one field must be given",

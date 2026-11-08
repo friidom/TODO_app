@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import { Fragment, useMemo, useRef, useState } from "react";
 
 import { DndContext, type DataRef, type UniqueIdentifier } from "@dnd-kit/core";
-import { CircleAlertIcon, RocketIcon } from "lucide-react";
+import { RocketIcon } from "lucide-react";
 
 import {
   screenReaderInstructions,
@@ -28,7 +28,7 @@ import { useBoardMembers } from "@/services/members/useBoardMembers";
 import { groupTodos, isSwimlaneGroup } from "@/services/todos/view";
 import { isOnBoard } from "@/services/todos/backlog";
 import { hideStaleDone } from "@/services/views/boardViewPrefs";
-import { useBoardViewPrefs } from "@/stores/boardViewPrefs";
+import { useBoardViewPrefs } from "@/hooks/useBoardViewPrefs";
 import {
   columnCategory,
   doneStatusIds,
@@ -50,6 +50,7 @@ import CollapsedColumn from "../columns/CollapsedColumn";
 import ViewNotice from "../board/ViewNotice";
 import EmptyState from "../ui/EmptyState";
 import ViewSkeleton from "../loading/ViewSkeleton";
+import ViewError from "../loading/ViewError";
 import { byRank } from "@/utils/rank";
 import { columnTitle } from "@/constants/columns";
 import { cn } from "@/utils/cn";
@@ -67,7 +68,8 @@ export default function KanbanBoard() {
   const { todos: visible, all, isLoading, error } = useVisibleTodos();
 
   const { data: statuses = NO_STATUSES } = useStatuses();
-  const hideDoneAfter = useBoardViewPrefs((state) => state.prefs.hideDoneAfter);
+  const { prefs: viewPrefs } = useBoardViewPrefs();
+  const hideDoneAfter = viewPrefs.hideDoneAfter;
   const today = todayISO();
 
   // Hide done is a Board setting, so it trims after the shared pipeline rather than inside it — List and Backlog keep everything.
@@ -112,12 +114,8 @@ export default function KanbanBoard() {
   const keyPrefix = useKeyPrefix();
 
   // Read here and handed down, never per column or card, so a layout change re-renders the columns and nothing finer.
-  const flexible = useBoardViewPrefs(
-    (state) => state.prefs.columnSize === "flexible",
-  );
-  const wholeBoard = useBoardViewPrefs(
-    (state) => state.prefs.scroll === "board",
-  );
+  const flexible = viewPrefs.columnSize === "flexible";
+  const wholeBoard = viewPrefs.scroll === "board";
 
   // The minimap reads this scroller's own scroll and size; nothing here depends on either.
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -199,17 +197,7 @@ export default function KanbanBoard() {
   // sprintsPending still gates loading — without it a card in the running sprint flickers out of its column for a frame.
   if (isLoading || sprintsPending) return <ViewSkeleton mode="board" />;
 
-  if (error) {
-    return (
-      <div className="grid h-full place-items-center">
-        <EmptyState
-          icon={CircleAlertIcon}
-          title={t("board.loadFailed")}
-          hint={error.message}
-        />
-      </div>
-    );
-  }
+  if (error) return <ViewError error={error} />;
 
   function labelOf(id: UniqueIdentifier, type: string | undefined) {
     if (type === "column") {

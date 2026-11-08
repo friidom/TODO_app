@@ -6,7 +6,7 @@ import {
   readListColumnWidths,
   readListColumns,
   toggleListColumn,
-  withListColumnWidth,
+  withListColumnWidths,
   writeListColumnWidths,
   writeListColumns,
   type ListColumnId,
@@ -20,8 +20,11 @@ interface ListColumnsStore {
   widths: Record<string, ListColumnWidths>;
   toggle: (id: ListColumnId) => void;
   move: (activeId: ListColumnId, overId: ListColumnId, side: Side) => void;
-  setWidth: (boardId: string, id: ListColumnId, width: number) => void;
-  resetWidth: (boardId: string, id: ListColumnId) => void;
+  // null resets that column to its default
+  setWidths: (
+    boardId: string,
+    patch: Partial<Record<ListColumnId, number | null>>,
+  ) => void;
   reset: (boardId: string) => void;
 }
 
@@ -49,14 +52,6 @@ function storedWidths(boardId: string): ListColumnWidths {
 // and the table start from the same array without an effect to synchronise
 // them; widths are read the first time each board asks for them.
 export const useListColumns = create<ListColumnsStore>((set, get) => {
-  function writeWidth(boardId: string, id: ListColumnId, width: number | null) {
-    const current = get().widths[boardId] ?? storedWidths(boardId);
-    const next = withListColumnWidth(current, id, width);
-
-    writeListColumnWidths(next, boardId);
-    set((state) => ({ widths: { ...state.widths, [boardId]: next } }));
-  }
-
   return {
     columns: readListColumns(),
     widths: {},
@@ -79,9 +74,13 @@ export const useListColumns = create<ListColumnsStore>((set, get) => {
         return { columns };
       }),
 
-    setWidth: (boardId, id, width) => writeWidth(boardId, id, width),
+    setWidths: (boardId, patch) => {
+      const current = get().widths[boardId] ?? storedWidths(boardId);
+      const next = withListColumnWidths(current, patch);
 
-    resetWidth: (boardId, id) => writeWidth(boardId, id, null),
+      writeListColumnWidths(next, boardId);
+      set((state) => ({ widths: { ...state.widths, [boardId]: next } }));
+    },
 
     reset: (boardId) => {
       const columns = [...DEFAULT_LIST_COLUMNS];

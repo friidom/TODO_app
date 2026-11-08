@@ -354,6 +354,7 @@ describe("the link challenge (R4)", () => {
 
     expect(challenge.status).toBe(302);
     expect(challenge.location).toContain("/login?link=");
+    expect(new URL(challenge.location as string).searchParams.get("provider")).toBe("github");
     expect(token).not.toBe("");
 
     // The three things that must NOT have happened.
@@ -509,6 +510,112 @@ describe("the link challenge (R4)", () => {
     });
 
     expect(confirmed.status).toBe(400);
+  });
+});
+
+// The production case: somebody registered with a password, then reaches for
+// Google or GitHub. Either must lead back to that one account, and only once
+// the password has proved who is asking.
+describe.each(["google", "github"] as const)("an email/password account meeting %s", (provider) => {
+  const EMAIL = "ada@example.test";
+  const PASSWORD = "correct-horse-battery-staple";
+
+  const identity = (over: Partial<ProviderIdentity> = {}) =>
+    identityOf({ provider, providerAccountId: `${provider}-ada`, ...over });
+
+  async function register(): Promise<string> {
+    const created = await raw("/api/v1/auth/register", {
+      method: "POST",
+      body: { email: EMAIL, password: PASSWORD, username: "ada_pw" },
+    });
+
+    expect(created.status).toBe(201);
+
+    return (await prisma.users.findFirstOrThrow({ where: { email: EMAIL } })).id;
+  }
+
+  async function passwordLogin(password: string) {
+    return raw("/api/v1/auth/login", { method: "POST", body: { identifier: EMAIL, password } });
+  }
+
+  async function challenge(): Promise<string> {
+    const result = await signInWith(provider, identity());
+    const location = new URL(result.location as string);
+
+    expect(location.pathname).toBe("/login");
+    expect(location.searchParams.get("provider")).toBe(provider);
+    expect(cookieValue(result.cookies, "refresh")).toBeNull();
+
+    return location.searchParams.get("link") ?? "";
+  }
+
+  it("challenges, and the password completes the link to that same account", async () => {
+    const userId = await register();
+    const token = await challenge();
+
+    expect(await userCount()).toBe(1);
+
+    const login = await passwordLogin(PASSWORD);
+
+    expect(login.status).toBe(200);
+
+    const confirmed = await raw("/api/v1/auth/oauth/link/confirm", {
+      method: "POST",
+      token: (login.body as { accessToken: string }).accessToken,
+      body: { token },
+    });
+
+    expect(confirmed.status).toBe(204);
+    expect(await prisma.oauth_accounts.findFirstOrThrow()).toMatchObject({ user_id: userId, provider });
+
+    // From now on the provider alone signs in, straight to that account.
+    const again = await signInWith(provider, identity());
+
+    expect(again.location).toBe("http://frontend.test/");
+
+    const me = await raw("/api/v1/auth/me", { token: await accessTokenFrom(again) });
+
+    expect((me.body as { user: { id: string } }).user.id).toBe(userId);
+    expect(await userCount()).toBe(1);
+  });
+
+  it("keeps the challenge through a mistyped password", async () => {
+    await register();
+    const token = await challenge();
+
+    expect((await passwordLogin("wrong-password-entirely")).status).toBe(401);
+
+    const login = await passwordLogin(PASSWORD);
+
+    const confirmed = await raw("/api/v1/auth/oauth/link/confirm", {
+      method: "POST",
+      token: (login.body as { accessToken: string }).accessToken,
+      body: { token },
+    });
+
+    expect(confirmed.status).toBe(204);
+  });
+
+  it("never matches the account on an address the provider has not verified", async () => {
+    await register();
+
+    const result = await signInWith(provider, identity({ emailVerified: false }));
+
+    expect(result.location).toBe("http://frontend.test/login?error=email_unverified");
+    expect(await prisma.oauth_link_tokens.count()).toBe(0);
+    expect(await prisma.oauth_accounts.count()).toBe(0);
+    expect(await userCount()).toBe(1);
+  });
+
+  it("changes nothing when the person cancels at the provider", async () => {
+    await register();
+
+    const cancelled = await raw(`/api/v1/auth/oauth/${provider}/callback?error=access_denied`);
+
+    expect(cancelled.location).toBe("http://frontend.test/login?error=provider_denied");
+    expect(await prisma.oauth_link_tokens.count()).toBe(0);
+    expect(await prisma.oauth_accounts.count()).toBe(0);
+    expect(await userCount()).toBe(1);
   });
 });
 

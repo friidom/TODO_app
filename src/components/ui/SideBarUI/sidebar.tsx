@@ -91,6 +91,13 @@ function SidebarProvider({
         event.key === SIDEBAR_KEYBOARD_SHORTCUT &&
         (event.metaKey || event.ctrlKey)
       ) {
+        // collapsing to the rail unmounts the sections, and any dialog one of them opened
+        if (
+          event.target instanceof Element &&
+          event.target.closest("[role=dialog]")
+        )
+          return;
+
         event.preventDefault();
         toggleSidebar();
       }

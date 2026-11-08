@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import type { GitLabLink, GitLabLinkStatus } from "./gitlabApi";
 import {
   LINK_POLL_MS,
+  LINK_STATUS_LABEL,
   boardGitLabSource,
+  displayStatus,
   failureMessageKey,
   linksPollInterval,
   signingTokenProblem,
@@ -126,5 +128,32 @@ describe("boardGitLabSource", () => {
         spaceLinked: false,
       }),
     ).toBe("unfiled");
+  });
+});
+
+describe("displayStatus", () => {
+  const STATUSES: GitLabLinkStatus[] = [
+    "awaiting_token",
+    "awaiting_delivery",
+    "active",
+    "failing",
+  ];
+
+  it("is the link's own status when the server can store tokens", () => {
+    for (const status of STATUSES) {
+      expect(displayStatus(status, true)).toBe(status);
+    }
+  });
+
+  // the production case: a project connected, no INTEGRATION_SECRET_KEY, and a card that asked for a token the
+  // server would then refuse to store
+  it("is server setup, not a missing token, when the server cannot store one", () => {
+    for (const status of STATUSES) {
+      expect(displayStatus(status, false)).toBe("server_setup");
+    }
+
+    expect(LINK_STATUS_LABEL.server_setup).not.toBe(
+      LINK_STATUS_LABEL.awaiting_token,
+    );
   });
 });

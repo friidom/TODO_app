@@ -1,20 +1,28 @@
 import { useMemo } from "react";
 
-import { useSprintsEnabled } from "@/hooks/useSprintsEnabled";
-import { useSprints } from "@/services/sprints/useSprints";
+import { useBoardId } from "@/hooks/useBoardId";
+import { memberName } from "@/components/members/memberLabels";
+import { useBoard } from "@/services/boards/useBoard";
+import { useBoardMembers } from "@/services/members/useBoardMembers";
+import { spaceNameOf } from "@/services/spaces/boardSpace";
+import { useSpaces } from "@/services/spaces/useSpaces";
 import { isEpic } from "@/services/todos/subtasks";
 import { useTodos } from "@/services/todos/useTodos";
-import type { Sprint, Todo } from "@/types/data";
+import type { BoardMember } from "@/services/members/membersApi";
+import type { Todo } from "@/types/data";
 
 const NO_TODOS: Todo[] = [];
-const NO_SPRINTS: Sprint[] = [];
+const NO_MEMBERS: BoardMember[] = [];
 
-// The names the Parent and Sprint card fields show, built once per column and looked up by id, so no card gains a
-// hook of its own. Board cards are never subtasks, so an Epic is the only parent one can have.
+// The names the Parent and Space card fields show, built once per column and looked up by id, so no card gains a
+// hook of its own. Board cards are never subtasks, so an Epic is the only parent one can have. A card's space is its
+// board's, the same as the header's breadcrumb.
 export function useCardLabels() {
   const { data: todos = NO_TODOS } = useTodos();
-  const { data: sprints = NO_SPRINTS } = useSprints();
-  const sprintsEnabled = useSprintsEnabled();
+  const boardId = useBoardId();
+  const { data: board } = useBoard(boardId);
+  const { data: members = NO_MEMBERS } = useBoardMembers(boardId);
+  const { data: spaces } = useSpaces();
 
   const parents = useMemo(
     () =>
@@ -22,13 +30,12 @@ export function useCardLabels() {
     [todos],
   );
 
-  const sprintNames = useMemo(
-    () =>
-      new Map(
-        sprintsEnabled ? sprints.map((sprint) => [sprint.id, sprint.name]) : [],
-      ),
-    [sprints, sprintsEnabled],
+  const space = board ? (spaceNameOf(board, spaces) ?? undefined) : undefined;
+
+  const people = useMemo(
+    () => new Map(members.map((member) => [member.id, memberName(member)])),
+    [members],
   );
 
-  return { parents, sprints: sprintNames };
+  return { parents, space, people };
 }

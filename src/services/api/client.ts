@@ -87,18 +87,39 @@ function withRefreshLock<T>(run: () => Promise<T>): Promise<T> {
   return locks ? locks.request("kan:auth-refresh", run) : run();
 }
 
+let refreshedUser: unknown = null;
+
+// The refresh response already names its user. A reload restores the session
+// from it rather than spending a second round trip on /auth/me; null when the
+// token arrived from another tab, and the caller asks /auth/me instead.
+export function takeRefreshedUser(): unknown {
+  const user = refreshedUser;
+
+  refreshedUser = null;
+
+  return user;
+}
+
 async function postRefresh(): Promise<boolean> {
   const response = await fetch(`${baseUrl}/auth/refresh`, {
     method: "POST",
     credentials: "include",
   });
 
-  if (!response.ok) return false;
+  if (response.status === 401 || response.status === 403) return false;
 
-  const body = (await response.json()) as { accessToken?: unknown };
+  // A 429, or a 502 while the API restarts, says nothing about the session:
+  // it throws like a dropped connection, so the caller keeps the session.
+  if (!response.ok) throw await toApiError(response);
+
+  const body = (await response.json()) as {
+    accessToken?: unknown;
+    user?: unknown;
+  };
 
   if (typeof body.accessToken !== "string") return false;
 
+  refreshedUser = body.user ?? null;
   setAccessToken(body.accessToken);
   channel?.postMessage({
     type: "refreshed",
@@ -113,6 +134,8 @@ let refreshInFlight: Promise<boolean> | null = null;
 // Presenting an already-rotated refresh token revokes the whole family, by
 // design — so two concurrent refreshes on one cookie read as theft and sign the
 // user out everywhere. Two tabs loading at once is enough to trigger it.
+// false means the server ended the session; a rejection means it could not be
+// reached and the session may still be good.
 export function refreshSession(): Promise<boolean> {
   if (refreshInFlight) return refreshInFlight;
 

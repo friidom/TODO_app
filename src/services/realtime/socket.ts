@@ -1,6 +1,6 @@
 import { io, type Socket } from "socket.io-client";
 
-import { apiBaseUrl, getAccessToken } from "@/services/api/client";
+import { apiBaseUrl, getAccessToken, refreshSession } from "@/services/api/client";
 import type { Scope } from "./keysForScopes";
 import type { RowChange } from "./events";
 import type { Comment, IColumn, Todo } from "@/types/data";
@@ -40,12 +40,50 @@ export function resolveSocketOrigin(apiUrl: string, pageUrl: string): string {
 }
 
 export function connectBoardSocket(): BoardSocket {
-  return io(resolveSocketOrigin(apiBaseUrl, window.location.href), {
+  const socket: BoardSocket = io(resolveSocketOrigin(apiBaseUrl, window.location.href), {
     path: SOCKET_PATH,
     // A function, not an object: it is re-evaluated on every reconnect, and
     // the access token rotates every fifteen minutes.
     auth: (cb) => cb({ token: getAccessToken() }),
     transports: ["websocket", "polling"],
     withCredentials: true,
+  });
+
+  recoverRefusedConnections(socket, refreshSession);
+
+  return socket;
+}
+
+interface Reconnectable {
+  readonly active: boolean;
+  connect(): unknown;
+  on(event: "connect" | "connect_error", listener: () => void): unknown;
+}
+
+// When the handshake middleware refuses the token, Socket.IO stops retrying
+// for good (`active` goes false). That is what a tab that only watches a board
+// gets once its access token expires and the connection drops. One refresh and
+// one reconnect per refusal; the guard resets only after a connect succeeds,
+// so a tab whose session is really over does not loop on /auth/refresh.
+export function recoverRefusedConnections(
+  socket: Reconnectable,
+  refresh: () => Promise<boolean>,
+): void {
+  let attempted = false;
+
+  socket.on("connect", () => {
+    attempted = false;
+  });
+
+  socket.on("connect_error", () => {
+    if (socket.active || attempted) return;
+
+    attempted = true;
+    refresh().then(
+      (ok) => {
+        if (ok) socket.connect();
+      },
+      () => {},
+    );
   });
 }

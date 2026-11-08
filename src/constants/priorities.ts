@@ -58,6 +58,8 @@ export const PRIORITIES = {
 
 export type Priority = keyof typeof PRIORITIES;
 
+export const DEFAULT_PRIORITY: Priority = "medium";
+
 // doubles as sort rank — PRIORITY_OPTIONS.indexOf(p) is the only place levels are ordered, so sorting can't disagree with the menu
 export const PRIORITY_OPTIONS = [
   "highest",

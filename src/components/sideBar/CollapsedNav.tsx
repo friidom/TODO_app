@@ -134,6 +134,7 @@ function Flyout({
               <DropdownMenuItem
                 key={link.key}
                 render={<Link to={link.to} />}
+                aria-current={link.active ? "page" : undefined}
                 className={link.active ? "bg-brand-soft text-ink" : undefined}
               >
                 {linkIcon}

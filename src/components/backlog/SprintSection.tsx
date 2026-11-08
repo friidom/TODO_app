@@ -22,6 +22,8 @@ import { cn } from "@/utils/cn";
 import BacklogDropZone from "./BacklogDropZone";
 import BacklogRow from "./BacklogRow";
 
+const LONG_SPRINT = 10;
+
 export default function SprintSection({
   section,
   sprints,
@@ -67,9 +69,19 @@ export default function SprintSection({
     setAdding(false);
   }
 
+  const long = items.length > LONG_SPRINT;
+
   return (
-    <section className="border-hairline rounded-card mb-4 overflow-hidden border">
-      <header className="flex flex-wrap items-start gap-x-3 gap-y-1 px-3 py-2.5">
+    // the whole section is the drop target, header included, so a collapsed
+    // sprint still takes a card; clip, not hidden, or the header could not stick
+    <section
+      ref={setNodeRef}
+      className={cn(
+        "border-hairline rounded-card bg-surface mb-4 overflow-clip border transition-shadow",
+        isOver && "ring-brand/40 ring-2",
+      )}
+    >
+      <header className="bg-surface sticky top-0 z-10 flex flex-wrap items-start gap-x-3 gap-y-1 px-3 py-2.5">
         <button
           type="button"
           onClick={() => setCollapsed((open) => !open)}
@@ -194,10 +206,13 @@ export default function SprintSection({
 
       {!collapsed && (
         <div
-          ref={setNodeRef}
+          data-backlog-scroll={long ? "" : undefined}
           className={cn(
             "border-hairline border-t transition-colors",
             isOver && "bg-brand/5",
+            // a long sprint scrolls inside itself, so the Backlog below stays a
+            // short scroll away instead of hundreds of rows down
+            long && "max-h-[min(60vh,36rem)] overflow-y-auto",
           )}
         >
           {items.length > 0 && (

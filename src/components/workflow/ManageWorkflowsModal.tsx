@@ -29,6 +29,7 @@ import {
   hasEdge,
   withStatusAdded,
   withTransitionAdded,
+  withTransitionsFrom,
   withTransitionRemoved,
   type WorkflowDraft,
 } from "@/services/workflow/draft";
@@ -286,6 +287,16 @@ function ManageWorkflowsDialog({
     setSelection({ kind: "edge", from, to });
   }
 
+  function connectMany(froms: string[], to: string) {
+    if (froms.length === 1) {
+      connect(froms[0]!, to);
+      return;
+    }
+
+    edit((next) => withTransitionsFrom(next, froms, to));
+    setSelection({ kind: "status", id: to });
+  }
+
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (reviewing || event.defaultPrevented || typing(event)) return;
 
@@ -337,7 +348,7 @@ function ManageWorkflowsDialog({
           mode={mode}
           onMode={setMode}
           onAddStatus={addStatus}
-          onAddTransition={connect}
+          onAddTransitions={connectMany}
           onUndo={() => setHistory(undone)}
           onRedo={() => setHistory(redone)}
           onDiscard={() => setConfirm("discard")}
@@ -414,6 +425,7 @@ function ManageWorkflowsDialog({
                 layout={layout}
                 edges={shown.edges}
                 anyTargets={shown.anyTargets}
+                counts={counts}
                 flagged={flagged}
                 selection={current}
                 onSelect={setSelection}

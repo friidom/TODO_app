@@ -13,20 +13,20 @@ export default function StatTiles({
   const { t } = useTranslation();
 
   return (
-    <div className="flex flex-col gap-3">
-      {/* Five that answer "what happened in this period", then three that
-          answer "how big is the system" -- which do not change with the
-          period and do not belong in the same row. Eight tiles in one
-          five-column grid left a hole at every width. */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
-        <Tile
+    <section className="border-hairline bg-surface rounded-card overflow-hidden border">
+      {/* Every figure up here is about the selected period; the row beneath is
+          the system as it stands, which no period changes. Median cycle is a
+          period figure too, so it sits with them rather than with the
+          totals. The 1px gap over a hairline draws the dividers. */}
+      <dl className="bg-hairline grid grid-cols-2 gap-px sm:grid-cols-5">
+        <Figure
           label={t("admin.metrics.completedTasks")}
-          value={totals.completed_todos}
+          value={dash(totals.completed_todos)}
         />
 
-        <Tile
+        <Figure
           label={t("admin.metrics.completedPoints")}
-          value={totals.completed_points}
+          value={dash(totals.completed_points)}
           // D-7: a points figure never travels without the count of work
           // nobody sized, or it reads as the whole of what was finished.
           aside={
@@ -38,60 +38,63 @@ export default function StatTiles({
           }
         />
 
-        <Tile label={t("admin.tasksCreated")} value={totals.created_todos} />
-        <Tile label={t("taskActivity.comments")} value={totals.comments} />
-        <Tile
-          label={t("admin.metrics.activityEvents")}
-          value={totals.activities}
+        <Figure
+          label={t("admin.tasksCreated")}
+          value={dash(totals.created_todos)}
         />
-      </div>
 
-      <dl className="border-hairline bg-surface rounded-card flex flex-wrap items-center gap-x-8 gap-y-2 border px-3.5 py-2.5">
-        <Standing label={t("admin.openTasks")} value={totals.open_todos} />
-        <Standing label={t("admin.sections.users")} value={totals.users} />
-        <Standing label={t("boards.title")} value={totals.boards} />
+        <Figure
+          label={t("admin.medianCycle")}
+          value={cycle ? formatDuration(cycle.median_days) : "—"}
+          aside={
+            cycle && cycle.p75_days !== null
+              ? `${t("admin.p75Cycle")} ${formatDuration(cycle.p75_days)}`
+              : undefined
+          }
+        />
 
-        {cycle && (
-          <>
-            <Standing
-              label={t("admin.medianCycle")}
-              text={formatDuration(cycle.median_days)}
-            />
-            <Standing
-              label={t("admin.p75Cycle")}
-              text={formatDuration(cycle.p75_days)}
-            />
-          </>
-        )}
+        <Figure
+          label={t("taskActivity.comments")}
+          value={dash(totals.comments)}
+        />
       </dl>
-    </div>
+
+      <div className="border-hairline flex flex-wrap items-baseline gap-x-6 gap-y-1.5 border-t px-4 py-2.5">
+        <p className="text-ink-3 text-micro font-medium">
+          {t("admin.rightNow")}
+        </p>
+        <dl className="contents">
+          <Standing label={t("admin.openTasks")} value={totals.open_todos} />
+          <Standing label={t("admin.sections.users")} value={totals.users} />
+          <Standing label={t("boards.title")} value={totals.boards} />
+        </dl>
+      </div>
+    </section>
   );
 }
 
-function Tile({
+function Figure({
   label,
   value,
   aside,
 }: {
   label: string;
-  value: number;
+  value: string;
   aside?: string;
 }) {
   return (
-    <div className="border-hairline bg-surface rounded-card flex min-w-0 flex-col border px-3.5 py-2.5">
-      <span className="text-ink-3 text-micro truncate font-semibold tracking-wide uppercase">
-        {label}
-      </span>
+    <div className="bg-surface flex min-w-0 flex-col px-4 pt-3.5 pb-3 last:col-span-2 sm:last:col-span-1">
+      <dt className="text-ink-3 text-mini order-2 mt-1 truncate">{label}</dt>
 
-      <span className="text-ink truncate text-xl font-semibold tabular-nums">
-        {dash(value)}
-      </span>
+      <dd className="text-ink order-1 truncate text-2xl font-semibold tracking-tight tabular-nums">
+        {value}
+      </dd>
 
-      {/* Reserved whether or not it is filled, so one tile carrying an
-          unestimated count does not make its row taller than the others. */}
+      {/* Reserved whether or not it is filled, so one figure carrying an
+          aside does not make its row taller than the others. */}
       <span
         className={cn(
-          "text-ink-3 text-mini h-4 truncate",
+          "text-ink-3/80 text-micro order-3 h-3.5 truncate",
           aside === undefined && "invisible",
         )}
       >
@@ -101,20 +104,12 @@ function Tile({
   );
 }
 
-function Standing({
-  label,
-  value,
-  text,
-}: {
-  label: string;
-  value?: number;
-  text?: string;
-}) {
+function Standing({ label, value }: { label: string; value: number }) {
   return (
-    <div className="flex items-baseline gap-2">
+    <div className="flex items-baseline gap-1.5">
       <dt className="text-ink-3 text-mini">{label}</dt>
-      <dd className="text-ink-2 text-meta font-semibold tabular-nums">
-        {text ?? dash(value)}
+      <dd className="text-ink-2 text-meta font-medium tabular-nums">
+        {dash(value)}
       </dd>
     </div>
   );

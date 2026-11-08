@@ -4,7 +4,7 @@ import { useBoardId } from "@/hooks/useBoardId";
 import { queryKeys } from "@/services/queryClient/queryKeys";
 import type { IWorkflow } from "@/types/data";
 
-import { toWorkflowModel } from "./statuses";
+import { doneStatusIds, toWorkflowModel } from "./statuses";
 import { getWorkflow } from "./workflowApi";
 
 export function workflowQuery(boardId: string | undefined) {
@@ -32,6 +32,17 @@ export function useWorkflow() {
   const boardId = useBoardId();
 
   return useQuery({ ...workflowQuery(boardId), select: toWorkflowModel });
+}
+
+function selectDoneStatusIds(workflow: IWorkflow) {
+  return doneStatusIds(selectStatuses(workflow));
+}
+
+// One Set per snapshot, shared by every card that asks whether it is done.
+export function useDoneStatusIds() {
+  const boardId = useBoardId();
+
+  return useQuery({ ...workflowQuery(boardId), select: selectDoneStatusIds });
 }
 
 export function useStatuses() {

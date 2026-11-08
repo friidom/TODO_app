@@ -1,10 +1,10 @@
 import { useTranslation } from "react-i18next";
-import { useEffect, useMemo } from "react";
+import { lazy, Suspense, useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 import BoardIdentity from "@/components/layout/BoardIdentity";
 import Drawer from "@/components/layout/Drawer";
 import ViewShell from "@/components/layout/ViewShell";
-import SprintInsights from "@/components/board/SprintInsights";
 import ViewSettings from "@/components/board/ViewSettings";
 import ViewTabs from "@/components/board/ViewTabs";
 import ViewToolbar from "@/components/board/ViewToolbar";
@@ -13,13 +13,19 @@ import MembersDrawer from "@/components/members/MembersDrawer";
 import TaskDetailModal, { TaskPanel } from "@/components/todo/TaskDetailModal";
 import KanbanBoard from "@/components/kanban/KanbanBoard";
 import ListView from "@/components/views/ListView";
-import SummaryView from "@/components/summary/SummaryView";
-import CalendarView from "@/components/calendar/CalendarView";
-import TimelineView from "@/components/timeline/TimelineView";
-import BacklogView from "@/components/backlog/BacklogView";
 import NotFoundPage from "@/pages/error/NotFoundPage";
-import { BoardPageSkeleton } from "@/components/loading/ViewSkeleton";
+import ViewSkeleton, {
+  BoardPageSkeleton,
+} from "@/components/loading/ViewSkeleton";
 import { useBoard } from "@/services/boards/useBoard";
+import { membersQuery } from "@/services/members/useBoardMembers";
+import { sprintsQuery } from "@/services/sprints/useSprints";
+import { todosQuery } from "@/services/todos/useTodos";
+import { workflowQuery } from "@/services/workflow/useWorkflow";
+import {
+  FIRST_LOAD_PROPS,
+  awaitingFirstAnswer,
+} from "@/services/queryClient/firstLoad";
 import { useBoardId } from "@/hooks/useBoardId";
 import { useBoardView } from "@/hooks/useBoardView";
 import { useOpenTask } from "@/hooks/useOpenTask";
@@ -28,10 +34,21 @@ import { usePanel } from "@/hooks/usePanel";
 import { useVisibleTodos } from "@/hooks/useVisibleTodos";
 import { useColumns } from "@/services/columns/useColumnsApi";
 import { useBoardRealtime } from "@/services/realtime/useBoardRealtime";
+import { useAuth } from "@/services/auth/useAuth";
 import { recordBoardVisit } from "@/services/forYou/viewed";
 import { useTaskLayout } from "@/stores/taskLayout";
 import { relativeTime } from "@/utils/relativeTime";
 import { isUuid } from "@/utils/uuid";
+
+// Views other than the board, and the insights drawer, load on first use: the
+// board page chunk had grown past 500 KB, and most visits never open them.
+const SprintInsights = lazy(() => import("@/components/board/SprintInsights"));
+const SummaryView = lazy(() => import("@/components/summary/SummaryView"));
+const CalendarView = lazy(() => import("@/components/calendar/CalendarView"));
+const TimelineView = lazy(() => import("@/components/timeline/TimelineView"));
+const BacklogView = lazy(() => import("@/components/backlog/BacklogView"));
+
+const FIRST_LOAD = [...FIRST_LOAD_PROPS];
 
 // split in two so the hooks in BoardView run unconditionally — an early return before calling useBoard would break hook order
 export default function BoardPage() {
@@ -46,6 +63,17 @@ export default function BoardPage() {
 function BoardView({ boardId }: { boardId: string }) {
   const { data: board, isPending, error } = useBoard(boardId);
 
+  // The views cannot draw anything true without these, and none of them needs
+  // the board row, so they load beside it and the page keeps one skeleton until
+  // all have answered. Waiting on the row alone handed off to a second skeleton.
+  // Narrow notifyOnChangeProps, so a card edit does not re-render the whole page.
+  const viewDataPending = [
+    useQuery({ ...workflowQuery(boardId), notifyOnChangeProps: FIRST_LOAD }),
+    useQuery({ ...todosQuery(boardId), notifyOnChangeProps: FIRST_LOAD }),
+    useQuery({ ...sprintsQuery(boardId), notifyOnChangeProps: FIRST_LOAD }),
+    useQuery({ ...membersQuery(boardId), notifyOnChangeProps: FIRST_LOAD }),
+  ].some(awaitingFirstAnswer);
+
   const view = useBoardView();
   // A stale ?view=backlog must not outlive the feature being switched off.
   const sprintsEnabled = useSprintsEnabled();
@@ -59,12 +87,21 @@ function BoardView({ boardId }: { boardId: string }) {
   const viewers = useBoardRealtime(boardId);
 
   const visitedId = board?.id;
+  const userId = useAuth().user?.id;
+  const visitedMode = view.mode;
 
   useEffect(() => {
-    if (visitedId) recordBoardVisit(visitedId, new Date().toISOString());
-  }, [visitedId]);
+    if (visitedId) {
+      recordBoardVisit(
+        userId,
+        visitedId,
+        new Date().toISOString(),
+        visitedMode,
+      );
+    }
+  }, [userId, visitedId, visitedMode]);
 
-  if (isPending) return <BoardPageSkeleton />;
+  if (isPending || viewDataPending) return <BoardPageSkeleton />;
 
   // real failures (offline, RLS) go to the route's errorElement — telling the user "board not found" would be a lie
   if (error) throw error;
@@ -93,7 +130,9 @@ function BoardView({ boardId }: { boardId: string }) {
             </Drawer>
           ) : panel === "insights" ? (
             <Drawer title={t("insights.title")} onClose={closePanel}>
-              <SprintInsights />
+              <Suspense fallback={null}>
+                <SprintInsights />
+              </Suspense>
             </Drawer>
           ) : panel === "settings" ? (
             <Drawer title={t("viewSettings.title")} onClose={closePanel}>
@@ -102,19 +141,21 @@ function BoardView({ boardId }: { boardId: string }) {
           ) : undefined
         }
       >
-        {view.mode === "summary" ? (
-          <SummaryView />
-        ) : view.mode === "list" ? (
-          <ListView />
-        ) : view.mode === "calendar" ? (
-          <CalendarView />
-        ) : view.mode === "timeline" ? (
-          <TimelineView />
-        ) : view.mode === "backlog" && sprintsEnabled ? (
-          <BacklogView />
-        ) : (
-          <KanbanBoard />
-        )}
+        <Suspense fallback={<ViewSkeleton mode={view.mode} />}>
+          {view.mode === "summary" ? (
+            <SummaryView />
+          ) : view.mode === "list" ? (
+            <ListView />
+          ) : view.mode === "calendar" ? (
+            <CalendarView />
+          ) : view.mode === "timeline" ? (
+            <TimelineView />
+          ) : view.mode === "backlog" && sprintsEnabled ? (
+            <BacklogView />
+          ) : (
+            <KanbanBoard />
+          )}
+        </Suspense>
       </ViewShell>
 
       {taskLayout === "modal" && <TaskDetailModal boardId={boardId} />}

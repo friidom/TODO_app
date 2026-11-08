@@ -61,6 +61,7 @@ import {
   type PendingUpload,
 } from "./AttachmentItem";
 import { useCardPopover } from "./TodoItem/useCardPopover";
+import { useOnReveal } from "@/hooks/useReveal";
 
 type AttachmentView = "list" | "grid";
 
@@ -86,6 +87,13 @@ export default function AttachmentsSection({ todoId }: { todoId: string }) {
   const [view, setView] = useState<AttachmentView>("list");
   const [confirmingAll, setConfirmingAll] = useState(false);
   const [dragging, setDragging] = useState(false);
+
+  useOnReveal(({ kind }) => {
+    if (kind !== "attachment") return;
+
+    setCollapsed(false);
+    setFilter("all");
+  });
   const dragDepth = useRef(0);
 
   const upload = useUploadAttachment();

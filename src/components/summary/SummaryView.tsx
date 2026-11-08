@@ -12,6 +12,7 @@ import {
 
 import ActivityFeed from "@/components/activity/ActivityFeed";
 import ViewSkeleton from "@/components/loading/ViewSkeleton";
+import ViewError from "@/components/loading/ViewError";
 import { useBoardId } from "@/hooks/useBoardId";
 import { useBoardView } from "@/hooks/useBoardView";
 import { usePanel } from "@/hooks/usePanel";
@@ -90,7 +91,7 @@ export default function SummaryView() {
 
   if (isLoading) return <ViewSkeleton mode="summary" />;
 
-  if (error) return <p className="text-status-red text-sm">{error.message}</p>;
+  if (error) return <ViewError error={error} />;
 
   return (
     <div className="motion-safe:animate-in motion-safe:fade-in-0 h-full min-h-0 overflow-y-auto pb-4 duration-200">

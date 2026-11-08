@@ -66,7 +66,9 @@ async function send(method: string, url: string, token: string) {
       ? { seniority: "senior" }
       : url.endsWith("/workflow")
         ? await workflowDraft(superadmin.boardId)
-        : { daily_points: 1, weekly_points: 1 };
+        : url.endsWith("/superadmin")
+          ? { superadmin: true }
+          : { daily_points: 1, weekly_points: 1 };
 
   switch (method) {
     case "GET":

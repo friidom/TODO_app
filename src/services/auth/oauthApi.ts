@@ -2,6 +2,11 @@ import { api, apiBaseUrl } from "../api/client";
 
 export type OAuthProvider = "google" | "github";
 
+export const OAUTH_PROVIDER_LABEL: Record<OAuthProvider, string> = {
+  google: "Google",
+  github: "GitHub",
+};
+
 export interface OAuthConnection {
   id: string;
   provider: string;

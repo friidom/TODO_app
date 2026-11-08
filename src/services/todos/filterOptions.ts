@@ -22,11 +22,13 @@ export interface FilterOptionContext {
   statuses: IStatus[];
   members: BoardMember[];
   currentUserId?: string;
+  // The board's labels, most used first.
+  labels?: string[];
 }
 
 export function filterOptions(
   category: FilterCategory,
-  { statuses, members, currentUserId }: FilterOptionContext,
+  { statuses, members, currentUserId, labels = [] }: FilterOptionContext,
 ): FilterOption[] {
   switch (category) {
     case "assignee":
@@ -66,6 +68,12 @@ export function filterOptions(
         value: bucket,
         label: DUE_LABELS[bucket],
       }));
+
+    case "label":
+      return [
+        ...labels.map((name) => ({ value: name, label: name })),
+        { value: UNSET, label: i18n.t("common.none") },
+      ];
   }
 }
 

@@ -185,7 +185,14 @@
     "autoLayout": "Auto-layout",
     "fit": "Fit to screen",
     "zoomOut": "Zoom out",
-    "zoomIn": "Zoom in"
+    "zoomIn": "Zoom in",
+    "statusNode": "Status {{name}}",
+    "start": "Start",
+    "startHint": "Work items created without picking a column start in {{name}}.",
+    "anyStatus": "Any status",
+    "fromMany": "From statuses",
+    "itemsHere": "Work items here",
+    "alreadyAllowed": "Already allowed"
   },
   "activity": {
     "statusCreated": "created the status {{name}}",
@@ -238,7 +245,11 @@
     "memberRemoved": "removed {{who}}",
     "roleMade": "made {{who}} {{role}}",
     "roleChanged": "changed {{who}}'s role",
-    "changedSomething": "changed something"
+    "changedSomething": "changed something",
+    "labelsChanged": "changed the labels of {{item}}",
+    "sprintChanged": "changed the sprint of {{item}}",
+    "startChanged": "changed the start date of {{item}}",
+    "startCleared": "cleared the start date on {{item}}"
   },
   "loading": "Loading...",
   "common": {
@@ -308,7 +319,9 @@
     "expandSidebar": "Expand sidebar",
     "collapseSidebar": "Collapse sidebar",
     "reorderHint": "Drag to reorder, or press Alt+↑/↓",
-    "movedTo": "{{name}} moved to position {{position}} of {{count}}"
+    "movedTo": "{{name}} moved to position {{position}} of {{count}}",
+    "sharedSpace": "{{space}} — shared with you",
+    "invitePeople": "Invite people…"
   },
   "header": {
     "newTask": "New task",
@@ -363,7 +376,8 @@
     "members": "Members",
     "searchLabel": "Search work items",
     "searchPlaceholder": "Search work",
-    "loadFailed": "Couldn't load this board"
+    "loadFailed": "Couldn't load this board",
+    "accessRemoved": "You no longer have access to this board."
   },
   "time": {
     "ago": {
@@ -428,7 +442,8 @@
     "updated": "Updated",
     "completed": "Completed",
     "title": "Title",
-    "workType": "Work type"
+    "workType": "Work type",
+    "labels": "Labels"
   },
   "due": {
     "none": "No due date",
@@ -505,7 +520,8 @@
     "noneActive": "No active sprint",
     "noneActiveHint": "Start a sprint to see work on this board.",
     "goToBacklog": "Go to Backlog",
-    "endDate": "End date"
+    "endDate": "End date",
+    "updated": "Sprint updated"
   },
   "task": {
     "fallbackName": "work item",
@@ -532,7 +548,10 @@
     "openInNewTab": "Open in new tab",
     "copyLink": "Copy link",
     "linkCopied": "Link copied",
-    "copyLinkFailed": "Could not copy the link."
+    "copyLinkFailed": "Could not copy the link.",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "saveFailed": "Couldn't save — changes were reverted."
   },
   "view": {
     "ascending": "Ascending",
@@ -603,7 +622,6 @@
     "itemCount_one": "{{count}} item",
     "itemCount_other": "{{count}} items",
     "visibleOf": "{{visible}} of {{total}}",
-    "selected": "{{count}} selected",
     "locked": "Locked",
     "lockedColumn": "Locked column",
     "lockedColumnHint": "The work item column always shows first — it names the row",
@@ -613,12 +631,18 @@
     "openDetails": "Open details",
     "resetColumnsHint": "Default columns, order and widths",
     "resize": "Resize {{name}}",
-    "resizeHint": "Drag to resize, double-click to reset",
+    "resizeHint": "Drag to resize, double-click to fit the content",
     "select": "Select {{name}}",
     "selectAll": "Select all work items",
     "sortBy": "Sort by {{name}}",
     "sortedAsc": "Sorted by {{name}}, ascending — click for descending",
-    "sortedDesc": "Sorted by {{name}}, descending — click to clear"
+    "sortedDesc": "Sorted by {{name}}, descending — click to clear",
+    "columnActions": "{{name}} column actions",
+    "fitContent": "Fit to content",
+    "resetWidth": "Reset width",
+    "hideColumn": "Hide column",
+    "sortAscending": "Sort ascending",
+    "sortDescending": "Sort descending"
   },
   "kanban": {
     "emptyColumn": "Nothing here yet",
@@ -703,7 +727,10 @@
     "taskRemoved": "removed task",
     "madeSubtask": "made this a subtask",
     "madeTopLevel": "made this a top-level work item",
-    "estimateField": "Story point estimate"
+    "estimateField": "Story point estimate",
+    "labelAdded": "added the label",
+    "labelRemoved": "removed the label",
+    "deletedSprint": "a deleted sprint"
   },
   "taskActivity": {
     "all": "All",
@@ -847,7 +874,10 @@
     "none": "No parent epic",
     "label": "Parent epic",
     "noEpics": "No epics on this board yet.",
-    "remove": "Remove parent"
+    "remove": "Remove parent",
+    "showDone": "Show done work items",
+    "noMatches": "No epics match",
+    "refine": "Showing the first {{count}}; refine your search."
   },
   "estimate": {
     "set": "Set a story point estimate",
@@ -937,7 +967,6 @@
     "createTask": "Create task",
     "createEpic": "Create epic",
     "epicName": "Epic name",
-    "epic": "epic",
     "dragToPlan": "drag to plan",
     "noDates": "No dates",
     "sprints": "Sprints",
@@ -946,15 +975,31 @@
     "barRange": "{{name}} — {{start}} to {{end}}",
     "outsideRange": "{{count}} outside this range",
     "undated": "{{count}} undated",
-    "emptyRangeTitle": "Nothing scheduled in this range",
-    "emptyRangeHint_one": "{{count}} dated item is outside it. Page through the dates, or jump back to today.",
-    "emptyRangeHint_other": "{{count}} dated items are outside it. Page through the dates, or jump back to today.",
-    "noEpicsTitle": "No epics have dates yet",
-    "noEpicsHint": "Create an epic below, or open one and set a start date, a due date, or both.",
+    "noEpicsTitle": "No epics yet",
+    "noEpicsHint": "Create an epic below to start planning, then break it down into tasks.",
     "scale": {
       "weeks": "weeks",
-      "months": "months"
-    }
+      "months": "months",
+      "quarters": "quarters"
+    },
+    "days_one": "{{count}} day",
+    "days_other": "{{count}} days",
+    "autoHint": "Scheduled automatically within {{parent}}. Drag or resize it to set its own dates.",
+    "derivedHint": "Its dates come from its child items. Drag an edge to give it dates of its own.",
+    "outsideHint": "Outside its parent's dates ({{range}})",
+    "jumpTo": "Show {{date}} on the timeline",
+    "dueOn": "Due {{date}}",
+    "startsOn": "Starts {{date}}",
+    "addTask": "Add a child item to {{name}}",
+    "addSubtask": "Add a subtask to {{name}}",
+    "taskName": "What needs to be done?",
+    "subtaskName": "Subtask name",
+    "enterToCreate": "Press Enter to create",
+    "todayIs": "Today · {{date}}",
+    "previousQuarter": "Previous quarter",
+    "nextQuarter": "Next quarter",
+    "columns": "Columns",
+    "resetColumns": "Reset columns"
   },
   "summary": {
     "total": "Total",
@@ -981,7 +1026,16 @@
     "trends": "Activity trends",
     "trendsHint": "Items created, and items whose most recent change fell on that day",
     "trendsEmpty": "Nothing to chart yet.",
-    "perDay": "{{name}} per day: {{values}}"
+    "perDay": "{{name}} per day: {{values}}",
+    "items_one": "item",
+    "items_other": "items",
+    "late_one": "{{count}} late",
+    "late_other": "{{count}} late",
+    "onTrack_one": "{{count}} on track",
+    "onTrack_other": "{{count}} on track",
+    "trendsExplore": "Created and updated per day. Use the arrow keys to read each day.",
+    "itemsShare_one": "{{count}} item, {{percent}}%",
+    "itemsShare_other": "{{count}} items, {{percent}}%"
   },
   "forYou": {
     "filterLabel": "Filter your work",
@@ -1061,20 +1115,15 @@
       "all": "All",
       "invite": "Invitations",
       "assigned": "Assignments"
-    }
+    },
+    "invitedSpace": "{{actor}} invited you to {{space}}"
   },
   "invites": {
-    "title": "Invite people",
-    "intro": "Create a link and share it. Whoever opens it joins this board with the role you choose.",
-    "namesOrEmails": "Names or emails",
     "ownerOnlyAdmins": "Only the board owner can invite admins.",
-    "linkExpires": "Link expires",
     "days_one": "{{count}} day",
     "days_other": "{{count}} days",
     "sending": "Sending invite...",
     "creatingLink": "Creating link...",
-    "inviteNamed": "Invite {{name}}",
-    "createAnother": "Create another link",
     "createLink": "Create invite link",
     "linkCreated": "Link created. It works once, for one person.",
     "copyLink": "Copy link",
@@ -1099,12 +1148,8 @@
     "expiresTomorrow": "Expires tomorrow",
     "expiresIn_one": "Expires in {{count}} day",
     "expiresIn_other": "Expires in {{count}} days",
-    "joined": "You've joined the board",
     "alreadyMember": "You're already a member",
-    "alreadyMemberBody": "This invitation is for a board you already have access to. Your role has not changed.",
     "openBoard": "Open board",
-    "invitedTitle": "You've been invited to a board",
-    "invitedBody": "Accept to join. The role you get was chosen by whoever sent the link.",
     "accepting": "Accepting...",
     "accept": "Accept invitation",
     "notNow": "Not now",
@@ -1115,7 +1160,67 @@
       "conflict": "This invitation has already been used.",
       "forbidden": "This invitation cannot be accepted.",
       "fallback": "This invitation could not be accepted. Please try again, or ask for a new link."
-    }
+    },
+    "goHome": "Go to your boards",
+    "checking": "Checking the invitation…",
+    "unavailableTitle": "This invitation can't be used",
+    "alreadyMemberOf": "You already have access to {{board}}. Your role there has not changed.",
+    "expiredTitle": "This invitation has expired",
+    "expiredBody": "It expired on {{date}}. Ask {{name}} to send a new one.",
+    "expiredBodyAnon": "It expired on {{date}}. Ask whoever sent it for a new one.",
+    "joinedBoard": "You've joined {{board}}",
+    "joinTitle": "Join {{board}}",
+    "invitedBy": "{{name}} invited you. Check what you'll get access to before you accept.",
+    "invitedAnon": "You've been invited. Check what you'll get access to before you accept.",
+    "detailBoard": "Board",
+    "detailSpace": "Space",
+    "detailRole": "Your role",
+    "detailExpires": "Expires",
+    "dialogTitle": "Invite people to {{board}}",
+    "scopeBoard": "People you invite get access to this board only.",
+    "scopeBoardInSpace": "In {{space}}. People you invite get access to this board only, not to the rest of the space.",
+    "person": "Person",
+    "personHint": "Search for someone who has an account, or leave this empty to create a shareable link.",
+    "role": "Role",
+    "expiresAfter": "Expires after",
+    "until": "Until {{date}}",
+    "summaryPerson": "{{name}} will join {{board}} as {{role}}.",
+    "summaryLink": "Anyone with the link can join {{board}} as {{role}}. It works once.",
+    "summaryUntil": "The invitation is valid until {{date}}.",
+    "send": "Send invitation",
+    "sentTo": "Invitation sent to {{name}}",
+    "sentHint": "They'll find it in their notifications. You can also share this link with them.",
+    "linkLabel": "Invitation link",
+    "shareableLink": "Shareable link",
+    "byAndExpiry": "Invited by {{name}} · {{when}}",
+    "revokeFor": "Revoke the invitation for {{name}}",
+    "alreadyOnBoard": "Already a member · {{role}}",
+    "alreadyInvited": "Invited · {{when}}",
+    "removePerson": "Remove {{name}}",
+    "inviteTo": "Invite to",
+    "scopeThisBoard": "This board",
+    "scopeWholeSpace": "{{space}} space",
+    "scopeSpaceHint": "People you invite get access to the boards you choose, and nothing else in the space.",
+    "boards": "Boards",
+    "boardsChosen": "{{count}} of {{total}}",
+    "chooseAll": "Select all",
+    "chooseNone": "Clear",
+    "spaceEmpty": "This space has no boards yet.",
+    "laterBoards": "Boards added to {{space}} later aren't included.",
+    "summarySpacePerson_one": "{{name}} will join {{count}} board in {{space}} as {{role}}.",
+    "summarySpacePerson_other": "{{name}} will join {{count}} boards in {{space}} as {{role}}.",
+    "summarySpaceLink_one": "Anyone with the link can join {{count}} board in {{space}} as {{role}}. It works once.",
+    "summarySpaceLink_other": "Anyone with the link can join {{count}} boards in {{space}} as {{role}}. It works once.",
+    "viaSpace_one": "Via {{space}} · {{count}} board",
+    "viaSpace_other": "Via {{space}} · {{count}} boards",
+    "onEveryBoard": "Already on every chosen board",
+    "onSomeBoards": "Already on {{count}} of {{total}}",
+    "alreadyOnEveryBoard": "You already have access to every board this invitation to {{space}} offers. Your roles there have not changed.",
+    "joinedBoards_one": "You've joined {{count}} board in {{space}}",
+    "joinedBoards_other": "You've joined {{count}} boards in {{space}}",
+    "detailBoards": "Boards",
+    "alreadyOnIt": "· already a member",
+    "laterBoardsRecipient": "Boards added to this space later aren't included."
   },
   "validation": {
     "emailRequired": "Email is required.",
@@ -1146,7 +1251,10 @@
       "providerFailed": "That provider's response could not be verified. Please try again.",
       "invalidState": "That sign-in attempt expired or could not be verified. Please try again.",
       "invalidRequest": "That sign-in link was incomplete. Please try again.",
-      "oauthFailed": "Something went wrong while signing in. Please try again."
+      "oauthFailed": "Something went wrong while signing in. Please try again.",
+      "linkExpired": "That connection request expired or was already used. Connect the account again from here.",
+      "linkWrongAccount": "That connection request belongs to a different account, so nothing was connected.",
+      "linkFailed": "The account could not be connected. Try again from here."
     }
   },
   "auth": {
@@ -1177,6 +1285,8 @@
     "usernameTaken": "That username is already taken.",
     "usernameCheckFailed": "Could not check that username right now.",
     "linkingSubtitle": "An account already exists for that email address. Sign in to connect your new sign-in method to it.",
+    "linkingSubtitleProvider": "An account already exists for that email address. Sign in to it with your password or another sign-in method you already use, and {{provider}} will be connected to it.",
+    "linkingCancel": "Cancel and sign in normally",
     "unconfirmedSubtitle": "Confirm your email address first — check your inbox for the link we sent.",
     "resetSubtitle": "Your password has been updated. Sign in with the new one.",
     "loginSubtitle": "Sign in to pick up where your board left off.",
@@ -1205,7 +1315,17 @@
     "newPassword": "New password",
     "confirmNewPassword": "Confirm new password",
     "updating": "Updating…",
-    "updatePassword": "Update password"
+    "updatePassword": "Update password",
+    "resendVerification": "Resend confirmation email",
+    "verificationResent": "If that address is waiting for confirmation, a new link is on its way.",
+    "noEmailYet": "No email after a few minutes? Check spam, or send it again.",
+    "emailVerifiedTitle": "Email confirmed",
+    "emailVerifiedSubtitle": "Your account is ready. Sign in to continue.",
+    "verifyingTitle": "Confirming your email",
+    "verifyingSubtitle": "One moment…",
+    "verifyLinkInvalidTitle": "That link has expired",
+    "verifyLinkInvalidSubtitle": "Confirmation links work once and last 24 hours. Enter your email and we will send a new one.",
+    "verifiedSubtitle": "Email confirmed. Sign in with your new account."
   },
   "profile": {
     "title": "Profile",
@@ -1286,12 +1406,14 @@
     "connecting": "Connecting…",
     "openProject": "Open {{project}} in GitLab",
     "status": {
+      "serverSetup": "Server setup needed",
       "awaitingToken": "Needs signing token",
       "awaitingDelivery": "Waiting for GitLab",
       "active": "Active",
       "failing": "Failing"
     },
     "statusDetail": {
+      "serverSetup": "This server can't receive GitLab events until an administrator sets it up. The project and its webhook URL are saved; you can add the signing token afterwards.",
       "awaitingToken": "Add the webhook in GitLab, then save its signing token here.",
       "awaitingDelivery": "Token saved. Nothing has arrived from GitLab yet — push a commit, or use Test → Push events on the webhook in GitLab.",
       "active": "Receiving events. Last delivery {{time}}.",
@@ -1420,7 +1542,18 @@
     "selectedFields": "Selected fields",
     "noFieldsSelected": "Cards show no fields. Search above to add some back.",
     "allFieldsShown": "Every field is already shown.",
-    "removeField": "Remove {{name}}"
+    "removeField": "Remove {{name}}",
+    "boardView": "Board view",
+    "saved": "Saved",
+    "unsaved": "Unsaved changes",
+    "notSaved": "Not saved",
+    "savedHint": "Everyone opening this board sees this saved view.",
+    "notSavedHint": "This board has no saved view yet, so each person sees their own settings.",
+    "unsavedHintAdmin": "Your changes are only on this device. Save them to show this view to everyone on the board.",
+    "unsavedHintMember": "Your changes are only on this device. Only board admins can save the board view for everyone.",
+    "saveBoard": "Save for everyone",
+    "resetToSaved": "Reset to last saved",
+    "boardViewSaved": "Board view saved for everyone."
   },
   "insights": {
     "title": "Sprint insights",
@@ -1445,7 +1578,13 @@
     "noStartDate": "Give the sprint a start date to see its burndown.",
     "noWork": "There's no work in this sprint yet.",
     "epicsSummary_one": "This sprint is working towards {{count}} epic.",
-    "epicsSummary_other": "This sprint is working towards {{count}} epics."
+    "epicsSummary_other": "This sprint is working towards {{count}} epics.",
+    "pointsCount_one": "{{count}} point",
+    "pointsCount_other": "{{count}} points",
+    "itemsCount_one": "{{count}} item",
+    "itemsCount_other": "{{count}} items",
+    "doneSoFar": "Done so far",
+    "burndownExplore": "Sprint burndown. Use the arrow keys to read each day."
   },
   "apiErrors": {
     "network": "Could not reach the server. Check your connection and try again.",
@@ -1497,7 +1636,12 @@
       "internal": "The server ran into a problem. Please try again.",
       "unknown": "Something went wrong. Please try again."
     },
-    "boardKeyTaken": "Board key {{key}} is already in use."
+    "boardKeyTaken": "Board key {{key}} is already in use.",
+    "emailNotVerified": "Confirm your email address to sign in. Check your inbox, or ask for a new link.",
+    "verifyLinkInvalid": "This confirmation link is invalid or has expired.",
+    "accountDeactivated": "This account is deactivated.",
+    "roleNeedsConfirmed": "Only an account with a confirmed email can be given global admin access.",
+    "lastSuperadmin": "This is the last superadmin. Give the role to someone else first."
   },
   "adminActions": {
     "created": "Created",
@@ -1526,22 +1670,29 @@
       "updated": "KPI updated"
     },
     "user": {
-      "seniority_changed": "User seniority changed"
+      "seniority_changed": "User seniority changed",
+      "superadmin_granted": "Superadmin granted",
+      "superadmin_revoked": "Superadmin removed",
+      "superadmin_refused": "Role change refused"
     },
     "board": {
       "workflow_published": "Board workflow published"
-    }
+    },
+    "sprint_changed": "Sprint changed",
+    "start_changed": "Start date changed"
   },
   "admin": {
     "backToBoards": "Back to boards",
-    "updating": "updating…",
-    "sectionsLabel": "Superadmin sections",
+    "updating": "Updating…",
+    "sectionsLabel": "Administration sections",
     "sections": {
-      "dashboard": "Dashboard",
-      "flow": "Flow",
+      "dashboard": "Overview",
+      "flow": "Delivery",
       "leaderboards": "Leaderboards",
-      "users": "Developers",
-      "kpi": "KPI settings"
+      "users": "People",
+      "kpi": "KPI targets",
+      "access": "Superadmins",
+      "audit": "Audit log"
     },
     "metrics": {
       "completedTasks": "Completed tasks",
@@ -1564,7 +1715,7 @@
       "year": "This calendar year, to date"
     },
     "columns": {
-      "developer": "Developer",
+      "developer": "Person",
       "tasks": "Tasks",
       "points": "Points",
       "cycle": "Cycle",
@@ -1604,7 +1755,7 @@
       "hint": "Performance across the organisation",
       "label": "Leaderboard",
       "orderBy": "Order by",
-      "explainer": "Ordered by one named metric at a time. The number in the first column is the position under that ordering and nothing else — there is no combined score, and each figure stands on its own.",
+      "explainer": "Ordered by one named metric at a time. The number in the first column is the position under that ordering and nothing else — there is no combined score, and each figure stands on its own. A dash means the row has nothing under that metric, so it takes no place.",
       "peopleLabel": "People, ordered by one metric",
       "boardsLabel": "Boards, ordered by one metric",
       "position": "Position"
@@ -1635,7 +1786,7 @@
       "empty": "Nothing is in progress right now."
     },
     "audit": {
-      "title": "Recent admin changes",
+      "title": "Recent admin actions",
       "hint": "Append-only — no entry can be edited",
       "empty": "Nothing has been changed yet."
     },
@@ -1645,7 +1796,8 @@
     "bars": {
       "title": "Delivery over time",
       "hint": "{{total}} in this period",
-      "hintUnestimated": "{{total}} in this period · {{count}} completed with no estimate"
+      "hintUnestimated": "{{total}} in this period · {{count}} completed with no estimate",
+      "empty": "{{name}}: nothing in this period."
     },
     "metric": "Metric",
     "perBucket": "{{name}} per bucket: {{values}}",
@@ -1655,7 +1807,6 @@
     "spaceLoad": {
       "title": "Which spaces carry the work"
     },
-    "topOf": "Completed tasks · top {{top}} of {{total}}",
     "bullet": {
       "title": "Target vs actual",
       "noLevel": "No level set, so no target — the facts below are unaffected",
@@ -1739,7 +1890,7 @@
     "nothingHappened": "Nothing happened in this window.",
     "unknown": "Unknown",
     "dashboard": {
-      "title": "System overview",
+      "title": "Overview",
       "hint": "{{range}} · buckets in {{timezone}}",
       "hintLoading": "Everything, everywhere",
       "recentLabel": "Recent activity system-wide"
@@ -1762,10 +1913,8 @@
       "loadFailed": "That board could not be loaded.",
       "histogramHint": "Where this board's tail is",
       "wipHint": "Open cards on this board, by column",
-      "recentLabel": "Recent activity on this board",
-      "completionRate": "Completion rate {{rate}} over {{total}} countable cards."
+      "recentLabel": "Recent activity on this board"
     },
-    "ofTotal": "of {{total}} total",
     "ownerNamed": "owner {{name}}",
     "contributors": {
       "title": "Top contributors",
@@ -1796,7 +1945,8 @@
       "seeded": "Seeded, never edited",
       "perDay": "Points per day",
       "perWeek": "Points per week",
-      "nonNegative": "Must be zero or more."
+      "nonNegative": "Must be zero or more.",
+      "history": "History of target changes in the audit log →"
     },
     "pointsOverTarget": "completed points / target points",
     "space": {
@@ -1843,6 +1993,246 @@
       "hint_other": "{{count}} people · {{range}}",
       "hintLoading": "Factual metrics, side by side",
       "gridLabel": "Developers and their metrics"
-    }
+    },
+    "access": {
+      "hint": "Who can read the whole of Veylo, and every change to that",
+      "searchPlaceholder": "Search by name or email",
+      "noAccounts": "No accounts yet.",
+      "superadmins": "Superadmins",
+      "activeCount_one": "{{count}} active",
+      "activeCount_other": "{{count}} active",
+      "you": "Signed in as",
+      "youLabel": "you",
+      "youHint": "Your role is checked on every request: if it is removed, this area closes at once.",
+      "status": {
+        "active": "Active",
+        "unverified": "Unverified",
+        "deactivated": "Deactivated"
+      },
+      "grant": "Make superadmin",
+      "revoke": "Remove superadmin",
+      "grantTitle": "Give {{name}} global admin access?",
+      "grantBody": "They will be able to read every board, space, person and audit record in Veylo, and give or remove this access for others. Board permissions do not change: they still cannot edit a board they are not a member of.",
+      "revokeTitle": "Remove global admin access from {{name}}?",
+      "revokeBody": "They lose the admin area on their next request. Their own boards and memberships are not affected.",
+      "revokeSelfWarning": "This is your own access. You will leave the admin area as soon as you confirm.",
+      "grantConfirm": "Grant access",
+      "revokeConfirm": "Remove access",
+      "blocked": {
+        "unverified": "Needs a confirmed email first",
+        "deactivated": "This account is deactivated",
+        "last": "The last superadmin cannot be removed. Give the role to someone else first."
+      },
+      "toast": {
+        "granted": "{{name}} is now a superadmin",
+        "revoked": "{{name}} is no longer a superadmin",
+        "unchanged": "Nothing changed: {{name}} already had that role",
+        "revokedSelf": "You are no longer a superadmin"
+      },
+      "historyEmpty": "No role changes yet.",
+      "historyAction": {
+        "granted": "granted superadmin to",
+        "revoked": "removed superadmin from",
+        "refused": "could not change the role of",
+        "other": "changed the role of"
+      },
+      "refusal": {
+        "last_superadmin": "it would have left no superadmin",
+        "unverified": "email not confirmed",
+        "deactivated": "account deactivated",
+        "superadmin_exists": "a superadmin already existed"
+      },
+      "systemActor": "Server bootstrap",
+      "lost": "Your global admin access is no longer active.",
+      "add": "Add a superadmin",
+      "addHint": "Only an active account with a confirmed email can be given the role",
+      "noGrantMatch": "No other account matches “{{query}}”.",
+      "capped": "Showing the newest {{count}} accounts. Search to find anyone else.",
+      "joined": "Joined {{when}}",
+      "historyRecent": "Recent role changes",
+      "scope": {
+        "title": "What the role allows",
+        "analytics": "See organisation-wide analytics for every board, space and person",
+        "manage": "Give or remove this role, and set levels and KPI targets",
+        "boards": "No board access: they cannot open or edit a board they are not a member of",
+        "audited": "Every grant, removal and refused attempt is written to the audit log."
+      },
+      "showAll_one": "Show all {{count}} account",
+      "showAll_other": "Show all {{count}} accounts"
+    },
+    "title": "Administration",
+    "skipToContent": "Skip to content",
+    "live": "Live",
+    "connecting": "Connecting…",
+    "groups": {
+      "insights": "Insights",
+      "security": "Security"
+    },
+    "attention": {
+      "title": "Needs attention",
+      "items": {
+        "single_superadmin_one": "active superadmin. Add a second, so access survives a lost account.",
+        "single_superadmin_other": "active superadmin. Add a second, so access survives a lost account.",
+        "stale_work_one": "task has been in progress for 30 days or more",
+        "stale_work_other": "tasks have been in progress for 30 days or more"
+      },
+      "share": "{{percent}} of the {{total}} in flight"
+    },
+    "auditLog": {
+      "viewAll": "View audit log →",
+      "description": "Every elevated action, newest first. Append-only: no entry can be edited or removed, by anyone.",
+      "filterLabel": "Kind of change",
+      "filters": {
+        "all": "All",
+        "roles": "Superadmin role",
+        "seniority": "Levels",
+        "kpi": "KPI targets",
+        "workflow": "Workflow repairs"
+      },
+      "actor": "By",
+      "target": "Target",
+      "change": "Change",
+      "viaBootstrap": "server bootstrap",
+      "kpiChange": "{{daily}} per day · {{weekly}} per week",
+      "workflowChange": "version {{from}} → {{to}}",
+      "member": "Member",
+      "noLevel": "No level",
+      "time": "Time",
+      "byLine": "by {{name}}",
+      "complete_one": "{{count}} entry, newest first — everything recorded for this filter.",
+      "complete_other": "{{count}} entries, newest first — everything recorded for this filter.",
+      "capped_one": "The newest {{count}} entries are shown. Older entries are kept, but this page cannot page back to them yet.",
+      "capped_other": "The newest {{count}} entries are shown. Older entries are kept, but this page cannot page back to them yet.",
+      "empty": {
+        "title": "Nothing recorded yet",
+        "all": "Superadmin grants and removals, level changes, KPI target edits and workflow repairs appear here as they happen.",
+        "roles": "Superadmin grants, removals and refused attempts appear here as they happen.",
+        "seniority": "Level changes made on a person's page appear here.",
+        "kpi": "Edits to KPI targets appear here.",
+        "workflow": "Workflow repairs published from the admin area appear here."
+      }
+    },
+    "loadHint": "Completed tasks · {{active}} of {{total}} delivered",
+    "loadEmpty": "Nothing was completed in this period.",
+    "rightNow": "Right now",
+    "ofTotalRate": "of {{total}} total · {{rate}}"
+  },
+  "starred": {
+    "title": "Starred",
+    "star": "Star board",
+    "unstar": "Remove from starred",
+    "search": "Search starred boards",
+    "empty": "Nothing starred yet",
+    "emptyHint": "Star a board from its ••• menu or the star beside its name.",
+    "noMatches": "No starred boards match “{{query}}”",
+    "showAll": "Show all ({{count}})",
+    "expand": "Show starred boards",
+    "collapse": "Hide starred boards",
+    "loadFailed": "Couldn't load your starred boards."
+  },
+  "recent": {
+    "title": "Recent",
+    "search": "Search recent items",
+    "filterAll": "All",
+    "filterBoards": "Boards",
+    "filterTasks": "Tasks",
+    "empty": "Nothing recent yet",
+    "emptyHint": "Boards and tasks you open will show up here.",
+    "noMatches": "Nothing recent matches “{{query}}”",
+    "viewAll": "View all recent items",
+    "workedOn": "Items you worked on",
+    "loadFailed": "Couldn't load recent tasks."
+  },
+  "labels": {
+    "add": "Add labels",
+    "search": "Search or create a label",
+    "all": "All labels",
+    "create": "Create “{{name}}”",
+    "none": "No labels yet. Type to create one.",
+    "noMatches": "No label matches “{{query}}”",
+    "remove": "Remove label {{name}}",
+    "limit": "A work item can have up to 20 labels.",
+    "tooLong": "Labels can be up to 40 characters.",
+    "inFlight": "Available once the task is saved."
+  },
+  "pins": {
+    "title": "Pinned",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "goTo": "Go to original",
+    "fields": "My pinned fields",
+    "pinField": "Pin field to the top",
+    "unpinField": "Unpin field"
+  },
+  "createItem": {
+    "title": "Create work item",
+    "requiredNote": "Required fields are marked with an asterisk *",
+    "summary": "Summary",
+    "summaryPlaceholder": "What needs to be done?",
+    "summaryRequired": "Enter a summary.",
+    "summaryTooLong": "Keep the summary under {{max}} characters.",
+    "descriptionPlaceholder": "Add more detail, links or acceptance criteria",
+    "estimateInvalid": "Story points must be zero or more.",
+    "datesOrder": "The due date cannot be before the start date.",
+    "noParent": "No parent",
+    "labelsHint": "Separate labels with commas.",
+    "labelsPlaceholder": "e.g. frontend, bug-bash",
+    "another": "Create another",
+    "shortcut": "⌘/Ctrl + Enter to create",
+    "creating": "Creating…",
+    "created": "Work item created.",
+    "labelFailed": "The label “{{label}}” could not be added."
+  },
+  "bulk": {
+    "toolbar": "Bulk actions",
+    "selected": "selected",
+    "selectAll": "Select all",
+    "editFields": "Edit fields",
+    "changeStatus": "Change status",
+    "clear": "Clear selection",
+    "statusHint_one": "Move {{count}} work item to",
+    "statusHint_other": "Move {{count}} work items to",
+    "current": "Current",
+    "canMove_one": "{{count}} of {{total}} can move",
+    "canMove_other": "{{count}} of {{total}} can move",
+    "notAllowed": "Not allowed by the workflow",
+    "notAllowedFrom": "Not allowed from {{from}}",
+    "editTitle_one": "Edit {{count}} work item",
+    "editTitle_other": "Edit {{count}} work items",
+    "editHint": "Only the fields you change are updated. Everything else stays as it is.",
+    "sectionAssignment": "Assignment",
+    "sectionSchedule": "Schedule",
+    "sectionPlanning": "Planning",
+    "sectionHierarchy": "Parent and labels",
+    "keep": "Keep as is",
+    "reset": "Reset",
+    "willClear": "Will be cleared",
+    "noSprint": "None (backlog)",
+    "addLabel": "Add label",
+    "labelPlaceholder": "Type a label",
+    "labelHint": "Added to every item. Existing labels stay.",
+    "noChanges": "No changes yet",
+    "changes_one": "{{count}} field will change",
+    "changes_other": "{{count}} fields will change",
+    "apply_one": "Update {{count}} work item",
+    "apply_other": "Update {{count}} work items",
+    "deleteTitle_one": "Delete {{count}} work item?",
+    "deleteTitle_other": "Delete {{count}} work items?",
+    "deleteOneTitle": "Delete {{name}}?",
+    "deleteBody_one": "This permanently deletes the work item with its comments and attachments. It can't be undone.",
+    "deleteBody_other": "This permanently deletes these {{count}} work items with their comments and attachments. It can't be undone.",
+    "deleteCascade_one": "This also deletes {{count}} child item.",
+    "deleteCascade_other": "This also deletes {{count}} child items.",
+    "typeToConfirm": "Type {{word}} to continue",
+    "deleteWord": "delete",
+    "deleteCount_one": "Delete {{count}} work item",
+    "deleteCount_other": "Delete {{count}} work items",
+    "updated_one": "Updated {{count}} work item",
+    "updated_other": "Updated {{count}} work items",
+    "deleted_one": "Deleted {{count}} work item",
+    "deleted_other": "Deleted {{count}} work items",
+    "failed": "{{failed}} of {{count}} couldn't be saved. The list has been refreshed.",
+    "skipped_one": "{{count}} work item was skipped: the change isn't allowed for it.",
+    "skipped_other": "{{count}} work items were skipped: the change isn't allowed for them."
   }
 }

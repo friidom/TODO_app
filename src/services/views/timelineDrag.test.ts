@@ -2,13 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import type { Todo } from "@/types/data";
 import { fromCalendarDay } from "@/utils/dueDate";
+import type { TimelineScale } from "./timeline";
 import {
-  timelineItems,
-  unscheduledTodos,
-  type TimelineScale,
-} from "./timeline";
-import {
+  NO_LIMITS,
   columnEnd,
+  constrainDraw,
+  constrainEnd,
+  constrainMove,
+  constrainStart,
   daysBetween,
   draftRange,
   moveRange,
@@ -16,11 +17,12 @@ import {
   rangeLength,
   resizeEnd,
   resizeStart,
-  scheduleFields,
-  tickAtOffset,
-  ticksMoved,
+  indexAtOffset,
+  stepsMoved,
   type DayRange,
+  type DragLimits,
 } from "./timelineDrag";
+import { buildTimelineHierarchy } from "./timelineHierarchy";
 
 // 420px over 42 day-columns — 10px each, so the sums are legible.
 const WEEK_TRACK = { width: 420, ticks: 42 };
@@ -65,27 +67,36 @@ function todo(over: Partial<Todo> = {}): Todo {
 
 describe("snapping a pointer to the axis", () => {
   it("puts a pointer in the column it is over", () => {
-    expect(tickAtOffset(0, WEEK_TRACK.width, WEEK_TRACK.ticks)).toBe(0);
-    expect(tickAtOffset(35, WEEK_TRACK.width, WEEK_TRACK.ticks)).toBe(3);
-    expect(tickAtOffset(419, WEEK_TRACK.width, WEEK_TRACK.ticks)).toBe(41);
+    expect(indexAtOffset(0, WEEK_TRACK.width, WEEK_TRACK.ticks)).toBe(0);
+    expect(indexAtOffset(35, WEEK_TRACK.width, WEEK_TRACK.ticks)).toBe(3);
+    expect(indexAtOffset(419, WEEK_TRACK.width, WEEK_TRACK.ticks)).toBe(41);
   });
 
   it("CLAMPS rather than answering off the track", () => {
-    expect(tickAtOffset(-200, WEEK_TRACK.width, WEEK_TRACK.ticks)).toBe(0);
-    expect(tickAtOffset(9_999, WEEK_TRACK.width, WEEK_TRACK.ticks)).toBe(41);
+    expect(indexAtOffset(-200, WEEK_TRACK.width, WEEK_TRACK.ticks)).toBe(0);
+    expect(indexAtOffset(9_999, WEEK_TRACK.width, WEEK_TRACK.ticks)).toBe(41);
   });
 
   it("survives a track that has not been laid out yet", () => {
     // width 0 would otherwise divide by zero and place every bar at NaN
-    expect(tickAtOffset(50, 0, 42)).toBe(0);
-    expect(ticksMoved(50, 0, 42)).toBe(0);
+    expect(indexAtOffset(50, 0, 42)).toBe(0);
+    expect(stepsMoved(50, 0, 42)).toBe(0);
   });
 
   it("measures travel in whole columns, rounding to the nearest", () => {
-    expect(ticksMoved(30, WEEK_TRACK.width, WEEK_TRACK.ticks)).toBe(3);
-    expect(ticksMoved(6, WEEK_TRACK.width, WEEK_TRACK.ticks)).toBe(1);
-    expect(ticksMoved(4, WEEK_TRACK.width, WEEK_TRACK.ticks)).toBe(0);
-    expect(ticksMoved(-30, WEEK_TRACK.width, WEEK_TRACK.ticks)).toBe(-3);
+    expect(stepsMoved(30, WEEK_TRACK.width, WEEK_TRACK.ticks)).toBe(3);
+    expect(stepsMoved(6, WEEK_TRACK.width, WEEK_TRACK.ticks)).toBe(1);
+    expect(stepsMoved(4, WEEK_TRACK.width, WEEK_TRACK.ticks)).toBe(0);
+    expect(stepsMoved(-30, WEEK_TRACK.width, WEEK_TRACK.ticks)).toBe(-3);
+  });
+
+  it("resolves a pointer to a DAY on a week-wide column, not to the column's Monday", () => {
+    // 26 week columns over 1820px: 70px a column, 10px a day
+    const days = 26 * 7;
+
+    expect(indexAtOffset(35, 1820, 26)).toBe(0);
+    expect(indexAtOffset(35, 1820, days)).toBe(3);
+    expect(stepsMoved(21, 1820, days)).toBe(2);
   });
 
   it("makes a column one day at the week scale and a week at the month scale", () => {
@@ -281,44 +292,20 @@ describe("status visualization", () => {
   });
 });
 
-describe("which dates a gesture may write", () => {
-  it("writes BOTH for an item that has both", () => {
-    expect(scheduleFields(true, true)).toEqual({
-      writeStart: true,
-      writeEnd: true,
-    });
-  });
-
-  it("writes BOTH for an undated item being scheduled for the first time", () => {
-    expect(scheduleFields(false, false)).toEqual({
-      writeStart: true,
-      writeEnd: true,
-    });
-  });
-
-  it("NEVER INVENTS the missing half of a point", () => {
-    expect(scheduleFields(false, true)).toEqual({
-      writeStart: false,
-      writeEnd: true,
-    });
-
-    expect(scheduleFields(true, false)).toEqual({
-      writeStart: true,
-      writeEnd: false,
-    });
-  });
-});
-
 describe("a task with no dates", () => {
-  it("stays off the axis and in the undated list", () => {
-    const bare = todo();
-    const dated = todo({
-      start_date: fromCalendarDay("2026-08-21"),
-      due_date: fromCalendarDay("2026-08-30"),
-    });
+  it("stays off the axis as a row with no range", () => {
+    const [bare, dated] = buildTimelineHierarchy([
+      todo({ type: "Epic" }),
+      todo({
+        type: "Epic",
+        start_date: fromCalendarDay("2026-08-21"),
+        due_date: fromCalendarDay("2026-08-30"),
+      }),
+    ]).epics;
 
-    expect(timelineItems([bare, dated])).toHaveLength(1);
-    expect(unscheduledTodos([bare, dated])).toEqual([bare]);
+    expect(bare.range).toBeNull();
+    expect(bare.source).toBe("none");
+    expect(dated.range).toEqual({ start: "2026-08-21", end: "2026-08-30" });
   });
 
   it("is not given dates by being drawn on — the write is what schedules it", () => {
@@ -331,17 +318,117 @@ describe("a task with no dates", () => {
   });
 });
 
+describe("drag limits", () => {
+  const parent: DragLimits = {
+    bounds: { start: "2026-10-01", end: "2026-10-12" },
+    contain: null,
+  };
+
+  it("moves freely with nothing above it", () => {
+    expect(
+      constrainMove(range("2026-10-02", "2026-10-04"), 30, NO_LIMITS),
+    ).toEqual(range("2026-11-01", "2026-11-03"));
+  });
+
+  it("stops a moved child at its parent's edges, keeping its length", () => {
+    const child = range("2026-10-02", "2026-10-04");
+
+    expect(constrainMove(child, 20, parent)).toEqual(
+      range("2026-10-10", "2026-10-12"),
+    );
+    expect(constrainMove(child, -9, parent)).toEqual(
+      range("2026-10-01", "2026-10-03"),
+    );
+  });
+
+  it("lets a child longer than its parent move rather than trap it", () => {
+    const wide = range("2026-09-25", "2026-10-20");
+
+    expect(constrainMove(wide, 2, parent)).toEqual(
+      range("2026-09-27", "2026-10-22"),
+    );
+  });
+
+  it("stops a resized child at its parent's edges", () => {
+    const child = range("2026-10-04", "2026-10-06");
+
+    expect(constrainStart(child, "2026-09-20", parent)).toEqual(
+      range("2026-10-01", "2026-10-06"),
+    );
+    expect(constrainEnd(child, "2026-10-30", parent)).toEqual(
+      range("2026-10-04", "2026-10-12"),
+    );
+  });
+
+  it("never inverts a range, however far a handle is dragged", () => {
+    const child = range("2026-10-04", "2026-10-06");
+
+    expect(constrainStart(child, "2026-10-09", NO_LIMITS)).toEqual(
+      range("2026-10-06", "2026-10-06"),
+    );
+    expect(constrainEnd(child, "2026-10-01", NO_LIMITS)).toEqual(
+      range("2026-10-04", "2026-10-04"),
+    );
+  });
+
+  it("stops a parent's edge at the children that have dates of their own", () => {
+    const epic = range("2026-10-01", "2026-10-31");
+    const holding: DragLimits = {
+      bounds: { start: null, end: null },
+      contain: range("2026-10-05", "2026-10-20"),
+    };
+
+    expect(constrainStart(epic, "2026-10-15", holding)).toEqual(
+      range("2026-10-05", "2026-10-31"),
+    );
+    expect(constrainEnd(epic, "2026-10-10", holding)).toEqual(
+      range("2026-10-01", "2026-10-20"),
+    );
+    expect(constrainEnd(epic, "2026-11-10", holding)).toEqual(
+      range("2026-10-01", "2026-11-10"),
+    );
+  });
+
+  it("clips a drawn range to the parent, and collapses rather than inverts", () => {
+    expect(constrainDraw(range("2026-09-28", "2026-10-03"), parent)).toEqual(
+      range("2026-10-01", "2026-10-03"),
+    );
+    expect(constrainDraw(range("2026-10-20", "2026-10-25"), parent)).toEqual(
+      range("2026-10-12", "2026-10-12"),
+    );
+  });
+
+  it("honours a parent that bounds only one side", () => {
+    const dueOnly: DragLimits = {
+      bounds: { start: null, end: "2026-10-12" },
+      contain: null,
+    };
+
+    expect(
+      constrainMove(range("2026-10-08", "2026-10-10"), 5, dueOnly),
+    ).toEqual(range("2026-10-10", "2026-10-12"));
+    expect(
+      constrainMove(range("2026-10-08", "2026-10-10"), -40, dueOnly),
+    ).toEqual(range("2026-08-29", "2026-08-31"));
+  });
+});
+
 describe("persistence", () => {
   // round trips through fromCalendarDay/toCalendarDay — a timezone slip on one side moves the bar by a day
   function reload(planned: DayRange) {
-    const [item] = timelineItems([
+    const [node] = buildTimelineHierarchy([
       todo({
+        type: "Epic",
         start_date: fromCalendarDay(planned.start),
         due_date: fromCalendarDay(planned.end),
       }),
-    ]);
+    ]).epics;
 
-    return { start: item.start, end: item.end, isPoint: item.isPoint };
+    return {
+      start: node.range?.start,
+      end: node.range?.end,
+      isPoint: node.source === "point",
+    };
   }
 
   it("puts a created task back at the range it was drawn on", () => {

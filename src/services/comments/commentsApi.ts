@@ -37,3 +37,12 @@ export async function deleteComment(id: string): Promise<string> {
 
   return id;
 }
+
+export function setCommentPinned(
+  id: string,
+  pinned: boolean,
+): Promise<Comment> {
+  return pinned
+    ? api.put<Comment>(`/comments/${id}/pin`)
+    : api.del<Comment>(`/comments/${id}/pin`);
+}

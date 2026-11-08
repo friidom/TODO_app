@@ -2,19 +2,17 @@ import { useTranslation } from "react-i18next";
 import { useCallback, useMemo } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 
-import AdminShell from "@/components/admin/AdminShell";
+import AdminPage from "@/components/admin/AdminPage";
 import {
   AdminCell,
   AdminEmpty,
   AdminGrid,
   AdminRow,
   AdminSkeleton,
+  AdminSortButton,
 } from "@/components/admin/AdminTable";
 import ScopeFilter from "@/components/admin/ScopeFilter";
-import {
-  HEADER_CONTROL,
-  HEADER_CONTROL_ACTIVE,
-} from "@/components/board/headerControl";
+import Segmented from "@/components/admin/Segmented";
 import { useAdminPeriod } from "@/hooks/useAdminPeriod";
 import { useAdminScope } from "@/hooks/useAdminScope";
 import {
@@ -106,15 +104,14 @@ export default function AdminLeaderboardsPage() {
   const window = active.data;
 
   return (
-    <AdminShell
+    <AdminPage
       title={t("admin.sections.leaderboards")}
-      hint={
+      description={
         window
           ? `${t("admin.leaders.hint")} · ${rangeLabel(window.from, window.to)}`
           : t("admin.leaders.hint")
       }
-      busy={people.isFetching || boards.isFetching}
-      actions={
+      toolbar={
         <ScopeFilter
           scope={scope}
           setScope={setScope}
@@ -125,51 +122,26 @@ export default function AdminLeaderboardsPage() {
     >
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div
-            role="group"
-            aria-label={t("admin.leaders.label")}
-            className="border-hairline bg-surface rounded-control inline-flex h-9 items-center gap-0.5 border p-0.5"
-          >
-            {LEADERBOARD_MODES.map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => view.setMode(mode)}
-                aria-pressed={mode === view.mode}
-                className={cn(
-                  "rounded-control text-meta h-8 px-3 transition-colors",
-                  mode === view.mode
-                    ? HEADER_CONTROL_ACTIVE
-                    : "text-ink-3 hover:text-ink hover:bg-ink/[0.06]",
-                )}
-              >
-                {LEADERBOARD_MODE_LABELS[mode]}
-              </button>
-            ))}
-          </div>
+          <Segmented
+            label={t("admin.leaders.label")}
+            value={view.mode}
+            onChange={view.setMode}
+            options={LEADERBOARD_MODES.map((mode) => ({
+              value: mode,
+              label: LEADERBOARD_MODE_LABELS[mode],
+            }))}
+          />
 
-          <div
-            role="group"
-            aria-label={t("admin.leaders.orderBy")}
-            className="flex flex-wrap gap-1"
-          >
-            {metricsFor(view.mode).map((metric) => (
-              <button
-                key={metric.key}
-                type="button"
-                title={metric.hint}
-                onClick={() => view.setSort(metric.key)}
-                aria-pressed={metric.key === view.sort}
-                className={cn(
-                  HEADER_CONTROL,
-                  "px-2",
-                  metric.key === view.sort && HEADER_CONTROL_ACTIVE,
-                )}
-              >
-                {metric.label}
-              </button>
-            ))}
-          </div>
+          <Segmented
+            label={t("admin.leaders.orderBy")}
+            value={view.sort}
+            onChange={view.setSort}
+            options={metricsFor(view.mode).map((metric) => ({
+              value: metric.key,
+              label: metric.label,
+              title: metric.hint,
+            }))}
+          />
         </div>
 
         {active.error ? (
@@ -198,7 +170,7 @@ export default function AdminLeaderboardsPage() {
 
         <p className="text-ink-3 text-mini">{t("admin.leaders.explainer")}</p>
       </div>
-    </AdminShell>
+    </AdminPage>
   );
 }
 
@@ -276,7 +248,11 @@ function PeopleTable({
         <AdminCell header>{t("admin.columns.developer")}</AdminCell>
         {numeric.map((key) => (
           <AdminCell key={key} header align="right">
-            <SortButton active={sort === key} onClick={() => onSort(key)}>
+            <SortButton
+              active={sort === key}
+              onClick={() => onSort(key)}
+              sortKey={key}
+            >
               {USER_SORT_LABELS[key]}
             </SortButton>
           </AdminCell>
@@ -285,6 +261,7 @@ function PeopleTable({
           <SortButton
             active={sort === "performance"}
             onClick={() => onSort("performance")}
+            sortKey="performance"
           >
             {USER_SORT_LABELS.performance}
           </SortButton>
@@ -296,7 +273,7 @@ function PeopleTable({
       ) : (
         ordered.map((row, index) => (
           <AdminRow key={row.id}>
-            <Ordinal index={index} />
+            <Ordinal index={index} ranked={rankable(row[sort], sort)} />
 
             <AdminCell>
               <Link
@@ -367,14 +344,22 @@ function BoardTable({
           <span aria-hidden>#</span>
         </AdminCell>
         <AdminCell header>
-          <SortButton active={sort === "title"} onClick={() => onSort("title")}>
+          <SortButton
+            active={sort === "title"}
+            onClick={() => onSort("title")}
+            sortKey="title"
+          >
             {BOARD_SORT_LABELS.title}
           </SortButton>
         </AdminCell>
         <AdminCell header>{t("roles.owner")}</AdminCell>
         {numeric.map((key) => (
           <AdminCell key={key} header align="right">
-            <SortButton active={sort === key} onClick={() => onSort(key)}>
+            <SortButton
+              active={sort === key}
+              onClick={() => onSort(key)}
+              sortKey={key}
+            >
               {BOARD_SORT_LABELS[key]}
             </SortButton>
           </AdminCell>
@@ -391,7 +376,7 @@ function BoardTable({
               void navigate(`/admin/boards/${row.id}?period=${period}`)
             }
           >
-            <Ordinal index={index} />
+            <Ordinal index={index} ranked={rankable(row[sort], sort)} />
 
             <AdminCell>
               <span className="text-ink truncate font-medium">
@@ -442,10 +427,20 @@ function usePeaks<T, K extends string>(
   }, [rows, keys]);
 }
 
-function Ordinal({ index }: { index: number }) {
+// A row the ordering metric says nothing about is listed, not ranked: in a
+// quiet week every zero would otherwise take a place by alphabet.
+function rankable(value: unknown, sortKey: string): boolean {
+  if (typeof value !== "number") return typeof value === "string";
+
+  return sortKey === ASCENDING || value > 0;
+}
+
+function Ordinal({ index, ranked }: { index: number; ranked: boolean }) {
   return (
     <AdminCell align="right">
-      <span className="text-ink-3 text-micro tabular-nums">{index + 1}</span>
+      <span className="text-ink-3 text-mini tabular-nums">
+        {ranked ? index + 1 : "–"}
+      </span>
     </AdminCell>
   );
 }
@@ -463,23 +458,24 @@ function Metric({
   direction: SortDirection;
   bar: boolean;
 }) {
+  const quiet = value === null || (direction === "desc" && value === 0);
+
   return (
     <span className="flex items-center justify-end gap-2">
       {bar && (
-        <span className="bg-ink/[0.06] hidden h-1 w-10 overflow-hidden rounded-full lg:block">
-          <span
-            className={cn(
-              "block h-full rounded-full",
-              value === null ? "bg-transparent" : "bg-brand/70",
-            )}
-            style={{ width: `${metricShare(value, peak, direction)}%` }}
-          />
+        <span className="hidden h-1 w-10 overflow-hidden rounded-full lg:block">
+          {!quiet && (
+            <span
+              className="bg-brand/70 block h-full rounded-full"
+              style={{ width: `${metricShare(value, peak, direction)}%` }}
+            />
+          )}
         </span>
       )}
       <span
         className={cn(
           "w-10 text-right tabular-nums",
-          value === null ? "text-ink-3" : "text-ink-2",
+          quiet ? "text-ink-3/70" : "text-ink",
         )}
       >
         {format(value)}
@@ -491,23 +487,21 @@ function Metric({
 function SortButton({
   active,
   onClick,
+  sortKey,
   children,
 }: {
   active: boolean;
   onClick: () => void;
+  sortKey: string;
   children: React.ReactNode;
 }) {
   return (
-    <button
-      type="button"
+    <AdminSortButton
+      active={active}
       onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        "hover:text-ink uppercase transition-colors",
-        active && "text-brand",
-      )}
+      direction={sortKey === ASCENDING || sortKey === "title" ? "asc" : "desc"}
     >
       {children}
-    </button>
+    </AdminSortButton>
   );
 }

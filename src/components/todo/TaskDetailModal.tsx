@@ -14,6 +14,7 @@ import {
   Maximize2Icon,
   Minimize2Icon,
   MoreHorizontalIcon,
+  PinIcon,
   Trash2Icon,
   XIcon,
 } from "lucide-react";
@@ -30,6 +31,10 @@ import SubtasksSection from "./SubtasksSection";
 import AssigneeControl from "./TodoItem/AssigneeControl";
 import DueDateControl from "./TodoItem/DueDateControl";
 import EpicParentControl from "./TodoItem/EpicParentControl";
+import LabelsControl from "./TodoItem/LabelsControl";
+import PinnedSection from "./PinnedSection";
+import ReporterField from "./ReporterField";
+import SaveIndicator from "./SaveIndicator";
 import EstimateControl from "./TodoItem/EstimateControl";
 import PriorityControl from "./TodoItem/PriorityControl";
 import SprintControl from "./TodoItem/SprintControl";
@@ -61,6 +66,14 @@ import {
   descriptionValue,
   titleValue,
 } from "@/services/todos/taskDraft";
+import { useAuth } from "@/services/auth/useAuth";
+import { recordView } from "@/services/forYou/viewed";
+import {
+  partitionFields,
+  readPinnedFields,
+  togglePinned,
+  writePinnedFields,
+} from "@/services/todos/pinnedFields";
 import { useDeleteTodo } from "@/services/todos/useDeleteTodo";
 import { useTodo } from "@/services/todos/useTodo";
 import {
@@ -334,6 +347,16 @@ function Body({
 
   const hierarchy = useTodoHierarchy(todo);
 
+  const userId = useAuth().user?.id;
+  const unlisted = hierarchy.isGenuineSubtask || !todo.board_id;
+
+  // here rather than at each way in, so the board, list, links and For You all count as opening it
+  useEffect(() => {
+    if (!unlisted) {
+      recordView(userId, todo.id, todo.board_id!, new Date().toISOString());
+    }
+  }, [userId, todo.id, todo.board_id, unlisted]);
+
   const [title, setTitle] = useState(todo.title ?? "");
   const [description, setDescription] = useState(todo.description ?? "");
 
@@ -431,6 +454,8 @@ function Body({
   const sections = (
     <>
       {/* Attachments are content, not Activity (comments/history) — filed as its own section, not a fifth tab. */}
+      <PinnedSection todoId={todo.id} boardId={todo.board_id} />
+
       <AttachmentsSection todoId={todo.id} />
 
       {/* A genuine Subtask (leaf of the hierarchy) renders neither of these. */}
@@ -455,12 +480,15 @@ function Body({
           <ParentLine parentId={todo.parent_id} boardId={todo.board_id} />
         }
         actions={
-          <TaskActions
-            todo={todo}
-            keyLabel={key}
-            variant={variant}
-            onDelete={() => setConfirming("delete")}
-          />
+          <>
+            <SaveIndicator todoId={todo.id} />
+            <TaskActions
+              todo={todo}
+              keyLabel={key}
+              variant={variant}
+              onDelete={() => setConfirming("delete")}
+            />
+          </>
         }
         onClose={requestClose}
       />
@@ -612,11 +640,27 @@ function TaskRail({
   const { data: sprints = [] } = useSprints();
   const sprintsEnabled = useSprintsEnabled();
 
+  const userId = useAuth().user?.id;
+  const [pinnedKeys, setPinnedKeys] = useState(() => readPinnedFields(userId));
+
+  function togglePin(key: string) {
+    const next = togglePinned(pinnedKeys, key);
+
+    setPinnedKeys(next);
+    writePinnedFields(userId, next);
+  }
+
   const created = relativeTime(todo.created_at);
   const updated = relativeTime(todo.updated_at);
 
   // One list feeds both the rows and the collapsed card's summary, so the summary can only name fields that are shown.
-  const fields: { key: string; label: string; node: ReactNode }[] = [
+  const fields: {
+    key: string;
+    label: string;
+    node: ReactNode;
+    // nothing in it writes the task, so a viewer's row stays live
+    live?: boolean;
+  }[] = [
     {
       key: "assignee",
       label: t("fields.assignee"),
@@ -679,6 +723,12 @@ function TaskRail({
           },
         ]
       : []),
+    {
+      key: "labels",
+      label: t("fields.labels"),
+      live: true,
+      node: <LabelsControl todo={todo} editable={canEditTodos} />,
+    },
     // A genuine Subtask has no sprint of its own — it inherits its parent Task's.
     // The field also goes with the Sprints feature (0020); the stored
     // sprint_id is left alone so turning it back on restores it.
@@ -724,27 +774,49 @@ function TaskRail({
         />
       ),
     },
+    {
+      key: "reporter",
+      label: t("fields.reporter"),
+      live: true,
+      node: (
+        <ReporterField boardId={todo.board_id} creatorId={todo.creator_id} />
+      ),
+    },
   ];
+
+  const { pinned, rest } = partitionFields(fields, pinnedKeys);
+
+  const rows = (list: typeof fields) =>
+    list.map((field) => (
+      <Field
+        key={field.key}
+        label={field.label}
+        inert={!field.live && !canEditTodos}
+        pinned={pinnedKeys.includes(field.key)}
+        onPin={() => togglePin(field.key)}
+      >
+        {field.node}
+      </Field>
+    ));
 
   return (
     <div className="space-y-5">
+      {pinned.length > 0 && (
+        <DetailCard
+          id="pinned"
+          title={t("pins.fields")}
+          summary={pinned.map((field) => field.label).join(", ")}
+        >
+          <dl className="px-3.5 py-1.5">{rows(pinned)}</dl>
+        </DetailCard>
+      )}
+
       <DetailCard
         id="details"
         title={t("workflow.details")}
-        summary={fields.map((field) => field.label).join(", ")}
+        summary={rest.map((field) => field.label).join(", ")}
       >
-        <dl
-          className={cn(
-            "px-3.5 py-1.5",
-            !canEditTodos && "pointer-events-none",
-          )}
-        >
-          {fields.map((field) => (
-            <Field key={field.key} label={field.label}>
-              {field.node}
-            </Field>
-          ))}
-        </dl>
+        <dl className="px-3.5 py-1.5">{rows(rest)}</dl>
       </DetailCard>
 
       <DevelopmentActions todo={todo} taskKey={keyLabel} />
@@ -968,17 +1040,51 @@ function ConfirmBar({
   );
 }
 
+// The pin is a reading preference, so a viewer has it too; only the value is
+// inert for someone who cannot edit.
 function Field({
   label,
+  inert,
+  pinned,
+  onPin,
   children,
 }: {
   label: string;
+  inert: boolean;
+  pinned: boolean;
+  onPin: () => void;
   children: React.ReactNode;
 }) {
+  const { t } = useTranslation();
+  const pinLabel = pinned ? t("pins.unpinField") : t("pins.pinField");
+
   return (
-    <div className="grid min-h-9 grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-x-2">
-      <dt className="text-ink-3 text-meta truncate">{label}</dt>
-      <dd className="flex min-w-0 items-center">{children}</dd>
+    <div className="group/field grid min-h-10 grid-cols-[7rem_minmax(0,1fr)] items-center gap-x-2">
+      <dt className="text-ink-2 flex min-w-0 items-center gap-1 text-sm font-medium">
+        <span className="truncate">{label}</span>
+        <IconButton
+          label={pinLabel}
+          size="xs"
+          aria-pressed={pinned}
+          onClick={onPin}
+          className={cn(
+            "shrink-0",
+            pinned
+              ? "text-brand"
+              : "coarse:opacity-100 opacity-0 group-hover/field:opacity-100 focus-visible:opacity-100",
+          )}
+        >
+          <PinIcon className={cn(pinned && "fill-current")} />
+        </IconButton>
+      </dt>
+      <dd
+        className={cn(
+          "flex min-w-0 items-center",
+          inert && "pointer-events-none",
+        )}
+      >
+        {children}
+      </dd>
     </div>
   );
 }

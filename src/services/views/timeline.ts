@@ -1,10 +1,8 @@
-import type { Todo } from "@/types/data";
-import { toCalendarDay } from "@/utils/dueDate";
 import { addDays, addMonths, startOfMonth, startOfWeek } from "./calendar";
 
 // pure string math over YYYY-MM-DD, Date only used at the very edge for formatting — see calendar.ts
 
-export const TIMELINE_SCALES = ["weeks", "months"] as const;
+export const TIMELINE_SCALES = ["weeks", "months", "quarters"] as const;
 
 export type TimelineScale = (typeof TIMELINE_SCALES)[number];
 
@@ -14,70 +12,35 @@ export const TIMELINE_WINDOW: Record<
 > = {
   weeks: { ticks: 42, span: 1 },
   months: { ticks: 26, span: 7 },
+  quarters: { ticks: 53, span: 7 },
 };
 
-export interface TimelineItem {
-  todo: Todo;
+export interface DaySpan {
   start: string;
   end: string;
-  // true when only one of start/end is set — nothing to span, just a marker
-  isPoint: boolean;
 }
 
-export function timelineItems(todos: Todo[]): TimelineItem[] {
-  const items: TimelineItem[] = [];
+export function startOfQuarter(day: string): string {
+  const month = Number(day.slice(5, 7));
+  const first = month - ((month - 1) % 3);
 
-  for (const todo of todos) {
-    const start = todo.start_date ? toCalendarDay(todo.start_date) : null;
-    const end = todo.due_date ? toCalendarDay(todo.due_date) : null;
-
-    if (start && end) {
-      // db constraint should prevent start > end, but a pre-constraint row could still have it
-      items.push(
-        start <= end
-          ? { todo, start, end, isPoint: false }
-          : { todo, start: end, end: start, isPoint: false },
-      );
-
-      continue;
-    }
-
-    const only = start ?? end;
-
-    if (!only) continue;
-
-    items.push({ todo, start: only, end: only, isPoint: true });
-  }
-
-  return items.sort(compareItems);
+  return `${day.slice(0, 4)}-${String(first).padStart(2, "0")}-01`;
 }
 
-function compareItems(a: TimelineItem, b: TimelineItem): number {
-  if (a.start !== b.start) return a.start < b.start ? -1 : 1;
-  if (a.end !== b.end) return a.end < b.end ? -1 : 1;
-
-  // null board_key means still in flight — sort those last, not to the top
-  const ak = a.todo.board_key ?? Number.MAX_SAFE_INTEGER;
-  const bk = b.todo.board_key ?? Number.MAX_SAFE_INTEGER;
-
-  if (ak !== bk) return ak - bk;
-
-  return a.todo.id < b.todo.id ? -1 : a.todo.id > b.todo.id ? 1 : 0;
+function quarterKey(day: string): string {
+  return `${day.slice(0, 4)}-Q${Math.floor((Number(day.slice(5, 7)) - 1) / 3) + 1}`;
 }
 
-export function unscheduledTodos(todos: Todo[]): Todo[] {
-  return todos.filter((todo) => !todo.start_date && !todo.due_date);
-}
-
-export function unscheduledCount(todos: Todo[]): number {
-  return unscheduledTodos(todos).length;
-}
-
+// a week of lead-in, so today is never pinned to the left edge
 export function timelineTicks(scale: TimelineScale, anchor: string): string[] {
   const { ticks, span } = TIMELINE_WINDOW[scale];
 
   const first =
-    scale === "weeks" ? startOfWeek(anchor) : startOfWeek(startOfMonth(anchor));
+    scale === "weeks"
+      ? addDays(startOfWeek(anchor), -7)
+      : startOfWeek(
+          scale === "months" ? startOfMonth(anchor) : startOfQuarter(anchor),
+        );
 
   return Array.from({ length: ticks }, (_, i) => addDays(first, i * span));
 }
@@ -88,63 +51,65 @@ export function windowEnd(ticks: string[], scale: TimelineScale): string {
   return addDays(last, TIMELINE_WINDOW[scale].span);
 }
 
-export function tickIndexOf(
+export function windowDays(ticks: string[], scale: TimelineScale): number {
+  return ticks.length * TIMELINE_WINDOW[scale].span;
+}
+
+function offsetOf(day: string, ticks: string[]): number {
+  return Math.round(
+    (utc(day).getTime() - utc(ticks[0]).getTime()) / 86_400_000,
+  );
+}
+
+export function dayIndex(
   day: string,
   ticks: string[],
   scale: TimelineScale,
 ): number | null {
   if (ticks.length === 0) return null;
-  if (day < ticks[0]) return null;
-  if (day >= windowEnd(ticks, scale)) return null;
 
-  for (let i = ticks.length - 1; i >= 0; i -= 1) {
-    if (ticks[i] <= day) return i;
-  }
+  const offset = offsetOf(day, ticks);
 
-  return null;
+  return offset < 0 || offset >= windowDays(ticks, scale) ? null : offset;
+}
+
+// days from the window's first day, `to` exclusive
+export interface Placement {
+  from: number;
+  to: number;
+  total: number;
+  openStart: boolean;
+  openEnd: boolean;
 }
 
 export function placeItem(
-  item: Pick<TimelineItem, "start" | "end">,
+  item: DaySpan,
   ticks: string[],
   scale: TimelineScale,
-): {
-  index: number;
-  span: number;
-  openStart: boolean;
-  openEnd: boolean;
-} | null {
+): Placement | null {
   if (ticks.length === 0) return null;
 
-  const first = ticks[0];
-  const end = windowEnd(ticks, scale);
+  const total = windowDays(ticks, scale);
+  const from = offsetOf(item.start, ticks);
+  const to = offsetOf(item.end, ticks) + 1;
 
-  if (item.end < first || item.start >= end) return null;
-
-  const openStart = item.start < first;
-  const openEnd = item.end >= end;
-
-  const startIndex = openStart
-    ? 0
-    : (tickIndexOf(item.start, ticks, scale) ?? 0);
-  const endIndex = openEnd
-    ? ticks.length - 1
-    : (tickIndexOf(item.end, ticks, scale) ?? ticks.length - 1);
+  if (to <= 0 || from >= total) return null;
 
   return {
-    index: startIndex,
-    span: Math.max(1, endIndex - startIndex + 1),
-    openStart,
-    openEnd,
+    from: Math.max(0, from),
+    to: Math.min(total, to),
+    total,
+    openStart: from < 0,
+    openEnd: to > total,
   };
 }
 
-// generic over anything placeItem can place — sprint bands reuse this too, not just TimelineItem
-export function placeItems<T extends Pick<TimelineItem, "start" | "end">>(
+// generic over anything placeItem can place — sprint bands reuse it too
+export function placeItems<T extends DaySpan>(
   items: T[],
   ticks: string[],
   scale: TimelineScale,
-): { item: T; place: NonNullable<ReturnType<typeof placeItem>> }[] {
+): { item: T; place: Placement }[] {
   const placed = [];
 
   for (const item of items) {
@@ -156,24 +121,112 @@ export function placeItems<T extends Pick<TimelineItem, "start" | "end">>(
   return placed;
 }
 
-export function monthBands(
+export type HeaderBand = {
+  key: string;
+  kind: "quarter" | "month" | "day";
+  from: number;
+  to: number;
+};
+
+function calendarBands(
   ticks: string[],
-): { key: string; index: number; span: number }[] {
-  const bands: { key: string; index: number; span: number }[] = [];
+  scale: TimelineScale,
+  kind: "month" | "quarter",
+): HeaderBand[] {
+  const total = windowDays(ticks, scale);
+  const bands: HeaderBand[] = [];
 
-  ticks.forEach((day, index) => {
-    const key = day.slice(0, 7);
-    const last = bands[bands.length - 1];
+  for (let day = ticks[0]; offsetOf(day, ticks) < total;) {
+    const next =
+      kind === "month"
+        ? addMonths(startOfMonth(day), 1)
+        : addMonths(startOfQuarter(day), 3);
 
-    if (last && last.key === key) last.span += 1;
-    else bands.push({ key, index, span: 1 });
-  });
+    bands.push({
+      key: kind === "month" ? day.slice(0, 7) : quarterKey(day),
+      kind,
+      from: offsetOf(day, ticks),
+      to: Math.min(total, offsetOf(next, ticks)),
+    });
+
+    day = next;
+  }
 
   return bands;
 }
 
+// Months and quarters follow the calendar, not the columns: a month begins on
+// its 1st even mid-week. Quarters are too dense to label columns, so their
+// second row names the months.
+export function headerBands(
+  ticks: string[],
+  scale: TimelineScale,
+): { major: HeaderBand[]; minor: HeaderBand[] } {
+  if (ticks.length === 0) return { major: [], minor: [] };
+
+  if (scale === "quarters") {
+    return {
+      major: calendarBands(ticks, scale, "quarter"),
+      minor: calendarBands(ticks, scale, "month"),
+    };
+  }
+
+  const { span } = TIMELINE_WINDOW[scale];
+
+  return {
+    major: calendarBands(ticks, scale, "month"),
+    minor: ticks.map((day, index) => ({
+      key: day,
+      kind: "day",
+      from: index * span,
+      to: (index + 1) * span,
+    })),
+  };
+}
+
 export function bandAnchor(key: string): string {
   return `${key}-01`;
+}
+
+const MONTH_FORMAT = { timeZone: "UTC" } as const;
+
+// "Sep" rather than a truncated "Septer" when the band is too narrow for the long form.
+export function bandLabel(
+  band: Pick<HeaderBand, "key" | "kind">,
+  locale?: string,
+  { short = false }: { short?: boolean } = {},
+): string {
+  if (band.kind === "day") return tickLabel(band.key);
+
+  if (band.kind === "month") {
+    return utc(bandAnchor(band.key)).toLocaleDateString(locale, {
+      ...MONTH_FORMAT,
+      month: short ? "short" : "long",
+      ...(short ? {} : { year: "numeric" }),
+    });
+  }
+
+  const [year, quarter] = band.key.split("-Q").map(Number);
+  const first = utc(
+    `${year}-${String((quarter - 1) * 3 + 1).padStart(2, "0")}-01`,
+  );
+  const last = utc(
+    `${year}-${String((quarter - 1) * 3 + 3).padStart(2, "0")}-01`,
+  );
+  const month = { ...MONTH_FORMAT, month: short ? "short" : "long" } as const;
+
+  return `${first.toLocaleDateString(locale, month)} – ${last.toLocaleDateString(locale, month)}${short ? "" : ` ${year}`}`;
+}
+
+// Where a day's middle falls across the track, 0..1.
+export function dayFraction(
+  day: string,
+  ticks: string[],
+  scale: TimelineScale,
+): number | null {
+  const index = dayIndex(day, ticks, scale);
+
+  return index === null ? null : (index + 0.5) / windowDays(ticks, scale);
 }
 
 function utc(day: string): Date {
@@ -193,10 +246,13 @@ export function windowLabel(
   const last = addDays(windowEnd(ticks, scale), -1);
 
   const sameMonth = first.slice(0, 7) === last.slice(0, 7);
+  const sameYear = first.slice(0, 4) === last.slice(0, 4);
 
   const startOptions: Intl.DateTimeFormatOptions = sameMonth
     ? { day: "numeric", timeZone: "UTC" }
-    : { day: "numeric", month: "short", timeZone: "UTC" };
+    : sameYear
+      ? { day: "numeric", month: "short", timeZone: "UTC" }
+      : { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" };
 
   return `${utc(first).toLocaleDateString(locale, startOptions)} – ${utc(
     last,
@@ -217,9 +273,9 @@ export function stepAnchor(
   anchor: string,
   direction: -1 | 1,
 ): string {
-  return scale === "weeks"
-    ? addDays(anchor, direction * 7)
-    : addMonths(anchor, direction);
+  if (scale === "weeks") return addDays(anchor, direction * 7);
+
+  return addMonths(anchor, direction * (scale === "quarters" ? 3 : 1));
 }
 
 export function isCurrentAnchor(
@@ -227,7 +283,9 @@ export function isCurrentAnchor(
   anchor: string,
   today: string,
 ): boolean {
-  return scale === "weeks"
-    ? startOfWeek(anchor) === startOfWeek(today)
-    : anchor.slice(0, 7) === today.slice(0, 7);
+  if (scale === "weeks") return startOfWeek(anchor) === startOfWeek(today);
+
+  if (scale === "quarters") return quarterKey(anchor) === quarterKey(today);
+
+  return anchor.slice(0, 7) === today.slice(0, 7);
 }

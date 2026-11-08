@@ -183,6 +183,56 @@ export function invalidateResetTokens(
   });
 }
 
+export function createVerificationToken(
+  tx: Prisma.TransactionClient,
+  token: { userId: string; tokenHash: string; expiresAt: Date },
+): Promise<{ id: string }> {
+  return tx.email_verification_tokens.create({
+    data: { user_id: token.userId, token_hash: token.tokenHash, expires_at: token.expiresAt },
+    select: { id: true },
+  });
+}
+
+export function findVerificationToken(tx: Prisma.TransactionClient, tokenHash: string) {
+  return tx.email_verification_tokens.findUnique({
+    where: { token_hash: tokenHash },
+    select: { id: true, user_id: true, expires_at: true, used_at: true },
+  });
+}
+
+// Spends every live token of the user, the presented one included, so an older
+// link mailed earlier cannot be replayed after this one worked. True only for
+// the caller that spent the presented token — the same race guard as consumeResetToken.
+export async function consumeVerificationTokens(
+  tx: Prisma.TransactionClient,
+  tokenId: string,
+  userId: string,
+): Promise<boolean> {
+  const { count } = await tx.email_verification_tokens.updateMany({
+    where: { id: tokenId, used_at: null },
+    data: { used_at: new Date() },
+  });
+
+  if (count !== 1) return false;
+
+  await tx.email_verification_tokens.updateMany({
+    where: { user_id: userId, used_at: null },
+    data: { used_at: new Date() },
+  });
+
+  return true;
+}
+
+export function markEmailVerified(
+  tx: Prisma.TransactionClient,
+  userId: string,
+): Promise<{ count: number }> {
+  return tx.users.updateMany({
+    where: { id: userId, email_verified_at: null },
+    data: { email_verified_at: new Date(), updated_at: new Date() },
+  });
+}
+
 export function updatePasswordHash(
   tx: Prisma.TransactionClient,
   userId: string,
@@ -193,4 +243,28 @@ export function updatePasswordHash(
     data: { password_hash: passwordHash, updated_at: new Date() },
     select: { id: true },
   });
+}
+
+// A session row is kept while any session in its family is live: replaying a
+// rotated token is what revokes the family, so the old row is the evidence.
+// Once the whole lineage is dead it only holds an IP address and a user agent.
+export async function pruneDeadAuthRows(cutoff: Date): Promise<number> {
+  const sessions = await prisma.$executeRaw`
+    delete from sessions s
+     where (s.revoked_at < ${cutoff} or s.expires_at < ${cutoff})
+       and not exists (
+         select 1 from sessions live
+          where live.family_id = s.family_id
+            and live.revoked_at is null
+            and live.expires_at > now()
+       )`;
+
+  const spent = { OR: [{ used_at: { lt: cutoff } }, { expires_at: { lt: cutoff } }] };
+  const tokens = await Promise.all([
+    prisma.password_reset_tokens.deleteMany({ where: spent }),
+    prisma.email_verification_tokens.deleteMany({ where: spent }),
+    prisma.oauth_link_tokens.deleteMany({ where: spent }),
+  ]);
+
+  return sessions + tokens.reduce((sum, { count }) => sum + count, 0);
 }

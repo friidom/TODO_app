@@ -74,6 +74,19 @@ function typeOf(container: DroppableContainer) {
   return container.data.current?.type as BacklogDropType | undefined;
 }
 
+function inView(container: DroppableContainer): boolean {
+  const node = container.node.current;
+  const list = node?.closest("[data-backlog-scroll]");
+  const rect = container.rect.current;
+
+  if (!list || !rect) return true;
+
+  const box = list.getBoundingClientRect();
+  const middle = rect.top + rect.height / 2;
+
+  return middle >= box.top - 2 && middle <= box.bottom + 2;
+}
+
 // a gap touching the dragged item is where it already sits — suppress it, don't draw a line around the item itself
 function touchesActive(
   hit: { container: DroppableContainer } | null,
@@ -116,15 +129,16 @@ export default function useBacklogDnd() {
       if (!section) return [];
 
       const sectionKey = section.container.data.current?.sectionKey as
-        | string
-        | null
-        | undefined;
+        string | null | undefined;
 
-      // nearest gap inside it
+      // nearest gap inside it — among the ones on screen: a long sprint scrolls
+      // its own list, and a gap scrolled out of it still has a rect under the
+      // pointer, sitting behind whatever section is showing there
       const gaps = droppableContainers.filter(
         (container) =>
           typeOf(container) === "backlog-gap" &&
-          container.data.current?.sectionKey === sectionKey,
+          container.data.current?.sectionKey === sectionKey &&
+          inView(container),
       );
 
       if (!gaps.length) return toCollisions(section);

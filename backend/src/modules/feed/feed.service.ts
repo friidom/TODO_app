@@ -113,6 +113,13 @@ export async function workedOn(actor: Actor, limit: number): Promise<WorkedOnEnt
   return [...newest].slice(0, limit).map(([id, at]) => ({ id, at }));
 }
 
+// A row's role is read from its parent (CLAUDE.md, M27): under an Epic it is a
+// Task and belongs in every list a top-level card does; only a row under a Task
+// is a subtask, which means nothing here without its parent.
+const NOT_A_SUBTASK = {
+  OR: [{ parent_id: null }, { todos: { is: { type: "Epic" } } }],
+} satisfies Prisma.todosWhereInput;
+
 // The viewed tab keeps its ids in localStorage and has no server side, so this
 // is the one read that takes ids from the client. They are still filtered to
 // the boards the caller can reach.
@@ -122,7 +129,7 @@ export async function byIds(actor: Actor, ids: string[]): Promise<FeedTodoRow[]>
   if (boardIds.length === 0 || ids.length === 0) return [];
 
   const rows = await prisma.todos.findMany({
-    where: { id: { in: ids }, board_id: { in: boardIds }, parent_id: null },
+    where: { id: { in: ids }, board_id: { in: boardIds }, ...NOT_A_SUBTASK },
     orderBy: [{ updated_at: { sort: "desc", nulls: "last" } }, { id: "desc" }],
     select: FEED_FIELDS,
   });
@@ -134,7 +141,7 @@ export async function byIds(actor: Actor, ids: string[]): Promise<FeedTodoRow[]>
 // query, BEFORE the limit — filtering afterwards fills the page with rows the
 // actor cannot see and then empties it.
 //
-// Every tab is top-level only: a subtask means nothing here without its parent.
+// No tab lists a subtask: it means nothing here without its parent.
 export async function feed(
   actor: Actor,
   tab: FeedTab,
@@ -147,7 +154,7 @@ export async function feed(
   const rows = await prisma.todos.findMany({
     where: {
       board_id: { in: boardIds },
-      parent_id: null,
+      ...NOT_A_SUBTASK,
       ...(tab === "assigned" && { assignee_id: actor.id }),
     },
     orderBy: [{ updated_at: { sort: "desc", nulls: "last" } }, { id: "desc" }],

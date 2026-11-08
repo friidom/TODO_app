@@ -22,7 +22,7 @@ export const POPOVER_PANEL =
 const MENU_ITEM_BASE =
   "rounded-control flex w-full cursor-default items-center gap-2 px-2 py-1.5 text-left text-meta outline-none transition-colors select-none coarse:py-2.5 disabled:pointer-events-none disabled:opacity-50 [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4";
 
-export const MENU_ITEM = `${MENU_ITEM_BASE} text-ink hover:bg-wash-strong focus-visible:bg-wash-strong [&_svg]:text-ink-3`;
+export const MENU_ITEM = `${MENU_ITEM_BASE} text-ink hover:bg-brand-wash focus-visible:bg-brand-wash [&_svg]:text-ink-3 hover:[&_svg]:text-brand focus-visible:[&_svg]:text-brand [&_svg]:transition-colors`;
 
 export const MENU_ITEM_DANGER = `${MENU_ITEM_BASE} text-status-red hover:bg-status-red/10 focus-visible:bg-status-red/10`;
 

@@ -25,6 +25,7 @@ const credential = z
   );
 
 export const acceptInviteSchema = credential;
+export const previewInviteSchema = credential;
 export const declineInviteSchema = credential;
 
 export const inviteParamsSchema = z.object({ inviteId: z.uuid() });
@@ -33,7 +34,14 @@ export const inviteeQuerySchema = z.object({
   q: z.string().trim().max(200).optional().default(""),
 });
 
+// The boards come from the owner's own ticks; the service refuses any that is
+// not filed in the space.
+export const createSpaceInviteSchema = createInviteSchema.extend({
+  board_ids: z.array(z.uuid()).min(1).max(100),
+});
+
 export type CreateInviteInput = z.infer<typeof createInviteSchema>;
+export type CreateSpaceInviteInput = z.infer<typeof createSpaceInviteSchema>;
 export type InviteCredential = z.infer<typeof credential>;
 export type InviteParams = z.infer<typeof inviteParamsSchema>;
 export type InviteeQuery = z.infer<typeof inviteeQuerySchema>;

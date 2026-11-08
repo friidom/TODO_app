@@ -33,6 +33,7 @@ export const LIST_FIELDS = {
   created_at: true,
   updated_at: true,
   completed_at: true,
+  labels: true,
 } satisfies Prisma.todosSelect;
 
 const DETAIL_FIELDS = {
@@ -104,6 +105,22 @@ export function statusOf(
     where: { id: todoId, board_id: boardId },
     select: { status_id: true },
   });
+}
+
+// Locks the card until the transaction ends and answers whether its status is
+// still the one the workflow check approved. Without the lock two concurrent
+// moves are both checked against the old status, and a transition the
+// workflow forbids goes through.
+export async function lockedStatusIs(
+  tx: Prisma.TransactionClient,
+  boardId: string,
+  todoId: string,
+  expected: string | null,
+): Promise<boolean> {
+  const rows = await tx.$queryRaw<{ status_id: string | null }[]>`
+    select status_id from todos where id = ${todoId}::uuid and board_id = ${boardId}::uuid for update`;
+
+  return (rows[0]?.status_id ?? null) === expected;
 }
 
 // A column's cards are the cards of every status it shows.
@@ -284,4 +301,44 @@ export async function rebalanceColumn(
       from ordered
      where ordered.id = t.id
        and t.rank is distinct from ordered.new_rank`;
+}
+
+export const MAX_LABELS = 20;
+
+// One statement each, so two people labelling one card at once both win: the
+// append re-checks presence and the cap against the row it locks, never
+// against a copy the client read earlier.
+export async function addLabel(
+  tx: Prisma.TransactionClient,
+  boardId: string,
+  todoId: string,
+  name: string,
+): Promise<number> {
+  return tx.$executeRaw`
+    update public.todos
+       set labels = labels || ${name}::text
+     where id = ${todoId}::uuid
+       and board_id = ${boardId}::uuid
+       and cardinality(labels) < ${MAX_LABELS}
+       and not exists (select 1 from unnest(labels) l where lower(l) = lower(${name}))
+  `;
+}
+
+export async function removeLabel(
+  tx: Prisma.TransactionClient,
+  boardId: string,
+  todoId: string,
+  name: string,
+): Promise<number> {
+  return tx.$executeRaw`
+    update public.todos
+       set labels = array(
+             select l from unnest(labels) with ordinality as u(l, i)
+              where lower(l) <> lower(${name})
+              order by i
+           )
+     where id = ${todoId}::uuid
+       and board_id = ${boardId}::uuid
+       and exists (select 1 from unnest(labels) l where lower(l) = lower(${name}))
+  `;
 }

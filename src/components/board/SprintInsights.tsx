@@ -1,11 +1,13 @@
 import { useTranslation } from "react-i18next";
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { RocketIcon } from "lucide-react";
 
 import EmptyState from "@/components/ui/EmptyState";
 import SectionHeader from "@/components/todo/SectionHeader";
 import { SECTION_TITLE } from "@/components/todo/detailChrome";
 import { workTypeOf } from "@/constants/workTypes";
+import { ChartTooltip, TooltipRow } from "@/components/summary/ChartTooltip";
+import { useChartCursor } from "@/hooks/useChartCursor";
 import { useKeyPrefix } from "@/hooks/useKeyPrefix";
 import { useOpenTask } from "@/hooks/useOpenTask";
 import { useSprintsEnabled } from "@/hooks/useSprintsEnabled";
@@ -22,7 +24,7 @@ import { useTodos } from "@/services/todos/useTodos";
 import { useStatuses } from "@/services/workflow/useWorkflow";
 import type { IStatus, Sprint, Todo } from "@/types/data";
 import { cn } from "@/utils/cn";
-import { formatDue, todayISO } from "@/utils/dueDate";
+import { formatDayFull, formatDue, todayISO } from "@/utils/dueDate";
 import { taskKey } from "@/utils/taskKey";
 
 const NO_TODOS: Todo[] = [];
@@ -347,8 +349,11 @@ function Burndown({
   today: string;
 }) {
   const { t } = useTranslation();
-  const plot = useRef<HTMLDivElement>(null);
-  const [hovered, setHovered] = useState<number | null>(null);
+  // Days sit on the edges of the plot here, so the nearest one is picked rather than the slot under the pointer.
+  const lastDay = (burndown?.days.length ?? 1) - 1;
+  const cursor = useChartCursor(burndown?.remaining.length ?? 0, (ratio) =>
+    Math.round(ratio * lastDay),
+  );
 
   if (!burndown) return <p className={HINT}>{t("insights.noStartDate")}</p>;
 
@@ -395,18 +400,18 @@ function Burndown({
       index !== null && index > 0 && all.indexOf(index) === position,
   );
 
-  const focus =
-    hovered === null ? null : Math.min(hovered, remaining.length - 1);
+  const focus = cursor.index;
 
-  function hover(clientX: number) {
-    const rect = plot.current?.getBoundingClientRect();
+  // Where the straight guideline says the remaining work should be on a day, or null past its end.
+  const guideOn = (index: number) =>
+    endIndex === null || endIndex === 0
+      ? null
+      : Math.max(total * (1 - index / endIndex), 0);
 
-    if (!rect || remaining.length === 0) return;
-
-    const ratio = Math.min(Math.max((clientX - rect.left) / rect.width, 0), 1);
-
-    setHovered(Math.round(ratio * last));
-  }
+  const amount = (value: number) =>
+    unit === "points"
+      ? t("insights.pointsCount", { count: Math.round(value * 10) / 10 })
+      : t("insights.itemsCount", { count: Math.round(value) });
 
   return (
     <div className="animate-in fade-in-0 duration-300">
@@ -429,10 +434,9 @@ function Burndown({
 
         <div className="min-w-0 flex-1">
           <div
-            ref={plot}
-            onPointerMove={(event) => hover(event.clientX)}
-            onPointerLeave={() => setHovered(null)}
-            className="relative h-36 touch-none"
+            {...cursor.bind}
+            aria-label={t("insights.burndownExplore")}
+            className="focus-visible:ring-brand rounded-control relative h-36 touch-none outline-none focus-visible:ring-2 focus-visible:ring-offset-4"
           >
             <svg
               viewBox={`0 0 100 ${PLOT_HEIGHT}`}
@@ -563,14 +567,25 @@ function Burndown({
                   className="bg-brand ring-elevated pointer-events-none absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 transition-[left,top] duration-150 ease-out"
                 />
 
-                <span
-                  aria-hidden
-                  style={{ left: `${Math.min(Math.max(xOf(focus), 18), 82)}%` }}
-                  className="bg-ink text-canvas text-mini shadow-e2 animate-in fade-in-0 pointer-events-none absolute -top-2 -translate-x-1/2 -translate-y-full rounded-md px-2 py-1 font-medium whitespace-nowrap tabular-nums transition-[left] duration-150 ease-out"
-                >
-                  {formatDue(days[focus], today)} ·{" "}
-                  {t(leftKey, { count: remaining[focus] })}
-                </span>
+                <ChartTooltip x={xOf(focus)} title={formatDayFull(days[focus])}>
+                  <TooltipRow
+                    dot="bg-brand"
+                    label={t("insights.remainingWork")}
+                    value={`${amount(remaining[focus])} · ${Math.round((remaining[focus] / total) * 100)}%`}
+                  />
+                  <TooltipRow
+                    dot="bg-status-green"
+                    label={t("insights.doneSoFar")}
+                    value={amount(total - remaining[focus])}
+                  />
+                  {guideOn(focus) !== null && (
+                    <TooltipRow
+                      dot="bg-ink-3"
+                      label={t("insights.guideline")}
+                      value={amount(guideOn(focus)!)}
+                    />
+                  )}
+                </ChartTooltip>
               </>
             )}
           </div>

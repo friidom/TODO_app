@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  attachmentMime,
   canRenderInline,
   contentDisposition,
   fileExtension,
@@ -76,10 +77,16 @@ describe("safeFilename", () => {
 });
 
 describe("canRenderInline", () => {
-  it("passes only images and PDFs", () => {
+  it("passes only raster images and PDFs", () => {
     expect(canRenderInline("image/png")).toBe(true);
-    expect(canRenderInline("IMAGE/SVG+XML")).toBe(true);
+    expect(canRenderInline("IMAGE/JPEG")).toBe(true);
+    expect(canRenderInline("image/gif")).toBe(true);
     expect(canRenderInline("application/pdf")).toBe(true);
+  });
+
+  it("serves SVG as a download, because opened on its own it runs script", () => {
+    expect(canRenderInline("image/svg+xml")).toBe(false);
+    expect(canRenderInline("IMAGE/SVG+XML")).toBe(false);
   });
 
   // The whole point: anything a browser would execute stays a download.
@@ -116,5 +123,30 @@ describe("contentDisposition", () => {
     expect(contentDisposition("inline", "отчёт (1).pdf")).toContain(
       "filename*=UTF-8''%D0%BE%D1%82%D1%87%D1%91%D1%82%20%281%29.pdf",
     );
+  });
+});
+
+describe("attachmentMime", () => {
+  const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]);
+
+  it("trusts the bytes, not the declared type", () => {
+    expect(attachmentMime("application/octet-stream", PNG)).toBe("image/png");
+    expect(attachmentMime("image/png", Buffer.from("GIF89a..."))).toBe("image/gif");
+    expect(attachmentMime("", Buffer.from("%PDF-1.7\n"))).toBe("application/pdf");
+  });
+
+  it("never stores an inline type the bytes do not back up", () => {
+    expect(attachmentMime("image/png", Buffer.from("<html><script>x</script>"))).toBe(
+      "application/octet-stream",
+    );
+    expect(attachmentMime("application/pdf", Buffer.from("<html>"))).toBe("application/octet-stream");
+  });
+
+  it("keeps a declared type that is only ever downloaded", () => {
+    const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>x</script></svg>');
+
+    expect(attachmentMime("image/svg+xml", svg)).toBe("image/svg+xml");
+    expect(attachmentMime("video/mp4", Buffer.from("....ftyp"))).toBe("video/mp4");
+    expect(attachmentMime("", Buffer.from("plain"))).toBe("application/octet-stream");
   });
 });

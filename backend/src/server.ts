@@ -4,9 +4,11 @@ import { app } from "./app.js";
 import { connectCache, disconnectCache } from "./cache/cache.js";
 import { describeDatabase, env } from "./config/env.js";
 import { closePool, describeError, ping } from "./db/client.js";
+import { callbackUrl, configuredProviders } from "./lib/oauth/providers.js";
 import { prisma } from "./db/prisma.js";
 import { createRealtimeServer } from "./realtime/io.js";
 import { avatarStorage, minioStorage } from "./infrastructure/storage/minio-storage.js";
+import { scheduleAuthCleanup } from "./modules/auth/auth.cleanup.js";
 
 // Explicit, because Socket.IO needs the http.Server itself — app.listen()
 // creates one and returns it, but only after it is already bound.
@@ -15,12 +17,22 @@ const server = createServer(app);
 const io = createRealtimeServer(server);
 
 connectCache();
+scheduleAuthCleanup();
 
 server.listen(env.PORT, async () => {
   console.log(
     `[api] listening on http://localhost:${env.PORT} (${env.NODE_ENV})`,
   );
   console.log(`[api] health check: http://localhost:${env.PORT}/health`);
+
+  // the callback urls are the values each provider's console must list, byte for byte
+  const oauth = configuredProviders();
+
+  console.log(
+    oauth.length > 0
+      ? `[oauth] ${oauth.map((provider) => `${provider} → ${callbackUrl(provider)}`).join(", ")}`
+      : "[oauth] no provider configured (GOOGLE_* / GITHUB_* unset) — the sign-in page shows no OAuth buttons",
+  );
 
   // reports but does not exit: a database that is merely slow to start should
   // not stop the API coming up, and /health tells the truth either way
@@ -62,6 +74,12 @@ function shutdown(signal: string) {
     process.exit(0);
   });
 }
+
+// Logged, not fatal: Node's default exits on an unhandled rejection, and one
+// forgotten fire-and-forget promise would take every request and socket down.
+process.on("unhandledRejection", (reason) => {
+  console.error("[api] unhandled rejection", reason);
+});
 
 process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));

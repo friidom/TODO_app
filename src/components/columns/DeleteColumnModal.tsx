@@ -1,7 +1,8 @@
 import { useTranslation } from "react-i18next";
 import { useState } from "react";
-import { ArrowRight, ChevronDown, X } from "lucide-react";
+import { ArrowRight, ChevronDown } from "lucide-react";
 
+import DialogHeader from "@/components/ui/DialogHeader";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,7 +10,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import IconButton from "@/components/ui/IconButton";
+import Modal from "@/components/ui/Modal";
 import { useDeleteColumn } from "@/services/columns/useDeleteColumn";
 import { columnCategory } from "@/services/workflow/statuses";
 import { useStatuses } from "@/services/workflow/useWorkflow";
@@ -18,11 +19,9 @@ import type { IColumn } from "@/types/data";
 import CategoryPill from "./CategoryPill";
 import {
   DIALOG_ACTIONS,
-  DIALOG_BODY,
   DIALOG_CANCEL,
   DIALOG_DANGER,
   DIALOG_ERROR,
-  DIALOG_TITLE,
 } from "@/components/ui/dialogChrome";
 
 interface Props {
@@ -74,37 +73,20 @@ function DeleteColumnDialog({
     );
   }
 
+  const title = t("column.deleteTitle", { name: columnTitle(column.title) });
+
   return (
-    <div
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-    >
-      <form
-        onSubmit={handleSubmit}
-        className="border-hairline bg-surface rounded-surface shadow-e3 max-h-full w-[640px] max-w-full overflow-y-auto border p-5 sm:p-6"
-      >
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <h2 className={`${DIALOG_TITLE} flex items-center gap-2.5`}>
-            <DangerDiamond />
-            {t("column.deleteTitle", { name: columnTitle(column.title) })}
-          </h2>
-
-          <IconButton
-            label={t("common.close")}
-            size="md"
-            tooltip={false}
-            onClick={onClose}
-            className="-mt-1"
-          >
-            <X />
-          </IconButton>
-        </div>
-
-        <p className={`${DIALOG_BODY} mb-6`}>
-          {t("column.deleteBody", { name: columnTitle(column.title) })}
-        </p>
+    <Modal title={title} onClose={onClose} width="w-[640px]">
+      <form onSubmit={handleSubmit}>
+        <DialogHeader
+          danger
+          title={title}
+          description={t("column.deleteBody", {
+            name: columnTitle(column.title),
+          })}
+          onClose={onClose}
+          className="mb-6"
+        />
 
         <div className="grid grid-cols-1 gap-y-4 sm:grid-cols-[1fr_auto_1fr] sm:items-end sm:gap-x-5 sm:gap-y-0">
           <div className="min-w-0">
@@ -180,36 +162,6 @@ function DeleteColumnDialog({
           </button>
         </div>
       </form>
-    </div>
-  );
-}
-
-/** Jira's danger glyph: a rounded red diamond. lucide has no diamond-alert. */
-function DangerDiamond() {
-  return (
-    <svg
-      width="26"
-      height="26"
-      viewBox="0 0 24 24"
-      className="text-status-red shrink-0"
-      aria-hidden="true"
-    >
-      <rect
-        x="4.5"
-        y="4.5"
-        width="15"
-        height="15"
-        rx="3"
-        transform="rotate(45 12 12)"
-        fill="currentColor"
-      />
-      <path
-        d="M12 7.5v5.5"
-        stroke="white"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-      />
-      <circle cx="12" cy="16.6" r="1.3" fill="white" />
-    </svg>
+    </Modal>
   );
 }

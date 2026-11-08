@@ -1,18 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { Schedulable } from "@/services/todos/useTimelineSchedule";
-import { TIMELINE_WINDOW, type TimelineScale } from "@/services/views/timeline";
+import { addDays } from "@/services/views/calendar";
+import { windowDays, type TimelineScale } from "@/services/views/timeline";
 import {
-  columnEnd,
+  NO_LIMITS,
+  constrainDraw,
+  constrainEnd,
+  constrainMove,
+  constrainStart,
+  daysBetween,
   draftRange,
-  moveRange,
-  resizeEnd,
-  resizeStart,
-  tickAtOffset,
-  ticksMoved,
+  indexAtOffset,
+  stepsMoved,
   type DayRange,
+  type DragLimits,
   type DragMode,
 } from "@/services/views/timelineDrag";
+import type { TimelineNode } from "@/services/views/timelineHierarchy";
 
 // Pointer events, not @dnd-kit — a bar's width follows the pointer continuously, there's no discrete drop target to resolve.
 // Raw pointer position lives in a ref and never renders; state only holds the snapped column, so a drag costs a few renders, not one per frame.
@@ -21,25 +25,38 @@ export const CREATE_EPIC_KEY = "__create-epic__";
 // 8px, matching the board/calendar sensors — a bar is also a click target.
 const MOVE_THRESHOLD = 8;
 
+const EDGE = 48;
+const EDGE_SPEED = 14;
+
 export interface DragTarget {
   key: string;
-  todo: Schedulable | null;
+  node: TimelineNode | null;
   mode: DragMode | "draw";
   base: DayRange | null;
+  limits?: DragLimits;
+}
+
+export interface TimelineDraft {
+  key: string;
+  range: DayRange;
+  // days the whole branch has moved; 0 for anything but a move
+  delta: number;
 }
 
 interface Gesture extends DragTarget {
   originX: number;
+  originScroll: number;
   trackLeft: number;
   trackWidth: number;
   anchorTick: number;
   live: boolean;
   range: DayRange | null;
+  lastX: number;
 }
 
 export interface TimelineDrag {
   trackRef: React.RefObject<HTMLDivElement | null>;
-  draft: { key: string; range: DayRange } | null;
+  draft: TimelineDraft | null;
   dragging: boolean;
   begin: (event: React.PointerEvent, target: DragTarget) => void;
   // Consumes the flag, so it answers true at most once.
@@ -56,16 +73,14 @@ export function useTimelineDrag({
   ticks: string[];
   scale: TimelineScale;
   enabled: boolean;
-  onSchedule: (todo: Schedulable, range: DayRange) => Promise<unknown>;
+  onSchedule: (target: DragTarget, range: DayRange) => Promise<unknown>;
   onDraw: (key: string, range: DayRange) => void;
 }): TimelineDrag {
   const trackRef = useRef<HTMLDivElement | null>(null);
   const gestureRef = useRef<Gesture | null>(null);
   const suppressClickRef = useRef(false);
 
-  const [draft, setDraft] = useState<{ key: string; range: DayRange } | null>(
-    null,
-  );
+  const [draft, setDraft] = useState<TimelineDraft | null>(null);
 
   // Broader than `dragging` — set the moment a pointer goes down, before we know if it'll turn into a click.
   const [active, setActive] = useState(false);
@@ -78,36 +93,70 @@ export function useTimelineDrag({
     latest.current = { ticks, scale, onSchedule, onDraw };
   });
 
+  const scroller = () =>
+    trackRef.current?.closest<HTMLElement>("[data-timeline-scroll]") ?? null;
+
   const rangeAt = useCallback((gesture: Gesture, clientX: number) => {
     const { ticks: axis, scale: zoom } = latest.current;
 
     if (axis.length === 0) return null;
 
-    const offset = clientX - gesture.trackLeft;
-    const tick = () => tickAtOffset(offset, gesture.trackWidth, axis.length);
+    const scrolled = (scroller()?.scrollLeft ?? 0) - gesture.originScroll;
+    const offset = clientX - gesture.trackLeft + scrolled;
+    const limits = gesture.limits ?? NO_LIMITS;
 
+    // drawing snaps to whole columns — a one-day click would be a few pixels wide
+    // on the coarser scales; moving and resizing go by days
     if (gesture.mode === "draw") {
-      return draftRange(gesture.anchorTick, tick(), axis, zoom);
+      const drawn = draftRange(
+        gesture.anchorTick,
+        indexAtOffset(offset, gesture.trackWidth, axis.length),
+        axis,
+        zoom,
+      );
+
+      return drawn && constrainDraw(drawn, limits);
     }
 
     if (!gesture.base) return null;
 
+    const days = windowDays(axis, zoom);
+
     if (gesture.mode === "move") {
-      // Steps in columns, not days, so a week-scale step keeps the same weekday.
-      const steps = ticksMoved(
-        clientX - gesture.originX,
+      const steps = stepsMoved(
+        clientX - gesture.originX + scrolled,
         gesture.trackWidth,
-        axis.length,
+        days,
       );
 
-      return moveRange(gesture.base, steps * TIMELINE_WINDOW[zoom].span);
+      return constrainMove(gesture.base, steps, limits);
     }
 
-    const day = axis[tick()];
+    const day = addDays(
+      axis[0],
+      indexAtOffset(offset, gesture.trackWidth, days),
+    );
 
     return gesture.mode === "start"
-      ? resizeStart(gesture.base, day)
-      : resizeEnd(gesture.base, columnEnd(day, zoom));
+      ? constrainStart(gesture.base, day, limits)
+      : constrainEnd(gesture.base, day, limits);
+  }, []);
+
+  const show = useCallback((gesture: Gesture, range: DayRange) => {
+    gesture.range = range;
+
+    const delta =
+      gesture.mode === "move" && gesture.base
+        ? daysBetween(gesture.base.start, range.start)
+        : 0;
+
+    setDraft((current) =>
+      current?.key === gesture.key &&
+      current.range.start === range.start &&
+      current.range.end === range.end
+        ? current
+        : { key: gesture.key, range, delta },
+    );
   }, []);
 
   const engage = useCallback((mode: DragMode | "draw") => {
@@ -151,14 +200,14 @@ export function useTimelineDrag({
       return;
     }
 
-    if (gesture.mode === "draw" && !gesture.todo) {
+    if (gesture.mode === "draw" && !gesture.node) {
       setDraft(null);
       latest.current.onDraw(gesture.key, gesture.range);
 
       return;
     }
 
-    if (!gesture.todo) {
+    if (!gesture.node) {
       setDraft(null);
 
       return;
@@ -177,9 +226,7 @@ export function useTimelineDrag({
       );
     };
 
-    latest.current
-      .onSchedule(gesture.todo, gesture.range)
-      .then(settled, settled);
+    latest.current.onSchedule(gesture, gesture.range).then(settled, settled);
   }, []);
 
   const begin = useCallback(
@@ -197,7 +244,7 @@ export function useTimelineDrag({
 
       if (box.width <= 0) return;
 
-      const anchorTick = tickAtOffset(
+      const anchorTick = indexAtOffset(
         event.clientX - box.left,
         box.width,
         latest.current.ticks.length,
@@ -206,11 +253,15 @@ export function useTimelineDrag({
       const gesture: Gesture = {
         ...target,
         originX: event.clientX,
+        originScroll: scroller()?.scrollLeft ?? 0,
         trackLeft: box.left,
         trackWidth: box.width,
         anchorTick,
-        live: target.mode !== "move",
+        // a resize waits for the threshold too, so a click on a handle alone
+        // never moves a date
+        live: target.mode === "draw",
         range: null,
+        lastX: event.clientX,
       };
 
       gestureRef.current = gesture;
@@ -221,22 +272,61 @@ export function useTimelineDrag({
       if (gesture.live) {
         const range = rangeAt(gesture, event.clientX);
 
-        gesture.range = range;
         engage(gesture.mode);
 
-        if (range) setDraft({ key: gesture.key, range });
+        if (range) show(gesture, range);
       }
     },
-    [enabled, rangeAt, engage],
+    [enabled, rangeAt, engage, show],
   );
 
   useEffect(() => {
     if (!active) return;
 
+    let frame = 0;
+
+    // Near either edge of a scrolled timeline the view pans under the pointer,
+    // and the bar keeps following it, so a drag is never capped by the viewport.
+    function pan() {
+      frame = 0;
+
+      const gesture = gestureRef.current;
+      const element = scroller();
+      const track = trackRef.current;
+
+      if (!gesture?.live || !element || !track) return;
+
+      const box = element.getBoundingClientRect();
+      const rail =
+        track.getBoundingClientRect().left - box.left + element.scrollLeft;
+      const step =
+        gesture.lastX < box.left + rail + EDGE
+          ? -EDGE_SPEED
+          : gesture.lastX > box.right - EDGE
+            ? EDGE_SPEED
+            : 0;
+
+      if (step === 0) return;
+
+      const before = element.scrollLeft;
+
+      element.scrollLeft += step;
+
+      if (element.scrollLeft === before) return;
+
+      const range = rangeAt(gesture, gesture.lastX);
+
+      if (range) show(gesture, range);
+
+      frame = requestAnimationFrame(pan);
+    }
+
     function onMove(event: PointerEvent) {
       const gesture = gestureRef.current;
 
       if (!gesture) return;
+
+      gesture.lastX = event.clientX;
 
       if (!gesture.live) {
         if (Math.abs(event.clientX - gesture.originX) < MOVE_THRESHOLD) return;
@@ -248,17 +338,9 @@ export function useTimelineDrag({
 
       const range = rangeAt(gesture, event.clientX);
 
-      if (!range) return;
+      if (range) show(gesture, range);
 
-      gesture.range = range;
-
-      setDraft((current) =>
-        current?.key === gesture.key &&
-        current.range.start === range.start &&
-        current.range.end === range.end
-          ? current
-          : { key: gesture.key, range },
-      );
+      if (!frame) frame = requestAnimationFrame(pan);
     }
 
     const onUp = () => finish(true);
@@ -274,12 +356,13 @@ export function useTimelineDrag({
     window.addEventListener("keydown", onKeyDown);
 
     return () => {
+      cancelAnimationFrame(frame);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onCancel);
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [active, rangeAt, finish, engage]);
+  }, [active, rangeAt, finish, engage, show]);
 
   useEffect(() => () => finish(false), [finish]);
 

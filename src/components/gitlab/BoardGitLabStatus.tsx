@@ -51,7 +51,11 @@ export default function BoardGitLabStatus({ board }: { board: IBoard }) {
     );
   }
 
-  const { space_link: spaceLink, board_links: boardLinks } = gitlab.data;
+  const {
+    space_link: spaceLink,
+    board_links: boardLinks,
+    configured,
+  } = gitlab.data;
   const source = boardGitLabSource({
     spaceId: board.space_id,
     ownsSpace: ownSpace !== undefined,
@@ -76,7 +80,7 @@ export default function BoardGitLabStatus({ board }: { board: IBoard }) {
                 url={spaceLink.project_url}
               />
 
-              <StatusBadge status={spaceLink.status} />
+              <StatusBadge status={spaceLink.status} configured={configured} />
             </div>
 
             {manage}
@@ -108,6 +112,7 @@ export default function BoardGitLabStatus({ board }: { board: IBoard }) {
           key={link.id}
           link={link}
           owner={{ boardId: board.id }}
+          configured={configured}
           disconnectMessage={t("gitlab.disconnectBoardConfirm", {
             project: link.project_path,
           })}

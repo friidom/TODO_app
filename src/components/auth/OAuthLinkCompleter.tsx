@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router";
 
 import { useAuth } from "@/services/auth/useAuth";
+import { linkFailureCode } from "@/services/auth/oauthErrors";
 import { clearPendingLink, readPendingLink } from "@/services/auth/pendingLink";
 import { useConfirmLink } from "@/services/auth/useOAuth";
 
@@ -9,8 +10,8 @@ import { useConfirmLink } from "@/services/auth/useOAuth";
 // the proof of ownership the challenge asks for, and by the time a session
 // exists the login page has already navigated away.
 //
-// A failure is deliberately silent: the identity simply stays unlinked, and
-// Connected accounts is where the person retries.
+// Either way the person lands on Connected accounts: told it worked, or told
+// why not, beside the button that retries it.
 export default function OAuthLinkCompleter() {
   const { user } = useAuth();
   const confirm = useConfirmLink();
@@ -33,6 +34,8 @@ export default function OAuthLinkCompleter() {
 
     confirm.mutate(token, {
       onSuccess: () => navigate("/profile?linked=1", { replace: true }),
+      onError: (error) =>
+        navigate(`/profile?error=${linkFailureCode(error)}`, { replace: true }),
     });
   }, [user, confirm, navigate]);
 

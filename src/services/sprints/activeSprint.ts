@@ -9,3 +9,12 @@ export function activeSprintOf(sprints: Sprint[]): Sprint | null {
 export function activeSprintIdOf(sprints: Sprint[]): string | null {
   return activeSprintOf(sprints)?.id ?? null;
 }
+
+// Mirrors PATCH /sprints/:id (editor+): with no running sprint, or sprints off, there is nothing to edit.
+export function editableSprint(
+  sprints: Sprint[],
+  sprintsEnabled: boolean,
+  canEdit: boolean,
+): Sprint | null {
+  return sprintsEnabled && canEdit ? activeSprintOf(sprints) : null;
+}

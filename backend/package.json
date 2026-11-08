@@ -21,7 +21,8 @@
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "bench:seed": "tsx scripts/seed-benchmark.ts",
     "bench:explain": "tsx scripts/explain-admin.ts",
-    "db:seed-demo": "tsx scripts/seed-demo.ts"
+    "db:seed-demo": "tsx scripts/seed-demo.ts",
+    "admin:bootstrap": "tsx src/cli/bootstrapSuperadmin.ts"
   },
   "type": "module",
   "private": true,

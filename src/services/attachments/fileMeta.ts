@@ -78,14 +78,19 @@ const ARCHIVE_MIMES = [
   "application/vnd.rar",
 ];
 
-// Security gate: only these two families ever get a renderable (non-download) URL — everything else stays a forced download.
-// image: an <img> is a script-free context, even for SVG. pdf: an <iframe> isn't, but Content-Type is pinned to application/pdf at upload, so HTML served here won't execute.
+// Security gate: only these get a renderable (non-download) URL, matching the
+// server's canRenderInline. Not "image/*": the preview is a blob URL with this
+// app's origin, and an SVG opened from it in its own tab runs its script. pdf:
+// an <iframe> isn't script-free, but the server only stores application/pdf
+// for bytes that start %PDF-.
 export type PreviewKind = "image" | "pdf" | "none";
+
+const PREVIEW_IMAGES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
 
 export function previewKind(mimeType: string): PreviewKind {
   const mime = mimeType.toLowerCase();
 
-  if (mime.startsWith("image/")) return "image";
+  if (PREVIEW_IMAGES.includes(mime)) return "image";
   if (mime === "application/pdf") return "pdf";
 
   return "none";
