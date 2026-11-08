@@ -1,8 +1,18 @@
 # UI audit tracker, 2026-11-06
 
-The A1 audit of the UI quality pass, on the local branch `feature/ui-quality-pass-2026-11`
-(base `1b6e53f`, which production runs). Nothing is pushed or deployed. The summary of the whole
-pass is at the end of `AUTONOMOUS_ENGINEERING_PROGRESS.md`.
+The A1 audit of the UI quality pass, done on the branch `feature/ui-quality-pass-2026-11` on top
+of `1b6e53f`, which production ran at the time. The summary of the whole pass is at the end of
+`AUTONOMOUS_ENGINEERING_PROGRESS.md`.
+
+**Release status.** The pass is merged into `main` as PR #2 (merge commit `61cbb2f`, after PR #1,
+`3b21882`). Production's frontend has run `61cbb2f` since 2026-11-08 07:55 UTC. The release was
+frontend-only: the frontend container alone was recreated, from an image built off the server, and
+the backend, PostgreSQL, Redis and MinIO containers were not touched, so the backend still runs the
+`1b6e53f` image and no migration ran. Every production gate passed: server health and the existing
+backups before the change, a fresh backup checked by an isolated restore, a rollback image tagged
+`todo-app-frontend:rollback-1b6e53f`, all 228 live bundle files byte-identical to the `61cbb2f`
+build, the security headers, and smoke tests of files, the board UI (Fixed and Flexible columns,
+the sidebar, every view) and realtime across two sessions.
 
 ## How it was audited
 
