@@ -196,9 +196,7 @@ export default function KanbanBoard() {
   }
 
   // sprintsPending still gates loading — without it a card in the running sprint flickers out of its column for a frame.
-  if (isLoading || sprintsPending) {
-    return <ViewSkeleton mode="board" flexible={flexible} />;
-  }
+  if (isLoading || sprintsPending) return <ViewSkeleton mode="board" />;
 
   if (error) return <ViewError error={error} />;
 

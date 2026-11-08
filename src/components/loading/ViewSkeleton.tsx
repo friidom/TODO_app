@@ -5,6 +5,7 @@ import { useSearchParams } from "react-router";
 import { COLUMN_WIDTH, FLEX_COLUMN } from "@/components/columns/columnChrome";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useBoardId } from "@/hooks/useBoardId";
+import { useBoardViewPrefs } from "@/hooks/useBoardViewPrefs";
 import { isViewMode, type ViewMode } from "@/services/views/registry";
 import { defaultViewOf } from "@/services/views/tabs";
 import { useDefaultViews } from "@/stores/defaultView";
@@ -39,7 +40,9 @@ const textWidth = (seed: number, min = 45, spread = 40) =>
 
 const BOARD_CARDS = [3, 2, 4, 1];
 
-function BoardSkeleton({ flexible }: { flexible: boolean }) {
+function BoardSkeleton() {
+  const flexible = useBoardViewPrefs().prefs.columnSize === "flexible";
+
   return (
     <SkeletonRegion className="flex h-full gap-3 overflow-hidden pb-4">
       {BOARD_CARDS.map((count, column) => (
@@ -180,14 +183,8 @@ function TimelineSkeleton() {
   );
 }
 
-export default function ViewSkeleton({
-  mode,
-  flexible = false,
-}: {
-  mode: ViewMode;
-  flexible?: boolean;
-}) {
-  if (mode === "board") return <BoardSkeleton flexible={flexible} />;
+export default function ViewSkeleton({ mode }: { mode: ViewMode }) {
+  if (mode === "board") return <BoardSkeleton />;
   if (mode === "summary") return <SummarySkeleton />;
   if (mode === "calendar") return <CalendarSkeleton />;
   if (mode === "timeline") return <TimelineSkeleton />;
